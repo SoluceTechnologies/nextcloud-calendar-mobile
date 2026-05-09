@@ -1,0 +1,112 @@
+name: Auto Release & Publish
+
+on:
+  pull_request_target:
+    types: [ closed ]
+    branches:
+      - main
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+
+  check-skip:
+    runs-on: ubuntu-latest
+    outputs:
+      skip: ${{ steps.set-skip.outputs.skip }}
+    steps:
+      - name: Determine if release should be skipped
+        id: set-skip
+        run: |
+          TITLE="${{ github.event.pull_request.title }}"
+          echo "PR title: $TITLE"
+
+          if [[ "$TITLE" == *"[skip-release]"* ]]; then
+            echo "PR title contains [skip-release], skipping release jobs."
+            echo "skip=true" >> $GITHUB_OUTPUT
+          else
+            echo "skip=false" >> $GITHUB_OUTPUT
+          fi
+
+  create-release:
+    needs: check-skip
+    if: ${{ needs.check-skip.outputs.skip == 'false' }}
+    runs-on: ubuntu-latest
+    outputs:
+      draft_tag: ${{ steps.release_step.outputs.draft_tag }}
+      version: ${{ steps.release_step.outputs.version }}
+    steps:
+      - uses: actions/create-github-app-token@v1
+        id: app-token
+        with:
+          app-id: ${{ vars.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ steps.app-token.outputs.token }}
+          ref: main
+
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "lts/*"
+          cache: "pnpm"
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+
+
+      - name: Run release-it
+        id: release_step
+        run: |
+          git pull origin main
+          
+          VERSION=$(pnpm exec release-it --ci --release-version)
+          echo $VERSION
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          
+          OUTPUT=$(pnpm exec release-it --ci)
+          echo "$OUTPUT"
+          
+          DRAFT_TAG=$(echo "$OUTPUT" | grep -oE 'untagged-[a-z0-9]+')
+          echo $DRAFT_TAG
+          echo "draft_tag=$DRAFT_TAG" >> $GITHUB_OUTPUT
+        env:
+          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
+
+
+  build-and-publish:
+    needs: create-release
+    if: ${{ needs.create-release.result == 'success' }}
+    uses: ./.github/workflows/expo.yml
+
+
+
+  finalize-release:
+    needs:
+      - create-release
+      - build-and-publish
+    runs-on: ubuntu-latest
+    outputs:
+      release_tag: ${{ steps.publish_release_step.outputs.release_tag }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Publish GitHub Release
+        id: publish_release_step
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          OUTPUT=$(gh release edit ${{ needs.create-release.outputs.draft_tag }} --draft=false)
+          echo "$OUTPUT"
+          RELEASE_TAG=$(echo "$OUTPUT" | sed -E 's|.*/releases/tag/||')
+          echo "release_tag=$RELEASE_TAG" >> $GITHUB_OUTPUT

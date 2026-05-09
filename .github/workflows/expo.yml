@@ -1,0 +1,55 @@
+name: Build & Publish (Expo / EAS)
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        description: "App version being released"
+        required: true
+        type: string
+      ref:
+        description: "Git ref to check out (tag or SHA)"
+        required: true
+        type: string
+      add_latest:
+        description: "Whether this build should be tagged as latest"
+        required: false
+        type: boolean
+        default: false
+    secrets:
+      EXPO_TOKEN:
+        required: true
+
+jobs:
+  build:
+    name: EAS Build (${{ inputs.version }})
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+          fetch-depth: 0
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "lts/*"
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Setup Expo & EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Build & submit on EAS (production)
+#        run: eas build --profile production --platform all --non-interactive --auto-submit
+        run: eas build --profile production --platform ios --non-interactive --auto-submit
