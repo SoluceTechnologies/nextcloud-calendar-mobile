@@ -89,7 +89,8 @@ jobs:
     with:
       version: ${{ needs.create-release.outputs.version }}
       ref: ${{ needs.create-release.outputs.version }}
-
+    secrets:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
 
   finalize-release:
     needs:
