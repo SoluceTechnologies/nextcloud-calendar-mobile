@@ -86,7 +86,9 @@ jobs:
     needs: create-release
     if: ${{ needs.create-release.result == 'success' }}
     uses: ./.github/workflows/expo.yml
-
+    with:
+      version: ${{ needs.create-release.outputs.version }}
+      ref: ${{ needs.create-release.outputs.version }}
 
 
   finalize-release:

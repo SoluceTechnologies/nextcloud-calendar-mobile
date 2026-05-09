@@ -4,18 +4,11 @@ on:
   workflow_call:
     inputs:
       version:
-        description: "App version being released"
         required: true
         type: string
       ref:
-        description: "Git ref to check out (tag or SHA)"
         required: true
         type: string
-      add_latest:
-        description: "Whether this build should be tagged as latest"
-        required: false
-        type: boolean
-        default: false
     secrets:
       EXPO_TOKEN:
         required: true
