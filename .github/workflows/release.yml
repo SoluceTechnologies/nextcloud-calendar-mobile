@@ -50,29 +50,26 @@ jobs:
           token: ${{ steps.app-token.outputs.token }}
           ref: main
 
-      - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
           node-version: "lts/*"
-          cache: "pnpm"
+          cache: "npm"
 
-      - run: pnpm install --frozen-lockfile
+      - run: npm ci
 
       - run: |
           git config --global user.name 'github-actions[bot]'
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
-
 
       - name: Run release-it
         id: release_step
         run: |
           git pull origin main
           
-          VERSION=$(pnpm exec release-it --ci --release-version)
+          VERSION=$(npm exec -- release-it --ci --release-version)
           echo $VERSION
           echo "version=$VERSION" >> $GITHUB_OUTPUT
-          
-          OUTPUT=$(pnpm exec release-it --ci)
+          OUTPUT=$(npm exec -- release-it --ci)
           echo "$OUTPUT"
           
           DRAFT_TAG=$(echo "$OUTPUT" | grep -oE 'untagged-[a-z0-9]+')
