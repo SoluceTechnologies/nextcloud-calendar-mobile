@@ -20,7 +20,13 @@
   },
   "submit": {
     "production": {
-      "ios": {},
+      "ios": {
+        "ascAppId": "$ASC_APP_ID",
+        "ascApiKeyPath": "$ASC_API_KEY_PATH",
+        "ascApiKeyIssuerId": "$ASC_API_KEY_ISSUER_ID",
+        "ascApiKeyId": "$ASC_API_KEY_ID",
+        "appleTeamId": "$APPLE_TEAM_ID"
+      },
       "android": {
         "track": "production"
       }
