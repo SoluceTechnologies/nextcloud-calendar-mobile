@@ -10,9 +10,10 @@ authors:
 repository-code: https://github.com/SoluceTechnologies/nextcloud-calendar-mobile
 url: https://soluce-technologies.com
 abstract: >-
-  Nextcloud Calendar Mobile brings your Nextcloud calendars natively to iOS and Android.
-  It connects directly to your Nextcloud instance via the CalDAV protocol, supporting multiple accounts,
-  rich event management, and deep Nextcloud integration, including Talk room creation per event.
+  Nextcloud Calendar Mobile brings your Nextcloud calendars natively to iOS and
+  Android. It connects directly to your Nextcloud instance via the CalDAV
+  protocol, supporting multiple accounts, rich event management, and deep
+  Nextcloud integration, including Talk room creation per event.
 keywords:
   - mobile
   - react-native
@@ -20,5 +21,5 @@ keywords:
   - nextcloud
   - calendar
 license: Apache-2.0
-version: 1.0.0
+version: 1.0.1
 date-released: '2026-05-09'

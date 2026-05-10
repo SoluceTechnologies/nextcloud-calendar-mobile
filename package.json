@@ -1,6 +1,6 @@
 {
   "name": "nextcloud-calendar",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "main": "expo-router/entry",
   "scripts": {
     "start": "expo start",
@@ -9,7 +9,6 @@
     "web": "expo start --web",
     "test": "jest",
     "release": "release-it"
-
   },
   "dependencies": {
     "@expo/metro-runtime": "~55.0.11",
