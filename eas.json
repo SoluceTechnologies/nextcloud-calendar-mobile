@@ -21,11 +21,10 @@
   "submit": {
     "production": {
       "ios": {
-        "ascAppId": "$ASC_APP_ID",
-        "ascApiKeyPath": "$ASC_API_KEY_PATH",
-        "ascApiKeyIssuerId": "$ASC_API_KEY_ISSUER_ID",
-        "ascApiKeyId": "$ASC_API_KEY_ID",
-        "appleTeamId": "$APPLE_TEAM_ID"
+        "ascAppId": "6766678698",
+        "ascApiKeyIssuerId": "0ff07eda-0593-4dfe-b1e9-75f0d76acb97",
+        "ascApiKeyId": "684VV996B8",
+        "appleTeamId": "M4HUX42J7K"
       },
       "android": {
         "track": "production"
