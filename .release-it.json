@@ -47,11 +47,17 @@
       }
     },
     "@release-it/bumper": {
-      "out": {
-        "file": "CITATION.cff",
-        "path": "version",
-        "type": "text/yaml"
-      }
+      "out": [
+        {
+          "file": "CITATION.cff",
+          "path": "version",
+          "type": "text/yaml"
+        },
+        {
+          "file": "app.json",
+          "path": "expo.version"
+        }
+      ]
     }
   }
 }
