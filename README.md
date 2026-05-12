@@ -5,9 +5,9 @@
     <img src="/.github/assets/banner.png" alt="Banner">
   </a>
 
-# Nextcloud Calendar Mobile
+# Nextcloud Calendar Mobile (unofficial)
 
-A native mobile calendar client for Nextcloud, built with React Native & Expo.
+A mobile calendar client for Nextcloud, built with React Native & Expo.
 
 [![React Native](https://img.shields.io/badge/React%20Native-0.83-61DAFB?logo=react&logoColor=white)](https://reactnative.dev)
 [![Expo](https://img.shields.io/badge/Expo-55-000020?logo=expo&logoColor=white)](https://expo.dev)
@@ -44,7 +44,7 @@ Use in production at your own discretion, and pin to a specific commit or tag if
 ## 📥 Download
 
 <p >
-  <a href="#">
+  <a href="https://apps.apple.com/app/nextcloud-calendar/id6766678698">
     <img src="https://developer.apple.com/assets/elements/badges/download-on-the-app-store.svg" alt="Download on the App Store" height="46" />
   </a>
   &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;

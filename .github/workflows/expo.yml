@@ -43,4 +43,3 @@ jobs:
 
       - name: Build & submit on EAS (production)
         run: eas build --profile production --platform all --non-interactive --auto-submit
-#        run: eas build --profile production --platform ios --non-interactive --auto-submit
