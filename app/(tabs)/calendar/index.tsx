@@ -14,7 +14,7 @@ import dayjs from 'dayjs';
 import isoWeek from 'dayjs/plugin/isoWeek';
 import { useAppStore } from '@/store/appStore';
 import { useCalendars } from '@/hooks/useCalendars';
-import { useTheme } from '@/hooks/useTheme';
+import { useTheme, getContrastColor } from '@/hooks/useTheme';
 import { FixedCalendarHeader } from '@/components/CalendarHeader';
 import { CalendarDrawer } from '@/components/CalendarDrawer';
 import { loadAccounts } from '@/api/auth';
@@ -166,6 +166,8 @@ export default function CalendarScreen() {
     const timeSize = Math.round(9 + scale * 2);
     const pad = Math.round(2 + scale * 4);
     const color = event.color ?? theme.primary;
+    const textColor = getContrastColor(color);
+    const subTextColor = textColor === '#ffffff' ? 'rgba(255,255,255,0.85)' : 'rgba(0,0,0,0.7)';
     const durationMin = dayjs(event.end).diff(event.start, 'minute');
 
     const { key: eventKey, ...touchableProps } = touchableOpacityProps;
@@ -198,15 +200,15 @@ export default function CalendarScreen() {
         ]}
       >
         {durationMin < 30 ? (
-          <Text style={{ fontSize: titleSize, color: '#fff', fontWeight: '600' }} numberOfLines={1}>
+          <Text style={{ fontSize: titleSize, color: textColor, fontWeight: '600' }} numberOfLines={1}>
             {event.title}
           </Text>
         ) : (
           <>
-            <Text style={{ fontSize: titleSize, color: '#fff', fontWeight: '600' }} numberOfLines={2}>
+            <Text style={{ fontSize: titleSize, color: textColor, fontWeight: '600' }} numberOfLines={2}>
               {event.title}
             </Text>
-            <Text style={{ fontSize: timeSize, color: 'rgba(255,255,255,0.85)' }} numberOfLines={1}>
+            <Text style={{ fontSize: timeSize, color: subTextColor }} numberOfLines={1}>
               {dayjs(event.start).format('H:mm')}–{dayjs(event.end).format('H:mm')}
             </Text>
           </>
@@ -337,7 +339,7 @@ export default function CalendarScreen() {
         style={[styles.fab, { backgroundColor: theme.primary, bottom: 16 }]}
         onPress={() => router.push('/event/new')}
       >
-        <Text style={styles.fabIcon}>+</Text>
+        <Text style={[styles.fabIcon, { color: getContrastColor(theme.primary) }]}>+</Text>
       </TouchableOpacity>
 
       {drawerOpen && (

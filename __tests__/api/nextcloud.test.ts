@@ -1,5 +1,5 @@
 // __tests__/api/nextcloud.test.ts
-import { fetchUserInfo } from '../../src/api/nextcloud';
+import { fetchUserInfo, fetchThemingCapabilities, updateUserPrimaryColor } from '../../src/api/nextcloud';
 import type { Account } from '../../src/types';
 
 const account: Account = {
@@ -63,5 +63,62 @@ describe('fetchUserInfo', () => {
     });
     const result = await fetchUserInfo(account);
     expect(result).toEqual({ timezone: '', email: '' });
+  });
+});
+
+describe('fetchThemingCapabilities', () => {
+  it('returns color and userEditable from capabilities', async () => {
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        ocs: {
+          data: {
+            capabilities: {
+              theming: {
+                color: '#ff0000',
+                user_editable: true,
+              },
+            },
+          },
+        },
+      }),
+    });
+
+    const result = await fetchThemingCapabilities(account);
+
+    expect(result).toEqual({ color: '#ff0000', userEditable: true });
+    expect(mockFetch).toHaveBeenCalledWith(
+      'https://cloud.example.com/ocs/v2.php/cloud/capabilities',
+      expect.any(Object)
+    );
+  });
+
+  it('returns default color and false editable on failure', async () => {
+    mockFetch.mockResolvedValue({ ok: false });
+    const result = await fetchThemingCapabilities(account);
+    expect(result).toEqual({ color: '#0082c9', userEditable: false });
+  });
+});
+
+describe('updateUserPrimaryColor', () => {
+  it('sends PUT request with color value', async () => {
+    mockFetch.mockResolvedValue({ ok: true });
+
+    const result = await updateUserPrimaryColor(account, '#00ff00');
+
+    expect(result).toBe(true);
+    expect(mockFetch).toHaveBeenCalledWith(
+      'https://cloud.example.com/ocs/v2.php/cloud/users/john/setting/theming/color',
+      expect.objectContaining({
+        method: 'PUT',
+        body: 'value=%2300ff00',
+      })
+    );
+  });
+
+  it('returns false on error', async () => {
+    mockFetch.mockRejectedValue(new Error('fail'));
+    const result = await updateUserPrimaryColor(account, '#00ff00');
+    expect(result).toBe(false);
   });
 });

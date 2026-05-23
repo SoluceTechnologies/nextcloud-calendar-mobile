@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity } from 'react-native';
 import type { CalendarHeaderProps, ICalendarEventBase, Mode } from 'react-native-big-calendar';
 import dayjs from 'dayjs';
 import isoWeek from 'dayjs/plugin/isoWeek';
-import { useTheme } from '@/hooks/useTheme';
+import { useTheme, getContrastColor } from '@/hooks/useTheme';
 
 dayjs.extend(isoWeek);
 
@@ -58,7 +58,7 @@ export function FixedCalendarHeader<T extends ICalendarEventBase>({
                 { alignSelf: 'center', alignItems: 'center', justifyContent: 'center', marginBottom: 6 },
                 isHighlight && { width: 36, height: 36, borderRadius: 18, backgroundColor: theme.primary, marginBottom: 0 },
               ]}>
-                <Text style={{ fontSize: 20, textAlign: 'center', color: isHighlight ? '#fff' : theme.text }}>
+                <Text style={{ fontSize: 20, textAlign: 'center', color: isHighlight ? getContrastColor(theme.primary) : theme.text }}>
                   {date.format('D')}
                 </Text>
               </View>
@@ -73,6 +73,7 @@ export function FixedCalendarHeader<T extends ICalendarEventBase>({
                   })
                   .map((event, index) => {
                     const evStyle = typeof allDayEventCellStyle === 'function' ? allDayEventCellStyle(event) : (allDayEventCellStyle ?? {});
+                    const eventColor = (evStyle as any)?.backgroundColor || theme.primary;
                     return (
                       <TouchableOpacity
                         key={index}
@@ -80,7 +81,7 @@ export function FixedCalendarHeader<T extends ICalendarEventBase>({
                         onPress={() => onPressEvent?.(event)}
                         {...allDayEventCellAccessibilityProps}
                       >
-                        <Text style={{ fontSize: 12, color: allDayEventCellTextColor || '#fff' }} numberOfLines={1}>
+                        <Text style={{ fontSize: 12, color: allDayEventCellTextColor || getContrastColor(eventColor) }} numberOfLines={1}>
                           {event.title}
                         </Text>
                       </TouchableOpacity>

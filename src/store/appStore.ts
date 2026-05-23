@@ -13,6 +13,10 @@ interface AppState {
   themePreference: ThemePreference;
   hourRowHeight: number;
   weekStartsOn: 0 | 1;
+  primaryColor: string | null;
+  primaryText: string | null;
+  canChangeColor: boolean;
+  logoUrl: string | null;
   setActiveAccountId: (id: string | null) => void;
   setViewMode: (mode: ViewMode) => void;
   setSelectedDate: (date: Date | null) => void;
@@ -20,6 +24,7 @@ interface AppState {
   setThemePreference: (pref: ThemePreference) => void;
   setHourRowHeight: (h: number) => void;
   setWeekStartsOn: (v: 0 | 1) => void;
+  setTheming: (color: string | null, text: string | null, canChange: boolean, logo: string | null) => void;
 }
 
 export const useAppStore = create<AppState>()(
@@ -32,6 +37,10 @@ export const useAppStore = create<AppState>()(
       themePreference: 'system',
       hourRowHeight: 60,
       weekStartsOn: 0,
+      primaryColor: null,
+      primaryText: null,
+      canChangeColor: false,
+      logoUrl: null,
       setActiveAccountId: (id) => set({ activeAccountId: id }),
       setViewMode: (mode) => set({ viewMode: mode }),
       setSelectedDate: (date) => set({ selectedDate: date }),
@@ -46,6 +55,7 @@ export const useAppStore = create<AppState>()(
       setThemePreference: (pref) => set({ themePreference: pref }),
       setHourRowHeight: (h) => set({ hourRowHeight: h }),
       setWeekStartsOn: (v) => set({ weekStartsOn: v }),
+      setTheming: (color, text, canChange, logo) => set({ primaryColor: color, primaryText: text, canChangeColor: canChange, logoUrl: logo }),
     }),
     {
       name: 'app-store',
@@ -57,6 +67,10 @@ export const useAppStore = create<AppState>()(
         themePreference: state.themePreference,
         hourRowHeight: state.hourRowHeight,
         weekStartsOn: state.weekStartsOn,
+        primaryColor: state.primaryColor,
+        primaryText: state.primaryText,
+        canChangeColor: state.canChangeColor,
+        logoUrl: state.logoUrl,
       }),
     }
   )

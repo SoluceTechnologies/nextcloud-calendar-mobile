@@ -12,7 +12,7 @@ import { validateCredentials } from '@/api/caldav';
 import { saveAccount, setActiveAccountId } from '@/api/auth';
 import { fetchUserInfo } from '@/api/nextcloud';
 import { useAppStore } from '@/store/appStore';
-import { useTheme } from '@/hooks/useTheme';
+import { useTheme, getContrastColor } from '@/hooks/useTheme';
 import type { Account } from '@/types';
 
 export default function SetupScreen() {
@@ -145,7 +145,13 @@ export default function SetupScreen() {
             onPress={handleAdd}
             disabled={loading}
           >
-            {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Connect</Text>}
+            {loading ? (
+              <ActivityIndicator color={getContrastColor(theme.primary)} />
+            ) : (
+              <Text style={[styles.buttonText, { color: getContrastColor(theme.primary) }]}>
+                Connect
+              </Text>
+            )}
           </TouchableOpacity>
 
           <Text style={[styles.hint, { color: theme.textTertiary }]}>

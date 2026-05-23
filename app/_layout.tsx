@@ -1,15 +1,20 @@
-import { QueryClient } from '@tanstack/react-query';
-import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
-import { createAsyncStoragePersister } from '@tanstack/query-async-storage-persister';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Stack, useRouter } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
-import * as SplashScreen from 'expo-splash-screen';
-import { useEffect } from 'react';
-import { useColorScheme } from 'react-native';
-import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { loadAccounts, getActiveAccountId, setActiveAccountId } from '@/api/auth';
-import { useAppStore } from '@/store/appStore';
+import { QueryClient } from "@tanstack/react-query";
+import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
+import { createAsyncStoragePersister } from "@tanstack/query-async-storage-persister";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Stack, useRouter } from "expo-router";
+import { StatusBar } from "expo-status-bar";
+import * as SplashScreen from "expo-splash-screen";
+import { useEffect } from "react";
+import { useColorScheme } from "react-native";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
+import {
+  loadAccounts,
+  getActiveAccountId,
+  setActiveAccountId,
+} from "@/api/auth";
+import { fetchThemingCapabilities } from "@/api/nextcloud";
+import { useAppStore } from "@/store/appStore";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -18,7 +23,7 @@ const queryClient = new QueryClient({
     queries: {
       staleTime: 5 * 60 * 1000,
       gcTime: 7 * 24 * 60 * 60 * 1000,
-      networkMode: 'offlineFirst',
+      networkMode: "offlineFirst",
       retry: 1,
     },
   },
@@ -26,7 +31,7 @@ const queryClient = new QueryClient({
 
 const asyncStoragePersister = createAsyncStoragePersister({
   storage: AsyncStorage,
-  key: 'rq-cache',
+  key: "rq-cache",
   throttleTime: 3000,
 });
 
@@ -34,26 +39,38 @@ function ThemedStatusBar() {
   const systemScheme = useColorScheme();
   const themePreference = useAppStore((s) => s.themePreference);
   const resolved =
-    themePreference === 'system' ? (systemScheme ?? 'light') : themePreference;
-  return <StatusBar style={resolved === 'dark' ? 'light' : 'dark'} />;
+    themePreference === "system" ? (systemScheme ?? "light") : themePreference;
+  return <StatusBar style={resolved === "dark" ? "light" : "dark"} />;
 }
 
 export default function RootLayout() {
   const router = useRouter();
   const setStoreAccountId = useAppStore((s) => s.setActiveAccountId);
+  const setTheming = useAppStore((s) => s.setTheming);
 
   useEffect(() => {
     (async () => {
       try {
         const accounts = await loadAccounts();
-        queryClient.setQueryData(['accounts'], accounts);
+        queryClient.setQueryData(["accounts"], accounts);
         if (accounts.length === 0) {
-          router.replace('/(auth)/setup');
+          router.replace("/(auth)/setup");
         } else {
           const activeId = await getActiveAccountId();
           const id = activeId ?? accounts[0].id;
           await setActiveAccountId(id);
           setStoreAccountId(id);
+
+          const account = accounts.find((a) => a.id === id);
+          if (account) {
+            const caps = await fetchThemingCapabilities(account);
+            setTheming(
+              caps.color,
+              caps.colorText,
+              caps.userEditable,
+              caps.logo,
+            );
+          }
         }
       } finally {
         await SplashScreen.hideAsync();

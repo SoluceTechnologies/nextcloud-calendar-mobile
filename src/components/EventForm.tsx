@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import dayjs from 'dayjs';
-import { useTheme } from '@/hooks/useTheme';
+import { useTheme, getContrastColor } from '@/hooks/useTheme';
 import { TalkToggle } from './TalkToggle';
 import type { CalendarMeta, Attendee, CreateEventInput } from '@/types';
 
@@ -116,11 +116,13 @@ export function EventForm({
             onPress={() => !disableCalendarChange && setCalendarId(cal.id)}
             disabled={disableCalendarChange}
           >
-            <Text style={[
-              styles.calChipText,
-              { color: theme.textSecondary },
-              calendarId === cal.id && { color: '#fff' },
-            ]}>
+            <Text
+              style={[
+                styles.calChipText,
+                { color: theme.textSecondary },
+                calendarId === cal.id && { color: getContrastColor(cal.color) },
+              ]}
+            >
               {cal.displayName}
             </Text>
           </TouchableOpacity>
@@ -206,8 +208,18 @@ export function EventForm({
           onSubmitEditing={addAttendee}
           onFocus={() => scrollRef.current?.scrollToEnd({ animated: true })}
         />
-        <TouchableOpacity style={[styles.addBtn, { backgroundColor: theme.primary }]} onPress={addAttendee}>
-          <Text style={styles.addBtnText}>Add</Text>
+        <TouchableOpacity
+          style={[styles.addBtn, { backgroundColor: theme.primary }]}
+          onPress={addAttendee}
+        >
+          <Text
+            style={[
+              styles.addBtnText,
+              { color: getContrastColor(theme.primary) },
+            ]}
+          >
+            Add
+          </Text>
         </TouchableOpacity>
       </View>
       {attendees.map((att) => (
@@ -224,11 +236,22 @@ export function EventForm({
       {error && <Text style={[styles.error, { color: theme.danger }]}>{error}</Text>}
 
       <TouchableOpacity
-        style={[styles.saveBtn, { backgroundColor: theme.primary }, loading && styles.saveBtnDisabled]}
+        style={[
+          styles.saveBtn,
+          { backgroundColor: theme.primary },
+          loading && styles.saveBtnDisabled,
+        ]}
         onPress={handleSubmit}
         disabled={loading}
       >
-        <Text style={styles.saveBtnText}>{loading ? 'Saving…' : submitLabel}</Text>
+        <Text
+          style={[
+            styles.saveBtnText,
+            { color: getContrastColor(theme.primary) },
+          ]}
+        >
+          {loading ? "Saving…" : submitLabel}
+        </Text>
       </TouchableOpacity>
     </ScrollView>
   );
