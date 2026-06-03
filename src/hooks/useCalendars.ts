@@ -5,9 +5,11 @@ import type { Account } from '@/types';
 export function useCalendars(account: Account | null) {
   return useQuery({
     queryKey: [account?.id, 'calendars'],
-    queryFn: () => fetchCalendars(account!),
+    queryFn: () => {
+      return fetchCalendars(account!);
+    },
     enabled: account !== null,
     staleTime: 0,
-    refetchInterval: 5_000,
+    refetchInterval: 60_000,
   });
 }

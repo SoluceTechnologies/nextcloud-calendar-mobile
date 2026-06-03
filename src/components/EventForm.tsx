@@ -85,7 +85,8 @@ export function EventForm({
     if (Platform.OS === 'android') {
       setAndroidStep({ target: 'start', step: 'date' });
     } else {
-      setShowStartPicker(true);
+      setShowEndPicker(false);
+      setShowStartPicker((v) => !v);
     }
   }
 
@@ -93,17 +94,17 @@ export function EventForm({
     if (Platform.OS === 'android') {
       setAndroidStep({ target: 'end', step: 'date' });
     } else {
-      setShowEndPicker(true);
+      setShowStartPicker(false);
+      setShowEndPicker((v) => !v);
     }
   }
 
   function handleIosStartChange(_: any, d?: Date) {
-    setShowStartPicker(false);
+    // Keep picker open — onChange fires while scrolling; user taps button again to dismiss
     if (d) setDtstart(d);
   }
 
   function handleIosEndChange(_: any, d?: Date) {
-    setShowEndPicker(false);
     if (d) setDtend(d);
   }
 

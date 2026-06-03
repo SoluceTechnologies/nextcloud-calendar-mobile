@@ -113,9 +113,10 @@ export async function fetchCalendars(account: Account): Promise<CalendarMeta[]> 
     // Subscribed/external calendars and shared read-only calendars won't have these.
     // If the privilege set is absent (older server), assume writable.
     const hasPrivilegeSet = chunk.includes('current-user-privilege-set');
+    const hasAll = chunk.includes('<d:all');
     const hasWrite = chunk.includes('<d:write') || chunk.includes('<d:write/>');
     const hasBind = chunk.includes('<d:bind') || chunk.includes('<d:bind/>');
-    const isReadOnly = hasPrivilegeSet && !hasWrite && !hasBind;
+    const isReadOnly = hasPrivilegeSet && !hasAll && !hasWrite && !hasBind;
 
     calendars.push({
       id: calFullUrl,

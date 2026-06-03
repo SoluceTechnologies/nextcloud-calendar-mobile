@@ -83,6 +83,22 @@ export default function CalendarScreen() {
     [commitZoom]
   );
 
+  const navigateMonth = useCallback((dir: 1 | -1) => {
+    setDate((d) => dayjs(d).add(dir, 'month').toDate());
+  }, []);
+
+  const monthSwipeGesture = useMemo(
+    () =>
+      Gesture.Pan()
+        .activeOffsetX([-30, 30])
+        .failOffsetY([-15, 15])
+        .onEnd((e) => {
+          if (e.translationX < -50) runOnJS(navigateMonth)(1);
+          else if (e.translationX > 50) runOnJS(navigateMonth)(-1);
+        }),
+    [navigateMonth]
+  );
+
   const [date, setDate] = useState(new Date());
   const [drawerOpen, setDrawerOpen] = useState(false);
   const drawerAnim = useRef(new Animated.Value(-DRAWER_WIDTH)).current;
@@ -112,10 +128,10 @@ export default function CalendarScreen() {
     queryKey: [activeAccountId, 'events', visibleCalendars.map((c) => c.id), start.toISOString(), end.toISOString()],
     queryFn: async () => {
       if (!activeAccount || visibleCalendars.length === 0) return [];
-      const results = await Promise.all(
+      const results = await Promise.allSettled(
         visibleCalendars.map((cal) => fetchEvents(activeAccount, cal, start, end))
       );
-      return results.flat();
+      return results.flatMap((r) => r.status === 'fulfilled' ? r.value : []);
     },
     enabled: activeAccount !== null && visibleCalendars.length > 0,
     staleTime: Infinity,
@@ -134,7 +150,8 @@ export default function CalendarScreen() {
       queryClient.prefetchQuery({
         queryKey: [activeAccountId, 'events', visibleCalendars.map((c) => c.id), adjStart.toISOString(), adjEnd.toISOString()],
         queryFn: () =>
-          Promise.all(visibleCalendars.map((cal) => fetchEvents(activeAccount, cal, adjStart, adjEnd))).then((r) => r.flat()),
+          Promise.allSettled(visibleCalendars.map((cal) => fetchEvents(activeAccount, cal, adjStart, adjEnd)))
+            .then((results) => results.flatMap((r) => r.status === 'fulfilled' ? r.value : [])),
         staleTime: Infinity,
       });
     };
@@ -310,14 +327,18 @@ export default function CalendarScreen() {
       </SafeAreaView>
 
       {viewMode === 'month' ? (
-        <MonthDayView
-          date={date}
-          events={allEvents}
-          weekStartsOn={weekStartsOn}
-          onSelectDate={setDate}
-          onPressEvent={handlePressEventFromMonth}
-          onPressCell={handlePressCell}
-        />
+        <GestureDetector gesture={monthSwipeGesture}>
+          <View style={{ flex: 1 }}>
+            <MonthDayView
+              date={date}
+              events={allEvents}
+              weekStartsOn={weekStartsOn}
+              onSelectDate={setDate}
+              onPressEvent={handlePressEventFromMonth}
+              onPressCell={handlePressCell}
+            />
+          </View>
+        </GestureDetector>
       ) : (
         <GestureDetector gesture={pinchGesture}>
           <View style={styles.calendarWrapper}>
