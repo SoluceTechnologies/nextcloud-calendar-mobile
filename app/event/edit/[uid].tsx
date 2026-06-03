@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { View, StyleSheet, Text, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import dayjs from 'dayjs';
 import { loadAccounts } from '@/api/auth';
 import { fetchEvents } from '@/api/caldav';
@@ -11,22 +11,37 @@ import { useUpdateEvent } from '@/hooks/useMutateEvent';
 import { useAppStore } from '@/store/appStore';
 import { useTheme } from '@/hooks/useTheme';
 import { EventForm } from '@/components/EventForm';
-import type { CalendarEvent, CreateEventInput } from '@/types';
+import { normalizeEvent, normalizeEvents } from '@/utils/normalizeEvent';
+import type { CalendarEvent, CreateEventInput, RecurrenceEditScope } from '@/types';
 
 export default function EditEventScreen() {
-  const { uid } = useLocalSearchParams<{ uid: string }>();
+  const { uid, scope: scopeParam } = useLocalSearchParams<{ uid: string; scope?: string }>();
   const router = useRouter();
   const theme = useTheme();
   const activeAccountId = useAppStore((s) => s.activeAccountId);
+  const queryClient = useQueryClient();
 
   const { data: accounts } = useQuery({ queryKey: ['accounts'], queryFn: loadAccounts });
   const activeAccount = accounts?.find((a) => a.id === activeAccountId) ?? null;
   const { data: calendars = [] } = useCalendars(activeAccount);
 
+  // Try cache first (same strategy as detail screen)
+  const cachedEvent = useMemo((): CalendarEvent | undefined => {
+    const allCached = queryClient.getQueriesData<CalendarEvent[]>({
+      queryKey: [activeAccountId, 'events'],
+    });
+    for (const [, data] of allCached) {
+      if (!Array.isArray(data)) continue;
+      const found = data.find((e) => e.uid === uid);
+      if (found) return normalizeEvent(found);
+    }
+    return undefined;
+  }, [queryClient, activeAccountId, uid]);
+
   const start = useMemo(() => dayjs().subtract(6, 'months').toDate(), []);
   const end = useMemo(() => dayjs().add(6, 'months').toDate(), []);
 
-  const { data: allEvents = [], isLoading: eventsLoading } = useQuery<CalendarEvent[]>({
+  const { data: fetchedEvents = [], isLoading: eventsLoading } = useQuery<CalendarEvent[]>({
     queryKey: [activeAccountId, 'events-detail', start.toISOString(), end.toISOString()],
     queryFn: async () => {
       if (!activeAccount || calendars.length === 0) return [];
@@ -35,25 +50,33 @@ export default function EditEventScreen() {
       );
       return results.flat();
     },
-    enabled: activeAccount !== null && calendars.length > 0,
+    enabled: activeAccount !== null && calendars.length > 0 && cachedEvent === undefined,
     staleTime: 2 * 60 * 1000,
   });
 
-  const event: CalendarEvent | undefined = allEvents.find((e) => e.uid === uid);
+  const event: CalendarEvent | undefined = cachedEvent ?? normalizeEvents(fetchedEvents).find((e) => e.uid === uid);
 
-  const updateMutation = useUpdateEvent(activeAccount!);
+  // Scope passed from the detail screen's recurrence dialog
+  const scope: RecurrenceEditScope =
+    scopeParam === 'this' ? 'this'
+    : scopeParam === 'thisAndFollowing' ? 'thisAndFollowing'
+    : 'all';
+
+  const updateMutation = useUpdateEvent(activeAccount!, calendars);
 
   async function handleSubmit(input: CreateEventInput) {
     if (!activeAccount || !event) return;
     try {
-      await updateMutation.mutateAsync({ event, input });
+      await updateMutation.mutateAsync({ event, input, scope });
       router.back();
     } catch (e: any) {
       Alert.alert('Error', e?.message ?? 'Failed to update event.');
     }
   }
 
-  if (eventsLoading || !activeAccount || calendars.length === 0) {
+  const isLoading = eventsLoading && cachedEvent === undefined;
+
+  if (isLoading || !activeAccount || calendars.length === 0) {
     return (
       <View style={[styles.center, { backgroundColor: theme.background }]}>
         <ActivityIndicator size="large" color={theme.primary} />
@@ -87,13 +110,20 @@ export default function EditEventScreen() {
     attendees: event.attendees,
   };
 
+  const scopeLabel =
+    scope === 'this' ? ' (This Occurrence)'
+    : scope === 'thisAndFollowing' ? ' (This & Following)'
+    : '';
+
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
       <View style={[styles.header, { borderBottomColor: theme.border, backgroundColor: theme.headerBackground }]}>
         <TouchableOpacity onPress={() => router.back()}>
           <Text style={[styles.cancel, { color: theme.primary }]}>Cancel</Text>
         </TouchableOpacity>
-        <Text style={[styles.title, { color: theme.text }]}>Edit Event</Text>
+        <Text style={[styles.title, { color: theme.text }]} numberOfLines={1}>
+          Edit Event{scopeLabel}
+        </Text>
         <View style={styles.spacer} />
       </View>
       <EventForm
@@ -117,7 +147,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1,
   },
-  title: { fontSize: 17, fontWeight: '600' },
-  cancel: { fontSize: 17 },
+  title: { fontSize: 17, fontWeight: '600', flex: 1, textAlign: 'center' },
+  cancel: { fontSize: 17, minWidth: 60 },
   spacer: { width: 60 },
 });

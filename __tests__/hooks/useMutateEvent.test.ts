@@ -39,7 +39,7 @@ describe('useDeleteEvent', () => {
   it('calls deleteEvent with account and event href on mutate', async () => {
     mockDeleteEvent.mockResolvedValue();
     const { result } = renderHook(() => useDeleteEvent(account), { wrapper });
-    await act(async () => { result.current.mutate(event); });
+    await act(async () => { result.current.mutate({ event }); });
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(mockDeleteEvent).toHaveBeenCalledWith(account, event.href);
   });

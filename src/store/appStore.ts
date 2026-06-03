@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import type { ViewMode } from '@/types';
+import type { ViewMode, ServerCapabilities } from '@/types';
 
 export type ThemePreference = 'system' | 'light' | 'dark';
 
@@ -13,6 +13,7 @@ interface AppState {
   themePreference: ThemePreference;
   hourRowHeight: number;
   weekStartsOn: 0 | 1;
+  capabilities: ServerCapabilities;
   setActiveAccountId: (id: string | null) => void;
   setViewMode: (mode: ViewMode) => void;
   setSelectedDate: (date: Date | null) => void;
@@ -20,6 +21,7 @@ interface AppState {
   setThemePreference: (pref: ThemePreference) => void;
   setHourRowHeight: (h: number) => void;
   setWeekStartsOn: (v: 0 | 1) => void;
+  setCapabilities: (caps: ServerCapabilities) => void;
 }
 
 export const useAppStore = create<AppState>()(
@@ -32,6 +34,7 @@ export const useAppStore = create<AppState>()(
       themePreference: 'system',
       hourRowHeight: 60,
       weekStartsOn: 0,
+      capabilities: { calendarEnabled: true, talkEnabled: false },
       setActiveAccountId: (id) => set({ activeAccountId: id }),
       setViewMode: (mode) => set({ viewMode: mode }),
       setSelectedDate: (date) => set({ selectedDate: date }),
@@ -46,6 +49,7 @@ export const useAppStore = create<AppState>()(
       setThemePreference: (pref) => set({ themePreference: pref }),
       setHourRowHeight: (h) => set({ hourRowHeight: h }),
       setWeekStartsOn: (v) => set({ weekStartsOn: v }),
+      setCapabilities: (caps) => set({ capabilities: caps }),
     }),
     {
       name: 'app-store',
@@ -57,6 +61,7 @@ export const useAppStore = create<AppState>()(
         themePreference: state.themePreference,
         hourRowHeight: state.hourRowHeight,
         weekStartsOn: state.weekStartsOn,
+        // capabilities intentionally not persisted — re-checked on each startup
       }),
     }
   )

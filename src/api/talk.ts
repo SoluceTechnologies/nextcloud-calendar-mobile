@@ -1,13 +1,25 @@
-import type { Account } from '@/types';
+import type { Account, TalkRoomType } from '@/types';
 
 export interface TalkRoom {
   token: string;
   url: string;
 }
 
-export async function createTalkRoom(account: Account, name: string): Promise<TalkRoom> {
+/**
+ * Nextcloud Talk API roomType values:
+ *   1 = OneToOne   (not used here)
+ *   2 = Group      → invite-only, participants must be added explicitly
+ *   3 = Public     → anyone with the share link can join
+ */
+export async function createTalkRoom(
+  account: Account,
+  name: string,
+  roomType: TalkRoomType = 'private'
+): Promise<TalkRoom> {
   const credentials = btoa(`${account.username}:${account.appPassword}`);
   const endpoint = `${account.baseUrl}/ocs/v2.php/apps/spreed/api/v4/room`;
+
+  const apiRoomType = roomType === 'public' ? 3 : 2;
 
   const response = await fetch(endpoint, {
     method: 'POST',
@@ -17,7 +29,7 @@ export async function createTalkRoom(account: Account, name: string): Promise<Ta
       Accept: 'application/json',
       Authorization: `Basic ${credentials}`,
     },
-    body: JSON.stringify({ roomType: 3, roomName: name }),
+    body: JSON.stringify({ roomType: apiRoomType, roomName: name }),
   });
 
   if (!response.ok) {

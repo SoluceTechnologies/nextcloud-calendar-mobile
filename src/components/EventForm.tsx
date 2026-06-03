@@ -1,13 +1,14 @@
 import { useRef, useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, Switch,
-  StyleSheet, ScrollView,
+  StyleSheet, ScrollView, Platform,
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import dayjs from 'dayjs';
 import { useTheme } from '@/hooks/useTheme';
 import { TalkToggle } from './TalkToggle';
-import type { CalendarMeta, Attendee, CreateEventInput } from '@/types';
+import { RecurrencePicker } from './RecurrencePicker';
+import type { CalendarMeta, Attendee, CreateEventInput, RecurrenceRule, TalkRoomType } from '@/types';
 
 interface InitialValues {
   summary?: string;
@@ -18,6 +19,7 @@ interface InitialValues {
   description?: string;
   location?: string;
   attendees?: Attendee[];
+  rrule?: RecurrenceRule;
 }
 
 interface Props {
@@ -32,6 +34,12 @@ interface Props {
   disableCalendarChange?: boolean;
 }
 
+/**
+ * Android: @react-native-community/datetimepicker does not support mode="datetime".
+ * We use a two-step flow: first pick the date, then pick the time.
+ */
+type AndroidPickerStep = null | { target: 'start' | 'end'; step: 'date' | 'time'; partial?: Date };
+
 export function EventForm({
   calendars, defaultDate, organizerEmail, organizerName, onSubmit, loading,
   initialValues, submitLabel = 'Save Event', disableCalendarChange = false,
@@ -39,10 +47,15 @@ export function EventForm({
   const theme = useTheme();
 
   const [summary, setSummary] = useState(initialValues?.summary ?? '');
+  // Only offer writable calendars for new events; read-only calendars
+  // (external subscriptions, manager-controlled shared calendars) cannot
+  // receive new VEVENTs via PUT.
+  const writableCalendars = calendars.filter((c) => !c.isReadOnly);
+
   const defaultCalendarId =
     initialValues?.calendarId ??
-    calendars.find((c) => c.slug.toLowerCase() === 'personal')?.id ??
-    calendars[0]?.id ?? '';
+    writableCalendars.find((c) => c.slug.toLowerCase() === 'personal')?.id ??
+    writableCalendars[0]?.id ?? '';
   const [calendarId, setCalendarId] = useState(defaultCalendarId);
   const [allDay, setAllDay] = useState(initialValues?.allDay ?? false);
   const [dtstart, setDtstart] = useState(initialValues?.dtstart ?? defaultDate ?? new Date());
@@ -52,11 +65,79 @@ export function EventForm({
   const [description, setDescription] = useState(initialValues?.description ?? '');
   const [location, setLocation] = useState(initialValues?.location ?? '');
   const [withTalkRoom, setWithTalkRoom] = useState(false);
+  const [talkRoomType, setTalkRoomType] = useState<TalkRoomType>('private');
   const [attendeeInput, setAttendeeInput] = useState('');
   const [attendees, setAttendees] = useState<Attendee[]>(initialValues?.attendees ?? []);
+  const [rrule, setRrule] = useState<RecurrenceRule | undefined>(initialValues?.rrule);
+  const [error, setError] = useState<string | null>(null);
+
+  // iOS: simple show/hide booleans
   const [showStartPicker, setShowStartPicker] = useState(false);
   const [showEndPicker, setShowEndPicker] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+
+  // Android: two-step date→time picker state
+  const [androidStep, setAndroidStep] = useState<AndroidPickerStep>(null);
+
+  const scrollRef = useRef<ScrollView>(null);
+  const attendeeFocused = useRef(false);
+
+  function openStartPicker() {
+    if (Platform.OS === 'android') {
+      setAndroidStep({ target: 'start', step: 'date' });
+    } else {
+      setShowStartPicker(true);
+    }
+  }
+
+  function openEndPicker() {
+    if (Platform.OS === 'android') {
+      setAndroidStep({ target: 'end', step: 'date' });
+    } else {
+      setShowEndPicker(true);
+    }
+  }
+
+  function handleIosStartChange(_: any, d?: Date) {
+    setShowStartPicker(false);
+    if (d) setDtstart(d);
+  }
+
+  function handleIosEndChange(_: any, d?: Date) {
+    setShowEndPicker(false);
+    if (d) setDtend(d);
+  }
+
+  function handleAndroidChange(_: any, selected?: Date) {
+    if (!androidStep) return;
+
+    // User pressed Cancel (selected is undefined)
+    if (selected === undefined) {
+      setAndroidStep(null);
+      return;
+    }
+
+    const { target, step } = androidStep;
+
+    if (allDay || step === 'time') {
+      // Final value for both all-day (date only) and second time step
+      const base = step === 'time' && androidStep.partial ? androidStep.partial : selected;
+      let finalDate: Date;
+      if (step === 'time') {
+        // Merge the date from partial with the time from selected
+        const d = new Date(androidStep.partial!);
+        d.setHours(selected.getHours(), selected.getMinutes(), 0, 0);
+        finalDate = d;
+      } else {
+        finalDate = base;
+      }
+      if (target === 'start') setDtstart(finalDate);
+      else setDtend(finalDate);
+      setAndroidStep(null);
+    } else {
+      // Date picked — now pick time
+      setAndroidStep({ target, step: 'time', partial: selected });
+    }
+  }
 
   function addAttendee() {
     const email = attendeeInput.trim();
@@ -76,22 +157,26 @@ export function EventForm({
     setError(null);
     onSubmit({
       summary: summary.trim(), calendarId, dtstart, dtend, allDay,
-      description, location, attendees, withTalkRoom, organizerEmail, organizerName,
+      description, location, attendees, withTalkRoom, talkRoomType,
+      organizerEmail, organizerName, rrule,
     });
   }
 
-  const scrollRef = useRef<ScrollView>(null);
-
   const inputStyle = [styles.input, { backgroundColor: theme.surface, borderColor: theme.border, color: theme.text }];
   const labelStyle = [styles.label, { color: theme.textSecondary }];
+
+  // Determine Android picker mode and value for current step
+  const androidPickerMode = androidStep?.step === 'time' ? 'time' : 'date';
+  const androidPickerValue = androidStep?.step === 'time' && androidStep.partial
+    ? androidStep.partial
+    : androidStep?.target === 'start' ? dtstart : dtend;
 
   return (
     <ScrollView
       ref={scrollRef}
       style={[styles.scroll, { backgroundColor: theme.background }]}
       keyboardShouldPersistTaps="handled"
-      keyboardDismissMode="on-drag"
-      automaticallyAdjustKeyboardInsets
+      keyboardDismissMode="none"
     >
       <Text style={labelStyle}>Title *</Text>
       <TextInput
@@ -103,8 +188,13 @@ export function EventForm({
       />
 
       <Text style={labelStyle}>Calendar</Text>
+      {writableCalendars.length === 0 && (
+        <Text style={[styles.readOnlyNote, { color: theme.warning }]}>
+          No writable calendars available on this account.
+        </Text>
+      )}
       <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-        {calendars.map((cal) => (
+        {writableCalendars.map((cal) => (
           <TouchableOpacity
             key={cal.id}
             style={[
@@ -138,36 +228,53 @@ export function EventForm({
       </View>
 
       <Text style={labelStyle}>Start</Text>
-      <TouchableOpacity style={inputStyle} onPress={() => setShowStartPicker(true)}>
+      <TouchableOpacity style={inputStyle} onPress={openStartPicker}>
         <Text style={{ color: theme.text }}>
           {allDay ? dayjs(dtstart).format('MMM D, YYYY') : dayjs(dtstart).format('MMM D, YYYY h:mm A')}
         </Text>
       </TouchableOpacity>
-      {showStartPicker && (
+
+      {/* iOS inline picker */}
+      {Platform.OS === 'ios' && showStartPicker && (
         <DateTimePicker
           value={dtstart}
           mode={allDay ? 'date' : 'datetime'}
-          onChange={(_, d) => { setShowStartPicker(false); if (d) setDtstart(d); }}
+          onChange={handleIosStartChange}
         />
       )}
 
       {!allDay && (
         <>
           <Text style={labelStyle}>End</Text>
-          <TouchableOpacity style={inputStyle} onPress={() => setShowEndPicker(true)}>
+          <TouchableOpacity style={inputStyle} onPress={openEndPicker}>
             <Text style={{ color: theme.text }}>{dayjs(dtend).format('MMM D, YYYY h:mm A')}</Text>
           </TouchableOpacity>
-          {showEndPicker && (
+          {Platform.OS === 'ios' && showEndPicker && (
             <DateTimePicker
               value={dtend}
               mode="datetime"
-              onChange={(_, d) => { setShowEndPicker(false); if (d) setDtend(d); }}
+              onChange={handleIosEndChange}
             />
           )}
         </>
       )}
 
-      <Text style={labelStyle}>Location</Text>
+      {/* Android dialog picker.
+          The `key` includes the step so React remounts the picker when
+          transitioning from 'date' to 'time' — without this the dialog
+          stays in date mode because the component instance is reused. */}
+      {Platform.OS === 'android' && androidStep !== null && (
+        <DateTimePicker
+          key={`android-picker-${androidStep.target}-${androidStep.step}`}
+          value={androidPickerValue ?? new Date()}
+          mode={androidPickerMode}
+          onChange={handleAndroidChange}
+        />
+      )}
+
+      <RecurrencePicker value={rrule} onChange={setRrule} />
+
+      <Text style={[labelStyle, { marginTop: 16 }]}>Location</Text>
       <TextInput
         style={inputStyle}
         value={location}
@@ -188,13 +295,7 @@ export function EventForm({
       />
 
       <Text style={labelStyle}>Attendees</Text>
-      <View
-        style={styles.attendeeRow}
-        onLayout={(e) => {
-          const y = e.nativeEvent.layout.y;
-          scrollRef.current?.scrollTo({ y: y - 20, animated: true });
-        }}
-      >
+      <View style={styles.attendeeRow}>
         <TextInput
           style={[inputStyle, styles.attendeeInput]}
           value={attendeeInput}
@@ -204,7 +305,13 @@ export function EventForm({
           autoCapitalize="none"
           keyboardType="email-address"
           onSubmitEditing={addAttendee}
-          onFocus={() => scrollRef.current?.scrollToEnd({ animated: true })}
+          onFocus={() => {
+            if (!attendeeFocused.current) {
+              attendeeFocused.current = true;
+              scrollRef.current?.scrollToEnd({ animated: true });
+            }
+          }}
+          onBlur={() => { attendeeFocused.current = false; }}
         />
         <TouchableOpacity style={[styles.addBtn, { backgroundColor: theme.primary }]} onPress={addAttendee}>
           <Text style={styles.addBtnText}>Add</Text>
@@ -219,7 +326,12 @@ export function EventForm({
         </View>
       ))}
 
-      <TalkToggle value={withTalkRoom} onChange={setWithTalkRoom} />
+      <TalkToggle
+        value={withTalkRoom}
+        onChange={setWithTalkRoom}
+        roomType={talkRoomType}
+        onRoomTypeChange={setTalkRoomType}
+      />
 
       {error && <Text style={[styles.error, { color: theme.danger }]}>{error}</Text>}
 
@@ -246,6 +358,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     marginTop: 16, paddingBottom: 8, borderBottomWidth: StyleSheet.hairlineWidth,
   },
+  readOnlyNote: { fontSize: 13, marginBottom: 8 },
   calChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 16, marginRight: 8 },
   calChipText: { fontSize: 14 },
   attendeeRow: { flexDirection: 'row', gap: 8, marginBottom: 8 },
