@@ -49,7 +49,7 @@ describe('createTalkRoom', () => {
           'Content-Type': 'application/json',
           Authorization: expect.stringContaining('Basic '),
         }),
-        body: JSON.stringify({ roomType: 2, roomName: 'My Room' }),
+        body: JSON.stringify({ roomType: 3, roomName: 'My Room' }),
       })
     );
   });

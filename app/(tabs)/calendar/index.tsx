@@ -17,13 +17,11 @@ import { useCalendars } from '@/hooks/useCalendars';
 import { useTheme } from '@/hooks/useTheme';
 import { FixedCalendarHeader } from '@/components/CalendarHeader';
 import { CalendarDrawer } from '@/components/CalendarDrawer';
-import { MonthDayView } from '@/components/MonthDayView';
 import { loadAccounts } from '@/api/auth';
 import { fetchEvents } from '@/api/caldav';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { CalendarEvent, ViewMode } from '@/types';
 import { computeOverlapMap } from '@/utils/overlapMap';
-import { normalizeEvents } from '@/utils/normalizeEvent';
 
 dayjs.extend(isoWeek);
 
@@ -74,39 +72,25 @@ export default function CalendarScreen() {
   const pinchGesture = useMemo(
     () =>
       Gesture.Pinch()
-        .onStart(() => { pinchBase.value = hourRowHeight; })
+        .onStart(() => {
+          pinchBase.value = hourRowHeight;
+        })
         .onUpdate((e) => {
           pendingHeight.value = Math.min(Math.max(Math.round(pinchBase.value * e.scale), 30), 200);
         })
-        .onEnd(() => { runOnJS(commitZoom)(pendingHeight.value); }),
+        .onEnd(() => {
+          runOnJS(commitZoom)(pendingHeight.value);
+        }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [commitZoom]
-  );
-
-  const navigateMonth = useCallback((dir: 1 | -1) => {
-    setDate((d) => dayjs(d).add(dir, 'month').toDate());
-  }, []);
-
-  const monthSwipeGesture = useMemo(
-    () =>
-      Gesture.Pan()
-        .activeOffsetX([-30, 30])
-        .failOffsetY([-15, 15])
-        .onEnd((e) => {
-          if (e.translationX < -50) runOnJS(navigateMonth)(1);
-          else if (e.translationX > 50) runOnJS(navigateMonth)(-1);
-        }),
-    [navigateMonth]
   );
 
   const [date, setDate] = useState(new Date());
   const [drawerOpen, setDrawerOpen] = useState(false);
   const drawerAnim = useRef(new Animated.Value(-DRAWER_WIDTH)).current;
 
-  const year = dayjs(date).year();
-  const month = dayjs(date).month(); // 0-based
-  const start = useMemo(() => new Date(year, month - 1, 1), [year, month]);
-  const end = useMemo(() => new Date(year, month + 2, 0, 23, 59, 59, 999), [year, month]);
+  const start = useMemo(() => dayjs(date).subtract(1, 'month').toDate(), [date]);
+  const end = useMemo(() => dayjs(date).add(1, 'month').toDate(), [date]);
 
   const { data: accounts = [] } = useQuery({ queryKey: ['accounts'], queryFn: loadAccounts });
   const activeAccount = accounts.find((a) => a.id === activeAccountId) ?? null;
@@ -124,63 +108,23 @@ export default function CalendarScreen() {
     prevCtagsRef.current = current;
   }, [calendars, activeAccountId, queryClient]);
 
-  const regularCalendars = visibleCalendars.filter((c) => !c.isSubscribed);
-  const subscribedCalendars = visibleCalendars.filter((c) => c.isSubscribed);
-
-  const { data: rawEvents = [], isLoading: eventsLoading, isFetching: eventsFetching } = useQuery<CalendarEvent[]>({
-    queryKey: [activeAccountId, 'events', regularCalendars.map((c) => c.id), start.toISOString(), end.toISOString()],
+  const { data: allEvents = [], isLoading: eventsLoading, isFetching: eventsFetching } = useQuery<CalendarEvent[]>({
+    queryKey: [activeAccountId, 'events', visibleCalendars.map((c) => c.id), start.toISOString(), end.toISOString()],
     queryFn: async () => {
-      if (!activeAccount || regularCalendars.length === 0) return [];
-      const results = await Promise.allSettled(
-        regularCalendars.map((cal) => fetchEvents(activeAccount, cal, start, end))
+      if (!activeAccount || visibleCalendars.length === 0) return [];
+      const results = await Promise.all(
+        visibleCalendars.map((cal) => fetchEvents(activeAccount, cal, start, end))
       );
-      return results.flatMap((r) => r.status === 'fulfilled' ? r.value : []);
+      return results.flat();
     },
-    enabled: activeAccount !== null && regularCalendars.length > 0,
+    enabled: activeAccount !== null && visibleCalendars.length > 0,
     staleTime: Infinity,
   });
 
-  // Subscribed (external ICS) calendars cached independently — long staleTime so they
-  // survive regular-calendar ctag invalidations without re-fetching the external URL.
-  const { data: subscribedEvents = [] } = useQuery<CalendarEvent[]>({
-    queryKey: [activeAccountId, 'subscribed-events', subscribedCalendars.map((c) => c.sourceUrl ?? c.id)],
-    queryFn: async () => {
-      if (!activeAccount || subscribedCalendars.length === 0) return [];
-      const results = await Promise.allSettled(
-        subscribedCalendars.map((cal) => fetchEvents(activeAccount, cal, start, end))
-      );
-      return results.flatMap((r) => r.status === 'fulfilled' ? r.value : []);
-    },
-    enabled: activeAccount !== null && subscribedCalendars.length > 0,
-    staleTime: 30 * 60 * 1000,
-    retry: 2,
-  });
-
-  const allEvents = normalizeEvents([...rawEvents, ...subscribedEvents]);
-
-  useEffect(() => {
-    if (!activeAccount || regularCalendars.length === 0) return;
-
-    const prefetchMonth = (monthOffset: -1 | 1) => {
-      const adjYear = dayjs(date).add(monthOffset, 'month').year();
-      const adjMonth = dayjs(date).add(monthOffset, 'month').month();
-      const adjStart = new Date(adjYear, adjMonth - 1, 1);
-      const adjEnd = new Date(adjYear, adjMonth + 2, 0, 23, 59, 59, 999);
-      queryClient.prefetchQuery({
-        queryKey: [activeAccountId, 'events', regularCalendars.map((c) => c.id), adjStart.toISOString(), adjEnd.toISOString()],
-        queryFn: () =>
-          Promise.allSettled(regularCalendars.map((cal) => fetchEvents(activeAccount, cal, adjStart, adjEnd)))
-            .then((results) => results.flatMap((r) => r.status === 'fulfilled' ? r.value : [])),
-        staleTime: Infinity,
-      });
-    };
-
-    prefetchMonth(-1);
-    prefetchMonth(1);
-  }, [year, month, activeAccount, visibleCalendars, activeAccountId, queryClient]);
-
   const hadEventsRef = useRef(false);
-  useEffect(() => { if (allEvents.length > 0) hadEventsRef.current = true; }, [allEvents]);
+  useEffect(() => {
+    if (allEvents.length > 0) hadEventsRef.current = true;
+  }, [allEvents]);
   useEffect(() => { hadEventsRef.current = false; }, [activeAccountId]);
 
   const showFullOverlay = !hadEventsRef.current && eventsLoading && allEvents.length === 0;
@@ -276,16 +220,6 @@ export default function CalendarScreen() {
     [router]
   );
 
-  const eventCellStyle = useCallback(
-    (event: any) => ({ backgroundColor: (event.color as string) || theme.primary }),
-    [theme.primary]
-  );
-
-  const handlePressEventFromMonth = useCallback(
-    (event: CalendarEvent) => { router.push(`/event/${event.uid}`); },
-    [router]
-  );
-
   const handlePressCell = useCallback(
     (d: Date) => { router.push({ pathname: '/event/new', params: { date: d.toISOString() } }); },
     [router]
@@ -293,6 +227,7 @@ export default function CalendarScreen() {
 
   const isToday = dayjs(date).isSame(dayjs(), 'day');
 
+  // Header title: current month + year, plus week number for time-grid modes
   const headerTitle = useMemo(() => {
     const d = dayjs(date);
     const monthYear = d.format('MMMM YYYY');
@@ -305,6 +240,7 @@ export default function CalendarScreen() {
   const headerHeight = 44 + 40 + insets.top;
   const calHeight = windowHeight - headerHeight - insets.bottom - 49;
 
+  // Force remount on theme change so internal library styles refresh
   const calendarKeyFull = `${calendarKey}-${theme.background}`;
 
   return (
@@ -350,55 +286,38 @@ export default function CalendarScreen() {
         </ScrollView>
       </SafeAreaView>
 
-      {viewMode === 'month' ? (
-        <GestureDetector gesture={monthSwipeGesture}>
-          <View style={{ flex: 1 }}>
-            <MonthDayView
-              date={date}
-              events={allEvents}
-              weekStartsOn={weekStartsOn}
-              onSelectDate={setDate}
-              onPressEvent={handlePressEventFromMonth}
-              onPressCell={handlePressCell}
-            />
-          </View>
-        </GestureDetector>
-      ) : (
-        <GestureDetector gesture={pinchGesture}>
-          <View style={styles.calendarWrapper}>
-            <Calendar
-              key={calendarKeyFull}
-              events={calendarEvents}
-              mode={viewMode}
-              date={date}
-              height={calHeight}
-              hourRowHeight={hourRowHeight}
-              timeslots={1}
-              weekStartsOn={weekStartsOn}
-              weekEndsOn={((weekStartsOn + 6) % 7) as 0 | 1 | 2 | 3 | 4 | 5 | 6}
-              onPressEvent={handlePressEvent}
-              onPressCell={handlePressCell}
-              onSwipeEnd={setDate}
-              scrollOffsetMinutes={scrollOffset}
-              renderHeader={FixedCalendarHeader}
-              renderEvent={renderEvent}
-              eventCellStyle={eventCellStyle}
-              allDayEventCellStyle={eventCellStyle}
-              theme={{
-                palette: {
-                  primary: { main: theme.primary },
-                  gray: {
-                    '100': theme.borderSubtle,
-                    '200': theme.border,
-                    '500': theme.textSecondary,
-                    '800': theme.text,
-                  },
-                },
-              }}
-            />
-          </View>
-        </GestureDetector>
-      )}
+      <GestureDetector gesture={pinchGesture}>
+      <View style={styles.calendarWrapper}>
+        <Calendar
+          key={calendarKeyFull}
+          events={calendarEvents}
+          mode={viewMode}
+          date={date}
+          height={calHeight}
+          hourRowHeight={hourRowHeight}
+          timeslots={1}
+          weekStartsOn={weekStartsOn}
+          weekEndsOn={((weekStartsOn + 6) % 7) as 0 | 1 | 2 | 3 | 4 | 5 | 6}
+          onPressEvent={handlePressEvent}
+          onPressCell={handlePressCell}
+          onSwipeEnd={setDate}
+          scrollOffsetMinutes={scrollOffset}
+          renderHeader={FixedCalendarHeader}
+          renderEvent={renderEvent}
+          theme={{
+            palette: {
+              primary: { main: theme.primary },
+              gray: {
+                '100': theme.borderSubtle,
+                '200': theme.border,
+                '500': theme.textSecondary,
+                '800': theme.text,
+              },
+            },
+          }}
+        />
+      </View>
+      </GestureDetector>
 
       {showFullOverlay && (
         <View style={[styles.loadingOverlay, { backgroundColor: theme.background }]}>
@@ -437,3 +356,5 @@ export default function CalendarScreen() {
     </View>
   );
 }
+
+

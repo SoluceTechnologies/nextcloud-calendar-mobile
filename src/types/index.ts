@@ -17,29 +17,12 @@ export type CalendarMeta = {
   ctag: string;
   url: string;
   slug: string;
-  isSubscribed?: boolean;
-  isReadOnly?: boolean;
-  sourceUrl?: string;
 };
 
 export type Attendee = {
   email: string;
   displayName?: string;
 };
-
-export type RecurrenceFreq = 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'YEARLY';
-
-export type RecurrenceRule = {
-  freq: RecurrenceFreq;
-  interval?: number;
-  count?: number;
-  until?: Date;
-  byDay?: string[];
-};
-
-export type RecurrenceEditScope = 'this' | 'thisAndFollowing' | 'all';
-
-export type TalkRoomType = 'public' | 'private';
 
 export type CalendarEvent = {
   uid: string;
@@ -57,7 +40,6 @@ export type CalendarEvent = {
   organizerEmail?: string;
   talkUrl?: string;
   isRecurring: boolean;
-  rrule?: string;
 };
 
 export type CreateEventInput = {
@@ -70,15 +52,8 @@ export type CreateEventInput = {
   location?: string;
   attendees: Attendee[];
   withTalkRoom: boolean;
-  talkRoomType?: TalkRoomType;
   organizerEmail: string;
   organizerName: string;
-  rrule?: RecurrenceRule;
-};
-
-export type ServerCapabilities = {
-  calendarEnabled: boolean;
-  talkEnabled: boolean;
 };
 
 export type ViewMode = 'month' | 'week' | '3days' | 'day' | 'schedule';

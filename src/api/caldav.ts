@@ -13,6 +13,17 @@ function extractSlug(url: string): string {
   return url.replace(/\/$/, '').split('/').pop() ?? '';
 }
 
+function xmlText(xml: string, tag: string): string {
+  const m = xml.match(new RegExp(`<[^>]*:?${tag}[^>]*>([^<]*)<`));
+  return m?.[1]?.trim() ?? '';
+}
+
+function xmlAttr(xml: string, attr: string): string {
+  const m = xml.match(new RegExp(`${attr}="([^"]*)"`));
+  return m?.[1] ?? '';
+}
+
+// Split a PROPFIND/REPORT multistatus body into per-response chunks
 function splitResponses(xml: string): string[] {
   const chunks: string[] = [];
   const re = /<d:response[^>]*>([\s\S]*?)<\/d:response>/g;
@@ -70,11 +81,9 @@ export async function fetchCalendars(account: Account): Promise<CalendarMeta[]> 
   <d:prop>
     <d:resourcetype/>
     <d:displayname/>
-    <d:current-user-privilege-set/>
     <nc:calendar-color/>
     <ical:calendar-color/>
     <cs:getctag/>
-    <cs:source/>
   </d:prop>
 </d:propfind>`;
 
@@ -88,9 +97,8 @@ export async function fetchCalendars(account: Account): Promise<CalendarMeta[]> 
 
   const calendars: CalendarMeta[] = [];
   for (const chunk of splitResponses(xml)) {
-    const isCalendar = chunk.includes(':calendar/>') || chunk.includes('calendar/></d:resourcetype>');
-    const isSubscribed = chunk.includes(':subscribed-calendar/>') || chunk.includes('subscribed');
-    if (!isCalendar && !isSubscribed) continue;
+
+    if (!chunk.includes('calendar/></d:resourcetype>') && !chunk.includes(':calendar/>')) continue;
 
     if (chunk.includes('deleted-calendar') || chunk.includes('trash')) continue;
 
@@ -110,18 +118,6 @@ export async function fetchCalendars(account: Account): Promise<CalendarMeta[]> 
     const ctagMatch = chunk.match(/<cs:getctag>([^<]*)<\/cs:getctag>/);
     const ctag = ctagMatch?.[1]?.trim() || '';
 
-    const sourceMatch = chunk.match(/<cs:source[^>]*>[\s\S]*?<d:href>([^<]+)<\/d:href>[\s\S]*?<\/cs:source>/);
-    const sourceUrl = sourceMatch?.[1]?.trim();
-
-    // A calendar is writable if the privilege set includes <d:write> or <d:bind>.
-    // Subscribed/external calendars and shared read-only calendars won't have these.
-    // If the privilege set is absent (older server), assume writable.
-    const hasPrivilegeSet = chunk.includes('current-user-privilege-set');
-    const hasAll = chunk.includes('<d:all');
-    const hasWrite = chunk.includes('<d:write') || chunk.includes('<d:write/>');
-    const hasBind = chunk.includes('<d:bind') || chunk.includes('<d:bind/>');
-    const isReadOnly = hasPrivilegeSet && !hasAll && !hasWrite && !hasBind;
-
     calendars.push({
       id: calFullUrl,
       accountId: account.id,
@@ -130,9 +126,6 @@ export async function fetchCalendars(account: Account): Promise<CalendarMeta[]> 
       ctag,
       url: calFullUrl,
       slug,
-      isSubscribed: isSubscribed && !isCalendar,
-      isReadOnly,
-      sourceUrl,
     });
   }
   return calendars;
@@ -160,29 +153,6 @@ export async function fetchEvents(
   </c:filter>
 </c:calendar-query>`;
 
-  // cs:subscribed calendars are external ICS feeds — Nextcloud stores only the source URL,
-  // not the events. Fetch the ICS directly instead of using CalDAV REPORT.
-  if (calendar.isSubscribed && calendar.sourceUrl) {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 20000);
-    let icsText: string;
-    try {
-      const r = await fetch(calendar.sourceUrl, { signal: controller.signal });
-      clearTimeout(timer);
-      if (!r.ok) throw new Error(`fetchSubscribed HTTP ${r.status}`);
-      icsText = await r.text();
-    } catch (e) {
-      clearTimeout(timer);
-      throw e;
-    }
-    const parsed = parseIcsObjects(
-      [{ ics: icsText, href: calendar.sourceUrl }],
-      { calendarId: calendar.id, accountId: account.id, color: calendar.color },
-      start, end,
-    );
-    return parsed.filter((e) => e.dtend > start && e.dtstart < end);
-  }
-
   const res = await davFetch(calendar.url, account, {
     method: 'REPORT',
     headers: { Depth: '1', 'Content-Type': 'application/xml' },
@@ -200,22 +170,11 @@ export async function fetchEvents(
       items.push({ ics: dataMatch[1].trim(), href });
     }
   }
-
   return parseIcsObjects(items, {
     calendarId: calendar.id,
     accountId: account.id,
     color: calendar.color,
-  }, start, end);
-}
-
-/** Fetch the raw ICS text of a single event resource. */
-export async function fetchEventIcs(account: Account, href: string): Promise<string> {
-  const res = await davFetch(href, account, {
-    method: 'GET',
-    headers: { Accept: 'text/calendar' },
   });
-  if (!res.ok) throw new Error(`fetchEventIcs HTTP ${res.status}`);
-  return res.text();
 }
 
 export async function putEvent(

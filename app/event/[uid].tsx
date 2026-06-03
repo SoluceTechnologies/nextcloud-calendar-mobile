@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator, Linking } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import dayjs from 'dayjs';
 import { loadAccounts } from '@/api/auth';
 import { fetchEvents } from '@/api/caldav';
@@ -10,29 +10,13 @@ import { useCalendars } from '@/hooks/useCalendars';
 import { useDeleteEvent } from '@/hooks/useMutateEvent';
 import { useAppStore } from '@/store/appStore';
 import { useTheme } from '@/hooks/useTheme';
-import { normalizeEvent, normalizeEvents } from '@/utils/normalizeEvent';
-import type { CalendarEvent, RecurrenceEditScope } from '@/types';
+import type { CalendarEvent } from '@/types';
 
+// Linking.openURL respects iOS Universal Links and Android App Links.
+// If the Nextcloud Talk app is installed and associated with the server domain,
+// the OS routes directly to the app — no canOpenURL or custom scheme check needed.
 async function openTalkRoom(talkUrl: string) {
   await Linking.openURL(talkUrl);
-}
-
-function askRecurrenceScope(title: string, onSelect: (scope: RecurrenceEditScope) => void) {
-  Alert.alert(title, 'Which events do you want to modify?', [
-    {
-      text: 'This event only',
-      onPress: () => onSelect('this'),
-    },
-    {
-      text: 'This and following events',
-      onPress: () => onSelect('thisAndFollowing'),
-    },
-    {
-      text: 'All events',
-      onPress: () => onSelect('all'),
-    },
-    { text: 'Cancel', style: 'cancel' },
-  ]);
 }
 
 export default function EventDetailScreen() {
@@ -41,46 +25,15 @@ export default function EventDetailScreen() {
   const insets = useSafeAreaInsets();
   const theme = useTheme();
   const activeAccountId = useAppStore((s) => s.activeAccountId);
-  const queryClient = useQueryClient();
 
   const { data: accounts } = useQuery({ queryKey: ['accounts'], queryFn: loadAccounts });
   const activeAccount = accounts?.find((a) => a.id === activeAccountId) ?? null;
   const { data: calendars = [] } = useCalendars(activeAccount);
 
-  const findInCache = useCallback((): CalendarEvent | undefined => {
-    const allCached = queryClient.getQueriesData<CalendarEvent[]>({
-      queryKey: [activeAccountId, 'events'],
-    });
-    for (const [, data] of allCached) {
-      if (!Array.isArray(data)) continue;
-      const found = data.find((e) => e.uid === uid);
-      if (found) return normalizeEvent(found);
-    }
-    return undefined;
-  }, [queryClient, activeAccountId, uid]);
-
-  const findInCacheRef = useRef(findInCache);
-  findInCacheRef.current = findInCache;
-
-  const [cachedEvent, setCachedEvent] = useState<CalendarEvent | undefined>(() => findInCache());
-
-  useEffect(() => {
-    // Subscribe once — ref always points to latest findInCache without re-subscribing.
-    return queryClient.getQueryCache().subscribe(() => {
-      setCachedEvent((prev) => {
-        const next = findInCacheRef.current();
-        if (!next) return prev;
-        if (prev?.uid === next.uid && prev?.summary === next.summary &&
-            prev?.dtstart?.getTime?.() === next?.dtstart?.getTime?.()) return prev;
-        return next;
-      });
-    });
-  }, [queryClient]);
-
   const start = useMemo(() => dayjs().subtract(6, 'months').toDate(), []);
   const end = useMemo(() => dayjs().add(6, 'months').toDate(), []);
 
-  const { data: fetchedEvents = [], isLoading: eventsLoading } = useQuery<CalendarEvent[]>({
+  const { data: allEvents = [], isLoading: eventsLoading } = useQuery<CalendarEvent[]>({
     queryKey: [activeAccountId, 'events-detail', start.toISOString(), end.toISOString()],
     queryFn: async () => {
       if (!activeAccount || calendars.length === 0) return [];
@@ -89,65 +42,33 @@ export default function EventDetailScreen() {
       );
       return results.flat();
     },
-    enabled: activeAccount !== null && calendars.length > 0 && cachedEvent === undefined,
+    enabled: activeAccount !== null && calendars.length > 0,
     staleTime: 2 * 60 * 1000,
   });
 
-  const event: CalendarEvent | undefined = cachedEvent ?? normalizeEvents(fetchedEvents).find((e) => e.uid === uid);
+  const event: CalendarEvent | undefined = allEvents.find((e) => e.uid === uid);
   const calendar = calendars.find((c) => c.id === event?.calendarId);
   const deleteMutation = useDeleteEvent(activeAccount!);
-  const canEdit = !calendar?.isReadOnly && !calendar?.isSubscribed;
-
-  function handleEdit() {
-    if (!event) return;
-    if (event.isRecurring) {
-      askRecurrenceScope('Edit Event', (scope) => {
-        router.push({ pathname: `/event/edit/${uid}`, params: { scope } });
-      });
-    } else {
-      router.push(`/event/edit/${uid}`);
-    }
-  }
 
   function handleDelete() {
     if (!event) return;
-
-    const doDelete = (scope: RecurrenceEditScope) => {
-      Alert.alert(
-        'Delete Event',
-        scope === 'all'
-          ? 'Delete all occurrences of this recurring event?'
-          : scope === 'thisAndFollowing'
-          ? 'Delete this and all following occurrences?'
-          : 'Are you sure you want to delete this event?',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          {
-            text: 'Delete', style: 'destructive',
-            onPress: async () => {
-              try {
-                await deleteMutation.mutateAsync({ event, scope });
-                if (router.canGoBack()) router.back();
-                else router.replace('/(tabs)/calendar');
-              } catch (e: any) {
-                Alert.alert('Error', e?.message ?? 'Failed to delete event.');
-              }
-            },
-          },
-        ]
-      );
-    };
-
-    if (event.isRecurring) {
-      askRecurrenceScope('Delete Event', doDelete);
-    } else {
-      doDelete('all');
-    }
+    Alert.alert('Delete Event', 'Are you sure you want to delete this event?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete', style: 'destructive',
+        onPress: async () => {
+          try {
+            await deleteMutation.mutateAsync(event);
+            router.back();
+          } catch (e: any) {
+            Alert.alert('Error', e?.message ?? 'Failed to delete event.');
+          }
+        },
+      },
+    ]);
   }
 
-  const isLoading = eventsLoading && cachedEvent === undefined;
-
-  if (isLoading) {
+  if (eventsLoading) {
     return (
       <View style={[styles.center, { backgroundColor: theme.background }]}>
         <ActivityIndicator size="large" color={theme.primary} />
@@ -181,8 +102,8 @@ export default function EventDetailScreen() {
           <TouchableOpacity onPress={() => router.back()}>
             <Text style={[styles.backText, { color: theme.primary }]}>← Back</Text>
           </TouchableOpacity>
-          {canEdit && (
-            <TouchableOpacity onPress={handleEdit}>
+          {!event.isRecurring && (
+            <TouchableOpacity onPress={() => router.push(`/event/edit/${uid}`)}>
               <Text style={[styles.editText, { color: theme.primary }]}>Edit</Text>
             </TouchableOpacity>
           )}
@@ -190,9 +111,6 @@ export default function EventDetailScreen() {
 
         <Text style={[styles.summary, { color: theme.text }]}>{event.summary}</Text>
         <Text style={[styles.meta, { color: theme.textSecondary }]}>{timeStr}</Text>
-        {event.isRecurring && (
-          <Text style={[styles.recurringBadge, { color: theme.primary }]}>↻ Recurring</Text>
-        )}
         {calendar && (
           <Text style={[styles.calendarName, { color: theme.textTertiary }]}>
             📅 {calendar.displayName}
@@ -230,19 +148,23 @@ export default function EventDetailScreen() {
           </View>
         )}
 
+        {event.isRecurring && (
+          <Text style={[styles.recurringNote, { color: theme.warning }]}>
+            ⚠️ Recurring event — editing not supported in v1.
+          </Text>
+        )}
+
         <View style={styles.spacer} />
 
-        {canEdit && (
-          <TouchableOpacity
-            style={[styles.deleteBtn, { borderColor: theme.danger }]}
-            onPress={handleDelete}
-            disabled={deleteMutation.isPending}
-          >
-            {deleteMutation.isPending
-              ? <ActivityIndicator color={theme.danger} />
-              : <Text style={[styles.deleteBtnText, { color: theme.danger }]}>Delete Event</Text>}
-          </TouchableOpacity>
-        )}
+        <TouchableOpacity
+          style={[styles.deleteBtn, { borderColor: theme.danger }]}
+          onPress={handleDelete}
+          disabled={deleteMutation.isPending}
+        >
+          {deleteMutation.isPending
+            ? <ActivityIndicator color={theme.danger} />
+            : <Text style={[styles.deleteBtnText, { color: theme.danger }]}>Delete Event</Text>}
+        </TouchableOpacity>
       </View>
     </ScrollView>
   );
@@ -260,7 +182,6 @@ const styles = StyleSheet.create({
   editText: { fontSize: 16, fontWeight: '600' },
   summary: { fontSize: 24, fontWeight: '700', marginBottom: 8 },
   meta: { fontSize: 15, marginBottom: 4 },
-  recurringBadge: { fontSize: 13, marginBottom: 4 },
   calendarName: { fontSize: 14, marginBottom: 16 },
   field: { fontSize: 15, marginBottom: 12 },
   talkBtn: {
@@ -272,6 +193,7 @@ const styles = StyleSheet.create({
   sectionTitle: { fontSize: 13, fontWeight: '700', textTransform: 'uppercase', marginBottom: 6 },
   sectionBody: { fontSize: 15, lineHeight: 22 },
   attendee: { fontSize: 14, marginBottom: 4 },
+  recurringNote: { marginTop: 20, fontSize: 13 },
   deleteBtn: {
     marginTop: 40, borderWidth: 1,
     borderRadius: 8, paddingVertical: 12, alignItems: 'center',

@@ -51,13 +51,7 @@
       "@react-native-community/datetimepicker",
       "expo-router",
       "expo-secure-store",
-      "expo-web-browser",
-      [
-        "expo-camera",
-        {
-          "cameraPermission": "Allow Calendar to access the camera to scan a Nextcloud login QR code."
-        }
-      ]
+      "expo-web-browser"
     ]
   }
 }

@@ -13,8 +13,6 @@ import { saveAccount, setActiveAccountId } from '@/api/auth';
 import { fetchUserInfo } from '@/api/nextcloud';
 import { useAppStore } from '@/store/appStore';
 import { useTheme } from '@/hooks/useTheme';
-import { QrLoginScanner } from '@/components/QrLoginScanner';
-import type { NcLoginData } from '@/components/QrLoginScanner';
 import type { Account } from '@/types';
 
 export default function SetupScreen() {
@@ -30,38 +28,32 @@ export default function SetupScreen() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
-  const [showScanner, setShowScanner] = useState(false);
 
-  async function connectWith(params: {
-    baseUrl: string;
-    username: string;
-    appPassword: string;
-    displayName: string;
-  }) {
+  async function handleAdd() {
     setError(null);
-    let normalizedUrl = params.baseUrl.trim().replace(/\/$/, '');
+    if (!baseUrl || !username || !appPassword) {
+      setError('All fields are required.');
+      return;
+    }
+    let normalizedUrl = baseUrl.trim().replace(/\/$/, '');
     if (!/^https?:\/\//i.test(normalizedUrl)) {
       normalizedUrl = `https://${normalizedUrl}`;
     }
     setLoading(true);
     try {
-      const { davUserId } = await validateCredentials({
-        baseUrl: normalizedUrl,
-        username: params.username,
-        appPassword: params.appPassword,
-      });
+      const { davUserId } = await validateCredentials({ baseUrl: normalizedUrl, username, appPassword });
       const userInfo = await fetchUserInfo({
         baseUrl: normalizedUrl,
-        username: params.username,
-        appPassword: params.appPassword,
+        username,
+        appPassword,
         davUserId,
       });
       const account: Account = {
         id: Crypto.randomUUID(),
-        displayName: params.displayName || params.username,
+        displayName: displayName || username,
         baseUrl: normalizedUrl,
-        username: params.username,
-        appPassword: params.appPassword,
+        username,
+        appPassword,
         davUserId,
         timezone: userInfo.timezone,
         email: userInfo.email,
@@ -85,45 +77,13 @@ export default function SetupScreen() {
     }
   }
 
-  function handleAdd() {
-    if (!baseUrl || !username || !appPassword) {
-      setError('All fields are required.');
-      return;
-    }
-    connectWith({ baseUrl, username, appPassword, displayName });
-  }
-
-  function handleQrScanned(data: NcLoginData) {
-    setShowScanner(false);
-    setBaseUrl(data.server);
-    setUsername(data.user);
-    setAppPassword(data.password);
-
-    connectWith({ baseUrl: data.server, username: data.user, appPassword: data.password, displayName: '' });
-  }
-
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: theme.background }]}>
       <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
 
-          <Text style={[styles.brandName, { color: theme.primary }]}>Calendar</Text>
+          <Text style={[styles.brandName, { color: theme.primary }]}>Nextcloud Calendar</Text>
           <Text style={[styles.title, { color: theme.text }]}>Connect to Nextcloud</Text>
-
-          <TouchableOpacity
-            style={[styles.qrBtn, { backgroundColor: theme.primary }]}
-            onPress={() => setShowScanner(true)}
-            disabled={loading}
-          >
-            <Ionicons name="qr-code-outline" size={22} color="#fff" style={{ marginRight: 10 }} />
-            <Text style={styles.qrBtnText}>Scan QR Code</Text>
-          </TouchableOpacity>
-
-          <View style={styles.dividerRow}>
-            <View style={[styles.dividerLine, { backgroundColor: theme.border }]} />
-            <Text style={[styles.dividerLabel, { color: theme.textTertiary }]}>or enter manually</Text>
-            <View style={[styles.dividerLine, { backgroundColor: theme.border }]} />
-          </View>
 
           <Text style={[styles.label, { color: theme.text }]}>Server URL</Text>
           <TextInput
@@ -169,10 +129,7 @@ export default function SetupScreen() {
             </TouchableOpacity>
           </View>
 
-          <Text style={[styles.label, { color: theme.text }]}>
-            Display Name{' '}
-            <Text style={{ color: theme.textTertiary, fontWeight: '400' }}>(optional)</Text>
-          </Text>
+          <Text style={[styles.label, { color: theme.text }]}>Display Name <Text style={{ color: theme.textTertiary, fontWeight: '400' }}>(optional)</Text></Text>
           <TextInput
             style={[styles.input, { backgroundColor: theme.surface, borderColor: theme.border, color: theme.text }]}
             placeholder="Work"
@@ -188,9 +145,7 @@ export default function SetupScreen() {
             onPress={handleAdd}
             disabled={loading}
           >
-            {loading
-              ? <ActivityIndicator color="#fff" />
-              : <Text style={styles.buttonText}>Connect</Text>}
+            {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Connect</Text>}
           </TouchableOpacity>
 
           <Text style={[styles.hint, { color: theme.textTertiary }]}>
@@ -204,12 +159,6 @@ export default function SetupScreen() {
         </Text>
 
       </KeyboardAvoidingView>
-
-      <QrLoginScanner
-        visible={showScanner}
-        onClose={() => setShowScanner(false)}
-        onScanned={handleQrScanned}
-      />
     </SafeAreaView>
   );
 }
@@ -219,15 +168,7 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   content: { padding: 24, paddingTop: 52 },
   brandName: { fontSize: 13, fontWeight: '700', letterSpacing: 0.5, textTransform: 'uppercase', marginBottom: 8 },
-  title: { fontSize: 26, fontWeight: '700', marginBottom: 28 },
-  qrBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    borderRadius: 12, paddingVertical: 16, marginBottom: 8,
-  },
-  qrBtnText: { color: '#fff', fontSize: 16, fontWeight: '600' },
-  dividerRow: { flexDirection: 'row', alignItems: 'center', marginVertical: 20, gap: 10 },
-  dividerLine: { flex: 1, height: StyleSheet.hairlineWidth },
-  dividerLabel: { fontSize: 13 },
+  title: { fontSize: 26, fontWeight: '700', marginBottom: 32 },
   label: { fontSize: 14, fontWeight: '600', marginBottom: 6, marginTop: 18 },
   input: {
     borderWidth: 1, borderRadius: 10,

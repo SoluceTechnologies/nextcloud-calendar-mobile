@@ -9,7 +9,6 @@ import { useEffect } from 'react';
 import { useColorScheme } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { loadAccounts, getActiveAccountId, setActiveAccountId } from '@/api/auth';
-import { fetchCapabilities } from '@/api/nextcloud';
 import { useAppStore } from '@/store/appStore';
 
 SplashScreen.preventAutoHideAsync();
@@ -42,7 +41,6 @@ function ThemedStatusBar() {
 export default function RootLayout() {
   const router = useRouter();
   const setStoreAccountId = useAppStore((s) => s.setActiveAccountId);
-  const setCapabilities = useAppStore((s) => s.setCapabilities);
 
   useEffect(() => {
     (async () => {
@@ -56,9 +54,6 @@ export default function RootLayout() {
           const id = activeId ?? accounts[0].id;
           await setActiveAccountId(id);
           setStoreAccountId(id);
-
-          const activeAccount = accounts.find((a) => a.id === id) ?? accounts[0];
-          fetchCapabilities(activeAccount).then(setCapabilities).catch(() => {});
         }
       } finally {
         await SplashScreen.hideAsync();
