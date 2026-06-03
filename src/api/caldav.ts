@@ -74,6 +74,7 @@ export async function fetchCalendars(account: Account): Promise<CalendarMeta[]> 
     <nc:calendar-color/>
     <ical:calendar-color/>
     <cs:getctag/>
+    <cs:source/>
   </d:prop>
 </d:propfind>`;
 
@@ -109,6 +110,9 @@ export async function fetchCalendars(account: Account): Promise<CalendarMeta[]> 
     const ctagMatch = chunk.match(/<cs:getctag>([^<]*)<\/cs:getctag>/);
     const ctag = ctagMatch?.[1]?.trim() || '';
 
+    const sourceMatch = chunk.match(/<cs:source[^>]*>[\s\S]*?<d:href>([^<]+)<\/d:href>[\s\S]*?<\/cs:source>/);
+    const sourceUrl = sourceMatch?.[1]?.trim();
+
     // A calendar is writable if the privilege set includes <d:write> or <d:bind>.
     // Subscribed/external calendars and shared read-only calendars won't have these.
     // If the privilege set is absent (older server), assume writable.
@@ -128,6 +132,7 @@ export async function fetchCalendars(account: Account): Promise<CalendarMeta[]> 
       slug,
       isSubscribed: isSubscribed && !isCalendar,
       isReadOnly,
+      sourceUrl,
     });
   }
   return calendars;
@@ -154,6 +159,29 @@ export async function fetchEvents(
     </c:comp-filter>
   </c:filter>
 </c:calendar-query>`;
+
+  // cs:subscribed calendars are external ICS feeds — Nextcloud stores only the source URL,
+  // not the events. Fetch the ICS directly instead of using CalDAV REPORT.
+  if (calendar.isSubscribed && calendar.sourceUrl) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 20000);
+    let icsText: string;
+    try {
+      const r = await fetch(calendar.sourceUrl, { signal: controller.signal });
+      clearTimeout(timer);
+      if (!r.ok) throw new Error(`fetchSubscribed HTTP ${r.status}`);
+      icsText = await r.text();
+    } catch (e) {
+      clearTimeout(timer);
+      throw e;
+    }
+    const parsed = parseIcsObjects(
+      [{ ics: icsText, href: calendar.sourceUrl }],
+      { calendarId: calendar.id, accountId: account.id, color: calendar.color },
+      start, end,
+    );
+    return parsed.filter((e) => e.dtend > start && e.dtstart < end);
+  }
 
   const res = await davFetch(calendar.url, account, {
     method: 'REPORT',

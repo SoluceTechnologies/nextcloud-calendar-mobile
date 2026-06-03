@@ -108,7 +108,8 @@ export default function EventDetailScreen() {
             onPress: async () => {
               try {
                 await deleteMutation.mutateAsync({ event, scope });
-                router.back();
+                if (router.canGoBack()) router.back();
+                else router.replace('/(tabs)/calendar');
               } catch (e: any) {
                 Alert.alert('Error', e?.message ?? 'Failed to delete event.');
               }

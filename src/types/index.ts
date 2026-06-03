@@ -19,6 +19,7 @@ export type CalendarMeta = {
   slug: string;
   isSubscribed?: boolean;
   isReadOnly?: boolean;
+  sourceUrl?: string;
 };
 
 export type Attendee = {

@@ -168,7 +168,7 @@ export function MonthDayView({ date, events: rawEvents, weekStartsOn, onSelectDa
         ) : (
           <FlatList
             data={dayEvents}
-            keyExtractor={(e) => `${e.uid}-${e.dtstart.getTime()}`}
+            keyExtractor={(e) => `${e.calendarId}-${e.uid}-${e.dtstart.getTime()}`}
             renderItem={({ item }) => (
               <TouchableOpacity
                 style={[styles.eventRow, { borderLeftColor: item.color, backgroundColor: theme.surface }]}
