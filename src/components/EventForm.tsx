@@ -50,7 +50,7 @@ export function EventForm({
   // Only offer writable calendars for new events; read-only calendars
   // (external subscriptions, manager-controlled shared calendars) cannot
   // receive new VEVENTs via PUT.
-  const writableCalendars = calendars.filter((c) => !c.isReadOnly);
+  const writableCalendars = calendars.filter((c) => !c.isReadOnly && !c.isSubscribed);
 
   const defaultCalendarId =
     initialValues?.calendarId ??

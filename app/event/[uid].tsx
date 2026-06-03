@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator, Linking } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -47,7 +47,7 @@ export default function EventDetailScreen() {
   const activeAccount = accounts?.find((a) => a.id === activeAccountId) ?? null;
   const { data: calendars = [] } = useCalendars(activeAccount);
 
-  const cachedEvent = useMemo((): CalendarEvent | undefined => {
+  const findInCache = useCallback((): CalendarEvent | undefined => {
     const allCached = queryClient.getQueriesData<CalendarEvent[]>({
       queryKey: [activeAccountId, 'events'],
     });
@@ -58,6 +58,24 @@ export default function EventDetailScreen() {
     }
     return undefined;
   }, [queryClient, activeAccountId, uid]);
+
+  const findInCacheRef = useRef(findInCache);
+  findInCacheRef.current = findInCache;
+
+  const [cachedEvent, setCachedEvent] = useState<CalendarEvent | undefined>(() => findInCache());
+
+  useEffect(() => {
+    // Subscribe once — ref always points to latest findInCache without re-subscribing.
+    return queryClient.getQueryCache().subscribe(() => {
+      setCachedEvent((prev) => {
+        const next = findInCacheRef.current();
+        if (!next) return prev;
+        if (prev?.uid === next.uid && prev?.summary === next.summary &&
+            prev?.dtstart?.getTime?.() === next?.dtstart?.getTime?.()) return prev;
+        return next;
+      });
+    });
+  }, [queryClient]);
 
   const start = useMemo(() => dayjs().subtract(6, 'months').toDate(), []);
   const end = useMemo(() => dayjs().add(6, 'months').toDate(), []);
@@ -78,6 +96,7 @@ export default function EventDetailScreen() {
   const event: CalendarEvent | undefined = cachedEvent ?? normalizeEvents(fetchedEvents).find((e) => e.uid === uid);
   const calendar = calendars.find((c) => c.id === event?.calendarId);
   const deleteMutation = useDeleteEvent(activeAccount!);
+  const canEdit = !calendar?.isReadOnly && !calendar?.isSubscribed;
 
   function handleEdit() {
     if (!event) return;
@@ -162,9 +181,11 @@ export default function EventDetailScreen() {
           <TouchableOpacity onPress={() => router.back()}>
             <Text style={[styles.backText, { color: theme.primary }]}>← Back</Text>
           </TouchableOpacity>
-          <TouchableOpacity onPress={handleEdit}>
-            <Text style={[styles.editText, { color: theme.primary }]}>Edit</Text>
-          </TouchableOpacity>
+          {canEdit && (
+            <TouchableOpacity onPress={handleEdit}>
+              <Text style={[styles.editText, { color: theme.primary }]}>Edit</Text>
+            </TouchableOpacity>
+          )}
         </View>
 
         <Text style={[styles.summary, { color: theme.text }]}>{event.summary}</Text>
@@ -211,15 +232,17 @@ export default function EventDetailScreen() {
 
         <View style={styles.spacer} />
 
-        <TouchableOpacity
-          style={[styles.deleteBtn, { borderColor: theme.danger }]}
-          onPress={handleDelete}
-          disabled={deleteMutation.isPending}
-        >
-          {deleteMutation.isPending
-            ? <ActivityIndicator color={theme.danger} />
-            : <Text style={[styles.deleteBtnText, { color: theme.danger }]}>Delete Event</Text>}
-        </TouchableOpacity>
+        {canEdit && (
+          <TouchableOpacity
+            style={[styles.deleteBtn, { borderColor: theme.danger }]}
+            onPress={handleDelete}
+            disabled={deleteMutation.isPending}
+          >
+            {deleteMutation.isPending
+              ? <ActivityIndicator color={theme.danger} />
+              : <Text style={[styles.deleteBtnText, { color: theme.danger }]}>Delete Event</Text>}
+          </TouchableOpacity>
+        )}
       </View>
     </ScrollView>
   );

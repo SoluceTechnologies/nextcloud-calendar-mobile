@@ -66,9 +66,14 @@ export default function EditEventScreen() {
     if (!activeAccount || !event) return;
     try {
       await updateMutation.mutateAsync({ event, input, scope });
-      router.back();
+      if (router.canGoBack()) router.back();
+      else router.replace('/(tabs)/calendar');
     } catch (e: any) {
-      Alert.alert('Error', e?.message ?? 'Failed to update event.');
+      const msg = e?.message ?? '';
+      Alert.alert(
+        'Failed to update event',
+        msg.includes('403') ? 'Permission denied. This calendar is read-only or shared without write access.' : (msg || 'Unknown error.')
+      );
     }
   }
 

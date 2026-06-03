@@ -139,7 +139,34 @@ export function useUpdateEvent(account: Account, calendars: CalendarMeta[]) {
         return;
       }
     },
-    onSuccess: () => {
+    onMutate: async ({ event, input }) => {
+      await queryClient.cancelQueries({ queryKey: [account.id, 'events'] });
+      const previous = queryClient.getQueriesData({ queryKey: [account.id, 'events'] });
+      queryClient.setQueriesData({ queryKey: [account.id, 'events'] }, (old: any) => {
+        if (!Array.isArray(old)) return old;
+        return old.map((e: any) =>
+          e.uid === event.uid
+            ? {
+                ...e,
+                summary: input.summary,
+                dtstart: input.dtstart,
+                dtend: input.dtend,
+                allDay: input.allDay,
+                description: input.description ?? e.description,
+                location: input.location ?? e.location,
+                attendees: input.attendees,
+              }
+            : e
+        );
+      });
+      return { previous };
+    },
+    onError: (_err, _vars, context) => {
+      if (context?.previous) {
+        context.previous.forEach(([key, data]) => queryClient.setQueryData(key, data));
+      }
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: [account.id, 'events'] });
       queryClient.invalidateQueries({ queryKey: [account.id, 'events-detail'] });
     },

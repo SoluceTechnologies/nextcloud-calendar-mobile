@@ -29,9 +29,14 @@ export default function NewEventScreen() {
     if (!activeAccount) return;
     try {
       await createMutation.mutateAsync(input);
-      router.back();
+      if (router.canGoBack()) router.back();
+      else router.replace('/(tabs)/calendar');
     } catch (e: any) {
-      Alert.alert('Error', e?.message ?? 'Failed to create event.');
+      const msg = e?.message ?? '';
+      Alert.alert(
+        'Failed to create event',
+        msg.includes('403') ? 'Permission denied. This calendar is read-only or shared without write access.' : (msg || 'Unknown error.')
+      );
     }
   }
 
