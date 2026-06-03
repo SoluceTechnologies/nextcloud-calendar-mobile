@@ -93,19 +93,16 @@ export function useUpdateEvent(account: Account, calendars: CalendarMeta[]) {
       const timezone = resolveTimezone(account);
 
       if (!event.isRecurring || scope === 'all') {
-        // Simple non-recurring or "edit all occurrences"
         const ics = buildIcsForInput(event.uid, input, location, description, timezone);
         await updateEvent(account, event.href, ics);
         return;
       }
 
       if (scope === 'this') {
-        // 1. Fetch master ICS and inject EXDATE for this occurrence
         const masterIcs = await fetchEventIcs(account, event.href);
         const withExdate = injectExdate(masterIcs, event.dtstart, timezone);
         await updateEvent(account, event.href, withExdate);
 
-        // 2. PUT a new exception VEVENT with RECURRENCE-ID
         const calendar = calendars.find((c) => c.id === event.calendarId)
           ?? calendars.find((c) => c.id === input.calendarId);
         if (!calendar) throw new Error('Calendar not found for exception VEVENT');
@@ -128,13 +125,11 @@ export function useUpdateEvent(account: Account, calendars: CalendarMeta[]) {
       }
 
       if (scope === 'thisAndFollowing') {
-        // 1. Truncate master's RRULE to end just before this occurrence
         const masterIcs = await fetchEventIcs(account, event.href);
         const oneDayBefore = dayjs(event.dtstart).subtract(1, 'day').endOf('day').toDate();
         const truncated = truncateRruleUntil(masterIcs, oneDayBefore);
         await updateEvent(account, event.href, truncated);
 
-        // 2. Create a new event series starting from this occurrence
         const calendar = calendars.find((c) => c.id === event.calendarId)
           ?? calendars.find((c) => c.id === input.calendarId);
         if (!calendar) throw new Error('Calendar not found for new series');
@@ -167,13 +162,11 @@ export function useDeleteEvent(account: Account) {
       const masterIcs = await fetchEventIcs(account, event.href);
 
       if (scope === 'this') {
-        // Inject EXDATE into master to skip just this occurrence
         const withExdate = injectExdate(masterIcs, event.dtstart, timezone);
         return updateEvent(account, event.href, withExdate);
       }
 
       if (scope === 'thisAndFollowing') {
-        // Truncate master's RRULE UNTIL to day before this occurrence
         const oneDayBefore = dayjs(event.dtstart).subtract(1, 'day').endOf('day').toDate();
         const truncated = truncateRruleUntil(masterIcs, oneDayBefore);
         return updateEvent(account, event.href, truncated);

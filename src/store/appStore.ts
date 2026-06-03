@@ -61,7 +61,6 @@ export const useAppStore = create<AppState>()(
         themePreference: state.themePreference,
         hourRowHeight: state.hourRowHeight,
         weekStartsOn: state.weekStartsOn,
-        // capabilities intentionally not persisted — re-checked on each startup
       }),
     }
   )

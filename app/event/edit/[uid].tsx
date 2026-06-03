@@ -25,7 +25,6 @@ export default function EditEventScreen() {
   const activeAccount = accounts?.find((a) => a.id === activeAccountId) ?? null;
   const { data: calendars = [] } = useCalendars(activeAccount);
 
-  // Try cache first (same strategy as detail screen)
   const cachedEvent = useMemo((): CalendarEvent | undefined => {
     const allCached = queryClient.getQueriesData<CalendarEvent[]>({
       queryKey: [activeAccountId, 'events'],
@@ -56,7 +55,6 @@ export default function EditEventScreen() {
 
   const event: CalendarEvent | undefined = cachedEvent ?? normalizeEvents(fetchedEvents).find((e) => e.uid === uid);
 
-  // Scope passed from the detail screen's recurrence dialog
   const scope: RecurrenceEditScope =
     scopeParam === 'this' ? 'this'
     : scopeParam === 'thisAndFollowing' ? 'thisAndFollowing'

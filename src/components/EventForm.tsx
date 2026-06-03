@@ -110,7 +110,6 @@ export function EventForm({
   function handleAndroidChange(_: any, selected?: Date) {
     if (!androidStep) return;
 
-    // User pressed Cancel (selected is undefined)
     if (selected === undefined) {
       setAndroidStep(null);
       return;
@@ -119,11 +118,9 @@ export function EventForm({
     const { target, step } = androidStep;
 
     if (allDay || step === 'time') {
-      // Final value for both all-day (date only) and second time step
       const base = step === 'time' && androidStep.partial ? androidStep.partial : selected;
       let finalDate: Date;
       if (step === 'time') {
-        // Merge the date from partial with the time from selected
         const d = new Date(androidStep.partial!);
         d.setHours(selected.getHours(), selected.getMinutes(), 0, 0);
         finalDate = d;
@@ -134,7 +131,6 @@ export function EventForm({
       else setDtend(finalDate);
       setAndroidStep(null);
     } else {
-      // Date picked — now pick time
       setAndroidStep({ target, step: 'time', partial: selected });
     }
   }
@@ -165,7 +161,7 @@ export function EventForm({
   const inputStyle = [styles.input, { backgroundColor: theme.surface, borderColor: theme.border, color: theme.text }];
   const labelStyle = [styles.label, { color: theme.textSecondary }];
 
-  // Determine Android picker mode and value for current step
+
   const androidPickerMode = androidStep?.step === 'time' ? 'time' : 'date';
   const androidPickerValue = androidStep?.step === 'time' && androidStep.partial
     ? androidStep.partial
@@ -234,7 +230,7 @@ export function EventForm({
         </Text>
       </TouchableOpacity>
 
-      {/* iOS inline picker */}
+
       {Platform.OS === 'ios' && showStartPicker && (
         <DateTimePicker
           value={dtstart}
@@ -259,10 +255,7 @@ export function EventForm({
         </>
       )}
 
-      {/* Android dialog picker.
-          The `key` includes the step so React remounts the picker when
-          transitioning from 'date' to 'time' — without this the dialog
-          stays in date mode because the component instance is reused. */}
+
       {Platform.OS === 'android' && androidStep !== null && (
         <DateTimePicker
           key={`android-picker-${androidStep.target}-${androidStep.step}`}

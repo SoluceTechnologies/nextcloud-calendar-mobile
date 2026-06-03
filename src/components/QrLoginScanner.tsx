@@ -24,13 +24,9 @@ function parseNcLoginUrl(raw: string): NcLoginData | null {
   if (!raw.startsWith('nc://login/')) return null;
   const payload = raw.slice('nc://login/'.length);
 
-  // Fields are ampersand-separated but each uses "key:value" not "key=value".
-  // The server value must come last because its URL may contain colons but
-  // not literal & characters without encoding.
   const userMatch   = payload.match(/(?:^|&)user:([^&]+)/);
   const passMatch   = payload.match(/(?:^|&)password:([^&]+)/);
-  // server: grabs everything from the colon to end-of-string so it captures
-  // https://... including any path segments
+
   const serverMatch = payload.match(/(?:^|&)server:(.+)$/);
 
   if (!userMatch || !passMatch || !serverMatch) return null;
@@ -55,7 +51,6 @@ export function QrLoginScanner({ visible, onClose, onScanned }: Props) {
   const [parseError, setParseError] = useState<string | null>(null);
   const scannedRef = useRef(false);
 
-  // Reset state each time the modal opens
   useEffect(() => {
     if (visible) {
       setScanned(false);
@@ -65,7 +60,6 @@ export function QrLoginScanner({ visible, onClose, onScanned }: Props) {
   }, [visible]);
 
   function handleBarCodeScanned({ data }: { data: string }) {
-    // Guard against duplicate fires from the camera stream
     if (scannedRef.current) return;
     scannedRef.current = true;
     setScanned(true);
@@ -83,7 +77,6 @@ export function QrLoginScanner({ visible, onClose, onScanned }: Props) {
   if (!visible) return null;
 
   if (!permission) {
-    // Permissions still loading
     return (
       <Modal visible animationType="slide" onRequestClose={onClose}>
         <View style={[styles.center, { backgroundColor: theme.background }]}>
@@ -124,7 +117,6 @@ export function QrLoginScanner({ visible, onClose, onScanned }: Props) {
           onBarcodeScanned={scanned ? undefined : handleBarCodeScanned}
         />
 
-        {/* Dim overlay with a transparent cut-out hint */}
         <View style={styles.overlay} pointerEvents="none">
           <View style={styles.dimTop} />
           <View style={styles.middle}>
@@ -135,7 +127,6 @@ export function QrLoginScanner({ visible, onClose, onScanned }: Props) {
           <View style={styles.dimBottom} />
         </View>
 
-        {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
             <Text style={styles.closeBtnText}>✕</Text>
@@ -144,7 +135,6 @@ export function QrLoginScanner({ visible, onClose, onScanned }: Props) {
           <View style={{ width: 44 }} />
         </View>
 
-        {/* Instruction / error */}
         <View style={styles.footer}>
           {parseError ? (
             <>

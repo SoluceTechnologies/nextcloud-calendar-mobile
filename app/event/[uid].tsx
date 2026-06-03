@@ -47,8 +47,6 @@ export default function EventDetailScreen() {
   const activeAccount = accounts?.find((a) => a.id === activeAccountId) ?? null;
   const { data: calendars = [] } = useCalendars(activeAccount);
 
-  // First try to find the event in the already-cached main calendar query data
-  // so we avoid an extra wide network fetch on every open.
   const cachedEvent = useMemo((): CalendarEvent | undefined => {
     const allCached = queryClient.getQueriesData<CalendarEvent[]>({
       queryKey: [activeAccountId, 'events'],
@@ -64,7 +62,6 @@ export default function EventDetailScreen() {
   const start = useMemo(() => dayjs().subtract(6, 'months').toDate(), []);
   const end = useMemo(() => dayjs().add(6, 'months').toDate(), []);
 
-  // Only issue the wide fetch if the event wasn't found in cache
   const { data: fetchedEvents = [], isLoading: eventsLoading } = useQuery<CalendarEvent[]>({
     queryKey: [activeAccountId, 'events-detail', start.toISOString(), end.toISOString()],
     queryFn: async () => {

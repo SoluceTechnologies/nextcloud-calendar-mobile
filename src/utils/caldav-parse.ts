@@ -9,7 +9,6 @@ interface ParseCalMeta {
 
 const TALK_URL_PATTERN = /\/call\//;
 
-// Safety cap so a badly-formed infinite recurrence can't loop forever
 const MAX_OCCURRENCES = 1000;
 
 export function parseIcsObjects(
@@ -27,9 +26,6 @@ export function parseIcsObjects(
       const vevents = comp.getAllSubcomponents('vevent');
 
       for (const vevent of vevents) {
-        // Exception VEVENTs (RECURRENCE-ID present) are handled automatically
-        // by the master's iterator — processing them separately would emit a
-        // duplicate occurrence for every modified instance.
         if (vevent.getFirstPropertyValue('recurrence-id')) continue;
 
         const icalEvent = new ICAL.Event(vevent);
@@ -74,10 +70,6 @@ export function parseIcsObjects(
         };
 
         if (isRecurring && (rangeStart || rangeEnd)) {
-          // Expand all occurrences that fall within the requested range.
-          // ical.js iterator walks RRULE + RDATEs while honouring EXDATEs and
-          // RECURRENCE-ID overrides automatically when constructed from the full
-          // component (not just the sub-component).
           const expandComp = new ICAL.Component(jcal);
           const expandEvent = new ICAL.Event(expandComp.getFirstSubcomponent('vevent')!, {
             strictExceptions: false,
@@ -89,7 +81,6 @@ export function parseIcsObjects(
           while ((nextTime = iter.next()) && count < MAX_OCCURRENCES) {
             const occStart = nextTime.toJSDate();
 
-            // Past the end of the requested range — stop iterating
             if (rangeEnd && occStart >= rangeEnd) break;
 
             const details = expandEvent.getOccurrenceDetails(nextTime);
@@ -103,8 +94,6 @@ export function parseIcsObjects(
 
             events.push({
               ...base,
-              // Each occurrence gets a stable unique id using a URL-safe separator.
-              // href stays on the master so edit/delete can fetch the right ICS.
               uid: `${icalEvent.uid}_occ_${nextTime.toUnixTime()}`,
               href,
               dtstart: occStart,
@@ -114,7 +103,6 @@ export function parseIcsObjects(
             count++;
           }
         } else {
-          // Non-recurring, or we have no range to constrain expansion
           events.push({
             ...base,
             dtstart: icalEvent.startDate.toJSDate(),

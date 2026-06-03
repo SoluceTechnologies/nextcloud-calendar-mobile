@@ -29,15 +29,14 @@ export function computeOverlapMap(events: CalendarEvent[]): Map<string, Layout> 
       return sd !== 0 ? sd : a.uid.localeCompare(b.uid);
     });
 
-  // --- Step 1: find connected overlap clusters ---
-  // Two events overlap if one starts before the other ends.
+
   const n = timed.length;
   const clusterIdx = new Array<number>(n).fill(-1);
   const clusters: number[][] = [];
 
   for (let i = 0; i < n; i++) {
     if (clusterIdx[i] !== -1) continue;
-    // BFS to collect all events reachable via overlap
+
     const cluster: number[] = [];
     const queue = [i];
     clusterIdx[i] = clusters.length;
@@ -46,7 +45,7 @@ export function computeOverlapMap(events: CalendarEvent[]): Map<string, Layout> 
       cluster.push(cur);
       for (let j = 0; j < n; j++) {
         if (clusterIdx[j] !== -1) continue;
-        // Check overlap with any event already in this cluster
+
         const overlapsCluster = cluster.some((c) =>
           timed[c].dtstart.getTime() < timed[j].dtend.getTime() &&
           timed[c].dtend.getTime() > timed[j].dtstart.getTime()
@@ -60,9 +59,8 @@ export function computeOverlapMap(events: CalendarEvent[]): Map<string, Layout> 
     clusters.push(cluster);
   }
 
-  // --- Step 2: within each cluster, assign columns greedily ---
   for (const cluster of clusters) {
-    // Sort cluster members by start time (already sorted globally, but re-sort for safety)
+
     const members = cluster
       .map((i) => timed[i])
       .sort((a, b) => {
@@ -70,13 +68,12 @@ export function computeOverlapMap(events: CalendarEvent[]): Map<string, Layout> 
         return sd !== 0 ? sd : a.uid.localeCompare(b.uid);
       });
 
-    // columnEnds[k] = latest end time of events assigned to column k
     const columnEnds: number[] = [];
-    const assignments = new Map<string, number>(); // uid → column
+    const assignments = new Map<string, number>();
 
     for (const ev of members) {
       const start = ev.dtstart.getTime();
-      // Find the first column whose last event ends at or before this event's start
+
       let col = columnEnds.findIndex((end) => end <= start);
       if (col === -1) {
         col = columnEnds.length;
@@ -100,7 +97,6 @@ export function computeOverlapMap(events: CalendarEvent[]): Map<string, Layout> 
     }
   }
 
-  // All-day events: full width, uniform zIndex
   for (const ev of events.filter((e) => e.allDay)) {
     result.set(ev.uid, { leftPct: 0, rightPx: 3, zIndex: 100 });
   }

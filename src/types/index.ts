@@ -18,7 +18,6 @@ export type CalendarMeta = {
   url: string;
   slug: string;
   isSubscribed?: boolean;
-  /** True when the server reports no write/bind privilege — event creation blocked. */
   isReadOnly?: boolean;
 };
 
@@ -37,7 +36,6 @@ export type RecurrenceRule = {
   byDay?: string[];
 };
 
-/** Scope for editing/deleting a recurring event instance. */
 export type RecurrenceEditScope = 'this' | 'thisAndFollowing' | 'all';
 
 export type TalkRoomType = 'public' | 'private';

@@ -29,10 +29,8 @@ interface Props {
 
 function buildMonthGrid(year: number, month: number, weekStartsOn: 0 | 1): (dayjs.Dayjs | null)[][] {
   const firstOfMonth = dayjs(new Date(year, month, 1));
-  // Determine first cell: rewind to the start of the week that contains the 1st
   let startCell = firstOfMonth.startOf('week');
   if (weekStartsOn === 1) {
-    // ISO week starts Monday
     startCell = firstOfMonth.day() === 0
       ? firstOfMonth.subtract(6, 'day')
       : firstOfMonth.startOf('week').add(1, 'day');
@@ -47,7 +45,6 @@ function buildMonthGrid(year: number, month: number, weekStartsOn: 0 | 1): (dayj
       week.push(cursor.month() === month ? cursor : null);
       cursor = cursor.add(1, 'day');
     }
-    // Stop if we've moved past the month entirely and have complete rows
     const allNull = week.every((d) => d === null);
     if (allNull) break;
     rows.push(week);
@@ -60,8 +57,6 @@ export function MonthDayView({ date, events: rawEvents, weekStartsOn, onSelectDa
   const theme = useTheme();
   const { height } = useWindowDimensions();
   const [selectedDay, setSelectedDay] = useState<dayjs.Dayjs>(dayjs(date));
-
-  // Coerce any string dates from the RQ persistence layer back to Date objects
   const events = normalizeEvents(rawEvents);
 
   const year = dayjs(date).year();
@@ -69,7 +64,6 @@ export function MonthDayView({ date, events: rawEvents, weekStartsOn, onSelectDa
 
   const grid = useMemo(() => buildMonthGrid(year, month, weekStartsOn), [year, month, weekStartsOn]);
 
-  // Map day string "YYYY-MM-DD" → array of unique calendar colors
   const dotMap = useMemo(() => {
     const map = new Map<string, Set<string>>();
     for (const ev of events) {
@@ -114,16 +108,13 @@ export function MonthDayView({ date, events: rawEvents, weekStartsOn, onSelectDa
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
-      {/* Month grid */}
       <View style={[styles.grid, { height: gridHeight, borderBottomColor: theme.border }]}>
-        {/* Day-of-week header */}
         <View style={styles.dowRow}>
           {dayHeaders.map((d) => (
             <Text key={d} style={[styles.dowLabel, { color: theme.textTertiary }]}>{d}</Text>
           ))}
         </View>
 
-        {/* Weeks */}
         {grid.map((week, wi) => (
           <View key={wi} style={styles.weekRow}>
             {week.map((d, di) => {
@@ -168,7 +159,6 @@ export function MonthDayView({ date, events: rawEvents, weekStartsOn, onSelectDa
         ))}
       </View>
 
-      {/* Day event list */}
       <View style={styles.dayList}>
         <Text style={[styles.dayListHeader, { color: theme.textSecondary }]}>
           {selectedDay.format('dddd, MMMM D')}

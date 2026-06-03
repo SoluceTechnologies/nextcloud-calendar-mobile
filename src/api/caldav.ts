@@ -172,7 +172,6 @@ export async function fetchEvents(
     }
   }
 
-  // Pass the range so the parser can expand recurring events within it
   return parseIcsObjects(items, {
     calendarId: calendar.id,
     accountId: account.id,

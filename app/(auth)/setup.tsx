@@ -94,12 +94,11 @@ export default function SetupScreen() {
   }
 
   function handleQrScanned(data: NcLoginData) {
-    // Close the scanner first, then pre-fill and auto-connect
     setShowScanner(false);
     setBaseUrl(data.server);
     setUsername(data.user);
     setAppPassword(data.password);
-    // Kick off connection immediately — user already authenticated via QR
+
     connectWith({ baseUrl: data.server, username: data.user, appPassword: data.password, displayName: '' });
   }
 

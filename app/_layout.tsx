@@ -57,7 +57,6 @@ export default function RootLayout() {
           await setActiveAccountId(id);
           setStoreAccountId(id);
 
-          // Check capabilities for the active account (non-blocking — don't delay splash)
           const activeAccount = accounts.find((a) => a.id === id) ?? accounts[0];
           fetchCapabilities(activeAccount).then(setCapabilities).catch(() => {});
         }

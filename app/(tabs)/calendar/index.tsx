@@ -87,8 +87,6 @@ export default function CalendarScreen() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const drawerAnim = useRef(new Animated.Value(-DRAWER_WIDTH)).current;
 
-  // Snap to whole-month boundaries so the query key only changes when the
-  // displayed month changes, not on every week swipe within the same month.
   const year = dayjs(date).year();
   const month = dayjs(date).month(); // 0-based
   const start = useMemo(() => new Date(year, month - 1, 1), [year, month]);
@@ -123,12 +121,8 @@ export default function CalendarScreen() {
     staleTime: Infinity,
   });
 
-  // Coerce dtstart/dtend back to Date objects — React Query's AsyncStorage
-  // persister serialises them as ISO strings which breaks any .getTime() call.
   const allEvents = normalizeEvents(rawEvents);
 
-  // Preload adjacent months in the background so swiping across month boundaries
-  // is instant.  Keys match the same month-snapped format used by the main query.
   useEffect(() => {
     if (!activeAccount || visibleCalendars.length === 0) return;
 
