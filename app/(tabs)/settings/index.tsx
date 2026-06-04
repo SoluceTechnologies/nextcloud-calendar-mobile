@@ -1,4 +1,4 @@
-import { View, Text, TouchableOpacity, ScrollView, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, Alert, Modal, Linking, Image, Pressable } from 'react-native';
 import { styles } from '@/styles/settingsScreen';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
@@ -8,6 +8,12 @@ import { loadAccounts, deleteAccount, setActiveAccountId, clearActiveAccountId }
 import { useAppStore, type ThemePreference } from '@/store/appStore';
 import { useTheme } from '@/hooks/useTheme';
 import { AccountCard } from '@/components/AccountCard';
+import Ionicons from '@expo/vector-icons/Ionicons';
+import Constants from 'expo-constants';
+import { useState } from 'react';
+
+const GITHUB_URL = 'https://github.com/SoluceTechnologies/nextcloud-calendar-mobile';
+const ISSUES_URL = 'https://github.com/SoluceTechnologies/nextcloud-calendar-mobile/issues/new';
 
 const THEME_OPTIONS: { label: string; value: ThemePreference }[] = [
   { label: 'System', value: 'system' },
@@ -17,6 +23,8 @@ const THEME_OPTIONS: { label: string; value: ThemePreference }[] = [
 
 export default function SettingsScreen() {
   const router = useRouter();
+  const [aboutVisible, setAboutVisible] = useState(false);
+  const appVersion = Constants.expoConfig?.version ?? '—';
   const queryClient = useQueryClient();
   const theme = useTheme();
   const activeAccountId = useAppStore((s) => s.activeAccountId);
@@ -74,6 +82,43 @@ export default function SettingsScreen() {
 
   return (
     <SafeAreaView edges={['top']} style={[styles.container, { backgroundColor: theme.background }]}>
+      <View style={[styles.pageHeader]}>
+        <Text style={[styles.pageTitle, { color: theme.text }]}>Settings</Text>
+        <TouchableOpacity onPress={() => setAboutVisible(true)} hitSlop={8}>
+          <Ionicons name="help-circle-outline" size={26} color={theme.textSecondary} />
+        </TouchableOpacity>
+      </View>
+
+      <Modal visible={aboutVisible} transparent animationType="fade" onRequestClose={() => setAboutVisible(false)}>
+        <Pressable style={styles.modalBackdrop} onPress={() => setAboutVisible(false)}>
+          <Pressable style={[styles.modalCard, { backgroundColor: theme.surface, borderColor: theme.border }]} onPress={() => {}}>
+            <Image source={require('../../../assets/icon.png')} style={styles.appIcon} />
+            <Text style={[styles.modalAppName, { color: theme.text }]}>Nextcloud Calendar</Text>
+            <Text style={[styles.modalVersion, { color: theme.textSecondary }]}>v{appVersion}</Text>
+            <Text style={[styles.modalDescription, { color: theme.textSecondary }]}>
+              An open-source mobile calendar app for Nextcloud.
+            </Text>
+            <TouchableOpacity
+              style={[styles.modalBtn, { backgroundColor: theme.chipActive, borderColor: theme.primary }]}
+              onPress={() => Linking.openURL(GITHUB_URL)}
+            >
+              <Ionicons name="logo-github" size={18} color={theme.primaryText} />
+              <Text style={[styles.modalBtnText, { color: theme.primaryText }]}>View on GitHub</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.modalBtn, { backgroundColor: theme.chip, borderColor: theme.border }]}
+              onPress={() => Linking.openURL(ISSUES_URL)}
+            >
+              <Ionicons name="bug-outline" size={18} color={theme.text} />
+              <Text style={[styles.modalBtnText, { color: theme.text }]}>Report a Bug</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => setAboutVisible(false)} style={styles.modalClose}>
+              <Text style={[styles.modalCloseText, { color: theme.textTertiary }]}>Close</Text>
+            </TouchableOpacity>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
       <ScrollView contentContainerStyle={{ paddingBottom: tabBarHeight + 16 }}>
         <Text style={[styles.sectionHeader, { color: theme.textTertiary }]}>Appearance</Text>
         <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
