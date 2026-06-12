@@ -12,6 +12,7 @@ import { useAppStore } from '@/store/appStore';
 import { useTheme } from '@/hooks/useTheme';
 import { EventForm } from '@/components/EventForm';
 import { normalizeEvent, normalizeEvents } from '@/utils/normalizeEvent';
+import { EVENTS_STALE } from '@/api/queryConfig';
 import type { CalendarEvent, CreateEventInput, RecurrenceEditScope } from '@/types';
 
 export default function EditEventScreen() {
@@ -37,8 +38,8 @@ export default function EditEventScreen() {
     return undefined;
   }, [queryClient, activeAccountId, uid]);
 
-  const start = useMemo(() => dayjs().subtract(6, 'months').toDate(), []);
-  const end = useMemo(() => dayjs().add(6, 'months').toDate(), []);
+  const start = useMemo(() => dayjs().subtract(3, 'months').toDate(), []);
+  const end = useMemo(() => dayjs().add(3, 'months').toDate(), []);
 
   const { data: fetchedEvents = [], isLoading: eventsLoading } = useQuery<CalendarEvent[]>({
     queryKey: [activeAccountId, 'events-detail', start.toISOString(), end.toISOString()],
@@ -50,7 +51,7 @@ export default function EditEventScreen() {
       return results.flat();
     },
     enabled: activeAccount !== null && calendars.length > 0 && cachedEvent === undefined,
-    staleTime: 2 * 60 * 1000,
+    staleTime: EVENTS_STALE,
   });
 
   const event: CalendarEvent | undefined = cachedEvent ?? normalizeEvents(fetchedEvents).find((e) => e.uid === uid);

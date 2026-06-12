@@ -11,13 +11,14 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { loadAccounts, getActiveAccountId, setActiveAccountId } from '@/api/auth';
 import { fetchCapabilities } from '@/api/nextcloud';
 import { useAppStore } from '@/store/appStore';
+import { DEFAULT_STALE, DEFAULT_GC } from '@/api/queryConfig';
 SplashScreen.preventAutoHideAsync();
 
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 5 * 60 * 1000,
-      gcTime: 7 * 24 * 60 * 60 * 1000,
+      staleTime: DEFAULT_STALE,
+      gcTime: DEFAULT_GC,
       networkMode: 'offlineFirst',
       retry: 1,
     },

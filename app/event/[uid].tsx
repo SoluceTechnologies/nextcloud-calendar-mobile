@@ -11,6 +11,7 @@ import { useDeleteEvent } from '@/hooks/useMutateEvent';
 import { useAppStore } from '@/store/appStore';
 import { useTheme } from '@/hooks/useTheme';
 import { normalizeEvent, normalizeEvents } from '@/utils/normalizeEvent';
+import { EVENTS_STALE } from '@/api/queryConfig';
 import type { CalendarEvent, RecurrenceEditScope } from '@/types';
 
 async function openTalkRoom(talkUrl: string) {
@@ -65,7 +66,11 @@ export default function EventDetailScreen() {
   const [cachedEvent, setCachedEvent] = useState<CalendarEvent | undefined>(() => findInCache());
 
   useEffect(() => {
-    return queryClient.getQueryCache().subscribe(() => {
+    return queryClient.getQueryCache().subscribe((evt) => {
+      // Only react to changes in this account's event queries; ignore the
+      // firehose of unrelated cache activity (calendars, avatars, etc.).
+      const key = evt?.query?.queryKey;
+      if (!Array.isArray(key) || key[0] !== activeAccountId || key[1] !== 'events') return;
       setCachedEvent((prev) => {
         const next = findInCacheRef.current();
         if (!next) return prev;
@@ -74,10 +79,10 @@ export default function EventDetailScreen() {
         return next;
       });
     });
-  }, [queryClient]);
+  }, [queryClient, activeAccountId]);
 
-  const start = useMemo(() => dayjs().subtract(6, 'months').toDate(), []);
-  const end = useMemo(() => dayjs().add(6, 'months').toDate(), []);
+  const start = useMemo(() => dayjs().subtract(3, 'months').toDate(), []);
+  const end = useMemo(() => dayjs().add(3, 'months').toDate(), []);
 
   const { data: fetchedEvents = [], isLoading: eventsLoading } = useQuery<CalendarEvent[]>({
     queryKey: [activeAccountId, 'events-detail', start.toISOString(), end.toISOString()],
@@ -89,7 +94,7 @@ export default function EventDetailScreen() {
       return results.flat();
     },
     enabled: activeAccount !== null && calendars.length > 0 && cachedEvent === undefined,
-    staleTime: 2 * 60 * 1000,
+    staleTime: EVENTS_STALE,
   });
 
   const event: CalendarEvent | undefined = cachedEvent ?? normalizeEvents(fetchedEvents).find((e) => e.uid === uid);

@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { AVATAR_STALE, AVATAR_GC } from '@/api/queryConfig';
 import type { Account } from '@/types';
 
 function basicAuth(account: Pick<Account, 'username' | 'appPassword'>): string {
@@ -29,8 +30,8 @@ export function useAvatar(account: Account | null) {
       });
     },
     enabled: !!account?.id,
-    staleTime: 30 * 60 * 1000,
-    gcTime: 60 * 60 * 1000,
+    staleTime: AVATAR_STALE,
+    gcTime: AVATAR_GC,
     retry: 1,
   });
 }

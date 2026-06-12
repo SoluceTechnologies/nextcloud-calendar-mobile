@@ -6,14 +6,13 @@
  * Bottom half: scrollable list of events for the selected day.
  */
 
-import { useCallback, useMemo, useState } from 'react';
+import { memo, useCallback, useMemo, useState } from 'react';
 import {
   View, Text, TouchableOpacity, FlatList, StyleSheet,
   useWindowDimensions,
 } from 'react-native';
 import dayjs from 'dayjs';
 import { useTheme } from '@/hooks/useTheme';
-import { normalizeEvents } from '@/utils/normalizeEvent';
 import type { CalendarEvent } from '@/types';
 
 const DAYS_OF_WEEK = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
@@ -53,11 +52,10 @@ function buildMonthGrid(year: number, month: number, weekStartsOn: 0 | 1): (dayj
   return rows;
 }
 
-export function MonthDayView({ date, events: rawEvents, weekStartsOn, onSelectDate, onPressEvent, onPressCell }: Props) {
+function MonthDayViewImpl({ date, events, weekStartsOn, onSelectDate, onPressEvent, onPressCell }: Props) {
   const theme = useTheme();
   const { height } = useWindowDimensions();
   const [selectedDay, setSelectedDay] = useState<dayjs.Dayjs>(dayjs(date));
-  const events = normalizeEvents(rawEvents);
 
   const year = dayjs(date).year();
   const month = dayjs(date).month();
@@ -194,6 +192,8 @@ export function MonthDayView({ date, events: rawEvents, weekStartsOn, onSelectDa
     </View>
   );
 }
+
+export const MonthDayView = memo(MonthDayViewImpl);
 
 const styles = StyleSheet.create({
   container: { flex: 1 },

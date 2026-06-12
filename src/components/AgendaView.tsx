@@ -111,7 +111,7 @@ export interface AgendaViewHandle {
 
 // ─── main component ──────────────────────────────────────────────────────────
 
-export const AgendaView = forwardRef<AgendaViewHandle, Props>(function AgendaView(
+const AgendaViewImpl = forwardRef<AgendaViewHandle, Props>(function AgendaView(
   { events, date, onPressEvent, onPressCell, onVisibleDateChange }, ref
 ) {
   const theme = useTheme();
@@ -192,8 +192,8 @@ export const AgendaView = forwardRef<AgendaViewHandle, Props>(function AgendaVie
       renderItem={renderItem}
       renderSectionHeader={renderSectionHeader}
       stickySectionHeadersEnabled
-      initialNumToRender={20}
-      maxToRenderPerBatch={15}
+      initialNumToRender={8}
+      maxToRenderPerBatch={8}
       updateCellsBatchingPeriod={50}
       windowSize={7}
       removeClippedSubviews
@@ -205,6 +205,8 @@ export const AgendaView = forwardRef<AgendaViewHandle, Props>(function AgendaVie
     />
   );
 });
+
+export const AgendaView = memo(AgendaViewImpl);
 
 const EVENT_ROW_HEIGHT = 72;
 

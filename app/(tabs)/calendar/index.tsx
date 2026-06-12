@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, startTransition } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   View, TouchableOpacity, Text, StyleSheet, ScrollView,
   useWindowDimensions, Animated, ActivityIndicator, Platform,
@@ -25,9 +25,12 @@ import type { CalendarEvent, ViewMode } from '@/types';
 import { computeOverlapMap } from '@/utils/overlapMap';
 import { normalizeEvents } from '@/utils/normalizeEvent';
 import { AgendaView, type AgendaViewHandle } from '@/components/AgendaView';
+import { SUBSCRIBED_EVENTS_STALE } from '@/api/queryConfig';
 
 dayjs.extend(isoWeek);
 
+type CalMode = 'week' | '3days' | 'day';
+const CAL_MODES: CalMode[] = ['week', '3days', 'day'];
 const VIEW_MODES: ViewMode[] = ['month', 'week', '3days', 'day', 'schedule'];
 const VIEW_LABELS: Record<ViewMode, string> = {
   month: 'Month', week: 'Week', '3days': '3D', day: 'Day', schedule: 'Agenda',
@@ -43,8 +46,7 @@ export default function CalendarScreen() {
   const activeAccountId = useAppStore((s) => s.activeAccountId);
   const viewMode = useAppStore((s) => s.viewMode);
   const setViewMode = useAppStore((s) => s.setViewMode);
-  const [pendingMode, setPendingMode] = useState(viewMode);
-  useEffect(() => { setPendingMode(viewMode); }, [viewMode]);
+  const isCalendarMode = viewMode === 'week' || viewMode === '3days' || viewMode === 'day';
   const hiddenCalendarIds = useAppStore((s) => s.hiddenCalendarIds);
   const toggleCalendarVisibility = useAppStore((s) => s.toggleCalendarVisibility);
   const hourRowHeight = useAppStore((s) => s.hourRowHeight);
@@ -52,17 +54,62 @@ export default function CalendarScreen() {
   const weekStartsOn = useAppStore((s) => s.weekStartsOn);
   const [calendarKey, setCalendarKey] = useState(0);
   const [committedHeight, setCommittedHeight] = useState(hourRowHeight);
+
+  // Focus date: drives the header, Today button, event-fetch window, month + agenda.
+  const [date, setDate] = useState(new Date());
   const [agendaVisibleDate, setAgendaVisibleDate] = useState(date);
-  useEffect(() => { if (viewMode === 'schedule') setAgendaVisibleDate(date); }, [date, viewMode]);
   const agendaRef = useRef<AgendaViewHandle>(null);
+
+  // Each time-grid mode owns a persistent <Calendar>, so switching modes is an
+  // opacity flip — never a re-render. `calDates[m]` is the date prop fed to
+  // instance m; changing it teleports that instance (5-page rebuild), so we
+  // only change it on real navigation (Today / cross-mode sync), never on the
+  // instance's own swipe. `calInternalRef[m]` tracks where instance m actually
+  // sits so we can skip redundant re-sync teleports.
+  const [calDates, setCalDates] = useState<Record<CalMode, Date>>(() => {
+    const now = new Date();
+    return { week: now, '3days': now, day: now };
+  });
+  const calInternalRef = useRef<Record<CalMode, Date>>({ ...calDates });
+  // Lazily mount the non-active instances after first paint so cold start stays cheap.
+  const [mountedCalModes, setMountedCalModes] = useState<Set<CalMode>>(
+    () => new Set([isCalendarMode ? (viewMode as CalMode) : 'week'])
+  );
+
+  // Refs so event handlers read the latest values without re-subscribing.
+  const dateRef = useRef(date); dateRef.current = date;
+  const viewModeRef = useRef(viewMode); viewModeRef.current = viewMode;
+  const agendaVisibleDateRef = useRef(agendaVisibleDate); agendaVisibleDateRef.current = agendaVisibleDate;
+
+  // Real available height for the time-grid, measured from the laid-out view
+  // container (the screen is inset above the tab bar). Beats estimating header +
+  // tab-bar sizes in arithmetic, which left a small gap.
+  const [availH, setAvailH] = useState(0);
+  const onViewAreaLayout = useCallback((e: any) => {
+    const h = e.nativeEvent.layout.height;
+    setAvailH((prev) => (Math.abs(prev - h) > 1 ? h : prev));
+  }, []);
+
+  useEffect(() => { if (viewMode === 'schedule') setAgendaVisibleDate(date); }, [date, viewMode]);
+
+  // Prewarm the other calendar instances once the UI is idle.
+  useEffect(() => {
+    const handle = requestIdleCallback(() => {
+      setMountedCalModes((prev) =>
+        prev.has('week') && prev.has('3days') && prev.has('day')
+          ? prev
+          : new Set<CalMode>(CAL_MODES)
+      );
+    }, { timeout: 800 });
+    return () => cancelIdleCallback(handle);
+  }, []);
 
   useFocusEffect(useCallback(() => {
     if (committedHeight !== hourRowHeight) {
       setCalendarKey((k) => k + 1);
       setCommittedHeight(hourRowHeight);
-      setCalendarAnchorDate(date);
     }
-  }, [hourRowHeight, committedHeight, date]));
+  }, [hourRowHeight, committedHeight]));
 
   const scrollOffset = useMemo(() => {
     const now = new Date();
@@ -76,8 +123,44 @@ export default function CalendarScreen() {
   const commitZoom = useCallback((h: number) => {
     setHourRowHeight(h);
     setCalendarKey((k) => k + 1);
-    setCalendarAnchorDate(date);
-  }, [setHourRowHeight, date]);
+  }, [setHourRowHeight]);
+
+  // Switch view mode. For time-grid modes, lazily mount the instance and sync it
+  // to the current focus date only if it has drifted (else the switch is a pure
+  // opacity flip with zero re-render).
+  const switchMode = useCallback((target: ViewMode) => {
+    const f = viewModeRef.current === 'schedule' ? agendaVisibleDateRef.current : dateRef.current;
+    if (target === 'week' || target === '3days' || target === 'day') {
+      setMountedCalModes((prev) => (prev.has(target) ? prev : new Set(prev).add(target)));
+      if (!dayjs(calInternalRef.current[target]).isSame(f, 'day')) {
+        calInternalRef.current[target] = f;
+        setCalDates((prev) => ({ ...prev, [target]: f }));
+      }
+    }
+    if (target !== 'schedule' && !dayjs(f).isSame(dateRef.current, 'day')) setDate(f);
+    setViewMode(target);
+  }, [setViewMode]);
+
+  const goToday = useCallback(() => {
+    const now = new Date();
+    setDate(now);
+    const vm = viewModeRef.current;
+    if (vm === 'schedule') {
+      setAgendaVisibleDate(now);
+      agendaRef.current?.scrollToToday();
+    } else if (vm === 'week' || vm === '3days' || vm === 'day') {
+      calInternalRef.current[vm] = now;
+      setCalDates((prev) => ({ ...prev, [vm]: now }));
+    }
+  }, []);
+
+  // One handler per instance: record where it moved + advance the fetch window,
+  // without touching its date prop (which would teleport-rebuild it).
+  const onSwipeEndHandlers = useMemo<Record<CalMode, (d: Date) => void>>(() => ({
+    week: (d) => { calInternalRef.current.week = d; setDate(d); },
+    '3days': (d) => { calInternalRef.current['3days'] = d; setDate(d); },
+    day: (d) => { calInternalRef.current.day = d; setDate(d); },
+  }), []);
 
   const pinchGesture = useMemo(
     () =>
@@ -107,16 +190,6 @@ export default function CalendarScreen() {
     [navigateMonth]
   );
 
-  const [date, setDate] = useState(new Date());
-  // Calendar's `date` prop resets its internal page on every change, so only
-  // update it for external navigation (Today/zoom), not on each swipe.
-  const [calendarAnchorDate, setCalendarAnchorDate] = useState(date);
-  useEffect(() => {
-    if (viewMode === 'week' || viewMode === '3days' || viewMode === 'day') {
-      setCalendarAnchorDate(date);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [viewMode]);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const drawerAnim = useRef(new Animated.Value(-DRAWER_WIDTH)).current;
   const overlayAnim = useRef(new Animated.Value(0)).current;
@@ -132,7 +205,10 @@ export default function CalendarScreen() {
 
   const queryClient = useQueryClient();
   const { data: calendars = [], isLoading: calsLoading, isFetching: calsFetching } = useCalendars(activeAccount);
-  const visibleCalendars = calendars.filter((c) => !hiddenCalendarIds.includes(c.id));
+  const visibleCalendars = useMemo(
+    () => calendars.filter((c) => !hiddenCalendarIds.includes(c.id)),
+    [calendars, hiddenCalendarIds]
+  );
 
   const prevCtagsRef = useRef<string>('');
   useEffect(() => {
@@ -143,11 +219,23 @@ export default function CalendarScreen() {
     prevCtagsRef.current = current;
   }, [calendars, activeAccountId, queryClient]);
 
-  const regularCalendars = visibleCalendars.filter((c) => !c.isSubscribed);
-  const subscribedCalendars = visibleCalendars.filter((c) => c.isSubscribed);
+  const regularCalendars = useMemo(
+    () => visibleCalendars.filter((c) => !c.isSubscribed),
+    [visibleCalendars]
+  );
+  const subscribedCalendars = useMemo(
+    () => visibleCalendars.filter((c) => c.isSubscribed),
+    [visibleCalendars]
+  );
+  // Stable string keys so query keys / effect deps don't churn on every render.
+  const regularIds = useMemo(() => regularCalendars.map((c) => c.id), [regularCalendars]);
+  const subscribedKeys = useMemo(
+    () => subscribedCalendars.map((c) => c.sourceUrl ?? c.id),
+    [subscribedCalendars]
+  );
 
   const { data: rawEvents = [], isLoading: eventsLoading, isFetching: eventsFetching } = useQuery<CalendarEvent[]>({
-    queryKey: [activeAccountId, 'events', regularCalendars.map((c) => c.id), start.toISOString(), end.toISOString()],
+    queryKey: [activeAccountId, 'events', regularIds, start.toISOString(), end.toISOString()],
     queryFn: async () => {
       if (!activeAccount || regularCalendars.length === 0) return [];
       const results = await Promise.allSettled(
@@ -160,7 +248,7 @@ export default function CalendarScreen() {
   });
 
   const { data: subscribedEvents = [] } = useQuery<CalendarEvent[]>({
-    queryKey: [activeAccountId, 'subscribed-events', subscribedCalendars.map((c) => c.sourceUrl ?? c.id)],
+    queryKey: [activeAccountId, 'subscribed-events', subscribedKeys],
     queryFn: async () => {
       if (!activeAccount || subscribedCalendars.length === 0) return [];
       const results = await Promise.allSettled(
@@ -169,11 +257,14 @@ export default function CalendarScreen() {
       return results.flatMap((r) => r.status === 'fulfilled' ? r.value : []);
     },
     enabled: activeAccount !== null && subscribedCalendars.length > 0,
-    staleTime: 30 * 60 * 1000,
+    staleTime: SUBSCRIBED_EVENTS_STALE,
     retry: 2,
   });
 
-  const allEvents = normalizeEvents([...rawEvents, ...subscribedEvents]);
+  const allEvents = useMemo(
+    () => normalizeEvents([...rawEvents, ...subscribedEvents]),
+    [rawEvents, subscribedEvents]
+  );
 
   useEffect(() => {
     if (!activeAccount || regularCalendars.length === 0) return;
@@ -184,7 +275,7 @@ export default function CalendarScreen() {
       const adjStart = new Date(adjYear, adjMonth - 1, 1);
       const adjEnd = new Date(adjYear, adjMonth + 2, 0, 23, 59, 59, 999);
       queryClient.prefetchQuery({
-        queryKey: [activeAccountId, 'events', regularCalendars.map((c) => c.id), adjStart.toISOString(), adjEnd.toISOString()],
+        queryKey: [activeAccountId, 'events', regularIds, adjStart.toISOString(), adjEnd.toISOString()],
         queryFn: () =>
           Promise.allSettled(regularCalendars.map((cal) => fetchEvents(activeAccount, cal, adjStart, adjEnd)))
             .then((results) => results.flatMap((r) => r.status === 'fulfilled' ? r.value : [])),
@@ -320,6 +411,22 @@ export default function CalendarScreen() {
     [theme.primary]
   );
 
+  // Stable object — inline would be a new ref each render and bust the lib's memo.
+  const bigCalendarTheme = useMemo(
+    () => ({
+      palette: {
+        primary: { main: theme.primary },
+        gray: {
+          '100': theme.borderSubtle,
+          '200': theme.border,
+          '500': theme.textSecondary,
+          '800': theme.text,
+        },
+      },
+    }),
+    [theme.primary, theme.borderSubtle, theme.border, theme.textSecondary, theme.text]
+  );
+
   const handlePressEventFromMonth = useCallback(
     (event: CalendarEvent) => { router.push(`/event/${event.uid}`); },
     [router]
@@ -344,7 +451,49 @@ export default function CalendarScreen() {
   }, [date, agendaVisibleDate, viewMode]);
 
   const headerHeight = 44 + 40 + insets.top;
+  // Rough fallback only — the real height comes from the measured `availH`
+  // (onLayout) below, so this is used for a single frame before measurement.
   const calHeight = windowHeight - headerHeight - insets.bottom - 49;
+
+  // Per-instance header height, computed deterministically from the all-day
+  // events in THAT instance's own visible range (mirrors CalendarHeader.tsx:
+  // 8 top pad + 56 day row + 2 border = 66, plus maxPerDay·26 + 4 with all-day).
+  // Per-instance (not global viewMode) so the height prop stays stable when you
+  // flip modes — otherwise every instance would rebuild on each switch.
+  const headerHeightFor = useCallback((m: CalMode, focusDate: Date) => {
+    const DAY_ROW = 66, ALLDAY_ROW = 26, ALLDAY_PAD = 4;
+    const allDay = allEvents.filter((e) => e.allDay);
+    if (allDay.length === 0) return DAY_ROW;
+    const focus = dayjs(focusDate);
+    const span = m === 'week' ? 7 : m === '3days' ? 3 : 1;
+    const startDow = focus.day();
+    const rangeStart = m === 'week'
+      ? focus.add(weekStartsOn - startDow - (startDow < weekStartsOn ? 7 : 0), 'day')
+      : focus;
+    let maxPerDay = 0;
+    for (let i = 0; i < span; i++) {
+      const ds = rangeStart.add(i, 'day').startOf('day');
+      let c = 0;
+      for (const e of allDay) {
+        const s = dayjs(e.dtstart).startOf('day');
+        const en = dayjs(e.dtend).startOf('day');
+        if (!ds.isBefore(s) && !ds.isAfter(en)) c++;
+      }
+      if (c > maxPerDay) maxPerDay = c;
+    }
+    return DAY_ROW + (maxPerDay > 0 ? maxPerDay * ALLDAY_ROW + ALLDAY_PAD : 0);
+  }, [allEvents, weekStartsOn]);
+
+  // The lib sets its scroll body to `height − 3·hourRowHeight` (it assumes a
+  // 3-row header). `calHeight` is the usable area above the tab bar; we give back
+  // exactly that minus our real header so the calendar (header + body) ends flush
+  // at the tab bar top: no gap, no overflow, no clipped 23:00/00:00.
+  const calArea = availH > 0 ? availH : calHeight;
+  const calHeightFor = useCallback(
+    (m: CalMode, focusDate: Date) =>
+      Math.max(calArea - headerHeightFor(m, focusDate) + hourRowHeight * 3, hourRowHeight * 3 + 1),
+    [calArea, headerHeightFor, hourRowHeight]
+  );
 
   const calendarKeyFull = `${calendarKey}-${theme.background}`;
 
@@ -360,13 +509,7 @@ export default function CalendarScreen() {
           </Text>
           <TouchableOpacity
             style={[styles.todayBtn, { opacity: isToday ? 0.35 : 1 }]}
-            onPress={() => {
-              const now = new Date();
-              setDate(now);
-              setCalendarAnchorDate(now);
-              setCalendarKey((k) => k + 1);
-              agendaRef.current?.scrollToToday();
-            }}
+            onPress={goToday}
             disabled={isToday}
           >
             <Text style={[styles.todayBtnText, { color: theme.primary }]}>Today</Text>
@@ -379,18 +522,15 @@ export default function CalendarScreen() {
               style={[
                 styles.modeBtn,
                 { backgroundColor: theme.chip },
-                pendingMode === mode && { backgroundColor: theme.chipActive },
+                viewMode === mode && { backgroundColor: theme.chipActive },
               ]}
-              onPress={() => {
-                setPendingMode(mode);
-                startTransition(() => setViewMode(mode));
-              }}
+              onPress={() => switchMode(mode)}
             >
               <Text
                 style={[
                   styles.modeBtnText,
                   { color: theme.textSecondary },
-                  pendingMode === mode && { color: theme.primaryText, fontWeight: '600' },
+                  viewMode === mode && { color: theme.primaryText, fontWeight: '600' },
                 ]}
               >
                 {VIEW_LABELS[mode]}
@@ -400,64 +540,86 @@ export default function CalendarScreen() {
         </ScrollView>
       </SafeAreaView>
 
-      {viewMode === 'month' ? (
-        <GestureDetector gesture={monthSwipeGesture}>
-          <View style={{ flex: 1 }}>
-            <MonthDayView
-              date={date}
-              events={allEvents}
-              weekStartsOn={weekStartsOn}
-              onSelectDate={setDate}
-              onPressEvent={handlePressEventFromMonth}
-              onPressCell={handlePressCell}
-            />
-          </View>
-        </GestureDetector>
-      ) : viewMode === 'schedule' ? (
-        <AgendaView
-          ref={agendaRef}
-          events={allEvents}
-          date={date}
-          onPressEvent={handlePressEventFromMonth}
-          onPressCell={handlePressCell}
-          onVisibleDateChange={setAgendaVisibleDate}
-        />
-      ) : (
-        <GestureDetector gesture={pinchGesture}>
-          <View style={styles.calendarWrapper}>
-            <Calendar
-              key={calendarKeyFull}
-              events={calendarEvents}
-              mode={viewMode}
-              date={calendarAnchorDate}
-              height={calHeight + hourRowHeight * 3}
-              hourRowHeight={hourRowHeight}
-              timeslots={1}
-              weekStartsOn={weekStartsOn}
-              weekEndsOn={((weekStartsOn + 6) % 7) as 0 | 1 | 2 | 3 | 4 | 5 | 6}
-              onPressEvent={handlePressEvent}
-              onPressCell={handlePressCell}
-              onSwipeEnd={setDate}
-              scrollOffsetMinutes={scrollOffset}
-              renderHeader={FixedCalendarHeader}
-              renderEvent={renderEvent}
-              eventCellStyle={eventCellStyle}
-              allDayEventCellStyle={eventCellStyle}
-              theme={{
-                palette: {
-                  primary: { main: theme.primary },
-                  gray: {
-                    '100': theme.borderSubtle,
-                    '200': theme.border,
-                    '500': theme.textSecondary,
-                    '800': theme.text,
-                  },
-                },
-              }}
-            />
-          </View>
-        </GestureDetector>
-      )}
+      {/* All three views stay mounted and laid out; switching is just an
+          opacity/z-order/touch flip — no unmount/remount of the heavy trees,
+          and horizontally-paged children keep their measured width. */}
+      <View style={styles.viewContainer} onLayout={onViewAreaLayout}>
+        <View
+          style={[styles.viewLayer, viewMode === 'month' ? styles.layerActive : styles.layerHidden]}
+          pointerEvents={viewMode === 'month' ? 'auto' : 'none'}
+        >
+          <GestureDetector gesture={monthSwipeGesture}>
+            <View style={{ flex: 1 }}>
+              <MonthDayView
+                date={date}
+                events={allEvents}
+                weekStartsOn={weekStartsOn}
+                onSelectDate={setDate}
+                onPressEvent={handlePressEventFromMonth}
+                onPressCell={handlePressCell}
+              />
+            </View>
+          </GestureDetector>
+        </View>
+
+        <View
+          style={[styles.viewLayer, viewMode === 'schedule' ? styles.layerActive : styles.layerHidden]}
+          pointerEvents={viewMode === 'schedule' ? 'auto' : 'none'}
+        >
+          <AgendaView
+            ref={agendaRef}
+            events={allEvents}
+            date={date}
+            onPressEvent={handlePressEventFromMonth}
+            onPressCell={handlePressCell}
+            onVisibleDateChange={setAgendaVisibleDate}
+          />
+        </View>
+
+        <View
+          style={[styles.viewLayer, isCalendarMode ? styles.layerActive : styles.layerHidden]}
+          pointerEvents={isCalendarMode ? 'auto' : 'none'}
+        >
+          <GestureDetector gesture={pinchGesture}>
+            <View style={{ flex: 1 }}>
+              {/* One persistent <Calendar> per time-grid mode, fixed-mode and
+                  date-decoupled. Switching is an opacity flip with no re-render. */}
+              {CAL_MODES.map((m) =>
+                mountedCalModes.has(m) ? (
+                  <View
+                    key={m}
+                    style={[StyleSheet.absoluteFill, { opacity: viewMode === m ? 1 : 0, zIndex: viewMode === m ? 1 : 0 }]}
+                    pointerEvents={viewMode === m ? 'auto' : 'none'}
+                  >
+                    <View style={styles.calendarWrapper}>
+                      <Calendar
+                        key={calendarKeyFull}
+                        events={calendarEvents}
+                        mode={m}
+                        date={calDates[m]}
+                        height={calHeightFor(m, calDates[m])}
+                        hourRowHeight={hourRowHeight}
+                        timeslots={1}
+                        weekStartsOn={weekStartsOn}
+                        weekEndsOn={((weekStartsOn + 6) % 7) as 0 | 1 | 2 | 3 | 4 | 5 | 6}
+                        onPressEvent={handlePressEvent}
+                        onPressCell={handlePressCell}
+                        onSwipeEnd={onSwipeEndHandlers[m]}
+                        scrollOffsetMinutes={scrollOffset}
+                        renderHeader={FixedCalendarHeader}
+                        renderEvent={renderEvent}
+                        eventCellStyle={eventCellStyle}
+                        allDayEventCellStyle={eventCellStyle}
+                        theme={bigCalendarTheme}
+                      />
+                    </View>
+                  </View>
+                ) : null
+              )}
+            </View>
+          </GestureDetector>
+        </View>
+      </View>
 
       {showFullOverlay && (
         <View style={[styles.loadingOverlay, { backgroundColor: theme.background }]}>
