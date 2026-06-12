@@ -60,8 +60,9 @@ export default function CalendarScreen() {
     if (committedHeight !== hourRowHeight) {
       setCalendarKey((k) => k + 1);
       setCommittedHeight(hourRowHeight);
+      setCalendarAnchorDate(date);
     }
-  }, [hourRowHeight, committedHeight]));
+  }, [hourRowHeight, committedHeight, date]));
 
   const scrollOffset = useMemo(() => {
     const now = new Date();
@@ -75,7 +76,8 @@ export default function CalendarScreen() {
   const commitZoom = useCallback((h: number) => {
     setHourRowHeight(h);
     setCalendarKey((k) => k + 1);
-  }, [setHourRowHeight]);
+    setCalendarAnchorDate(date);
+  }, [setHourRowHeight, date]);
 
   const pinchGesture = useMemo(
     () =>
@@ -106,6 +108,15 @@ export default function CalendarScreen() {
   );
 
   const [date, setDate] = useState(new Date());
+  // Calendar's `date` prop resets its internal page on every change, so only
+  // update it for external navigation (Today/zoom), not on each swipe.
+  const [calendarAnchorDate, setCalendarAnchorDate] = useState(date);
+  useEffect(() => {
+    if (viewMode === 'week' || viewMode === '3days' || viewMode === 'day') {
+      setCalendarAnchorDate(date);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [viewMode]);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const drawerAnim = useRef(new Animated.Value(-DRAWER_WIDTH)).current;
   const overlayAnim = useRef(new Animated.Value(0)).current;
@@ -350,7 +361,10 @@ export default function CalendarScreen() {
           <TouchableOpacity
             style={[styles.todayBtn, { opacity: isToday ? 0.35 : 1 }]}
             onPress={() => {
-              setDate(new Date());
+              const now = new Date();
+              setDate(now);
+              setCalendarAnchorDate(now);
+              setCalendarKey((k) => k + 1);
               agendaRef.current?.scrollToToday();
             }}
             disabled={isToday}
@@ -415,8 +429,8 @@ export default function CalendarScreen() {
               key={calendarKeyFull}
               events={calendarEvents}
               mode={viewMode}
-              date={date}
-              height={calHeight}
+              date={calendarAnchorDate}
+              height={calHeight + hourRowHeight * 3}
               hourRowHeight={hourRowHeight}
               timeslots={1}
               weekStartsOn={weekStartsOn}

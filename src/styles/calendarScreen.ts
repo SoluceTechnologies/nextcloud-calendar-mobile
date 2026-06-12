@@ -2,7 +2,7 @@ import { StyleSheet } from 'react-native';
 
 export const styles = StyleSheet.create({
   root: { flex: 1 },
-  calendarWrapper: { flex: 1 },
+  calendarWrapper: { flex: 1, overflow: 'hidden' },
   headerWrap: { borderBottomWidth: StyleSheet.hairlineWidth },
   headerRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingBottom: 4, height: 44 },
   hamburger: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', marginLeft: -4 },
