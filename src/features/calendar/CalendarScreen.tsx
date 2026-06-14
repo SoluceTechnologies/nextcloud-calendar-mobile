@@ -35,10 +35,10 @@ export default function CalendarScreen() {
   const toggleCalendarVisibility = useAppStore((s) => s.toggleCalendarVisibility);
 
   const nav = useCalendarNavigation();
-  const { viewMode, isCalendarMode, date, agendaVisibleDate, navigateMonth } = nav;
+  const { viewMode, isCalendarMode, date, fetchDate, agendaVisibleDate, navigateMonth } = nav;
 
   const { hourRowHeight, calendarKey, pinchGesture } = useZoom();
-  const { activeAccount, calendars, allEvents, showFullOverlay, showSmallLoader } = useCalendarData(date);
+  const { activeAccount, calendars, allEvents, showFullOverlay, showSmallLoader } = useCalendarData(fetchDate);
   const { insets, onViewAreaLayout, heightFor, scrollOffset } = useCalendarLayout(allEvents, weekStartsOn, hourRowHeight);
   const drawer = useCalendarDrawer();
 
