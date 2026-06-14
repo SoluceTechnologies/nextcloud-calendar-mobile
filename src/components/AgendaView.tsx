@@ -17,6 +17,8 @@ interface Props {
 
 const DAYS_AHEAD = 120;
 
+type AgendaSection = { key: string; date: Date; data: CalendarEvent[] };
+
 function formatTime(d: Date, allDay: boolean): string {
   if (allDay) return 'All day';
   return dayjs(d).format('HH:mm');
@@ -115,7 +117,7 @@ const AgendaViewImpl = forwardRef<AgendaViewHandle, Props>(function AgendaView(
   { events, date, onPressEvent, onPressCell, onVisibleDateChange }, ref
 ) {
   const theme = useTheme();
-  const listRef = useRef<SectionList>(null);
+  const listRef = useRef<SectionList<CalendarEvent, AgendaSection>>(null);
 
   const sections = useMemo(() => {
     const today = dayjs();
@@ -138,7 +140,7 @@ const AgendaViewImpl = forwardRef<AgendaViewHandle, Props>(function AgendaView(
       }
     }
 
-    const result = [];
+    const result: AgendaSection[] = [];
     let cur = start.clone();
     while (cur.isBefore(end)) {
       const key = cur.format('YYYY-MM-DD');
@@ -185,7 +187,7 @@ const AgendaViewImpl = forwardRef<AgendaViewHandle, Props>(function AgendaView(
   const keyExtractor = useCallback((item: CalendarEvent, index: number) => `${item.uid}-${index}`, []);
 
   return (
-    <SectionList
+    <SectionList<CalendarEvent, AgendaSection>
       ref={listRef}
       sections={sections}
       keyExtractor={keyExtractor}

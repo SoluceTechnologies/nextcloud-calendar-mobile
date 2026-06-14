@@ -4,6 +4,12 @@ import dayjs from 'dayjs';
 import { MonthDayView } from '../../src/components/MonthDayView';
 import type { CalendarEvent } from '../../src/types';
 
+// MonthDayView pulls useTheme -> useAppStore (zustand persist), which touches the
+// AsyncStorage native module at import. Mock it like the other store-backed suites.
+jest.mock('@react-native-async-storage/async-storage', () =>
+  require('@react-native-async-storage/async-storage/jest/async-storage-mock')
+);
+
 // Local-time dates so day formatting is timezone-stable in CI.
 const june10 = new Date(2026, 5, 10);
 const june15 = new Date(2026, 5, 15);

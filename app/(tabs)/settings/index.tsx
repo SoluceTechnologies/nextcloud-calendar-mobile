@@ -1,6 +1,5 @@
 import { View, Text, TouchableOpacity, Pressable, ScrollView, Alert, Modal, Linking, Image } from 'react-native';
 import { startTransition, useState, useEffect } from 'react';
-import { Pressable as GHPressable } from 'react-native-gesture-handler';
 import { styles } from '@/styles/settingsScreen';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
@@ -131,7 +130,7 @@ export default function SettingsScreen() {
           <Text style={[styles.cardLabel, { color: theme.text }]}>Theme</Text>
           <View style={styles.themeRow}>
             {THEME_OPTIONS.map((opt) => (
-              <GHPressable
+              <TouchableOpacity
                 key={opt.value}
                 style={[
                   styles.themeChip,
@@ -155,7 +154,7 @@ export default function SettingsScreen() {
                 >
                   {opt.label}
                 </Text>
-              </GHPressable>
+              </TouchableOpacity>
             ))}
           </View>
         </View>
@@ -167,7 +166,7 @@ export default function SettingsScreen() {
               { label: 'Sunday', value: 0 },
               { label: 'Monday', value: 1 },
             ] as const).map((opt) => (
-              <GHPressable
+              <TouchableOpacity
                 key={String(opt.value)}
                 style={[
                   styles.themeChip,
@@ -191,7 +190,7 @@ export default function SettingsScreen() {
                 >
                   {opt.label}
                 </Text>
-              </GHPressable>
+              </TouchableOpacity>
             ))}
           </View>
         </View>
