@@ -20,7 +20,7 @@ import { CalendarDrawer } from '@/components/CalendarDrawer';
 import { MonthDayView } from '@/components/MonthDayView';
 import { loadAccounts } from '@/api/auth';
 import { fetchEvents } from '@/api/caldav';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import type { CalendarEvent, ViewMode } from '@/types';
 import { computeOverlapMap } from '@/utils/overlapMap';
 import { normalizeEvents } from '@/utils/normalizeEvent';
@@ -245,6 +245,9 @@ export default function CalendarScreen() {
     },
     enabled: activeAccount !== null && regularCalendars.length > 0,
     staleTime: Infinity,
+    // Keep showing the current events while a background refetch parses the
+    // next batch — the swap is non-blocking, no loading flash.
+    placeholderData: keepPreviousData,
   });
 
   const { data: subscribedEvents = [] } = useQuery<CalendarEvent[]>({
@@ -259,6 +262,7 @@ export default function CalendarScreen() {
     enabled: activeAccount !== null && subscribedCalendars.length > 0,
     staleTime: SUBSCRIBED_EVENTS_STALE,
     retry: 2,
+    placeholderData: keepPreviousData,
   });
 
   const allEvents = useMemo(

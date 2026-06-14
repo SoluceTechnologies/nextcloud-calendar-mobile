@@ -128,14 +128,13 @@ export default function EventDetailScreen() {
           { text: 'Cancel', style: 'cancel' },
           {
             text: 'Delete', style: 'destructive',
-            onPress: async () => {
-              try {
-                await deleteMutation.mutateAsync({ event, scope });
-                if (router.canGoBack()) router.back();
-                else router.replace('/(tabs)/calendar');
-              } catch (e: any) {
-                Alert.alert('Error', e?.message ?? 'Failed to delete event.');
-              }
+            onPress: () => {
+              // Optimistic: the event disappears from the calendar at once
+              // (onMutate), and we leave immediately. A server failure rolls the
+              // deletion back and alerts globally (see src/api/queryClient.ts).
+              deleteMutation.mutate({ event, scope });
+              if (router.canGoBack()) router.back();
+              else router.replace('/(tabs)/calendar');
             },
           },
         ]

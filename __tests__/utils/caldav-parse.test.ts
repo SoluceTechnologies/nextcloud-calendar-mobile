@@ -1,5 +1,5 @@
 // __tests__/utils/caldav-parse.test.ts
-import { parseIcsObjects } from '../../src/utils/caldav-parse';
+import { parseIcsObjects, parseIcsObjectsAsync } from '../../src/utils/caldav-parse';
 
 const sampleIcs = `BEGIN:VCALENDAR
 VERSION:2.0
@@ -96,5 +96,31 @@ describe('parseIcsObjects', () => {
   it('handles multiple ICS strings', () => {
     const events = parseIcsObjects([{ ics: sampleIcs, href: '/cal/s.ics' }, { ics: allDayIcs, href: '/cal/a.ics' }], calMeta);
     expect(events).toHaveLength(2);
+  });
+});
+
+describe('parseIcsObjectsAsync', () => {
+  const calMeta = { calendarId: 'cal-1', accountId: 'acc-1', color: '#0082c9' };
+  const rangeStart = new Date('2026-06-01T00:00:00Z');
+  const rangeEnd = new Date('2026-06-30T23:59:59Z');
+  const items = [
+    { ics: sampleIcs, href: '/cal/s.ics' },
+    { ics: allDayIcs, href: '/cal/a.ics' },
+    { ics: recurringIcs, href: '/cal/r.ics' },
+  ];
+
+  it('produces identical output to the synchronous parser', async () => {
+    const sync = parseIcsObjects(items, calMeta, rangeStart, rangeEnd);
+    const async = await parseIcsObjectsAsync(items, calMeta, rangeStart, rangeEnd);
+    expect(async).toEqual(sync);
+  });
+
+  it('still resolves correctly when forced to yield on every item', async () => {
+    // frameBudgetMs=0 forces a cooperative yield after each resource — exercises
+    // the time-slicing path without changing the result.
+    const events = await parseIcsObjectsAsync(items, calMeta, rangeStart, rangeEnd, 0);
+    const sync = parseIcsObjects(items, calMeta, rangeStart, rangeEnd);
+    expect(events).toEqual(sync);
+    expect(events.length).toBeGreaterThan(0);
   });
 });

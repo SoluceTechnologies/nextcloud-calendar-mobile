@@ -1,5 +1,5 @@
 import type { Account, CalendarMeta, CalendarEvent } from '@/types';
-import { parseIcsObjects } from '@/utils/caldav-parse';
+import { parseIcsObjectsAsync } from '@/utils/caldav-parse';
 
 function basicAuth(account: Pick<Account, 'username' | 'appPassword'>): string {
   return 'Basic ' + btoa(`${account.username}:${account.appPassword}`);
@@ -173,7 +173,7 @@ export async function fetchEvents(
       clearTimeout(timer);
       throw e;
     }
-    const parsed = parseIcsObjects(
+    const parsed = await parseIcsObjectsAsync(
       [{ ics: icsText, href: calendar.sourceUrl }],
       { calendarId: calendar.id, accountId: account.id, color: calendar.color },
       start, end,
@@ -199,7 +199,7 @@ export async function fetchEvents(
     }
   }
 
-  return parseIcsObjects(items, {
+  return parseIcsObjectsAsync(items, {
     calendarId: calendar.id,
     accountId: account.id,
     color: calendar.color,

@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { View, StyleSheet, Text, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
+import { View, StyleSheet, Text, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -63,19 +63,13 @@ export default function EditEventScreen() {
 
   const updateMutation = useUpdateEvent(activeAccount!, calendars);
 
-  async function handleSubmit(input: CreateEventInput) {
+  function handleSubmit(input: CreateEventInput) {
     if (!activeAccount || !event) return;
-    try {
-      await updateMutation.mutateAsync({ event, input, scope });
-      if (router.canGoBack()) router.back();
-      else router.replace('/(tabs)/calendar');
-    } catch (e: any) {
-      const msg = e?.message ?? '';
-      Alert.alert(
-        'Failed to update event',
-        msg.includes('403') ? 'Permission denied. This calendar is read-only or shared without write access.' : (msg || 'Unknown error.')
-      );
-    }
+    // Optimistic: apply locally and leave immediately. Rollback + error alert
+    // are handled globally if the server rejects (see src/api/queryClient.ts).
+    updateMutation.mutate({ event, input, scope });
+    if (router.canGoBack()) router.back();
+    else router.replace('/(tabs)/calendar');
   }
 
   const isLoading = eventsLoading && cachedEvent === undefined;

@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { View, StyleSheet, Text, TouchableOpacity, Alert } from 'react-native';
+import { View, StyleSheet, Text, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
@@ -25,19 +25,14 @@ export default function NewEventScreen() {
 
   const createMutation = useCreateEvent(activeAccount!, calendars);
 
-  async function handleSubmit(input: CreateEventInput) {
+  function handleSubmit(input: CreateEventInput) {
     if (!activeAccount) return;
-    try {
-      await createMutation.mutateAsync(input);
-      if (router.canGoBack()) router.back();
-      else router.replace('/(tabs)/calendar');
-    } catch (e: any) {
-      const msg = e?.message ?? '';
-      Alert.alert(
-        'Failed to create event',
-        msg.includes('403') ? 'Permission denied. This calendar is read-only or shared without write access.' : (msg || 'Unknown error.')
-      );
-    }
+    // Optimistic: fire the mutation and leave immediately. The event appears in
+    // the calendar at once (onMutate patches the cache); a server failure rolls
+    // it back and surfaces an alert globally (see src/api/queryClient.ts).
+    createMutation.mutate(input);
+    if (router.canGoBack()) router.back();
+    else router.replace('/(tabs)/calendar');
   }
 
   if (!activeAccount || calendars.length === 0) {

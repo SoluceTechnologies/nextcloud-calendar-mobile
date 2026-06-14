@@ -1,0 +1,22 @@
+diff --git a/node_modules/react-native-big-calendar/build/index.js b/node_modules/react-native-big-calendar/build/index.js
+index 9eab0de..5d00137 100644
+--- a/node_modules/react-native-big-calendar/build/index.js
++++ b/node_modules/react-native-big-calendar/build/index.js
+@@ -1630,7 +1630,7 @@ function _CalendarContainer(_a) {
+                 return (React__default["default"].createElement(React__default["default"].Fragment, null,
+                     React__default["default"].createElement(HeaderComponentForMonthView, __assign({}, headerProps_1, { dateRange: getDateRange(getCurrentDate(index)) })),
+                     React__default["default"].createElement(CalendarBodyForMonthView, __assign({}, commonProps, { style: bodyContainerStyle, containerHeight: height, events: allEvents, eventCellStyle: eventCellStyle, eventCellAccessibilityProps: eventCellAccessibilityProps, calendarCellStyle: calendarCellStyle, calendarCellAccessibilityProps: calendarCellAccessibilityProps, calendarCellAccessibilityPropsForMonthView: calendarCellAccessibilityPropsForMonthView, calendarCellTextStyle: calendarCellTextStyle, weekStartsOn: weekStartsOn, hideNowIndicator: hideNowIndicator, showAdjacentMonths: showAdjacentMonths, onLongPressCell: onLongPressCell, onPressCell: handlePressCell, onPressDateHeader: onPressDateHeader, onPressEvent: onPressEvent, renderEvent: renderEvent, targetDate: getCurrentDate(index), maxVisibleEventCount: maxVisibleEventCount, eventMinHeightForMonthView: eventMinHeightForMonthView, sortedMonthView: sortedMonthView, moreLabel: moreLabel, onPressMoreLabel: onPressMoreLabel, renderCustomDateForMonth: renderCustomDateForMonth, disableMonthEventCellPress: disableMonthEventCellPress, showSixWeeks: showSixWeeks }))));
+-            }, onPageChange: handlePageChange, pageBuffer: 2 }));
++            }, onPageChange: handlePageChange, pageBuffer: 1 }));
+     }
+     var headerProps = __assign(__assign({}, commonProps), { style: headerContainerStyle, headerContainerAccessibilityProps: headerContainerAccessibilityProps, locale: locale, allDayEventCellStyle: allDayEventCellStyle, allDayEventCellTextColor: allDayEventCellTextColor, allDayEvents: allDayEvents, allDayEventCellAccessibilityProps: allDayEventCellAccessibilityProps, onPressDateHeader: onPressDateHeader, activeDate: activeDate, headerContentStyle: headerContentStyle, headerCellAccessibilityProps: headerCellAccessibilityProps, dayHeaderStyle: dayHeaderStyle, dayHeaderHighlightColor: dayHeaderHighlightColor, weekDayHeaderHighlightColor: weekDayHeaderHighlightColor, showAllDayEventCell: showAllDayEventCell, weekNumberPrefix: weekNumberPrefix });
+     if (mode === 'schedule') {
+@@ -1647,7 +1647,7 @@ function _CalendarContainer(_a) {
+                             (_a = calendarRef.current) === null || _a === void 0 ? void 0 : _a.setPage(0, { animated: true });
+                         }
+                     }, onPressEvent: onPressEvent, renderEvent: renderEvent, headerComponent: headerComponent, headerComponentStyle: headerComponentStyle, hourStyle: hourStyle, isEventOrderingEnabled: isEventOrderingEnabled, showVerticalScrollIndicator: showVerticalScrollIndicator, scrollEnabled: verticalScrollEnabled, enrichedEventsByDate: enrichedEventsByDate, enableEnrichedEvents: enableEnrichedEvents, eventsAreSorted: eventsAreSorted, timeslots: timeslots, hourComponent: hourComponent }))));
+-        }, onPageChange: handlePageChange, pageBuffer: 2 }));
++        }, onPageChange: handlePageChange, pageBuffer: 1 }));
+ }
+ var CalendarContainer = typedMemo(_CalendarContainer);
+ 
