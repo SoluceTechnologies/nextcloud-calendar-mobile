@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useRef } from 'react';
 import { View, Text, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { GestureDetector, Gesture } from 'react-native-gesture-handler';
 import { runOnJS } from 'react-native-reanimated';
@@ -12,6 +12,7 @@ import { CalendarDrawer } from '@/components/CalendarDrawer';
 import { MonthDayView } from '@/components/MonthDayView';
 import { AgendaView } from '@/components/AgendaView';
 import { computeOverlapMap } from '@/utils/overlapMap';
+import { createNavigationGuard } from '@/utils/navigationGuard';
 import type { CalendarEvent } from '@/types';
 import { useCalendarNavigation } from './hooks/useCalendarNavigation';
 import { useCalendarData } from './hooks/useCalendarData';
@@ -44,17 +45,21 @@ export default function CalendarScreen() {
   const overlapMap = useMemo(() => computeOverlapMap(allEvents), [allEvents]);
   const calendarEvents = useMemo(() => toBigCalendarEvents(allEvents, overlapMap), [allEvents, overlapMap]);
 
+  // One shared guard: a rapid second tap on any event/cell is ignored so the
+  // same detail/new screen is never pushed twice.
+  const navGuard = useRef(createNavigationGuard()).current;
+
   const handlePressEvent = useCallback(
-    (event: any) => { router.push(`/event/${event._event.uid}`); },
-    [router]
+    (event: any) => { navGuard(() => router.push(`/event/${event._event.uid}`)); },
+    [router, navGuard]
   );
   const handlePressEventFromMonth = useCallback(
-    (event: CalendarEvent) => { router.push(`/event/${event.uid}`); },
-    [router]
+    (event: CalendarEvent) => { navGuard(() => router.push(`/event/${event.uid}`)); },
+    [router, navGuard]
   );
   const handlePressCell = useCallback(
-    (d: Date) => { router.push({ pathname: '/event/new', params: { date: d.toISOString() } }); },
-    [router]
+    (d: Date) => { navGuard(() => router.push({ pathname: '/event/new', params: { date: d.toISOString() } })); },
+    [router, navGuard]
   );
 
   // Capture only the function, not the whole nav object — nav contains agendaRef
@@ -203,7 +208,7 @@ export default function CalendarScreen() {
 
       <TouchableOpacity
         style={[styles.fab, { backgroundColor: theme.primary, bottom: 16 }]}
-        onPress={() => router.push('/event/new')}
+        onPress={() => navGuard(() => router.push('/event/new'))}
       >
         <Text style={styles.fabIcon}>+</Text>
       </TouchableOpacity>
