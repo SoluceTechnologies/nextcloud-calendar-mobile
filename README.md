@@ -64,11 +64,11 @@ Use in production at your own discretion, and pin to a specific commit or tag if
 
 ### Multiple Calendar Views
 Switch seamlessly between five view modes:
-- **Month** — full month overview
-- **Week** — 7-day scrollable view
-- **3-Day** — compact multi-day view
-- **Day** — single-day detail view
-- **Schedule/Agenda** — chronological event list
+- **Month**, full month overview
+- **Week**, 7-day scrollable view
+- **3-Day**, compact multi-day view
+- **Day**, single-day detail view
+- **Schedule/Agenda**, chronological event list
 
 ### CalDAV Sync
 Full two-way sync with any Nextcloud instance using the CalDAV protocol. Events are fetched, parsed (iCalendar/ICS), and kept up to date via TanStack Query's caching layer.
@@ -92,15 +92,6 @@ Optionally attach a Nextcloud Talk room to any event at creation time, the Talk 
 - Configurable week start day (Sunday or Monday)
 ---
 
-## 🗺️ Roadmap
-
-Planned improvements for upcoming releases:
-
-- [ ] **Push Notifications** : Event reminders delivered natively on iOS and Android
-- [ ] **UX/UI Polish** : Improved loading states, transitions, and overall visual experience
-- [ ] **Gesture Improvements** : More fluid and intuitive swipe navigation across calendar views
-
----
 
 ## 🤝 Open to Collaboration
 

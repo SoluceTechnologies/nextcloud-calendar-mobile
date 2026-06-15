@@ -6,7 +6,6 @@ jest.mock('@react-native-async-storage/async-storage', () =>
 );
 
 beforeAll(() => {
-  // jest-expo has no requestIdleCallback; the hook uses it to prewarm cal modes.
   (globalThis as any).requestIdleCallback = (cb: any) =>
     setTimeout(() => cb({ didTimeout: false, timeRemaining: () => 0 }), 0);
   (globalThis as any).cancelIdleCallback = (id: any) => clearTimeout(id);

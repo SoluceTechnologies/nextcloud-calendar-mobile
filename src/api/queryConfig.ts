@@ -1,9 +1,3 @@
-/**
- * Centralized React Query timing config.
- * Single source of truth for staleness / GC / refetch cadence so behavior is
- * consistent across hooks and easy to tune.
- */
-
 const MIN = 60 * 1000;
 
 /** Calendar list (ctags). Changes only when calendars are added/edited server-side. */
@@ -26,7 +20,7 @@ export const EVENTS_STALE = 2 * MIN;
 /** Subscribed (external ICS) calendars — remote, slow-changing. */
 export const SUBSCRIBED_EVENTS_STALE = 30 * MIN;
 
-/** Avatar images — rarely change. */
+/** Avatar images, rarely change. */
 export const AVATAR_STALE = 30 * MIN;
 export const AVATAR_GC = 60 * MIN;
 

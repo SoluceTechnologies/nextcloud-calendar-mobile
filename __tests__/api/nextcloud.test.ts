@@ -1,4 +1,3 @@
-// __tests__/api/nextcloud.test.ts
 import { fetchUserInfo } from '../../src/api/nextcloud';
 import type { Account } from '../../src/types';
 

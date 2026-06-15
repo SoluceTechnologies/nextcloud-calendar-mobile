@@ -22,7 +22,6 @@ function wrapper({ children }: { children: React.ReactNode }) {
   return React.createElement(QueryClientProvider, { client }, children);
 }
 
-// Helper to set up a FileReader mock that calls onload with a data URI
 function mockFileReaderSuccess(dataUri: string) {
   const mockReadAsDataURL = jest.fn(function (this: Partial<FileReader>) {
     if (this.onload) {

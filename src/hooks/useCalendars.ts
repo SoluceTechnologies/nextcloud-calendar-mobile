@@ -11,12 +11,7 @@ export function useCalendars(account: Account | null) {
     },
     enabled: account !== null,
     staleTime: CALENDARS_STALE,
-    // Near-live: poll the cheap ctag list. Structural sharing keeps the same
-    // reference when nothing changed, so this does NOT churn the events query
-    // key — the heavy events refetch only fires on a real ctag diff.
     refetchInterval: CALENDARS_LIVE_POLL,
-    // Pause the poll while backgrounded (needs focusManager wired to AppState
-    // in app/_layout.tsx) and force a ctag check the moment we return.
     refetchIntervalInBackground: false,
     refetchOnWindowFocus: 'always',
   });

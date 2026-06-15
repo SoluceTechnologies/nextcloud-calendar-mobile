@@ -3,13 +3,10 @@ import { render, screen } from '@testing-library/react-native';
 import { AvatarImage } from '../../src/components/AvatarImage';
 import type { Account } from '../../src/types';
 
-// Mock the useAvatar hook
 jest.mock('../../src/hooks/useAvatar');
-// Mock useTheme to avoid store/async-storage dependencies
 jest.mock('../../src/hooks/useTheme', () => ({
   useTheme: () => ({ primary: '#0082c9' }),
 }));
-// Mock async storage used by appStore inside useTheme
 jest.mock('@react-native-async-storage/async-storage', () =>
   require('@react-native-async-storage/async-storage/jest/async-storage-mock')
 );

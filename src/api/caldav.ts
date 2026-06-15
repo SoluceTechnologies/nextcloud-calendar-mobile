@@ -113,9 +113,6 @@ export async function fetchCalendars(account: Account): Promise<CalendarMeta[]> 
     const sourceMatch = chunk.match(/<cs:source[^>]*>[\s\S]*?<d:href>([^<]+)<\/d:href>[\s\S]*?<\/cs:source>/);
     const sourceUrl = sourceMatch?.[1]?.trim();
 
-    // A calendar is writable if the privilege set includes <d:write> or <d:bind>.
-    // Subscribed/external calendars and shared read-only calendars won't have these.
-    // If the privilege set is absent (older server), assume writable.
     const hasPrivilegeSet = chunk.includes('current-user-privilege-set');
     const hasAll = chunk.includes('<d:all');
     const hasWrite = chunk.includes('<d:write') || chunk.includes('<d:write/>');

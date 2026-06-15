@@ -13,22 +13,15 @@ export function useCalendarNavigation() {
   const setViewMode = useAppStore((s) => s.setViewMode);
   const isCalendarMode = isCalMode(viewMode);
 
-  // `date` updates immediately (header, month, agenda). `fetchDate` lags during
-  // rapid swipes so the events query window — and the heavy Calendar rebuild it
-  // triggers — only changes once the user settles.
   const [date, setDateState] = useState(new Date());
   const [fetchDate, setFetchDate] = useState(date);
   const [agendaVisibleDate, setAgendaVisibleDate] = useState(date);
   const agendaRef = useRef<AgendaViewHandle>(null);
 
-  // Created once; setFetchDate is a stable useState setter.
   const fetchDebounce = useRef(
     trailingDebounce((d: Date) => setFetchDate(d), FETCH_DATE_DEBOUNCE_MS)
   ).current;
 
-  // Immediate setter for everything that is NOT a swipe (taps, Today, switch,
-  // month nav): keeps date and fetchDate in lockstep and cancels any pending
-  // swipe update so a stale swipe position can't land afterwards.
   const setDate = useCallback((d: Date) => {
     fetchDebounce.cancel();
     setDateState(d);
@@ -88,8 +81,6 @@ export function useCalendarNavigation() {
     }
   }, [setDate]);
 
-  // Swipe path: header date updates now; the fetch window is debounced so a fast
-  // multi-week swipe does not refetch + rebuild the calendar on every frame.
   const onSwipeEndHandlers = useMemo<Record<CalMode, (d: Date) => void>>(() => ({
     week: (d) => { calInternalRef.current.week = d; setDateState(d); fetchDebounce.call(d); },
     '3days': (d) => { calInternalRef.current['3days'] = d; setDateState(d); fetchDebounce.call(d); },

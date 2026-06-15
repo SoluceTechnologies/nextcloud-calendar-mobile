@@ -3,8 +3,6 @@ import { StyleSheet } from 'react-native';
 export const styles = StyleSheet.create({
   root: { flex: 1 },
   calendarWrapper: { flex: 1, overflow: 'hidden' },
-  // The three view modes are stacked and kept laid out (so horizontally-paged
-  // children stay measured); only opacity / z-order / touch toggles between them.
   viewContainer: { flex: 1 },
   viewLayer: { ...StyleSheet.absoluteFillObject },
   layerActive: { opacity: 1, zIndex: 1 },
@@ -23,7 +21,6 @@ export const styles = StyleSheet.create({
     position: 'absolute', right: 20,
     width: 56, height: 56, borderRadius: 28,
     alignItems: 'center', justifyContent: 'center',
-    // Above the calendar view layers (zIndex 1) and loaders (5), below the drawer (10+).
     zIndex: 8, elevation: 8, shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25, shadowRadius: 4,
   },

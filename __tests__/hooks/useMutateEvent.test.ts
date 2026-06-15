@@ -25,8 +25,6 @@ const calendar: CalendarMeta = {
 };
 const calendars = [calendar];
 
-// One events cache window covering June–Aug 2026 (matches the per-month query
-// key shape: [accountId, 'events', ids, startISO, endISO]).
 const WINDOW_KEY = ['acc-1', 'events', ['cal-url'], '2026-06-01T00:00:00.000Z', '2026-08-31T23:59:59.000Z'];
 
 const existingEvent: CalendarEvent = {
@@ -70,12 +68,10 @@ describe('useCreateEvent', () => {
     const { result } = renderHook(() => useCreateEvent(account, calendars), { wrapper });
     act(() => { result.current.mutate(createInput); });
 
-    // Optimistic placeholder is visible while the PUT is still in flight.
     await waitFor(() => expect(eventsInCache(client)).toHaveLength(1));
     expect(eventsInCache(client)[0].uid).toContain('optimistic-');
     expect(eventsInCache(client)[0].summary).toBe('New Event');
 
-    // Server confirms → placeholder swapped for the real event, no extra fetch.
     act(() => { resolvePut(); });
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(eventsInCache(client)).toHaveLength(1);
@@ -85,9 +81,6 @@ describe('useCreateEvent', () => {
   });
 
   it('normalizes an optimistic all-day event to midnight start AND end', async () => {
-    // The calendar lib renders all-day only when both ends are at 00:00. The
-    // date picker keeps the previously-selected hour, so the optimistic event
-    // must be snapped to midnight or it shows as a timed block until refetch.
     const { client, wrapper } = setup();
     client.setQueryData(WINDOW_KEY, []);
     mockPutEvent.mockResolvedValue();

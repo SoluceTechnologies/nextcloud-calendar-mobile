@@ -1,4 +1,3 @@
-// __tests__/api/auth.test.ts
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
 import { saveAccount, loadAccounts, deleteAccount, getActiveAccountId, setActiveAccountId } from '../../src/api/auth';

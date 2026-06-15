@@ -1,12 +1,3 @@
-/**
- * Full-screen QR scanner for Nextcloud login codes.
- *
- * Nextcloud Dashboard → "Log in via QR code" produces a URL like:
- *   nc://login/user:john&password:DoTDr-xBooB-Pt9Xz&server:https://cloud.example.com
- *
- * On a valid scan the modal closes and calls onScanned with the parsed fields.
- * The camera is released immediately once a code is found.
- */
 import { useEffect, useRef, useState } from 'react';
 import {
   Modal, View, Text, TouchableOpacity, StyleSheet, ActivityIndicator,

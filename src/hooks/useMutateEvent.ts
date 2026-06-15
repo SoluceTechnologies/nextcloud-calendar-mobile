@@ -70,14 +70,6 @@ async function resolveLocationAndDescription(
   return { location, description };
 }
 
-/**
- * Normalize form dates to what the server/parser will store. The calendar lib
- * (`isAllDayEvent`) treats an event as all-day ONLY when start AND end are at
- * 00:00, and the date picker keeps the previously-selected hour. Without this,
- * an optimistic all-day event renders as a timed block at that hour until the
- * refetch. `buildAllDayIcs` writes a single day, so the optimistic copy mirrors
- * that: start and end both at local midnight of the chosen day.
- */
 function inputDates(input: CreateEventInput): { dtstart: Date; dtend: Date } {
   if (input.allDay) {
     return {
@@ -88,8 +80,6 @@ function inputDates(input: CreateEventInput): { dtstart: Date; dtend: Date } {
   return { dtstart: input.dtstart, dtend: input.dtend };
 }
 
-/** Build a CalendarEvent from form input — used both for the optimistic
- *  placeholder and the final reconciled event after the server confirms. */
 function eventFromInput(
   uid: string,
   input: CreateEventInput,
@@ -116,19 +106,11 @@ function eventFromInput(
     organizerEmail: input.organizerEmail,
     talkUrl: TALK_URL_PATTERN.test(location) ? location : undefined,
     isRecurring: !!input.rrule,
-    // CalendarEvent.rrule is the ICS string; the real one arrives on reconcile.
     rrule: undefined,
   };
 }
 
-/**
- * Expand a recurring event locally for the optimistic insert, so every
- * occurrence shows at once instead of just the first. We build the same ICS the
- * server will store and run it through the same parser the fetch path uses —
- * so occurrence dates, all-day handling, etc. match what the refetch returns.
- * Bounded to a window around the start date (the cached month windows);
- * `insertEvent` drops anything outside a cached window anyway.
- */
+
 function expandOptimisticOccurrences(
   baseUid: string,
   input: CreateEventInput,
@@ -172,37 +154,27 @@ export function useCreateEvent(account: Account, calendars: CalendarMeta[]) {
     },
 
     onMutate: async (input: CreateEventInput): Promise<EventMutationContext> => {
-      // Apply the optimistic insert FIRST and synchronously, so the calendar
-      // paints it this frame. Do NOT await cancelQueries before this — it
-      // resolves only when an in-flight events fetch settles (seconds), which
-      // would gate the optimistic paint behind the very fetch it should beat.
       const previous = snapshotEvents(queryClient, account.id);
 
       let tempUid: string | undefined;
       const calendar = resolveCalendar(calendars, input.calendarId);
       if (calendar) {
         if (input.rrule) {
-          // Recurring: expand the whole series so every occurrence appears now.
           const tempBase = `optimistic-${Crypto.randomUUID()}`;
           for (const occ of expandOptimisticOccurrences(tempBase, input, calendar, account)) {
             insertEvent(queryClient, account.id, occ);
           }
-          // Multiple placeholders → the targeted refetch (needsServerReconcile)
-          // replaces them with the server's expansion; no single tempUid swap.
         } else {
           tempUid = `optimistic-${Crypto.randomUUID()}`;
           insertEvent(queryClient, account.id, eventFromInput(tempUid, input, calendar, account));
         }
       }
 
-      // Cancel in-flight refetches so a late result can't clobber the optimistic
-      // data — fire-and-forget; cancellation is flagged synchronously.
       void queryClient.cancelQueries({ queryKey: [account.id, 'events'] });
 
       return { previous, tempUid, needsServerReconcile: !!input.rrule };
     },
-    // Rollback, placeholder→real swap and recurring refetch are handled
-    // centrally in the MutationCache (see src/api/queryClient.ts).
+    // Rollback
   });
 }
 
@@ -278,7 +250,6 @@ export function useUpdateEvent(account: Account, calendars: CalendarMeta[]) {
     },
 
     onMutate: async ({ event, input }): Promise<EventMutationContext> => {
-      // Optimistic patch first (synchronous, instant paint); cancel after.
       const previous = snapshotEvents(queryClient, account.id);
 
       const { dtstart, dtend } = inputDates(input);
@@ -294,8 +265,6 @@ export function useUpdateEvent(account: Account, calendars: CalendarMeta[]) {
 
       void queryClient.cancelQueries({ queryKey: [account.id, 'events'] });
 
-      // Recurring edits split/except the series server-side — reconcile via a
-      // single targeted refetch; simple edits stay fully local.
       return { previous, needsServerReconcile: event.isRecurring };
     },
   });
@@ -335,15 +304,10 @@ export function useDeleteEvent(account: Account) {
     },
 
     onMutate: async ({ event, scope = 'all' }): Promise<EventMutationContext> => {
-      // Optimistic removal first (synchronous, instant); cancel after so the
-      // paint isn't gated behind an in-flight fetch settling.
       const previous = snapshotEvents(queryClient, account.id);
 
-      // Remove optimistically to match what the server will do, so the calendar
-      // is consistent immediately — not just the tapped occurrence.
       const base = seriesBaseUid(event.uid);
       if (!event.isRecurring || scope === 'all') {
-        // Whole series (or a plain single event).
         removeEventsWhere(queryClient, account.id, (e) => seriesBaseUid(e.uid) === base);
       } else if (scope === 'thisAndFollowing') {
         const from = event.dtstart.getTime();
@@ -353,7 +317,6 @@ export function useDeleteEvent(account: Account) {
           (e) => seriesBaseUid(e.uid) === base && new Date(e.dtstart).getTime() >= from,
         );
       } else {
-        // 'this' — just the tapped occurrence.
         removeEventsWhere(queryClient, account.id, (e) => e.uid === event.uid);
       }
 

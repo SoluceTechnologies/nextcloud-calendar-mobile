@@ -65,8 +65,6 @@ export default function EditEventScreen() {
 
   function handleSubmit(input: CreateEventInput) {
     if (!activeAccount || !event) return;
-    // Optimistic: apply locally and leave immediately. Rollback + error alert
-    // are handled globally if the server rejects (see src/api/queryClient.ts).
     updateMutation.mutate({ event, input, scope });
     if (router.canGoBack()) router.back();
     else router.replace('/(tabs)/calendar');

@@ -1,11 +1,3 @@
-/**
- * iOS-style month view: grid on top, day event list on bottom.
- *
- * Top half: 7-column month grid. Each cell shows the day number and
- * color dots (one per calendar with events that day, up to 3).
- * Bottom half: scrollable list of events for the selected day.
- */
-
 import { memo, useCallback, useMemo } from 'react';
 import {
   View, Text, TouchableOpacity, FlatList, StyleSheet,

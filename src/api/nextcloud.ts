@@ -28,11 +28,6 @@ export async function fetchUserInfo(
   }
 }
 
-/**
- * Query the Nextcloud capabilities endpoint to check which apps are enabled.
- * Returns defaults (disabled) on any network/parse error so the app never crashes
- * because of a failed capability check.
- */
 export async function fetchCapabilities(
   account: Pick<Account, 'baseUrl' | 'username' | 'appPassword'>
 ): Promise<ServerCapabilities> {

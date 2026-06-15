@@ -116,8 +116,6 @@ describe('parseIcsObjectsAsync', () => {
   });
 
   it('still resolves correctly when forced to yield on every item', async () => {
-    // frameBudgetMs=0 forces a cooperative yield after each resource — exercises
-    // the time-slicing path without changing the result.
     const events = await parseIcsObjectsAsync(items, calMeta, rangeStart, rangeEnd, 0);
     const sync = parseIcsObjects(items, calMeta, rangeStart, rangeEnd);
     expect(events).toEqual(sync);

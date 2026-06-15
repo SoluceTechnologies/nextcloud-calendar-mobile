@@ -24,8 +24,6 @@ function formatTime(d: Date, allDay: boolean): string {
   return dayjs(d).format('HH:mm');
 }
 
-// ─── memoized row components ────────────────────────────────────────────────
-
 interface DayHeaderProps {
   sectionDate: Date;
   hasEvents: boolean;
@@ -111,7 +109,6 @@ export interface AgendaViewHandle {
   scrollToToday: () => void;
 }
 
-// ─── main component ──────────────────────────────────────────────────────────
 
 const AgendaViewImpl = forwardRef<AgendaViewHandle, Props>(function AgendaView(
   { events, date, onPressEvent, onPressCell, onVisibleDateChange }, ref

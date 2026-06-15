@@ -67,8 +67,6 @@ export default function EventDetailScreen() {
 
   useEffect(() => {
     return queryClient.getQueryCache().subscribe((evt) => {
-      // Only react to changes in this account's event queries; ignore the
-      // firehose of unrelated cache activity (calendars, avatars, etc.).
       const key = evt?.query?.queryKey;
       if (!Array.isArray(key) || key[0] !== activeAccountId || key[1] !== 'events') return;
       setCachedEvent((prev) => {

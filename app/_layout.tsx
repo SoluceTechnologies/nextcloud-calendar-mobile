@@ -33,10 +33,6 @@ export default function RootLayout() {
   const setStoreAccountId = useAppStore((s) => s.setActiveAccountId);
   const setCapabilities = useAppStore((s) => s.setCapabilities);
 
-  // Drive React Query's focus state from app foreground/background. RN has no
-  // window-focus events, so without this `refetchIntervalInBackground: false`
-  // can't pause the ctag poll. On return to foreground, focused → true triggers
-  // the `refetchOnWindowFocus: 'always'` ctag check immediately.
   useEffect(() => {
     const sub = AppState.addEventListener('change', (status: AppStateStatus) => {
       focusManager.setFocused(status === 'active');

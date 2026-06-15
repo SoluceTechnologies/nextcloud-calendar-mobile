@@ -1,14 +1,3 @@
-/**
- * Greedy interval-graph column allocation.
- *
- * Each event gets a column index 0..N-1 such that no two overlapping events
- * share a column.  All events in the same overlap cluster share the same
- * total column count, so every event has identical width = 100% / N and
- * left = column * width.  This is the same algorithm used by Google Calendar
- * and correctly handles any number of simultaneous events — including pairs
- * with identical titles and durations.
- */
-
 import type { CalendarEvent } from '@/types';
 
 export const LAYER_LEFT_PCT = [0, 30, 55, 70, 80]; // kept for backward compat
@@ -29,9 +18,6 @@ export function computeOverlapMap(events: CalendarEvent[]): Map<string, Layout> 
       return sd !== 0 ? sd : a.uid.localeCompare(b.uid);
     });
 
-  // Sweep line: with events sorted by start, an event joins the running cluster
-  // iff it starts before the max end seen in that cluster. This produces the same
-  // connected overlap groups as a full pairwise graph walk, in O(n log n).
   const n = timed.length;
   let i = 0;
   while (i < n) {
@@ -42,8 +28,6 @@ export function computeOverlapMap(events: CalendarEvent[]): Map<string, Layout> 
       j++;
     }
 
-    // Greedy column packing within the cluster (members timed[i..j-1] are already
-    // start-sorted): reuse the first column whose last event has ended.
     const columnEnds: number[] = [];
     const cols: number[] = [];
     for (let k = i; k < j; k++) {

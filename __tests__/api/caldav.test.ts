@@ -1,4 +1,3 @@
-// __tests__/api/caldav.test.ts
 import { deleteEvent } from '../../src/api/caldav';
 import type { Account } from '../../src/types';
 

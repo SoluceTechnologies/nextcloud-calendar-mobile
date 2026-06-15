@@ -29,9 +29,6 @@ export function useCalendarData(date: Date) {
     prevCtagsRef.current = current;
   }, [calendars, activeAccountId, queryClient]);
 
-  // Fetch ALL calendars regardless of visibility — hiding/showing is a client-side
-  // filter applied to the merged event list below. This keeps the query key stable
-  // across visibility toggles so toggling a calendar never triggers a network re-fetch.
   const regularCalendars = useMemo(
     () => calendars.filter((c) => !c.isSubscribed),
     [calendars]
@@ -40,7 +37,6 @@ export function useCalendarData(date: Date) {
     () => calendars.filter((c) => c.isSubscribed),
     [calendars]
   );
-  // Stable string keys so query keys / effect deps don't churn on every render.
   const regularIds = useMemo(() => regularCalendars.map((c) => c.id), [regularCalendars]);
   const subscribedKeys = useMemo(
     () => subscribedCalendars.map((c) => c.sourceUrl ?? c.id),
@@ -81,7 +77,6 @@ export function useCalendarData(date: Date) {
     placeholderData: keepPreviousData,
   });
 
-  // Apply visibility filter client-side so show/hide is instant without re-fetching.
   const allEvents = useMemo(
     () => normalizeEvents(
       [...rawEvents, ...subscribedEvents].filter((e) => !hiddenCalendarIds.includes(e.calendarId))
