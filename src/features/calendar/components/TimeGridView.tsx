@@ -1,12 +1,10 @@
 import { memo, type ComponentProps, type ReactElement } from 'react';
-import { View, StyleSheet } from 'react-native';
+import { View } from 'react-native';
 import { GestureDetector } from 'react-native-gesture-handler';
-import { Calendar } from 'react-native-big-calendar';
-import { styles } from '@/styles/calendarScreen';
-import { FixedCalendarHeader } from '@/components/CalendarHeader';
 import type { ViewMode } from '@/types';
 import { CAL_MODES, type CalMode } from '../constants';
 import type { BigCalendarEvent } from '../utils/toCalendarEvents';
+import { CalendarInstance } from './CalendarInstance';
 
 interface Props {
   pinchGesture: ComponentProps<typeof GestureDetector>['gesture'];
@@ -37,34 +35,24 @@ function TimeGridViewImpl({
       <View style={{ flex: 1 }}>
         {CAL_MODES.map((m) =>
           mountedCalModes.has(m) ? (
-            <View
+            <CalendarInstance
               key={m}
-              style={[StyleSheet.absoluteFill, { opacity: viewMode === m ? 1 : 0, zIndex: viewMode === m ? 1 : 0 }]}
-              pointerEvents={viewMode === m ? 'auto' : 'none'}
-            >
-              <View style={styles.calendarWrapper}>
-                <Calendar
-                  key={calendarKey}
-                  events={events}
-                  mode={m}
-                  date={calDates[m]}
-                  height={heightFor(m, calDates[m])}
-                  hourRowHeight={hourRowHeight}
-                  timeslots={1}
-                  weekStartsOn={weekStartsOn}
-                  weekEndsOn={((weekStartsOn + 6) % 7) as 0 | 1 | 2 | 3 | 4 | 5 | 6}
-                  onPressEvent={onPressEvent}
-                  onPressCell={onPressCell}
-                  onSwipeEnd={onSwipeEndHandlers[m]}
-                  scrollOffsetMinutes={scrollOffset}
-                  renderHeader={FixedCalendarHeader}
-                  renderEvent={renderEvent}
-                  eventCellStyle={eventCellStyle}
-                  allDayEventCellStyle={eventCellStyle}
-                  theme={bigCalendarTheme}
-                />
-              </View>
-            </View>
+              mode={m}
+              calendarKey={calendarKey}
+              visible={viewMode === m}
+              events={events}
+              date={calDates[m]}
+              height={heightFor(m, calDates[m])}
+              hourRowHeight={hourRowHeight}
+              weekStartsOn={weekStartsOn}
+              scrollOffset={scrollOffset}
+              onPressEvent={onPressEvent}
+              onPressCell={onPressCell}
+              onSwipeEnd={onSwipeEndHandlers[m]}
+              renderEvent={renderEvent}
+              eventCellStyle={eventCellStyle}
+              bigCalendarTheme={bigCalendarTheme}
+            />
           ) : null
         )}
       </View>
