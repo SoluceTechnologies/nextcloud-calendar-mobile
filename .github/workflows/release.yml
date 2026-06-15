@@ -55,9 +55,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "lts/*"
-          cache: "npm"
 
-      - run: npm ci
+      - run: corepack enable
+
+      - run: yarn install --immutable
 
       - run: |
           git config --global user.name 'github-actions[bot]'
@@ -68,10 +69,10 @@ jobs:
         run: |
           git pull origin main
           
-          VERSION=$(npm exec -- release-it --ci --release-version)
+          VERSION=$(yarn release-it --ci --release-version)
           echo $VERSION
           echo "version=$VERSION" >> $GITHUB_OUTPUT
-          OUTPUT=$(npm exec -- release-it --ci)
+          OUTPUT=$(yarn release-it --ci)
           echo "$OUTPUT"
           
           DRAFT_TAG=$(echo "$OUTPUT" | grep -oE 'untagged-[a-z0-9]+')
