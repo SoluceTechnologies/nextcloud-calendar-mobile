@@ -29,76 +29,47 @@ export function computeOverlapMap(events: CalendarEvent[]): Map<string, Layout> 
       return sd !== 0 ? sd : a.uid.localeCompare(b.uid);
     });
 
-
+  // Sweep line: with events sorted by start, an event joins the running cluster
+  // iff it starts before the max end seen in that cluster. This produces the same
+  // connected overlap groups as a full pairwise graph walk, in O(n log n).
   const n = timed.length;
-  const clusterIdx = new Array<number>(n).fill(-1);
-  const clusters: number[][] = [];
-
-  for (let i = 0; i < n; i++) {
-    if (clusterIdx[i] !== -1) continue;
-
-    const cluster: number[] = [];
-    const queue = [i];
-    clusterIdx[i] = clusters.length;
-    while (queue.length > 0) {
-      const cur = queue.shift()!;
-      cluster.push(cur);
-      for (let j = 0; j < n; j++) {
-        if (clusterIdx[j] !== -1) continue;
-
-        const overlapsCluster = cluster.some((c) =>
-          timed[c].dtstart.getTime() < timed[j].dtend.getTime() &&
-          timed[c].dtend.getTime() > timed[j].dtstart.getTime()
-        );
-        if (overlapsCluster) {
-          clusterIdx[j] = clusters.length;
-          queue.push(j);
-        }
-      }
+  let i = 0;
+  while (i < n) {
+    let clusterMaxEnd = timed[i].dtend.getTime();
+    let j = i + 1;
+    while (j < n && timed[j].dtstart.getTime() < clusterMaxEnd) {
+      clusterMaxEnd = Math.max(clusterMaxEnd, timed[j].dtend.getTime());
+      j++;
     }
-    clusters.push(cluster);
-  }
 
-  for (const cluster of clusters) {
-
-    const members = cluster
-      .map((i) => timed[i])
-      .sort((a, b) => {
-        const sd = a.dtstart.getTime() - b.dtstart.getTime();
-        return sd !== 0 ? sd : a.uid.localeCompare(b.uid);
-      });
-
+    // Greedy column packing within the cluster (members timed[i..j-1] are already
+    // start-sorted): reuse the first column whose last event has ended.
     const columnEnds: number[] = [];
-    const assignments = new Map<string, number>();
-
-    for (const ev of members) {
-      const start = ev.dtstart.getTime();
-
+    const cols: number[] = [];
+    for (let k = i; k < j; k++) {
+      const start = timed[k].dtstart.getTime();
       let col = columnEnds.findIndex((end) => end <= start);
-      if (col === -1) {
-        col = columnEnds.length;
-        columnEnds.push(0);
-      }
-      columnEnds[col] = ev.dtend.getTime();
-      assignments.set(ev.uid, col);
+      if (col === -1) { col = columnEnds.length; columnEnds.push(0); }
+      columnEnds[col] = timed[k].dtend.getTime();
+      cols.push(col);
     }
 
     const totalCols = columnEnds.length;
     const widthPct = 100 / totalCols;
-
-    for (const ev of members) {
-      const col = assignments.get(ev.uid) ?? 0;
-      const leftPct = col * widthPct;
-      result.set(ev.uid, {
-        leftPct,
+    for (let k = i; k < j; k++) {
+      const col = cols[k - i];
+      result.set(timed[k].uid, {
+        leftPct: col * widthPct,
         rightPx: col === totalCols - 1 ? 3 : 0,
         zIndex: 100 + col,
       });
     }
+
+    i = j;
   }
 
-  for (const ev of events.filter((e) => e.allDay)) {
-    result.set(ev.uid, { leftPct: 0, rightPx: 3, zIndex: 100 });
+  for (const ev of events) {
+    if (ev.allDay) result.set(ev.uid, { leftPct: 0, rightPx: 3, zIndex: 100 });
   }
 
   return result;
