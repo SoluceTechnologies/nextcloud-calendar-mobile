@@ -15,9 +15,10 @@ export const CALENDARS_REFETCH_INTERVAL = 5 * MIN;
  * single cheap PROPFIND (no event data, no ICS parse). The expensive events
  * query is refetched only when a ctag actually changes (see calendar/index.tsx),
  * so this stays light. Foreground-only — paused while backgrounded via
- * focusManager. Tune here if 5s is too aggressive for a given deployment.
+ * focusManager. 30s balances freshness against the wakeup/diff churn the
+ * previous 5s caused. Tune here if too aggressive for a given deployment.
  */
-export const CALENDARS_LIVE_POLL = 5 * 1000;
+export const CALENDARS_LIVE_POLL = 30 * 1000;
 
 /** Event queries. Kept fresh-ish; explicitly invalidated on mutation. */
 export const EVENTS_STALE = 2 * MIN;
