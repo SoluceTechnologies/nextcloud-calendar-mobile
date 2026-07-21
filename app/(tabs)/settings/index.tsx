@@ -3,12 +3,14 @@ import { useDeferredValue, useState, useEffect, useCallback } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useBottomTabBarHeight } from 'expo-router/js-tabs';
 import { useRouter, useFocusEffect } from 'expo-router';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { CircleQuestionMark, Bug } from 'lucide-react-native';
 import Constants from 'expo-constants';
 import { useTranslation } from 'react-i18next';
-import { loadAccounts, deleteAccount, setActiveAccountId, clearActiveAccountId } from '@/services/nextcloud/auth';
+import { deleteAccount, setActiveAccountId, clearActiveAccountId } from '@/services/nextcloud/auth';
+import { useAccounts, refreshAccounts } from '@/hooks/useAccounts';
+import { ClearDatabaseForAccount } from '@/database/DatabaseProvider';
+import { storage } from '@/storage';
 import { useAccountStore } from '@/stores/accountStore';
 import { useCalendarStore } from '@/stores/calendarStore';
 import { useSettingsStore, type ThemePreference } from '@/stores/settingsStore';
@@ -35,7 +37,6 @@ export default function SettingsScreen() {
   const [appearanceOpen, setAppearanceOpen] = useState(false);
   const [accountsOpen, setAccountsOpen] = useState(true);
   const appVersion = Constants.expoConfig?.version ?? '—';
-  const queryClient = useQueryClient();
   const { t } = useTranslation();
   const activeAccountId = useAccountStore((s) => s.activeAccountId);
   const setStoreId = useAccountStore((s) => s.setActiveAccountId);
@@ -69,12 +70,11 @@ export default function SettingsScreen() {
 
   const tabBarHeight = useBottomTabBarHeight();
 
-  const { data: accounts = [] } = useQuery({ queryKey: ['accounts'], queryFn: loadAccounts });
+  const accounts = useAccounts();
 
   async function handleSetActive(id: string) {
     await setActiveAccountId(id);
     setStoreId(id);
-    queryClient.invalidateQueries({ queryKey: [id] });
   }
 
   function handleDelete(id: string, displayName: string) {
@@ -84,10 +84,9 @@ export default function SettingsScreen() {
         text: t('common.remove'), style: 'destructive',
         onPress: async () => {
           await deleteAccount(id);
-          const remaining = accounts.filter((a) => a.id !== id);
-          queryClient.setQueryData(['accounts'], remaining);
-          queryClient.removeQueries({ queryKey: [id] });
-          queryClient.removeQueries({ queryKey: ['avatar', id] });
+          await ClearDatabaseForAccount(id).catch(() => undefined);
+          storage.remove(`avatar:${id}`);
+          const remaining = await refreshAccounts();
           if (activeAccountId === id) {
             const next = remaining[0]?.id ?? null;
             if (next) {

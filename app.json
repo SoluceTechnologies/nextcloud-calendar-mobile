@@ -44,6 +44,7 @@
     },
     "owner": "soluce",
     "plugins": [
+      "@morrowdigital/watermelondb-expo-plugin",
       "@react-native-community/datetimepicker",
       "expo-router",
       "expo-secure-store",

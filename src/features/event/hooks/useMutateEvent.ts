@@ -1,22 +1,38 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useCallback, useState } from 'react';
+import { Alert } from 'react-native';
 import * as Crypto from 'expo-crypto';
+import dayjs from 'dayjs';
+
 import { putEvent, updateEvent, deleteEvent, moveEvent, fetchEventIcs } from '@/services/nextcloud/caldav';
 import { createTalkRoom } from '@/services/nextcloud/talk';
+import { describeMutationError } from '@/services/shared/errors';
 import { buildIcs, buildAllDayIcs, buildExceptionIcs, injectExdate, truncateRruleUntil } from '@/utils/ics';
 import { parseIcsObjects } from '@/utils/caldav-parse';
-import type { Account, CalendarMeta, CalendarEvent, CreateEventInput, RecurrenceEditScope } from '@/types';
-import dayjs from 'dayjs';
+import i18n from '@/utils/i18n';
 import {
-  snapshotEvents,
-  insertEvent,
-  patchEvent,
-  removeEventsWhere,
+  insertEvents,
+  patchByUid,
+  removeWhere,
+  restoreSeries,
+  snapshotByBase,
   seriesBaseUid,
-  type EventMutationContext,
-  type EventMutationMeta,
-} from '@/utils/eventMutationReconcile';
+} from '@/database/eventWrites';
+import type { Account, CalendarMeta, CalendarEvent, CreateEventInput, RecurrenceEditScope } from '@/types';
 
 const TALK_URL_PATTERN = /\/call\//;
+
+/** Minimal { mutate, isPending } shim replacing TanStack's useMutation. */
+function useAction<V>(run: (value: V) => Promise<void>): { mutate: (value: V) => void; isPending: boolean } {
+  const [isPending, setIsPending] = useState(false);
+  const mutate = useCallback(
+    (value: V) => {
+      setIsPending(true);
+      run(value).finally(() => setIsPending(false));
+    },
+    [run],
+  );
+  return { mutate, isPending };
+}
 
 function resolveTimezone(account: Account): string {
   return account.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -29,45 +45,30 @@ function resolveCalendar(calendars: CalendarMeta[], calendarId: string): Calenda
 function buildIcsForInput(uid: string, input: CreateEventInput, location: string, description: string, timezone: string): string {
   return input.allDay
     ? buildAllDayIcs({
-        uid,
-        summary: input.summary,
-        description,
-        location,
-        dtstart: input.dtstart,
-        dtend: input.dtend,
-        organizerEmail: input.organizerEmail,
-        organizerName: input.organizerName,
-        attendees: input.attendees,
-        rrule: input.rrule,
+        uid, summary: input.summary, description, location,
+        dtstart: input.dtstart, dtend: input.dtend,
+        organizerEmail: input.organizerEmail, organizerName: input.organizerName,
+        attendees: input.attendees, rrule: input.rrule,
       })
     : buildIcs({
-        uid,
-        summary: input.summary,
-        description,
-        location,
-        dtstart: input.dtstart,
-        dtend: input.dtend,
-        organizerEmail: input.organizerEmail,
-        organizerName: input.organizerName,
-        attendees: input.attendees,
-        timezone,
-        rrule: input.rrule,
+        uid, summary: input.summary, description, location,
+        dtstart: input.dtstart, dtend: input.dtend,
+        organizerEmail: input.organizerEmail, organizerName: input.organizerName,
+        attendees: input.attendees, timezone, rrule: input.rrule,
       });
 }
 
 async function resolveLocationAndDescription(
   account: Account,
-  input: CreateEventInput
+  input: CreateEventInput,
 ): Promise<{ location: string; description: string }> {
   let location = input.location ?? '';
   let description = input.description ?? '';
-
   if (input.withTalkRoom) {
     const room = await createTalkRoom(account, input.summary, input.talkRoomType ?? 'private');
     location = room.url;
     description = description ? `${description}\n\nTalk: ${room.url}` : `Talk: ${room.url}`;
   }
-
   return { location, description };
 }
 
@@ -111,8 +112,7 @@ function eventFromInput(
   };
 }
 
-
-function expandOptimisticOccurrences(
+function expandOccurrences(
   baseUid: string,
   input: CreateEventInput,
   calendar: CalendarMeta,
@@ -131,136 +131,47 @@ function expandOptimisticOccurrences(
 }
 
 export function useCreateEvent(account: Account, calendars: CalendarMeta[]) {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    meta: {
-      eventMutation: true,
-      type: 'create',
-      accountId: account.id,
-      errorTitleKey: 'event.errorCreateFailed',
-    } satisfies EventMutationMeta,
-
-    mutationFn: async (input: CreateEventInput): Promise<CalendarEvent> => {
+  return useAction<CreateEventInput>(
+    useCallback(async (input: CreateEventInput) => {
       const calendar = resolveCalendar(calendars, input.calendarId);
-      if (!calendar) throw new Error('No calendar available');
+      if (!calendar) return;
 
-      const resolved = await resolveLocationAndDescription(account, input);
-      const timezone = resolveTimezone(account);
-      const uid = Crypto.randomUUID();
-      const ics = buildIcsForInput(uid, input, resolved.location, resolved.description, timezone);
-      await putEvent(account, calendar, uid, ics);
-      return eventFromInput(uid, input, calendar, account, resolved);
-    },
+      const tempBase = `optimistic-${Crypto.randomUUID()}`;
+      const optimistic = input.rrule
+        ? expandOccurrences(tempBase, input, calendar, account)
+        : [eventFromInput(tempBase, input, calendar, account)];
+      await insertEvents(optimistic);
 
-    onMutate: async (input: CreateEventInput): Promise<EventMutationContext> => {
-      const previous = snapshotEvents(queryClient, account.id);
+      try {
+        const resolved = await resolveLocationAndDescription(account, input);
+        const timezone = resolveTimezone(account);
+        const uid = Crypto.randomUUID();
+        const ics = buildIcsForInput(uid, input, resolved.location, resolved.description, timezone);
+        await putEvent(account, calendar, uid, ics);
 
-      let tempUid: string | undefined;
-      const calendar = resolveCalendar(calendars, input.calendarId);
-      if (calendar) {
-        if (input.rrule) {
-          const tempBase = `optimistic-${Crypto.randomUUID()}`;
-          for (const occ of expandOptimisticOccurrences(tempBase, input, calendar, account)) {
-            insertEvent(queryClient, account.id, occ);
-          }
-        } else {
-          tempUid = `optimistic-${Crypto.randomUUID()}`;
-          insertEvent(queryClient, account.id, eventFromInput(tempUid, input, calendar, account));
-        }
+        await removeWhere(account.id, (e) => seriesBaseUid(e.uid) === tempBase);
+        const real = input.rrule
+          ? expandOccurrences(uid, input, calendar, account)
+          : [eventFromInput(uid, input, calendar, account, resolved)];
+        await insertEvents(real);
+      } catch (error) {
+        await removeWhere(account.id, (e) => seriesBaseUid(e.uid) === tempBase);
+        Alert.alert(i18n.t('event.errorCreateFailed'), describeMutationError(error));
       }
-
-      void queryClient.cancelQueries({ queryKey: [account.id, 'events'] });
-
-      return { previous, tempUid, needsServerReconcile: !!input.rrule };
-    },
-  });
+    }, [account, calendars]),
+  );
 }
 
 export function useUpdateEvent(account: Account, calendars: CalendarMeta[]) {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    meta: {
-      eventMutation: true,
-      type: 'update',
-      accountId: account.id,
-      errorTitleKey: 'event.errorUpdateFailed',
-    } satisfies EventMutationMeta,
-
-    mutationFn: async ({
-      event,
-      input,
-      scope = 'all',
-    }: {
-      event: CalendarEvent;
-      input: CreateEventInput;
-      scope?: RecurrenceEditScope;
-    }) => {
-      const { location, description } = await resolveLocationAndDescription(account, input);
-      const timezone = resolveTimezone(account);
-
-      if (!event.isRecurring || scope === 'all') {
-        const ics = buildIcsForInput(event.uid, input, location, description, timezone);
-        await updateEvent(account, event.href, ics);
-
-        if (!event.isRecurring && input.calendarId !== event.calendarId) {
-          const targetCal = calendars.find((c) => c.id === input.calendarId);
-          if (!targetCal) throw new Error('Target calendar not found');
-          await moveEvent(account, event.href, targetCal, event.uid);
-        }
-        return;
-      }
-
-      if (scope === 'this') {
-        const masterIcs = await fetchEventIcs(account, event.href);
-        const withExdate = injectExdate(masterIcs, event.dtstart, timezone);
-        await updateEvent(account, event.href, withExdate);
-
-        const calendar = calendars.find((c) => c.id === event.calendarId)
-          ?? calendars.find((c) => c.id === input.calendarId);
-        if (!calendar) throw new Error('Calendar not found for exception VEVENT');
-        const exceptionUid = `${event.uid}-exc-${event.dtstart.getTime()}`;
-        const exIcs = buildExceptionIcs({
-          uid: event.uid,
-          summary: input.summary,
-          description,
-          location,
-          dtstart: input.dtstart,
-          dtend: input.dtend,
-          organizerEmail: input.organizerEmail,
-          organizerName: input.organizerName,
-          attendees: input.attendees,
-          timezone,
-          recurrenceId: event.dtstart,
-        });
-        await putEvent(account, calendar, exceptionUid, exIcs);
-        return;
-      }
-
-      if (scope === 'thisAndFollowing') {
-        const masterIcs = await fetchEventIcs(account, event.href);
-        const oneDayBefore = dayjs(event.dtstart).subtract(1, 'day').endOf('day').toDate();
-        const truncated = truncateRruleUntil(masterIcs, oneDayBefore);
-        await updateEvent(account, event.href, truncated);
-
-        const calendar = calendars.find((c) => c.id === event.calendarId)
-          ?? calendars.find((c) => c.id === input.calendarId);
-        if (!calendar) throw new Error('Calendar not found for new series');
-        const newUid = Crypto.randomUUID();
-        const newIcs = buildIcsForInput(newUid, { ...input, dtstart: input.dtstart, dtend: input.dtend }, location, description, timezone);
-        await putEvent(account, calendar, newUid, newIcs);
-        return;
-      }
-    },
-
-    onMutate: async ({ event, input }): Promise<EventMutationContext> => {
-      const previous = snapshotEvents(queryClient, account.id);
+  return useAction<{ event: CalendarEvent; input: CreateEventInput; scope?: RecurrenceEditScope }>(
+    useCallback(async ({ event, input, scope = 'all' }) => {
+      const base = seriesBaseUid(event.uid);
+      const snapshot = await snapshotByBase(account.id, base);
 
       const { dtstart, dtend } = inputDates(input);
       const calendarChanged = !event.isRecurring && input.calendarId !== event.calendarId;
       const targetCal = calendarChanged ? calendars.find((c) => c.id === input.calendarId) : undefined;
-      patchEvent(queryClient, account.id, event.uid, {
+      await patchByUid(account.id, event.uid, {
         summary: input.summary,
         dtstart,
         dtend,
@@ -275,66 +186,82 @@ export function useUpdateEvent(account: Account, calendars: CalendarMeta[]) {
         }),
       });
 
-      void queryClient.cancelQueries({ queryKey: [account.id, 'events'] });
+      try {
+        const { location, description } = await resolveLocationAndDescription(account, input);
+        const timezone = resolveTimezone(account);
 
-      return { previous, needsServerReconcile: event.isRecurring };
-    },
-  });
+        if (!event.isRecurring || scope === 'all') {
+          const ics = buildIcsForInput(event.uid, input, location, description, timezone);
+          await updateEvent(account, event.href, ics);
+          if (!event.isRecurring && input.calendarId !== event.calendarId) {
+            const cal = calendars.find((c) => c.id === input.calendarId);
+            if (!cal) throw new Error('Target calendar not found');
+            await moveEvent(account, event.href, cal, event.uid);
+          }
+        } else if (scope === 'this') {
+          const masterIcs = await fetchEventIcs(account, event.href);
+          await updateEvent(account, event.href, injectExdate(masterIcs, event.dtstart, timezone));
+          const cal = calendars.find((c) => c.id === event.calendarId) ?? calendars.find((c) => c.id === input.calendarId);
+          if (!cal) throw new Error('Calendar not found for exception VEVENT');
+          const exceptionUid = `${event.uid}-exc-${event.dtstart.getTime()}`;
+          const exIcs = buildExceptionIcs({
+            uid: event.uid, summary: input.summary, description, location,
+            dtstart: input.dtstart, dtend: input.dtend,
+            organizerEmail: input.organizerEmail, organizerName: input.organizerName,
+            attendees: input.attendees, timezone, recurrenceId: event.dtstart,
+          });
+          await putEvent(account, cal, exceptionUid, exIcs);
+        } else if (scope === 'thisAndFollowing') {
+          const masterIcs = await fetchEventIcs(account, event.href);
+          const oneDayBefore = dayjs(event.dtstart).subtract(1, 'day').endOf('day').toDate();
+          await updateEvent(account, event.href, truncateRruleUntil(masterIcs, oneDayBefore));
+          const cal = calendars.find((c) => c.id === event.calendarId) ?? calendars.find((c) => c.id === input.calendarId);
+          if (!cal) throw new Error('Calendar not found for new series');
+          const newUid = Crypto.randomUUID();
+          await putEvent(account, cal, newUid, buildIcsForInput(newUid, input, location, description, timezone));
+        }
+      } catch (error) {
+        await restoreSeries(account.id, base, snapshot);
+        Alert.alert(i18n.t('event.errorUpdateFailed'), describeMutationError(error));
+      }
+    }, [account, calendars]),
+  );
 }
 
 export function useDeleteEvent(account: Account) {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    meta: {
-      eventMutation: true,
-      type: 'delete',
-      accountId: account.id,
-      errorTitleKey: 'event.errorDeleteFailed',
-    } satisfies EventMutationMeta,
-
-    mutationFn: async ({ event, scope = 'all' }: { event: CalendarEvent; scope?: RecurrenceEditScope }) => {
-      if (!account) throw new Error('account is undefined');
-
-      if (!event.isRecurring || scope === 'all') {
-        return deleteEvent(account, event.href);
-      }
-
-      const timezone = resolveTimezone(account);
-      const masterIcs = await fetchEventIcs(account, event.href);
-
-      if (scope === 'this') {
-        const withExdate = injectExdate(masterIcs, event.dtstart, timezone);
-        return updateEvent(account, event.href, withExdate);
-      }
-
-      if (scope === 'thisAndFollowing') {
-        const oneDayBefore = dayjs(event.dtstart).subtract(1, 'day').endOf('day').toDate();
-        const truncated = truncateRruleUntil(masterIcs, oneDayBefore);
-        return updateEvent(account, event.href, truncated);
-      }
-    },
-
-    onMutate: async ({ event, scope = 'all' }): Promise<EventMutationContext> => {
-      const previous = snapshotEvents(queryClient, account.id);
-
+  return useAction<{ event: CalendarEvent; scope?: RecurrenceEditScope }>(
+    useCallback(async ({ event, scope = 'all' }) => {
       const base = seriesBaseUid(event.uid);
+      let removed: CalendarEvent[];
       if (!event.isRecurring || scope === 'all') {
-        removeEventsWhere(queryClient, account.id, (e) => seriesBaseUid(e.uid) === base);
+        removed = await removeWhere(account.id, (e) => seriesBaseUid(e.uid) === base);
       } else if (scope === 'thisAndFollowing') {
         const from = event.dtstart.getTime();
-        removeEventsWhere(
-          queryClient,
+        removed = await removeWhere(
           account.id,
           (e) => seriesBaseUid(e.uid) === base && new Date(e.dtstart).getTime() >= from,
         );
       } else {
-        removeEventsWhere(queryClient, account.id, (e) => e.uid === event.uid);
+        removed = await removeWhere(account.id, (e) => e.uid === event.uid);
       }
 
-      void queryClient.cancelQueries({ queryKey: [account.id, 'events'] });
-
-      return { previous, needsServerReconcile: event.isRecurring };
-    },
-  });
+      try {
+        if (!event.isRecurring || scope === 'all') {
+          await deleteEvent(account, event.href);
+          return;
+        }
+        const timezone = resolveTimezone(account);
+        const masterIcs = await fetchEventIcs(account, event.href);
+        if (scope === 'this') {
+          await updateEvent(account, event.href, injectExdate(masterIcs, event.dtstart, timezone));
+        } else if (scope === 'thisAndFollowing') {
+          const oneDayBefore = dayjs(event.dtstart).subtract(1, 'day').endOf('day').toDate();
+          await updateEvent(account, event.href, truncateRruleUntil(masterIcs, oneDayBefore));
+        }
+      } catch (error) {
+        await insertEvents(removed);
+        Alert.alert(i18n.t('event.errorDeleteFailed'), describeMutationError(error));
+      }
+    }, [account]),
+  );
 }

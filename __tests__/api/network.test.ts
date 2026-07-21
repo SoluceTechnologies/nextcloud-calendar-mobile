@@ -1,6 +1,5 @@
-import { onlineManager } from '@tanstack/react-query';
 import * as Network from 'expo-network';
-import { setupOnlineManager } from '../../src/services/shared/network';
+import { setupOnlineManager, getIsOnline } from '../../src/services/shared/network';
 
 jest.mock('expo-network', () => ({
   __esModule: true,
@@ -19,32 +18,31 @@ function lastNetworkCallback(): (state: any) => void {
 
 describe('setupOnlineManager', () => {
   afterEach(() => {
-    onlineManager.setEventListener(() => () => undefined);
-    onlineManager.setOnline(true);
     addNetworkStateListener.mockClear();
   });
 
   it('reports online when connected and the internet is reachable', () => {
     setupOnlineManager();
     lastNetworkCallback()({ isConnected: true, isInternetReachable: true });
-    expect(onlineManager.isOnline()).toBe(true);
+    expect(getIsOnline()).toBe(true);
   });
 
   it('reports offline when not connected', () => {
     setupOnlineManager();
     lastNetworkCallback()({ isConnected: false, isInternetReachable: false });
-    expect(onlineManager.isOnline()).toBe(false);
+    expect(getIsOnline()).toBe(false);
   });
 
   it('reports offline when connected but the internet is unreachable', () => {
     setupOnlineManager();
     lastNetworkCallback()({ isConnected: true, isInternetReachable: false });
-    expect(onlineManager.isOnline()).toBe(false);
+    expect(getIsOnline()).toBe(false);
   });
 
-  it('treats unknown reachability (undefined) as online to avoid a cold-start flash', () => {
+  it('treats unknown reachability (undefined) as online', () => {
     setupOnlineManager();
+    lastNetworkCallback()({ isConnected: false, isInternetReachable: false });
     lastNetworkCallback()({ isConnected: true });
-    expect(onlineManager.isOnline()).toBe(true);
+    expect(getIsOnline()).toBe(true);
   });
 });

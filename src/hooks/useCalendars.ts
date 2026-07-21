@@ -1,18 +1,37 @@
-import { useQuery } from '@tanstack/react-query';
-import { fetchCalendars } from '@/services/nextcloud/caldav';
-import { CALENDARS_STALE, CALENDARS_LIVE_POLL } from '@/services/shared/queryConfig';
-import type { Account } from '@/types';
+import { useEffect, useState } from 'react';
 
-export function useCalendars(account: Account | null) {
-  return useQuery({
-    queryKey: [account?.id, 'calendars'],
-    queryFn: () => {
-      return fetchCalendars(account!);
-    },
-    enabled: account !== null,
-    staleTime: CALENDARS_STALE,
-    refetchInterval: CALENDARS_LIVE_POLL,
-    refetchIntervalInBackground: false,
-    refetchOnWindowFocus: 'always',
-  });
+import { syncCalendars } from '@/database/sync';
+import { useCalendarsFromDb } from '@/database/useCalendars';
+import type { Account, CalendarMeta } from '@/types';
+
+const LIVE_POLL_MS = 30000;
+
+export function useCalendars(account: Account | null): { data: CalendarMeta[]; isFetching: boolean } {
+  const data = useCalendarsFromDb(account?.id ?? null);
+  const [isFetching, setIsFetching] = useState(false);
+
+  useEffect(() => {
+    if (!account) return;
+    let active = true;
+
+    const run = (withSpinner: boolean) => {
+      if (withSpinner) setIsFetching(true);
+      syncCalendars(account)
+        .catch(() => undefined)
+        .finally(() => {
+          if (active && withSpinner) setIsFetching(false);
+        });
+    };
+
+    run(true);
+    const poll = setInterval(() => run(false), LIVE_POLL_MS);
+
+    return () => {
+      active = false;
+      clearInterval(poll);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [account?.id]);
+
+  return { data, isFetching };
 }

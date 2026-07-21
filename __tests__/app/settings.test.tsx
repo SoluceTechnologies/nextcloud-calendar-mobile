@@ -1,6 +1,5 @@
 import React from 'react';
 import { render, fireEvent } from '@testing-library/react-native';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ThemeProvider } from 'expo-router';
 import { lightTheme } from '../../src/theme';
 import SettingsScreen from '../../app/(tabs)/settings/index';
@@ -14,12 +13,7 @@ jest.mock('expo-router', () => ({ ...jest.requireActual('expo-router'), useRoute
 jest.mock('expo-router/js-tabs', () => ({ useBottomTabBarHeight: () => 0 }));
 
 function wrapper({ children }: { children: React.ReactNode }) {
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return React.createElement(
-    QueryClientProvider,
-    { client },
-    React.createElement(ThemeProvider, { value: lightTheme, children })
-  );
+  return React.createElement(ThemeProvider, { value: lightTheme, children });
 }
 
 describe('SettingsScreen i18n', () => {

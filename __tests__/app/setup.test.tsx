@@ -1,6 +1,5 @@
 import React from 'react';
 import { render } from '@testing-library/react-native';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ThemeProvider } from 'expo-router';
 import { lightTheme } from '../../src/theme';
 import SetupScreen from '../../app/(auth)/setup';
@@ -14,12 +13,7 @@ jest.mock('expo-router', () => ({ ...jest.requireActual('expo-router'), useRoute
 jest.mock('react-native-safe-area-context', () => require('react-native-safe-area-context/jest/mock').default);
 
 function wrapper({ children }: { children: React.ReactNode }) {
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return React.createElement(
-    QueryClientProvider,
-    { client },
-    React.createElement(ThemeProvider, { value: lightTheme, children })
-  );
+  return React.createElement(ThemeProvider, { value: lightTheme, children });
 }
 
 describe('SetupScreen i18n', () => {

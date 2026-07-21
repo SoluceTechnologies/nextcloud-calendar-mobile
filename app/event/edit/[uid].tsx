@@ -1,63 +1,44 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
 import dayjs from 'dayjs';
 import { useTranslation } from 'react-i18next';
-import { loadAccounts } from '@/services/nextcloud/auth';
-import { fetchEvents } from '@/services/nextcloud/caldav';
+import { syncEvents } from '@/database/sync';
+import { useEventByUid } from '@/database/useEventByUid';
 import { useCalendars } from '@/hooks/useCalendars';
+import { useAccounts } from '@/hooks/useAccounts';
 import { useUpdateEvent } from '@/features/event/hooks/useMutateEvent';
 import { useAccountStore } from '@/stores/accountStore';
 import { EventForm } from '@/features/event/components/EventForm';
 import {
   ViewContainer, Stack, Typography, Button, Spinner, ScreenHeader,
 } from '@/ui/components';
-import { normalizeEvent, normalizeEvents } from '@/utils/normalizeEvent';
-import { EVENTS_STALE } from '@/services/shared/queryConfig';
-import type { CalendarEvent, CreateEventInput, RecurrenceEditScope } from '@/types';
+import type { CreateEventInput, RecurrenceEditScope } from '@/types';
 
 export default function EditEventScreen() {
   const { uid, scope: scopeParam } = useLocalSearchParams<{ uid: string; scope?: string }>();
   const router = useRouter();
   const { t } = useTranslation();
   const activeAccountId = useAccountStore((s) => s.activeAccountId);
-  const queryClient = useQueryClient();
-
-  const { data: accounts } = useQuery({ queryKey: ['accounts'], queryFn: loadAccounts });
-  const activeAccount = accounts?.find((a) => a.id === activeAccountId) ?? null;
+  const accounts = useAccounts();
+  const activeAccount = accounts.find((a) => a.id === activeAccountId) ?? null;
   const { data: calendars = [] } = useCalendars(activeAccount);
 
-  const cachedEvent = useMemo((): CalendarEvent | undefined => {
-    const allCached = queryClient.getQueriesData<CalendarEvent[]>({
-      queryKey: [activeAccountId, 'events'],
-    });
-    for (const [, data] of allCached) {
-      if (!Array.isArray(data)) continue;
-      const found = data.find((e) => e.uid === uid);
-      if (found) return normalizeEvent(found);
-    }
-    return undefined;
-  }, [queryClient, activeAccountId, uid]);
+  const event = useEventByUid(activeAccountId, uid);
 
   const start = useMemo(() => dayjs().subtract(3, 'months').toDate(), []);
   const end = useMemo(() => dayjs().add(3, 'months').toDate(), []);
-
-  const { data: fetchedEvents = [], isLoading: eventsLoading } = useQuery<CalendarEvent[]>({
-    queryKey: [activeAccountId, 'events-detail', start.toISOString(), end.toISOString()],
-    queryFn: async () => {
-      if (!activeAccount || calendars.length === 0) return [];
-      const results = await Promise.all(
-        calendars.map((cal) => fetchEvents(activeAccount, cal, start, end))
-      );
-      return results.flat();
-    },
-    enabled: activeAccount !== null && calendars.length > 0 && cachedEvent === undefined,
-    staleTime: EVENTS_STALE,
-  });
-
-  const event: CalendarEvent | undefined = cachedEvent ?? normalizeEvents(fetchedEvents).find((e) => e.uid === uid);
+  const [synced, setSynced] = useState(false);
+  useEffect(() => {
+    if (!activeAccount || calendars.length === 0) return;
+    let active = true;
+    syncEvents(activeAccount, calendars, start, end)
+      .catch(() => undefined)
+      .finally(() => { if (active) setSynced(true); });
+    return () => { active = false; };
+  }, [activeAccount, calendars, start, end]);
+  const eventsLoading = !synced && event === undefined;
 
   const scope: RecurrenceEditScope =
     scopeParam === 'this' ? 'this'
@@ -73,7 +54,7 @@ export default function EditEventScreen() {
     else router.replace('/(tabs)/calendar');
   }
 
-  const isLoading = eventsLoading && cachedEvent === undefined;
+  const isLoading = eventsLoading;
 
   if (isLoading || !activeAccount || calendars.length === 0) {
     return (

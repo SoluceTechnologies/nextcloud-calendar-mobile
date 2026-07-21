@@ -1,5 +1,4 @@
-import { HttpError, parseRetryAfter } from '../../src/services/shared/errors';
-import { describeMutationError } from '../../src/services/shared/queryClient';
+import { HttpError, parseRetryAfter, describeMutationError } from '../../src/services/shared/errors';
 import i18n from '../../src/utils/i18n';
 
 describe('parseRetryAfter', () => {

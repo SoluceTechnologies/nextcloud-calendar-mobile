@@ -58,7 +58,7 @@ export function FixedCalendarHeader<T extends ICalendarEventBase>({
             {...headerCellAccessibilityProps}
           >
             <View style={{ height: 56, justifyContent: 'space-between' }}>
-              <Text style={{ textAlign: 'center', fontSize: 12, color: isHighlight ? theme.colors.primary : theme.colors.textSecondary }}>
+              <Text style={{ textAlign: 'center', fontSize: 13, fontWeight: '600', textTransform: 'capitalize', color: isHighlight ? theme.colors.primary : theme.colors.textSecondary }}>
                 {dayjs(date.toDate()).locale(language).format('ddd')}
               </Text>
               <View style={[

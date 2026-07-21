@@ -130,6 +130,33 @@ describe('parseIcsObjects', () => {
   });
 });
 
+describe('recurring expansion — old series', () => {
+  const calMeta = { calendarId: 'cal-1', accountId: 'acc-1', color: '#0082c9' };
+  const oldDailyIcs = `BEGIN:VCALENDAR
+VERSION:2.0
+BEGIN:VEVENT
+UID:old-daily
+SUMMARY:Ancient Standup
+DTSTART:20200101T090000Z
+DTEND:20200101T091500Z
+RRULE:FREQ=DAILY
+END:VEVENT
+END:VCALENDAR`;
+
+  it('emits in-window occurrences for a series that started years earlier', () => {
+    const rangeStart = new Date('2026-06-01T00:00:00Z');
+    const rangeEnd = new Date('2026-07-01T00:00:00Z');
+    const events = parseIcsObjects(
+      [{ ics: oldDailyIcs, href: '/cal/old.ics' }],
+      calMeta,
+      rangeStart,
+      rangeEnd,
+    );
+    expect(events.length).toBe(30);
+    expect(events.every((e) => e.dtstart >= rangeStart && e.dtstart < rangeEnd)).toBe(true);
+  });
+});
+
 describe('parseIcsObjectsAsync', () => {
   const calMeta = { calendarId: 'cal-1', accountId: 'acc-1', color: '#0082c9' };
   const rangeStart = new Date('2026-06-01T00:00:00Z');

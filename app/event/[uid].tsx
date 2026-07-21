@@ -5,18 +5,15 @@ import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
 import { Pencil, Clock, CalendarDays, MapPin, Video, Repeat, Trash2, Copy, Check } from 'lucide-react-native';
 import { useLocalSearchParams, useRouter, useTheme } from 'expo-router';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
 import dayjs from 'dayjs';
 import localizedFormat from 'dayjs/plugin/localizedFormat';
 import { useTranslation } from 'react-i18next';
-import { loadAccounts } from '@/services/nextcloud/auth';
-import { fetchEvents } from '@/services/nextcloud/caldav';
+import { syncEvents } from '@/database/sync';
+import { useEventByUid } from '@/database/useEventByUid';
 import { useCalendars } from '@/hooks/useCalendars';
+import { useAccounts } from '@/hooks/useAccounts';
 import { useDeleteEvent } from '@/features/event/hooks/useMutateEvent';
 import { useAccountStore } from '@/stores/accountStore';
-import { normalizeEvent, normalizeEvents } from '@/utils/normalizeEvent';
-import { sameDisplayedEvent } from '@/features/event/utils/sameDisplayedEvent';
-import { EVENTS_STALE } from '@/services/shared/queryConfig';
 import {
   ViewContainer, Stack, Typography, Button, Chip, Icon, List, Item,
   SectionHeader, Avatar, Spinner, ScreenHeader,
@@ -81,62 +78,28 @@ export default function EventDetailScreen() {
   const theme = useTheme();
   const { t } = useTranslation();
   const activeAccountId = useAccountStore((s) => s.activeAccountId);
-  const queryClient = useQueryClient();
-
-  const { data: accounts } = useQuery({ queryKey: ['accounts'], queryFn: loadAccounts });
-  const activeAccount = accounts?.find((a) => a.id === activeAccountId) ?? null;
+  const accounts = useAccounts();
+  const activeAccount = accounts.find((a) => a.id === activeAccountId) ?? null;
   const { data: calendars = [] } = useCalendars(activeAccount);
 
-  const findInCache = useCallback((): CalendarEvent | undefined => {
-    const allCached = queryClient.getQueriesData<CalendarEvent[]>({
-      queryKey: [activeAccountId, 'events'],
-    });
-    for (const [, data] of allCached) {
-      if (!Array.isArray(data)) continue;
-      const found = data.find((e) => e.uid === uid);
-      if (found) return normalizeEvent(found);
-    }
-    return undefined;
-  }, [queryClient, activeAccountId, uid]);
-
-  const findInCacheRef = useRef(findInCache);
-  findInCacheRef.current = findInCache;
-
-  const [cachedEvent, setCachedEvent] = useState<CalendarEvent | undefined>(() => findInCache());
-
-  useEffect(() => {
-    return queryClient.getQueryCache().subscribe((evt) => {
-      const key = evt?.query?.queryKey;
-      if (!Array.isArray(key) || key[0] !== activeAccountId || key[1] !== 'events') return;
-      setCachedEvent((prev) => {
-        const next = findInCacheRef.current();
-        if (!next) return prev;
-        if (prev && sameDisplayedEvent(prev, next)) return prev;
-        return next;
-      });
-    });
-  }, [queryClient, activeAccountId]);
+  const event = useEventByUid(activeAccountId, uid);
 
   const start = useMemo(() => dayjs().subtract(3, 'months').toDate(), []);
   const end = useMemo(() => dayjs().add(3, 'months').toDate(), []);
+  const [synced, setSynced] = useState(false);
+  useEffect(() => {
+    if (!activeAccount || calendars.length === 0) return;
+    let active = true;
+    syncEvents(activeAccount, calendars, start, end)
+      .catch(() => undefined)
+      .finally(() => { if (active) setSynced(true); });
+    return () => { active = false; };
+  }, [activeAccount, calendars, start, end]);
 
-  const { data: fetchedEvents = [], isLoading: eventsLoading } = useQuery<CalendarEvent[]>({
-    queryKey: [activeAccountId, 'events-detail', start.toISOString(), end.toISOString()],
-    queryFn: async () => {
-      if (!activeAccount || calendars.length === 0) return [];
-      const results = await Promise.all(
-        calendars.map((cal) => fetchEvents(activeAccount, cal, start, end))
-      );
-      return results.flat();
-    },
-    enabled: activeAccount !== null && calendars.length > 0 && cachedEvent === undefined,
-    staleTime: EVENTS_STALE,
-  });
-
-  const event: CalendarEvent | undefined = cachedEvent ?? normalizeEvents(fetchedEvents).find((e) => e.uid === uid);
   const calendar = calendars.find((c) => c.id === event?.calendarId);
   const deleteMutation = useDeleteEvent(activeAccount!);
   const canEdit = !calendar?.isReadOnly && !calendar?.isSubscribed;
+  const eventsLoading = !synced && event === undefined;
 
   const [copied, setCopied] = useState(false);
   const copyResetRef = useRef<ReturnType<typeof setTimeout>>(undefined);
@@ -202,7 +165,7 @@ export default function EventDetailScreen() {
     }
   }
 
-  const isLoading = eventsLoading && cachedEvent === undefined;
+  const isLoading = eventsLoading;
 
   if (isLoading) {
     return (

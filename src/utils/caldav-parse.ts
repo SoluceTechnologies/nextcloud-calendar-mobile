@@ -81,23 +81,25 @@ export function parseIcsItem(
       };
 
       if (isRecurring && (rangeStart || rangeEnd)) {
+        const durationMs =
+          icalEvent.endDate.toJSDate().getTime() - icalEvent.startDate.toJSDate().getTime();
+        const rangeStartMs = rangeStart?.getTime() ?? -Infinity;
         const iter = icalEvent.iterator();
-        let count = 0;
+        let emitted = 0;
         let nextTime: ICAL.Time;
 
-        while ((nextTime = iter.next()) && count < MAX_OCCURRENCES) {
+        while ((nextTime = iter.next()) && emitted < MAX_OCCURRENCES) {
           const occStart = icalTimeToDate(nextTime);
 
           if (rangeEnd && occStart >= rangeEnd) break;
+
+          if (occStart.getTime() + durationMs <= rangeStartMs) continue;
 
           const details = icalEvent.getOccurrenceDetails(nextTime);
           const occAllDay = details.startDate.isDate;
           const occEnd = icalTimeToDate(details.endDate, true);
 
-          if (rangeStart && occEnd <= rangeStart) {
-            count++;
-            continue;
-          }
+          if (rangeStart && occEnd <= rangeStart) continue;
 
           events.push({
             ...base,
@@ -107,7 +109,7 @@ export function parseIcsItem(
             dtend: occEnd,
             allDay: occAllDay,
           });
-          count++;
+          emitted++;
         }
       } else {
         events.push({

@@ -2,9 +2,8 @@ import { useMemo } from 'react';
 import { StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-import { loadAccounts } from '@/services/nextcloud/auth';
+import { useAccounts } from '@/hooks/useAccounts';
 import { useCalendars } from '@/hooks/useCalendars';
 import { useCreateEvent } from '@/features/event/hooks/useMutateEvent';
 import { useAccountStore } from '@/stores/accountStore';
@@ -18,8 +17,8 @@ export default function NewEventScreen() {
   const { t } = useTranslation();
   const activeAccountId = useAccountStore((s) => s.activeAccountId);
 
-  const { data: accounts } = useQuery({ queryKey: ['accounts'], queryFn: loadAccounts });
-  const activeAccount = accounts?.find((a) => a.id === activeAccountId) ?? null;
+  const accounts = useAccounts();
+  const activeAccount = accounts.find((a) => a.id === activeAccountId) ?? null;
   const { data: calendars = [] } = useCalendars(activeAccount);
 
   const defaultDate = useMemo(() => (date ? new Date(date) : new Date()), [date]);

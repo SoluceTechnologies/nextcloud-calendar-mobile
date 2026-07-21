@@ -1,0 +1,27 @@
+export const EVENT_OBSERVED_COLUMNS = [
+  'calendar_id',
+  'href',
+  'summary',
+  'description',
+  'location',
+  'start',
+  'end',
+  'all_day',
+  'color',
+  'attendees',
+  'organizer_email',
+  'talk_url',
+  'is_recurring',
+  'rrule',
+];
+
+export const CALENDAR_OBSERVED_COLUMNS = [
+  'display_name',
+  'color',
+  'ctag',
+  'url',
+  'slug',
+  'is_subscribed',
+  'is_read_only',
+  'source_url',
+];

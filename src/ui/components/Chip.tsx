@@ -42,7 +42,7 @@ function Chip({
     >
       {icon}
       {typeof children === 'string' ? (
-        <Typography variant={small ? 'caption' : 'body2'} align="center" color={active ? 'light' : 'secondary'}>
+        <Typography variant={small ? 'caption' : 'body2'} align="center" nowrap color={active ? 'light' : 'secondary'}>
           {children}
         </Typography>
       ) : (

@@ -4,10 +4,9 @@ import { View, StyleSheet, KeyboardAvoidingView, ScrollView } from 'react-native
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { QrCode, Eye, EyeOff } from 'lucide-react-native';
 import { useRouter, useTheme } from 'expo-router';
-import { useQueryClient } from '@tanstack/react-query';
 import { validateCredentials } from '@/services/nextcloud/caldav';
-import { HttpError } from '@/services/shared/errors';
-import { describeMutationError } from '@/services/shared/queryClient';
+import { HttpError, describeMutationError } from '@/services/shared/errors';
+import { refreshAccounts } from '@/hooks/useAccounts';
 import { saveAccount, setActiveAccountId } from '@/services/nextcloud/auth';
 import { fetchUserInfo } from '@/services/nextcloud/nextcloud';
 import { useAccountStore } from '@/stores/accountStore';
@@ -24,7 +23,6 @@ export default function SetupScreen() {
   const router = useRouter();
   const theme = useTheme();
   const insets = useSafeAreaInsets();
-  const queryClient = useQueryClient();
   const setStoreId = useAccountStore((s) => s.setActiveAccountId);
   const { t } = useTranslation();
 
@@ -74,9 +72,7 @@ export default function SetupScreen() {
       await saveAccount(account);
       await setActiveAccountId(account.id);
       setStoreId(account.id);
-      queryClient.setQueryData<Account[]>(['accounts'], (old = []) =>
-        old.find((a) => a.id === account.id) ? old : [...old, account]
-      );
+      await refreshAccounts();
       router.replace('/(tabs)/calendar');
     } catch (e: unknown) {
       const status = e instanceof HttpError ? e.status : undefined;
@@ -103,7 +99,6 @@ export default function SetupScreen() {
     setBaseUrl(data.server);
     setUsername(data.user);
     setAppPassword(data.password);
-
     connectWith({ baseUrl: data.server, username: data.user, appPassword: data.password, displayName: '' });
   }
 

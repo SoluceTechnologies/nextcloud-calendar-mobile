@@ -126,6 +126,11 @@ export default function CalendarScreen() {
           '800': theme.colors.text,
         },
       },
+      // Larger hour-guide / time labels for a more readable week view.
+      typography: {
+        xs: { fontSize: 12, lineHeight: 15 },
+        sm: { fontSize: 13, lineHeight: 17 },
+      },
     }),
     [theme.colors.primary, theme.colors.borderSubtle, theme.colors.border, theme.colors.textSecondary, theme.colors.text]
   );

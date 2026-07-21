@@ -917,6 +917,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@babel/runtime@npm:7.26.0":
+  version: 7.26.0
+  resolution: "@babel/runtime@npm:7.26.0"
+  dependencies:
+    regenerator-runtime: "npm:^0.14.0"
+  checksum: 10c0/12c01357e0345f89f4f7e8c0e81921f2a3e3e101f06e8eaa18a382b517376520cd2fa8c237726eb094dab25532855df28a7baaf1c26342b52782f6936b07c287
+  languageName: node
+  linkType: hard
+
 "@babel/runtime@npm:^7.20.0, @babel/runtime@npm:^7.25.0, @babel/runtime@npm:^7.29.2":
   version: 7.29.7
   resolution: "@babel/runtime@npm:7.29.7"
@@ -2161,6 +2170,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@morrowdigital/watermelondb-expo-plugin@npm:^2.3.3":
+  version: 2.3.3
+  resolution: "@morrowdigital/watermelondb-expo-plugin@npm:2.3.3"
+  checksum: 10c0/7040a7a0dcef23058c7236dbe82b6e4f93b02a78f4505517d5d57b43f76164778a38a7dfbb639e5fa53f7e47fce7f16d8d3c250f1e58c3811c72d37fd21519fd
+  languageName: node
+  linkType: hard
+
 "@nodelib/fs.scandir@npm:2.1.5":
   version: 2.1.5
   resolution: "@nodelib/fs.scandir@npm:2.1.5"
@@ -2194,6 +2210,35 @@ __metadata:
   dependencies:
     lodash: "npm:^4.15.0"
   checksum: 10c0/ca9473ee1a4be4b587bfa301d092bb5a4dcb0a252b2a0a48ce9e143dd08e100cdb0631121d35ac8813c3d69d83c05f61e8935d61d65afba63c97012193712cdc
+  languageName: node
+  linkType: hard
+
+"@nozbe/simdjson@npm:3.9.4":
+  version: 3.9.4
+  resolution: "@nozbe/simdjson@npm:3.9.4"
+  checksum: 10c0/36fb86d41e0d99c6d02307458b69483227677dbea36020837e6598312dee18d593c895ad6b78a63c06f69703e23d1da2eb7f863f000969dfb7aaf8430bc604ab
+  languageName: node
+  linkType: hard
+
+"@nozbe/sqlite@npm:3.46.0":
+  version: 3.46.0
+  resolution: "@nozbe/sqlite@npm:3.46.0"
+  checksum: 10c0/890af9ae0c65e317c1b4c831c6b798315334f41666ea09863869c6827f73a8fec15d54bd760d7d7fdaf47bc6793c00a0c3803614cdec9148bb7d4ceb52ceb19b
+  languageName: node
+  linkType: hard
+
+"@nozbe/watermelondb@npm:^0.28.0":
+  version: 0.28.0
+  resolution: "@nozbe/watermelondb@npm:0.28.0"
+  dependencies:
+    "@babel/runtime": "npm:7.26.0"
+    "@nozbe/simdjson": "npm:3.9.4"
+    "@nozbe/sqlite": "npm:3.46.0"
+    hoist-non-react-statics: "npm:^3.3.2"
+    lokijs: "npm:@nozbe/lokijs@1.5.12-wmelon6"
+    rxjs: "npm:^7.8.1"
+    sql-escape-string: "npm:^1.1.0"
+  checksum: 10c0/9bfe588378a5b016ae2a2f00b64d2bc3847ead33b9f6d7fb34e0ca006ee3ab5a3e24254cfb7f102c19cc68ec6ed59c9001e78c9114e8f782fb9494fc13632864
   languageName: node
   linkType: hard
 
@@ -2977,55 +3022,6 @@ __metadata:
   dependencies:
     "@sinonjs/commons": "npm:^3.0.0"
   checksum: 10c0/2e2fb6cc57f227912814085b7b01fede050cd4746ea8d49a1e44d5a0e56a804663b0340ae2f11af7559ea9bf4d087a11f2f646197a660ea3cb04e19efc04aa63
-  languageName: node
-  linkType: hard
-
-"@tanstack/query-async-storage-persister@npm:^5.100.9":
-  version: 5.101.3
-  resolution: "@tanstack/query-async-storage-persister@npm:5.101.3"
-  dependencies:
-    "@tanstack/query-core": "npm:5.101.3"
-    "@tanstack/query-persist-client-core": "npm:5.101.3"
-  checksum: 10c0/8d071d349fc0939961d2221f6002ffb92d508c7410400a40e559ffcc6264fdf5ed6001fd04dbb07e52ba900f6de27875f55c31146188a523966259204432ae08
-  languageName: node
-  linkType: hard
-
-"@tanstack/query-core@npm:5.101.3":
-  version: 5.101.3
-  resolution: "@tanstack/query-core@npm:5.101.3"
-  checksum: 10c0/5e14f4ea2ad4deb81f62b3354dc07f457c86f5d39a108049d9697943ea509141ed19c69221e408d70d7abde6c87592bdfce16e8a71329778407e9be5526217ae
-  languageName: node
-  linkType: hard
-
-"@tanstack/query-persist-client-core@npm:5.101.3":
-  version: 5.101.3
-  resolution: "@tanstack/query-persist-client-core@npm:5.101.3"
-  dependencies:
-    "@tanstack/query-core": "npm:5.101.3"
-  checksum: 10c0/703d5f2e3d697a3a01aa878d94269fc769691dfa71c9b3ca9eb5bbbde9dda5ab1dee59ffab471fb200091f75c94c63993315ceff0a01432b3557604693f29870
-  languageName: node
-  linkType: hard
-
-"@tanstack/react-query-persist-client@npm:^5.100.9":
-  version: 5.101.3
-  resolution: "@tanstack/react-query-persist-client@npm:5.101.3"
-  dependencies:
-    "@tanstack/query-persist-client-core": "npm:5.101.3"
-  peerDependencies:
-    "@tanstack/react-query": ^5.101.3
-    react: ^18 || ^19
-  checksum: 10c0/89a21f27cf0939b7b3a9fe698f53fa52a758c4a83c51c6b3ccfe8d27f914e8afa527721bf1a0691ebaad341842f91a3c3b06e2cc85c674849f7e3346c3ac11cf
-  languageName: node
-  linkType: hard
-
-"@tanstack/react-query@npm:^5.100.8":
-  version: 5.101.3
-  resolution: "@tanstack/react-query@npm:5.101.3"
-  dependencies:
-    "@tanstack/query-core": "npm:5.101.3"
-  peerDependencies:
-    react: ^18 || ^19
-  checksum: 10c0/7eeb4939e5ca1215e6594677945aa36f0bc8bdb4838967aba25c97503aa93c3dff531f604edec48764fac8445e3fd9dd93ff60608bd846c2d72921d0d6bc9f1d
   languageName: node
   linkType: hard
 
@@ -6278,7 +6274,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"hoist-non-react-statics@npm:^3.3.0":
+"hoist-non-react-statics@npm:^3.3.0, hoist-non-react-statics@npm:^3.3.2":
   version: 3.3.2
   resolution: "hoist-non-react-statics@npm:3.3.2"
   dependencies:
@@ -7783,6 +7779,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"lokijs@npm:@nozbe/lokijs@1.5.12-wmelon6":
+  version: 1.5.12-wmelon6
+  resolution: "@nozbe/lokijs@npm:1.5.12-wmelon6"
+  checksum: 10c0/2915bbcc5642e878d0df0e5cd5ce94a4b6453f655bc8d4132e39055b576dce57d9db039040c0d8a7ba4e6aca35daf73dbe7877867883ea9ea9dd102f44d27839
+  languageName: node
+  linkType: hard
+
 "loose-envify@npm:^1.0.0":
   version: 1.4.0
   resolution: "loose-envify@npm:1.4.0"
@@ -8372,14 +8375,13 @@ __metadata:
   dependencies:
     "@expo/metro-runtime": "npm:~57.0.6"
     "@expo/vector-icons": "npm:^15.1.1"
+    "@morrowdigital/watermelondb-expo-plugin": "npm:^2.3.3"
+    "@nozbe/watermelondb": "npm:^0.28.0"
     "@react-native-async-storage/async-storage": "npm:2.2.0"
     "@react-native-community/datetimepicker": "npm:9.1.0"
     "@react-native/jest-preset": "npm:0.86.0"
     "@release-it/bumper": "npm:^7.0.5"
     "@release-it/conventional-changelog": "npm:^10.0.6"
-    "@tanstack/query-async-storage-persister": "npm:^5.100.9"
-    "@tanstack/react-query": "npm:^5.100.8"
-    "@tanstack/react-query-persist-client": "npm:^5.100.9"
     "@testing-library/jest-native": "npm:^5.4.3"
     "@testing-library/react-native": "npm:^13.3.3"
     "@types/jest": "npm:^29.5.14"
@@ -9650,6 +9652,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"regenerator-runtime@npm:^0.14.0":
+  version: 0.14.1
+  resolution: "regenerator-runtime@npm:0.14.1"
+  checksum: 10c0/1b16eb2c4bceb1665c89de70dcb64126a22bc8eb958feef3cd68fe11ac6d2a4899b5cd1b80b0774c7c03591dc57d16631a7f69d2daa2ec98100e2f29f7ec4cc4
+  languageName: node
+  linkType: hard
+
 "regexpu-core@npm:^6.3.1":
   version: 6.4.0
   resolution: "regexpu-core@npm:6.4.0"
@@ -9851,7 +9860,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"rxjs@npm:^7.8.2":
+"rxjs@npm:^7.8.1, rxjs@npm:^7.8.2":
   version: 7.8.2
   resolution: "rxjs@npm:7.8.2"
   dependencies:
@@ -10219,6 +10228,13 @@ __metadata:
   version: 1.0.3
   resolution: "sprintf-js@npm:1.0.3"
   checksum: 10c0/ecadcfe4c771890140da5023d43e190b7566d9cf8b2d238600f31bec0fc653f328da4450eb04bd59a431771a8e9cc0e118f0aa3974b683a4981b4e07abc2a5bb
+  languageName: node
+  linkType: hard
+
+"sql-escape-string@npm:^1.1.0":
+  version: 1.1.0
+  resolution: "sql-escape-string@npm:1.1.0"
+  checksum: 10c0/89fa6b7adbd550ea2372fc556047ac64703a130593c2fae597e9ab258172908121ac03ac83ae79134f0a7e38c93a8b07ea708c3257f9abcf6452a6a038186f05
   languageName: node
   linkType: hard
 

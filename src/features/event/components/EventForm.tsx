@@ -106,12 +106,46 @@ export function EventForm({
     }
   }
 
+  // On the VERY FIRST pick, seed the counterpart: start -> end = start + 1h,
+  // end -> start = end - 1h (all-day: same day). After that no forced duration —
+  // the user can make longer slots — but the end can never land before the start.
+  const seeded = useRef(!!initialValues);
+
+  function applyStart(d: Date) {
+    if (!seeded.current) {
+      seeded.current = true;
+      setDtstart(d);
+      setDtend(allDay ? d : dayjs(d).add(1, 'hour').toDate());
+      return;
+    }
+    setDtstart(d);
+    setDtend((prevEnd) => {
+      if (allDay) return dayjs(prevEnd).isBefore(dayjs(d), 'day') ? d : prevEnd;
+      return prevEnd > d ? prevEnd : dayjs(d).add(1, 'hour').toDate();
+    });
+  }
+
+  function applyEnd(d: Date) {
+    if (!seeded.current) {
+      seeded.current = true;
+      setDtend(d);
+      setDtstart(allDay ? d : dayjs(d).subtract(1, 'hour').toDate());
+      return;
+    }
+    // Clamp: the end can't be before the start.
+    if (allDay) {
+      setDtend(dayjs(d).isBefore(dayjs(dtstart), 'day') ? dtstart : d);
+    } else {
+      setDtend(d > dtstart ? d : dayjs(dtstart).add(1, 'hour').toDate());
+    }
+  }
+
   function handleIosStartChange(_: any, d?: Date) {
-    if (d) setDtstart(d);
+    if (d) applyStart(d);
   }
 
   function handleIosEndChange(_: any, d?: Date) {
-    if (d) setDtend(d);
+    if (d) applyEnd(d);
   }
 
   function handleAndroidChange(_: any, selected?: Date) {
@@ -134,8 +168,8 @@ export function EventForm({
       } else {
         finalDate = base;
       }
-      if (target === 'start') setDtstart(finalDate);
-      else setDtend(finalDate);
+      if (target === 'start') applyStart(finalDate);
+      else applyEnd(finalDate);
       setAndroidStep(null);
     } else {
       setAndroidStep({ target, step: 'time', partial: selected });
