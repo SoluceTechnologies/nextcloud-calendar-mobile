@@ -1,7 +1,8 @@
 import { useTheme } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
-import { useCallback } from 'react';
+import * as ScreenOrientation from 'expo-screen-orientation';
+import { useCallback, useEffect } from 'react';
 import { View } from 'react-native';
 import { Providers } from '@/components/Providers';
 import { RootNavigator } from '@/components/RootNavigator';
@@ -9,6 +10,17 @@ import FakeSplash from '@/components/FakeSplash';
 import { useAppInitialization } from '@/hooks/useAppInitialization';
 import '@/utils/i18n';
 import { useLanguageSync } from '@/hooks/useLanguageSync';
+import { isTablet } from '@/utils/device';
+
+function useOrientationLock() {
+  useEffect(() => {
+    ScreenOrientation.lockAsync(
+      isTablet()
+        ? ScreenOrientation.OrientationLock.DEFAULT
+        : ScreenOrientation.OrientationLock.PORTRAIT_UP,
+    ).catch(() => undefined);
+  }, []);
+}
 
 function ThemedStatusBar() {
   const { dark } = useTheme();
@@ -18,6 +30,7 @@ function ThemedStatusBar() {
 export default function RootLayout() {
   const { isAppReady } = useAppInitialization();
   useLanguageSync();
+  useOrientationLock();
 
   const onLayoutRootView = useCallback(() => {
     SplashScreen.hideAsync().catch(() => undefined);

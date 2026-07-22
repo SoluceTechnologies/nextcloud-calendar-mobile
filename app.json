@@ -4,7 +4,7 @@
     "slug": "nextcloud-calendar",
     "scheme": "nextcloud-calendar",
     "version": "1.3.2",
-    "orientation": "portrait",
+    "orientation": "default",
     "userInterfaceStyle": "automatic",
     "platforms": [
       "ios",
@@ -15,7 +15,7 @@
       "**/*"
     ],
     "ios": {
-      "supportsTablet": false,
+      "supportsTablet": true,
       "bundleIdentifier": "com.soluce.nextcloud-calendar",
       "icon": "./assets/icon-ios.icon",
       "infoPlist": {

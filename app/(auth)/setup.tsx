@@ -103,7 +103,7 @@ export default function SetupScreen() {
   }
 
   return (
-    <ViewContainer>
+    <ViewContainer centered>
       <SafeAreaView style={styles.flex}>
       <KeyboardAvoidingView style={styles.flex} behavior="padding">
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">

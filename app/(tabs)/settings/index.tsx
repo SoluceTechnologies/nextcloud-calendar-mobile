@@ -104,7 +104,7 @@ export default function SettingsScreen() {
   }
 
   return (
-    <ViewContainer>
+    <ViewContainer centered>
       <SafeAreaView edges={['top']} style={{ flex: 1 }}>
         <Stack direction="horizontal" vAlign="center" padding={[16, 12]}>
           <Typography variant="h2">{t('settings.title')}</Typography>
