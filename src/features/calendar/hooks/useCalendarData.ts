@@ -1,14 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import dayjs from 'dayjs';
 
-import { syncEvents } from '@/database/sync';
+import { syncEvents, syncCalendarDelta } from '@/database/sync';
 import { useEventsForRange } from '@/database/useEvents';
 import { useAccountStore } from '@/stores/accountStore';
 import { useCalendarStore } from '@/stores/calendarStore';
 import { useActiveAccount } from '@/hooks/useAccounts';
 import { useCalendars } from '@/hooks/useCalendars';
 import { normalizeEvents } from '@/utils/normalizeEvent';
-import { monthRange, monthRangeAt } from '../utils/range';
+import { monthRange } from '../utils/range';
 
 export function useCalendarData(date: Date) {
   const activeAccountId = useAccountStore((s) => s.activeAccountId);
@@ -32,21 +32,21 @@ export function useCalendarData(date: Date) {
     setSyncing(true);
     (async () => {
       try {
-        await syncEvents(activeAccount, calendars, start, end);
+        await Promise.all(
+          calendars.map((cal) =>
+            cal.isSubscribed && cal.sourceUrl
+              ? syncEvents(activeAccount, [cal], start, end)   // ICS-source: keep windowed full-fetch
+              : syncCalendarDelta(activeAccount, cal),          // real CalDAV: token delta
+          ),
+        );
       } catch {
       } finally {
         if (active) setSyncing(false);
       }
-      const prev = monthRangeAt(date, -1);
-      const next = monthRangeAt(date, 1);
-      void syncEvents(activeAccount, calendars, prev.start, prev.end, false).catch(() => undefined);
-      void syncEvents(activeAccount, calendars, next.start, next.end, false).catch(() => undefined);
     })();
-    return () => {
-      active = false;
-    };
+    return () => { active = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeAccount?.id, calendars, start.getTime(), end.getTime()]);
+  }, [activeAccount?.id, calendars]);
 
   const allEvents = useMemo(
     () => normalizeEvents(dbEvents.filter((e) => !hiddenCalendarIds.includes(e.calendarId))),

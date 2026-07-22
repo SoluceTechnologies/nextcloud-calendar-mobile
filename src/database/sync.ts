@@ -1,8 +1,15 @@
 import { Q } from '@nozbe/watermelondb';
 import type { Collection } from '@nozbe/watermelondb';
 
-import { fetchCalendars, fetchEventsForCalendars } from '@/services/nextcloud/caldav';
+import {
+  fetchCalendars,
+  fetchEventsForCalendars,
+  fetchEventsByHrefs,
+  syncCollection,
+} from '@/services/nextcloud/caldav';
 import type { Account, CalendarEvent, CalendarMeta } from '@/types';
+import type { SyncCollectionResult } from '@/services/nextcloud/caldav';
+import { expansionHorizon, needsHorizonReset } from '@/features/calendar/utils/horizon';
 
 import { getDatabaseInstance } from './DatabaseProvider';
 import Calendar from './models/Calendar';
@@ -161,4 +168,58 @@ export async function syncEvents(
 
     if (ops.length > 0) await db.batch(ops);
   }, 30000, 'syncEvents');
+}
+
+async function collectByHref(events: Collection<Event>, accountId: string, hrefs: Set<string>) {
+  const rows = await events.query(Q.where('account_id', accountId)).fetch();
+  return rows.filter((r) => hrefs.has(r.href));
+}
+
+
+export async function syncCalendarDelta(account: Account, calendar: CalendarMeta): Promise<void> {
+  const db = getDatabaseInstance();
+  const events = db.get<Event>('events');
+  const calendars = db.get<Calendar>('calendars');
+
+  const now = new Date();
+  const horizon = expansionHorizon(now);
+
+  const row = (await calendars.query(Q.where('url', calendar.url)).fetch())[0];
+  const storedToken = row?.syncToken;
+  const forceFull = needsHorizonReset(row?.expandedCenter, now);
+
+  let result: SyncCollectionResult = await syncCollection(
+    account, calendar, forceFull ? '' : storedToken,
+  );
+  if (result.reset) {
+    result = await syncCollection(account, calendar, '');
+  }
+  const fullSync = result.reset || forceFull || !storedToken;
+
+  const fetched = await fetchEventsByHrefs(
+    account, calendar, result.changed, horizon.start, horizon.end,
+  );
+
+  await safeWrite(db, async () => {
+    const ops = [];
+
+    const touched = new Set<string>([...result.changed, ...result.deleted]);
+    const existing = fullSync
+      ? await events.query(Q.where('calendar_id', calendar.id)).fetch()
+      : await collectByHref(events, account.id, touched);
+    for (const r of existing) {
+      if (fullSync || touched.has(r.href)) ops.push(r.prepareMarkAsDeleted());
+    }
+
+    for (const ev of fetched) ops.push(prepareCreateEvent(events, ev));
+
+    if (row) {
+      ops.push(row.prepareUpdate((r: Calendar) => {
+        r.syncToken = result.newToken || r.syncToken;
+        r.expandedCenter = now.getTime();
+      }));
+    }
+
+    if (ops.length > 0) await db.batch(ops);
+  }, 30000, 'syncCalendarDelta');
 }
