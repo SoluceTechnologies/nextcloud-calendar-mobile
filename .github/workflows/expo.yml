@@ -81,10 +81,10 @@ jobs:
           cat build-output.json
           APK_URL=$(jq -r '.[0].artifacts.applicationArchiveUrl // .[0].artifacts.buildUrl' build-output.json)
           echo "Downloading APK from: $APK_URL"
-          curl -L -o ./app-release.apk "$APK_URL"
+          curl -L -o "./NextcloudCalendar-v${{ inputs.version }}.apk" "$APK_URL"
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: android-apk
-          path: ./app-release.apk
+          path: ./NextcloudCalendar-v${{ inputs.version }}.apk

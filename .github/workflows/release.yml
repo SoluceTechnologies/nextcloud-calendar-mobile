@@ -114,7 +114,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release upload ${{ needs.create-release.outputs.draft_tag }} ./apk/app-release.apk --clobber
+          gh release upload ${{ needs.create-release.outputs.draft_tag }} "./apk/NextcloudCalendar-v${{ needs.create-release.outputs.version }}.apk" --clobber
 
       - name: Publish GitHub Release
         id: publish_release_step
