@@ -1,0 +1,15 @@
+diff --git a/node_modules/@nozbe/watermelondb/native/android-jsi/src/main/cpp/CMakeLists.txt b/node_modules/@nozbe/watermelondb/native/android-jsi/src/main/cpp/CMakeLists.txt
+index 79d961e..b364e94 100755
+--- a/node_modules/@nozbe/watermelondb/native/android-jsi/src/main/cpp/CMakeLists.txt
++++ b/node_modules/@nozbe/watermelondb/native/android-jsi/src/main/cpp/CMakeLists.txt
+@@ -87,3 +87,10 @@ target_link_libraries(watermelondb-jsi
+                       # link with these libraries:
+                       android
+                       log)
++
++# Align LOAD segments to 16 KB so the .so is compatible with Android 15+
++# 16 KB page-size devices. Without this the lib links at the 4 KB default and
++# fails the "LOAD segment alignment" check (crashes on 16 KB-page phones).
++target_link_options(watermelondb-jsi PRIVATE
++                    "-Wl,-z,max-page-size=16384"
++                    "-Wl,-z,common-page-size=16384")
