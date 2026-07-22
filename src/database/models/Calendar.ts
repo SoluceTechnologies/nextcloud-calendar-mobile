@@ -16,4 +16,6 @@ export default class Calendar extends Model {
   @field('is_subscribed') isSubscribed?: boolean;
   @field('is_read_only') isReadOnly?: boolean;
   @field('source_url') sourceUrl?: string;
+  @field('sync_token') syncToken?: string;
+  @field('expanded_center') expandedCenter?: number;
 }

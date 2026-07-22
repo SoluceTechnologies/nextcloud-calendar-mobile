@@ -5,9 +5,11 @@ import Calendar from '@/database/models/Calendar';
 import Event from '@/database/models/Event';
 
 import { mySchema } from './schema';
+import { migrations } from './migrations';
 
 const adapter = new SQLiteAdapter({
   schema: mySchema,
+  migrations,
 });
 
 export const database = new Database({
