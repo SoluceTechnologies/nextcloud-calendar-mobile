@@ -82,6 +82,54 @@ export async function validateCredentials(params: {
   return { davUserId: params.username };
 }
 
+export interface SyncCollectionResult {
+  changed: string[];
+  deleted: string[];
+  newToken: string;
+  reset: boolean;
+}
+
+export async function syncCollection(
+  account: Account,
+  calendar: CalendarMeta,
+  token?: string,
+): Promise<SyncCollectionResult> {
+  const body = `<?xml version="1.0"?>
+<d:sync-collection xmlns:d="DAV:">
+  <d:sync-token>${token ?? ''}</d:sync-token>
+  <d:sync-level>1</d:sync-level>
+  <d:prop><d:getetag/></d:prop>
+</d:sync-collection>`;
+
+  const res = await davFetch(calendar.url, account, {
+    method: 'REPORT',
+    headers: { Depth: '1', 'Content-Type': 'application/xml' },
+    body,
+  });
+
+  // 507 Insufficient Storage / 403 / 409 => token no longer valid: caller retries full.
+  if (res.status === 507 || res.status === 403 || res.status === 409) {
+    return { changed: [], deleted: [], newToken: '', reset: true };
+  }
+  if (res.status !== 207) throw new Error(`syncCollection HTTP ${res.status}`);
+
+  const xml = await res.text();
+  const changed: string[] = [];
+  const deleted: string[] = [];
+
+  for (const chunk of splitResponses(xml)) {
+    const hrefMatch = chunk.match(/<d:href>([^<]+)<\/d:href>/);
+    if (!hrefMatch) continue;
+    const abs = `${account.baseUrl}${hrefMatch[1]}`;
+    // A response-level 404 status means the resource was removed.
+    if (/<d:status>[^<]*\b404\b/.test(chunk)) deleted.push(abs);
+    else changed.push(abs);
+  }
+
+  const tokenMatch = xml.match(/<d:sync-token>([^<]*)<\/d:sync-token>/);
+  return { changed, deleted, newToken: tokenMatch?.[1]?.trim() ?? '', reset: false };
+}
+
 export async function fetchCalendars(account: Account): Promise<CalendarMeta[]> {
   const url = calUrl(account);
   const body = `<?xml version="1.0"?>

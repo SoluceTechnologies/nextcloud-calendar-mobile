@@ -1,4 +1,4 @@
-import { deleteEvent, moveEvent } from '../../src/services/nextcloud/caldav';
+import { deleteEvent, moveEvent, syncCollection } from '../../src/services/nextcloud/caldav';
 import type { Account, CalendarMeta } from '../../src/types';
 
 const account: Account = {
@@ -78,5 +78,52 @@ describe('moveEvent', () => {
   it('throws on error status', async () => {
     mockFetch.mockResolvedValue({ ok: false, status: 502, text: () => Promise.resolve('') });
     await expect(moveEvent(account, fromHref, targetCalendar, 'uid-abc')).rejects.toThrow('moveEvent HTTP 502');
+  });
+});
+
+describe('syncCollection', () => {
+  const cal = targetCalendar;
+
+  it('sends a sync-collection REPORT carrying the token and parses changed/deleted/token', async () => {
+    const xml = `<?xml version="1.0"?>
+<d:multistatus xmlns:d="DAV:">
+  <d:response>
+    <d:href>/remote.php/dav/calendars/john/work/a.ics</d:href>
+    <d:propstat><d:status>HTTP/1.1 200 OK</d:status></d:propstat>
+  </d:response>
+  <d:response>
+    <d:href>/remote.php/dav/calendars/john/work/gone.ics</d:href>
+    <d:status>HTTP/1.1 404 Not Found</d:status>
+  </d:response>
+  <d:sync-token>http://sabre.io/ns/sync/42</d:sync-token>
+</d:multistatus>`;
+    mockFetch.mockResolvedValue({ status: 207, text: async () => xml });
+
+    const res = await syncCollection(account, cal, 'http://sabre.io/ns/sync/40');
+
+    expect(mockFetch).toHaveBeenCalledWith(cal.url, expect.objectContaining({ method: 'REPORT' }));
+    const body = mockFetch.mock.calls[0][1].body as string;
+    expect(body).toContain('sync-collection');
+    expect(body).toContain('<d:sync-token>http://sabre.io/ns/sync/40</d:sync-token>');
+    expect(res.changed).toEqual(['https://cloud.example.com/remote.php/dav/calendars/john/work/a.ics']);
+    expect(res.deleted).toEqual(['https://cloud.example.com/remote.php/dav/calendars/john/work/gone.ics']);
+    expect(res.newToken).toBe('http://sabre.io/ns/sync/42');
+    expect(res.reset).toBe(false);
+  });
+
+  it('sends an empty sync-token on first run (no stored token)', async () => {
+    mockFetch.mockResolvedValue({
+      status: 207,
+      text: async () => `<d:multistatus xmlns:d="DAV:"><d:sync-token>t1</d:sync-token></d:multistatus>`,
+    });
+    await syncCollection(account, cal, undefined);
+    const body = mockFetch.mock.calls[0][1].body as string;
+    expect(body).toContain('<d:sync-token></d:sync-token>');
+  });
+
+  it('signals reset on 507 (invalid/expired token)', async () => {
+    mockFetch.mockResolvedValue({ status: 507, text: async () => '' });
+    const res = await syncCollection(account, cal, 'stale');
+    expect(res.reset).toBe(true);
   });
 });
