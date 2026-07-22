@@ -149,17 +149,19 @@ function MonthDayViewImpl({ date, events, weekStartsOn, onSelectDate, onPressEve
                 >
                   <View style={[
                     styles.dayCircle,
-                    isSelected && { backgroundColor: theme.colors.primary },
-                    isToday && !isSelected && { borderWidth: 1.5, borderColor: theme.colors.primary },
+                    { backgroundColor: isSelected ? theme.colors.primary : 'transparent' },
+                    { borderWidth: isToday && !isSelected ? 1.5 : 0, borderColor: theme.colors.primary },
                   ]}>
                     <Text
                       numberOfLines={1}
                       allowFontScaling={false}
                       style={[
                         styles.dayNumber,
-                        { color: theme.colors.text },
-                        isSelected && { color: '#fff' },
-                        isToday && !isSelected && { color: theme.colors.primary, fontWeight: '700' },
+                        { color: isSelected
+                          ? theme.colors.primaryText
+                          : isToday
+                            ? theme.colors.primary
+                            : theme.colors.text, fontWeight: isSelected || isToday ? '700' : '400' },
                       ]}>
                       {d.date()}
                     </Text>
