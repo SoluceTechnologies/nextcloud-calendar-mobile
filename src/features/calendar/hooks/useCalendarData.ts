@@ -23,30 +23,50 @@ export function useCalendarData(date: Date) {
 
   const dbEvents = useEventsForRange(activeAccountId ?? '', start, end);
 
-  const [syncing, setSyncing] = useState(false);
+  const [deltaSyncing, setDeltaSyncing] = useState(false);
+  const [icsSyncing, setIcsSyncing] = useState(false);
+  const syncing = deltaSyncing || icsSyncing;
 
 
+  // Real CalDAV calendars: token-based whole-calendar delta. Runs on account /
+  // calendar-set change only — month scrolling reads the DB, no network.
   useEffect(() => {
-    if (!activeAccount || calendars.length === 0) return;
+    if (!activeAccount) return;
+    const calDav = calendars.filter((c) => !(c.isSubscribed && c.sourceUrl));
+    if (calDav.length === 0) return;
     let active = true;
-    setSyncing(true);
+    setDeltaSyncing(true);
     (async () => {
       try {
-        await Promise.all(
-          calendars.map((cal) =>
-            cal.isSubscribed && cal.sourceUrl
-              ? syncEvents(activeAccount, [cal], start, end)   // ICS-source: keep windowed full-fetch
-              : syncCalendarDelta(activeAccount, cal),          // real CalDAV: token delta
-          ),
-        );
+        await Promise.all(calDav.map((cal) => syncCalendarDelta(activeAccount, cal)));
       } catch {
       } finally {
-        if (active) setSyncing(false);
+        if (active) setDeltaSyncing(false);
       }
     })();
     return () => { active = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeAccount?.id, calendars]);
+
+  // Subscribed-ICS calendars have no sync-token; keep the windowed full-fetch,
+  // which must re-run as the visible month (start/end) changes.
+  useEffect(() => {
+    if (!activeAccount) return;
+    const subscribed = calendars.filter((c) => c.isSubscribed && c.sourceUrl);
+    if (subscribed.length === 0) return;
+    let active = true;
+    setIcsSyncing(true);
+    (async () => {
+      try {
+        await syncEvents(activeAccount, subscribed, start, end);
+      } catch {
+      } finally {
+        if (active) setIcsSyncing(false);
+      }
+    })();
+    return () => { active = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeAccount?.id, calendars, start.getTime(), end.getTime()]);
 
   const allEvents = useMemo(
     () => normalizeEvents(dbEvents.filter((e) => !hiddenCalendarIds.includes(e.calendarId))),
