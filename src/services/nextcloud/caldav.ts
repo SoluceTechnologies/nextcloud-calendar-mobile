@@ -363,3 +363,55 @@ export async function deleteEvent(
   console.log('[deleteEvent] status:', res.status);
   if (!res.ok && res.status !== 404) throw httpErrorFrom(res, 'deleteEvent');
 }
+
+export const MULTIGET_BATCH = 50;
+
+function toPath(account: Account, absHref: string): string {
+  return absHref.startsWith(account.baseUrl) ? absHref.slice(account.baseUrl.length) : absHref;
+}
+
+export async function fetchEventsByHrefs(
+  account: Account,
+  calendar: CalendarMeta,
+  hrefs: string[],
+  rangeStart: Date,
+  rangeEnd: Date,
+): Promise<CalendarEvent[]> {
+  if (hrefs.length === 0) return [];
+
+  const out: CalendarEvent[] = [];
+  for (let i = 0; i < hrefs.length; i += MULTIGET_BATCH) {
+    const batch = hrefs.slice(i, i + MULTIGET_BATCH);
+    const hrefEls = batch.map((h) => `<d:href>${toPath(account, h)}</d:href>`).join('');
+    const body = `<?xml version="1.0"?>
+<c:calendar-multiget xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav">
+  <d:prop><d:getetag/><c:calendar-data/></d:prop>
+  ${hrefEls}
+</c:calendar-multiget>`;
+
+    const res = await davFetch(calendar.url, account, {
+      method: 'REPORT',
+      headers: { Depth: '1', 'Content-Type': 'application/xml' },
+      body,
+    });
+    if (res.status !== 207) throw new Error(`fetchEventsByHrefs HTTP ${res.status}`);
+    const xml = await res.text();
+
+    const items: { ics: string; href: string }[] = [];
+    for (const chunk of splitResponses(xml)) {
+      const hrefMatch = chunk.match(/<d:href>([^<]+)<\/d:href>/);
+      const dataMatch = chunk.match(/<cal:calendar-data[^>]*>([\s\S]*?)<\/cal:calendar-data>/);
+      if (dataMatch?.[1] && hrefMatch?.[1]) {
+        items.push({ ics: decodeXmlEntities(dataMatch[1].trim()), href: `${account.baseUrl}${hrefMatch[1]}` });
+      }
+    }
+
+    const parsed = await parseIcsObjectsAsync(
+      items,
+      { calendarId: calendar.id, accountId: account.id, color: calendar.color },
+      rangeStart, rangeEnd,
+    );
+    out.push(...parsed);
+  }
+  return out;
+}

@@ -1,4 +1,4 @@
-import { deleteEvent, moveEvent, syncCollection } from '../../src/services/nextcloud/caldav';
+import { deleteEvent, moveEvent, syncCollection, fetchEventsByHrefs, MULTIGET_BATCH } from '../../src/services/nextcloud/caldav';
 import type { Account, CalendarMeta } from '../../src/types';
 
 const account: Account = {
@@ -125,5 +125,45 @@ describe('syncCollection', () => {
     mockFetch.mockResolvedValue({ status: 507, text: async () => '' });
     const res = await syncCollection(account, cal, 'stale');
     expect(res.reset).toBe(true);
+  });
+});
+
+describe('fetchEventsByHrefs', () => {
+  const cal = targetCalendar;
+  const range = { s: new Date('2026-01-01T00:00:00Z'), e: new Date('2026-12-31T00:00:00Z') };
+  const icsFor = (uid: string) =>
+    `BEGIN:VCALENDAR\r\nBEGIN:VEVENT\r\nUID:${uid}\r\nSUMMARY:${uid}\r\nDTSTART:20260615T090000Z\r\nDTEND:20260615T100000Z\r\nEND:VEVENT\r\nEND:VCALENDAR`;
+  const respFor = (path: string, uid: string) =>
+    `<d:response><d:href>${path}</d:href><d:propstat><d:prop><cal:calendar-data>${icsFor(uid)}</cal:calendar-data></d:prop></d:propstat></d:response>`;
+
+  it('sends one multiget with all hrefs when under the batch size', async () => {
+    const xml = `<d:multistatus xmlns:d="DAV:" xmlns:cal="urn:ietf:params:xml:ns:caldav">${respFor('/p/a.ics', 'a')}</d:multistatus>`;
+    mockFetch.mockResolvedValue({ status: 207, text: async () => xml });
+
+    const events = await fetchEventsByHrefs(
+      account, cal, ['https://cloud.example.com/p/a.ics'], range.s, range.e,
+    );
+
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+    const body = mockFetch.mock.calls[0][1].body as string;
+    expect(body).toContain('calendar-multiget');
+    expect(body).toContain('<d:href>/p/a.ics</d:href>');
+    expect(events.map((e) => e.uid)).toEqual(['a']);
+  });
+
+  it('splits into multiple requests above MULTIGET_BATCH', async () => {
+    mockFetch.mockResolvedValue({
+      status: 207,
+      text: async () => `<d:multistatus xmlns:d="DAV:" xmlns:cal="urn:ietf:params:xml:ns:caldav"></d:multistatus>`,
+    });
+    const hrefs = Array.from({ length: MULTIGET_BATCH + 1 }, (_, i) => `https://cloud.example.com/p/${i}.ics`);
+    await fetchEventsByHrefs(account, cal, hrefs, range.s, range.e);
+    expect(mockFetch).toHaveBeenCalledTimes(2);
+  });
+
+  it('returns [] for an empty href list without hitting the network', async () => {
+    const events = await fetchEventsByHrefs(account, cal, [], range.s, range.e);
+    expect(mockFetch).not.toHaveBeenCalled();
+    expect(events).toEqual([]);
   });
 });
