@@ -1,14 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import dayjs from 'dayjs';
 
-import { syncEvents, syncCalendarDelta } from '@/database/sync';
+import { syncEvents } from '@/database/sync';
 import { useEventsForRange } from '@/database/useEvents';
 import { useAccountStore } from '@/stores/accountStore';
 import { useCalendarStore } from '@/stores/calendarStore';
 import { useActiveAccount } from '@/hooks/useAccounts';
 import { useCalendars } from '@/hooks/useCalendars';
 import { normalizeEvents } from '@/utils/normalizeEvent';
-import { monthRange } from '../utils/range';
+import { monthRange, monthRangeAt } from '../utils/range';
 
 export function useCalendarData(date: Date) {
   const activeAccountId = useAccountStore((s) => s.activeAccountId);
@@ -23,48 +23,28 @@ export function useCalendarData(date: Date) {
 
   const dbEvents = useEventsForRange(activeAccountId ?? '', start, end);
 
-  const [deltaSyncing, setDeltaSyncing] = useState(false);
-  const [icsSyncing, setIcsSyncing] = useState(false);
-  const syncing = deltaSyncing || icsSyncing;
+  const [syncing, setSyncing] = useState(false);
 
 
-  // Real CalDAV calendars: token-based whole-calendar delta. Runs on account /
-  // calendar-set change only — month scrolling reads the DB, no network.
   useEffect(() => {
-    if (!activeAccount) return;
-    const calDav = calendars.filter((c) => !(c.isSubscribed && c.sourceUrl));
-    if (calDav.length === 0) return;
+    if (!activeAccount || calendars.length === 0) return;
     let active = true;
-    setDeltaSyncing(true);
+    setSyncing(true);
     (async () => {
       try {
-        await Promise.all(calDav.map((cal) => syncCalendarDelta(activeAccount, cal)));
+        await syncEvents(activeAccount, calendars, start, end);
       } catch {
       } finally {
-        if (active) setDeltaSyncing(false);
+        if (active) setSyncing(false);
       }
+      const prev = monthRangeAt(date, -1);
+      const next = monthRangeAt(date, 1);
+      void syncEvents(activeAccount, calendars, prev.start, prev.end, false).catch(() => undefined);
+      void syncEvents(activeAccount, calendars, next.start, next.end, false).catch(() => undefined);
     })();
-    return () => { active = false; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeAccount?.id, calendars]);
-
-  // Subscribed-ICS calendars have no sync-token; keep the windowed full-fetch,
-  // which must re-run as the visible month (start/end) changes.
-  useEffect(() => {
-    if (!activeAccount) return;
-    const subscribed = calendars.filter((c) => c.isSubscribed && c.sourceUrl);
-    if (subscribed.length === 0) return;
-    let active = true;
-    setIcsSyncing(true);
-    (async () => {
-      try {
-        await syncEvents(activeAccount, subscribed, start, end);
-      } catch {
-      } finally {
-        if (active) setIcsSyncing(false);
-      }
-    })();
-    return () => { active = false; };
+    return () => {
+      active = false;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeAccount?.id, calendars, start.getTime(), end.getTime()]);
 
