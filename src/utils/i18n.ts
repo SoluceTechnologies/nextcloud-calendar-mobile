@@ -7,6 +7,7 @@ import 'dayjs/locale/es';
 import 'dayjs/locale/it';
 import 'dayjs/locale/ru';
 import 'dayjs/locale/pt';
+import 'dayjs/locale/nl';
 import en from '@/locales/en.json';
 import fr from '@/locales/fr.json';
 import de from '@/locales/de.json';
@@ -14,6 +15,7 @@ import es from '@/locales/es.json';
 import it from '@/locales/it.json';
 import ru from '@/locales/ru.json';
 import pt from '@/locales/pt.json';
+import nl from '@/locales/nl.json';
 
 export const LANGUAGES = [
   { code: 'en', label: 'English', region: 'GB' },
@@ -23,6 +25,7 @@ export const LANGUAGES = [
   { code: 'ru', label: 'Русский', region: 'RU' },
   { code: 'it', label: 'Italiano', region: 'IT' },
   { code: 'pt', label: 'Português', region: 'PT' },
+  { code: 'nl', label: 'Nederlands', region: 'NL' },
 ] as const;
 
 export type AppLanguage = (typeof LANGUAGES)[number]['code'];
@@ -47,6 +50,7 @@ i18n.use(initReactI18next).init({
     it: { translation: it },
     ru: { translation: ru },
     pt: { translation: pt },
+    nl: { translation: nl },
   },
   lng: 'en',
   fallbackLng: 'en',
