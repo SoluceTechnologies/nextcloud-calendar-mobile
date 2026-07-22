@@ -199,16 +199,34 @@ export async function syncCalendarDelta(account: Account, calendar: CalendarMeta
   const fetched = await fetchEventsByHrefs(
     account, calendar, result.changed, horizon.start, horizon.end,
   );
+  const fetchedHrefs = new Set(fetched.map((e) => e.href));
+
+  if (fullSync && result.changed.length > 0 && fetched.length === 0) {
+    return;
+  }
 
   await safeWrite(db, async () => {
     const ops = [];
+    const deletedSet = new Set(result.deleted);
 
-    const touched = new Set<string>([...result.changed, ...result.deleted]);
-    const existing = fullSync
-      ? await events.query(Q.where('calendar_id', calendar.id)).fetch()
-      : await collectByHref(events, account.id, touched);
-    for (const r of existing) {
-      if (fullSync || touched.has(r.href)) ops.push(r.prepareMarkAsDeleted());
+    if (fullSync) {
+      const changedSet = new Set(result.changed);
+      const existing = await events.query(Q.where('calendar_id', calendar.id)).fetch();
+      if (result.changed.length > 0) {
+        for (const r of existing) {
+          if (!changedSet.has(r.href) || fetchedHrefs.has(r.href)) {
+            ops.push(r.prepareMarkAsDeleted());
+          }
+        }
+      }
+    } else {
+      const touched = new Set<string>([...result.deleted, ...fetchedHrefs]);
+      const existing = await collectByHref(events, account.id, touched);
+      for (const r of existing) {
+        if (deletedSet.has(r.href) || fetchedHrefs.has(r.href)) {
+          ops.push(r.prepareMarkAsDeleted());
+        }
+      }
     }
 
     for (const ev of fetched) ops.push(prepareCreateEvent(events, ev));
