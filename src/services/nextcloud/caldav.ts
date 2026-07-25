@@ -68,18 +68,82 @@ async function davFetch(
   }
 }
 
+const CURRENT_USER_PRINCIPAL_BODY =
+  '<?xml version="1.0" encoding="utf-8"?>' +
+  '<d:propfind xmlns:d="DAV:"><d:prop><d:current-user-principal/></d:prop></d:propfind>';
+
+const CALENDAR_HOME_SET_BODY =
+  '<?xml version="1.0" encoding="utf-8"?>' +
+  '<d:propfind xmlns:d="DAV:" xmlns:cal="urn:ietf:params:xml:ns:caldav">' +
+  '<d:prop><cal:calendar-home-set/></d:prop></d:propfind>';
+
+/**
+ * Extracts the first <d:href> nested inside the given property element.
+ * Namespace prefixes are server-defined, so match on the local name only.
+ */
+function extractPropHref(xml: string, localName: string): string | undefined {
+  const prop = new RegExp(
+    `<[^>]*\\b${localName}\\b[^>]*>([\\s\\S]*?)<\\/[^>]*\\b${localName}\\b[^>]*>`,
+    'i',
+  ).exec(xml);
+  if (!prop) return undefined;
+  const href = /<[^>]*\bhref\b[^>]*>([\s\S]*?)<\/[^>]*\bhref\b[^>]*>/i.exec(prop[1]);
+  if (!href) return undefined;
+  const value = decodeXmlEntities(href[1]).trim();
+  return value.length > 0 ? value : undefined;
+}
+
+/**
+ * Resolves the DAV user id used in calendar paths.
+ *
+ * The DAV user id is NOT always the login name. With an external user backend
+ * (LDAP / Active Directory) Nextcloud derives the internal username from the
+ * directory UUID, so a user logging in as `jdoe` may own calendars under
+ * `/remote.php/dav/calendars/8F3A...-B602-.../`. Assuming the two are equal
+ * makes discovery silently return zero calendars for those accounts.
+ *
+ * We therefore ask the server instead of guessing (RFC 5397 + RFC 4791):
+ *   1. PROPFIND /remote.php/dav/ for <d:current-user-principal>
+ *   2. PROPFIND that principal for <cal:calendar-home-set>
+ *
+ * Falls back to the login name so setups that never advertised these
+ * properties keep working exactly as before.
+ */
 export async function validateCredentials(params: {
   baseUrl: string;
   username: string;
   appPassword: string;
 }): Promise<{ davUserId: string }> {
-  const url = `${params.baseUrl}/remote.php/dav/principals/users/${encodeURIComponent(params.username)}/`;
-  const res = await davFetch(url, params, {
+  const davRoot = `${params.baseUrl}/remote.php/dav/`;
+
+  const rootRes = await davFetch(davRoot, params, {
     method: 'PROPFIND',
     headers: { Depth: '0', 'Content-Type': 'application/xml' },
+    body: CURRENT_USER_PRINCIPAL_BODY,
   });
-  if (res.status !== 207 && !res.ok) throw httpErrorFrom(res, 'validateCredentials');
-  return { davUserId: params.username };
+  if (rootRes.status !== 207 && !rootRes.ok) {
+    throw httpErrorFrom(rootRes, 'validateCredentials');
+  }
+
+  const principalPath = extractPropHref(await rootRes.text(), 'current-user-principal');
+  if (!principalPath) return { davUserId: params.username };
+
+  const origin = new URL(params.baseUrl).origin;
+  const principalUrl = new URL(principalPath, origin).toString();
+
+  const homeRes = await davFetch(principalUrl, params, {
+    method: 'PROPFIND',
+    headers: { Depth: '0', 'Content-Type': 'application/xml' },
+    body: CALENDAR_HOME_SET_BODY,
+  });
+  if (homeRes.status !== 207 && !homeRes.ok) {
+    return { davUserId: extractSlug(principalPath) || params.username };
+  }
+
+  const homePath = extractPropHref(await homeRes.text(), 'calendar-home-set');
+  const davUserId = extractSlug(homePath ?? principalPath);
+
+  return { davUserId: davUserId || params.username };
 }
 
 export interface SyncCollectionResult {
