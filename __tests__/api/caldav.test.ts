@@ -111,6 +111,39 @@ describe('syncCollection', () => {
     expect(res.reset).toBe(false);
   });
 
+  it('does not duplicate the subfolder path when Nextcloud is installed in a subdirectory', async () => {
+    const subAccount: Account = {
+      id: 'acc-2',
+      displayName: 'Subfolder',
+      baseUrl: 'https://cloud.example.com/nextcloud',
+      username: 'john',
+      appPassword: 'xxxx',
+      davUserId: 'john',
+    };
+    const subCal: CalendarMeta = {
+      id: 'cal-sub',
+      accountId: 'acc-2',
+      displayName: 'Personal',
+      color: '#1976d2',
+      ctag: '1',
+      url: 'https://cloud.example.com/nextcloud/remote.php/dav/calendars/john/personal/',
+      slug: 'personal',
+    };
+    const xml = `<?xml version="1.0"?>
+<d:multistatus xmlns:d="DAV:">
+  <d:response>
+    <d:href>/nextcloud/remote.php/dav/calendars/john/personal/a.ics</d:href>
+    <d:propstat><d:status>HTTP/1.1 200 OK</d:status></d:propstat>
+  </d:response>
+  <d:sync-token>http://sabre.io/ns/sync/1</d:sync-token>
+</d:multistatus>`;
+    mockFetch.mockResolvedValue({ status: 207, text: async () => xml });
+
+    const res = await syncCollection(subAccount, subCal, undefined);
+
+    expect(res.changed).toEqual(['https://cloud.example.com/nextcloud/remote.php/dav/calendars/john/personal/a.ics']);
+  });
+
   it('sends an empty sync-token on first run (no stored token)', async () => {
     mockFetch.mockResolvedValue({
       status: 207,

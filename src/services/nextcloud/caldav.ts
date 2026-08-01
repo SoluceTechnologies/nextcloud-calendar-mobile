@@ -11,6 +11,10 @@ function calUrl(account: Account, path = ''): string {
   return `${account.baseUrl}/remote.php/dav/calendars/${encodeURIComponent(account.davUserId)}/${path}`;
 }
 
+function absUrl(account: Pick<Account, 'baseUrl'>, pathOrHref: string): string {
+  return pathOrHref.startsWith('http') ? pathOrHref : new URL(pathOrHref, account.baseUrl).href;
+}
+
 function extractSlug(url: string): string {
   const slug = url.replace(/\/$/, '').split('/').pop() ?? '';
   try {
@@ -143,7 +147,7 @@ export async function syncCollection(
   for (const chunk of splitResponses(xml)) {
     const hrefMatch = chunk.match(/<d:href>([^<]+)<\/d:href>/);
     if (!hrefMatch) continue;
-    const abs = `${account.baseUrl}${hrefMatch[1]}`;
+    const abs = absUrl(account, hrefMatch[1]);
     if (/<d:status>[^<]*\b404\b/.test(chunk)) deleted.push(abs);
     else changed.push(abs);
   }
@@ -189,7 +193,7 @@ export async function fetchCalendars(account: Account): Promise<CalendarMeta[]> 
     const hrefMatch = chunk.match(/<d:href>([^<]+)<\/d:href>/);
     if (!hrefMatch) continue;
     const path = hrefMatch[1];
-    const calFullUrl = `${account.baseUrl}${path}`;
+    const calFullUrl = absUrl(account, path);
     const slug = extractSlug(path);
 
     const displayNameMatch = chunk.match(/<d:displayname>([^<]*)<\/d:displayname>/);
@@ -283,7 +287,7 @@ export async function fetchEvents(
     const hrefMatch = chunk.match(/<d:href>([^<]+)<\/d:href>/);
     const dataMatch = chunk.match(/<cal:calendar-data[^>]*>([\s\S]*?)<\/cal:calendar-data>/);
     if (dataMatch?.[1] && hrefMatch?.[1]) {
-      const href = `${account.baseUrl}${hrefMatch[1]}`;
+      const href = absUrl(account, hrefMatch[1]);
       items.push({ ics: decodeXmlEntities(dataMatch[1].trim()), href });
     }
   }
@@ -417,7 +421,7 @@ export async function fetchEventsByHrefs(
       const hrefMatch = chunk.match(/<d:href>([^<]+)<\/d:href>/);
       const dataMatch = chunk.match(/<cal:calendar-data[^>]*>([\s\S]*?)<\/cal:calendar-data>/);
       if (dataMatch?.[1] && hrefMatch?.[1]) {
-        items.push({ ics: decodeXmlEntities(dataMatch[1].trim()), href: `${account.baseUrl}${hrefMatch[1]}` });
+        items.push({ ics: decodeXmlEntities(dataMatch[1].trim()), href: absUrl(account, hrefMatch[1]) });
       }
     }
 
