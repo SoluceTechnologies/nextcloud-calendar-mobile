@@ -68,13 +68,27 @@ jobs:
         id: release_step
         run: |
           git pull origin main
-          
+
           VERSION=$(yarn release-it --ci --release-version)
           echo $VERSION
           echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+          if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::unexpected release version '$VERSION'"
+            exit 1
+          fi
+          IFS=. read -r MAJOR MINOR PATCH <<< "$VERSION"
+          VERSION_CODE=$(( MAJOR * 10000 + MINOR * 100 + PATCH ))
+          sed -i -E "s/^const versionCode = [0-9]+;\$/const versionCode = $VERSION_CODE;/" app.config.ts
+          if ! grep -qxF "const versionCode = $VERSION_CODE;" app.config.ts; then
+            echo "::error::failed to set versionCode to $VERSION_CODE in app.config.ts"
+            exit 1
+          fi
+          git diff --quiet || git commit -am "chore: set versionCode to $VERSION_CODE"
+
           OUTPUT=$(yarn release-it --ci)
           echo "$OUTPUT"
-          
+
           DRAFT_TAG=$(echo "$OUTPUT" | grep -oE 'untagged-[a-z0-9]+')
           echo $DRAFT_TAG
           echo "draft_tag=$DRAFT_TAG" >> $GITHUB_OUTPUT
