@@ -150,4 +150,3 @@ This project is free and open source. If you're interested in contributing, have
 | <img src="/.github/assets/settings-notifications.png" alt="Notification settings" width="230" /> | <img src="/.github/assets/settings-widgets.png" alt="Widget settings" width="230" /> | <img src="/.github/assets/settings-accessbility.png" alt="Accessibility settings" width="230" /> |
 
 </div>
-
