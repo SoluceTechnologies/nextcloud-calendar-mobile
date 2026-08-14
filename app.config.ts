@@ -8,7 +8,7 @@ if (![major, minor, patch].every(Number.isInteger)) {
   );
 }
 
-const versionCode = 10500;
+const versionCode = 10600;
 
 if (versionCode !== major * 10000 + minor * 100 + patch) {
   throw new Error(
