@@ -73,6 +73,7 @@ export default function SetupScreen() {
       await refreshAccounts();
       router.replace('/(tabs)/calendar');
     } catch (e: unknown) {
+      console.error(e);
       const status = e instanceof HttpError ? e.status : undefined;
       setError(
         status === 401 ? t('setup.errors.invalidCreds')
