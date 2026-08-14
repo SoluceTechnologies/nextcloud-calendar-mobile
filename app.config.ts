@@ -36,6 +36,9 @@ const config: ExpoConfig = {
       CFBundleDisplayName: 'Nextcloud Calendar',
       LSApplicationQueriesSchemes: ['nextcloudtalk'],
       ITSAppUsesNonExemptEncryption: false,
+      NSAppTransportSecurity: {
+        NSAllowsArbitraryLoads: true,
+      },
     },
     entitlements: {
       'com.apple.security.application-groups': ['group.com.soluce.nextcloud-calendar'],
@@ -64,6 +67,14 @@ const config: ExpoConfig = {
   owner: 'soluce',
 
   plugins: [
+    [
+      'expo-build-properties',
+      {
+        android: {
+          usesCleartextTraffic: true,
+        },
+      },
+    ],
     '@morrowdigital/watermelondb-expo-plugin',
     '@react-native-community/datetimepicker',
     'expo-router',

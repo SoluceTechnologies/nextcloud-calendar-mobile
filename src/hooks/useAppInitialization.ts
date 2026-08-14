@@ -52,8 +52,11 @@ export function useAppInitialization() {
           const activeAccount = accounts.find((a) => a.id === id) ?? accounts[0];
           void syncCalendars(activeAccount).catch(() => undefined);
           void refreshAccountProfiles().then(setAccounts).catch(() => {});
-          const caps = await fetchCapabilities(activeAccount).catch(() => undefined);
-          if (mounted && caps) setCapabilities(caps);
+          void fetchCapabilities(activeAccount)
+            .then((caps) => {
+              if (mounted && caps) setCapabilities(caps);
+            })
+            .catch(() => undefined);
         }
       } finally {
         if (mounted) setIsAppReady(true);

@@ -5399,6 +5399,19 @@ __metadata:
   languageName: node
   linkType: hard
 
+"expo-build-properties@npm:~57.0.10":
+  version: 57.0.10
+  resolution: "expo-build-properties@npm:57.0.10"
+  dependencies:
+    "@expo/schema-utils": "npm:^57.0.2"
+    resolve-from: "npm:^5.0.0"
+    semver: "npm:^7.6.0"
+  peerDependencies:
+    expo: "*"
+  checksum: 10c0/83dc6f99b47862597624451b543473a638c249bfbac034f024233dc21cb761eff5e1ac1509134b1ad217caaf5b839250f4f2ffd6553138ba2c440edd909688a1
+  languageName: node
+  linkType: hard
+
 "expo-camera@npm:~57.0.3":
   version: 57.0.3
   resolution: "expo-camera@npm:57.0.3"
@@ -8540,6 +8553,7 @@ __metadata:
     expo-background-task: "npm:~57.0.6"
     expo-blob: "npm:^57.0.1"
     expo-bottom-tabs: "npm:^0.0.2"
+    expo-build-properties: "npm:~57.0.10"
     expo-camera: "npm:~57.0.3"
     expo-clipboard: "npm:~57.0.1"
     expo-constants: "npm:~57.0.6"
