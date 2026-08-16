@@ -1,7 +1,8 @@
 import { trustedFetch, UntrustedCertError } from '@/services/shared/trustedFetch';
 import { TlsTrust } from '@/services/shared/nativeTlsTrust';
+import { utf8ToBase64 } from '@/services/shared/base64';
 
-const b64 = (s: string) => Buffer.from(s, 'utf8').toString('base64');
+const b64 = (s: string) => utf8ToBase64(s);
 const req = TlsTrust.request as jest.Mock;
 
 describe('trustedFetch', () => {

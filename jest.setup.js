@@ -26,21 +26,28 @@ jest.mock('@/services/shared/nativeTlsTrust', () => {
     TlsTrust: {
       setPins: jest.fn((map) => { pins = map; }),
       __getPins: () => pins,
-      // Default: delegate to the (test-mocked) global fetch so existing
-      // api tests that mock `fetch` keep working through trustedFetch.
+      // Default: delegate to the (test-mocked) global fetch so existing api
+      // tests that mock `fetch` keep working through trustedFetch. Defensive
+      // about heterogeneous mock response shapes (text-only, json-only,
+      // blob-only, {ok,status}-only) and missing status.
       request: jest.fn(async ({ url, method, headers, bodyBase64 }) => {
         const body = bodyBase64
           ? Buffer.from(bodyBase64, 'base64').toString('utf8')
           : undefined;
         const res = await global.fetch(url, { method, headers, body });
-        const text = await res.text();
+        let text = '';
+        if (typeof res.text === 'function') text = await res.text();
+        else if (typeof res.json === 'function') text = JSON.stringify(await res.json());
         const h = {};
-        res.headers.forEach((v, k) => { h[k] = v; });
+        if (res.headers && typeof res.headers.forEach === 'function') {
+          res.headers.forEach((v, k) => { h[k] = v; });
+        }
+        const status = res.status ?? (res.ok === false ? 400 : 200);
         return {
           type: 'response',
-          status: res.status,
+          status,
           headers: h,
-          bodyBase64: Buffer.from(text, 'utf8').toString('base64'),
+          bodyBase64: Buffer.from(text ?? '', 'utf8').toString('base64'),
         };
       }),
     },

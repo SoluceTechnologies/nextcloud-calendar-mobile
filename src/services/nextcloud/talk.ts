@@ -1,4 +1,5 @@
 import type { Account, TalkRoomType } from '@/types';
+import { trustedFetch } from '../shared/trustedFetch';
 
 export interface TalkRoom {
   token: string;
@@ -15,9 +16,8 @@ export async function createTalkRoom(
 
   const apiRoomType = roomType === 'public' ? 3 : 2;
 
-  const response = await fetch(endpoint, {
+  const response = await trustedFetch(endpoint, {
     method: 'POST',
-    credentials: 'omit',
     headers: {
       'OCS-APIREQUEST': 'true',
       'Content-Type': 'application/json',

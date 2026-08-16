@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 
 import { storage } from '@/storage';
 import type { Account } from '@/types';
+import { trustedFetch } from '@/services/shared/trustedFetch';
 
 function cacheKey(id: string): string {
   return `avatar:${id}`;
@@ -28,7 +29,7 @@ export function useAvatar(account: Account | null): { data: string | null | unde
     (async () => {
       try {
         const url = `${account.baseUrl}/index.php/avatar/${encodeURIComponent(account.davUserId)}/96`;
-        const res = await fetch(url, { headers: { Authorization: basicAuth(account) } });
+        const res = await trustedFetch(url, { headers: { Authorization: basicAuth(account) } });
         if (!res.ok) {
           if (active && !cached) setData(null);
           return;

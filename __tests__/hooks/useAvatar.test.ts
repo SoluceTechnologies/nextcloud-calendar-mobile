@@ -55,7 +55,9 @@ describe('useAvatar', () => {
 
     expect((globalThis as any).fetch).toHaveBeenCalledWith(
       'https://cloud.example.com/index.php/avatar/john/96',
-      { headers: { Authorization: expect.stringMatching(/^Basic /) } },
+      expect.objectContaining({
+        headers: expect.objectContaining({ Authorization: expect.stringMatching(/^Basic /) }),
+      }),
     );
   });
 

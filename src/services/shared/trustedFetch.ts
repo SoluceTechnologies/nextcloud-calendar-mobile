@@ -1,4 +1,5 @@
 import { TlsTrust, type NativeResult } from './nativeTlsTrust';
+import { utf8ToBase64, base64ToBytes, base64ToUtf8 } from './base64';
 
 export class UntrustedCertError extends Error {
   host: string;
@@ -27,7 +28,8 @@ export interface TrustedResponse {
   text(): Promise<string>;
   arrayBuffer(): Promise<ArrayBuffer>;
   blob(): Promise<Blob>;
-  json(): Promise<unknown>;
+  // Matches fetch()'s Response.json() (any), so existing json?.ocs?.data access compiles.
+  json(): Promise<any>;
 }
 
 type Init = {
@@ -56,7 +58,7 @@ export async function trustedFetch(url: string, init: Init = {}): Promise<Truste
       url,
       method: init.method ?? 'GET',
       headers: toRecord(init.headers),
-      bodyBase64: init.body != null ? Buffer.from(init.body, 'utf8').toString('base64') : undefined,
+      bodyBase64: init.body != null ? utf8ToBase64(init.body) : undefined,
       timeoutMs: init.timeoutMs ?? 20000,
     });
   } catch {
@@ -66,7 +68,8 @@ export async function trustedFetch(url: string, init: Init = {}): Promise<Truste
   if (result.type === 'untrusted_cert') throw new UntrustedCertError(result);
 
   const { status, headers, bodyBase64 } = result;
-  const bytes = Buffer.from(bodyBase64, 'base64');
+  const bytes = base64ToBytes(bodyBase64);
+  const ab = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
   const lower: Record<string, string> = {};
   for (const [k, v] of Object.entries(headers)) lower[k.toLowerCase()] = v;
 
@@ -74,10 +77,9 @@ export async function trustedFetch(url: string, init: Init = {}): Promise<Truste
     ok: status >= 200 && status < 300,
     status,
     headers: { get: (name) => lower[name.toLowerCase()] ?? null },
-    text: async () => bytes.toString('utf8'),
-    arrayBuffer: async () =>
-      bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer,
-    blob: async () => new Blob([bytes]),
-    json: async () => JSON.parse(bytes.toString('utf8')),
+    text: async () => base64ToUtf8(bodyBase64),
+    arrayBuffer: async () => ab,
+    blob: async () => new Blob([ab]),
+    json: async () => JSON.parse(base64ToUtf8(bodyBase64)),
   };
 }
