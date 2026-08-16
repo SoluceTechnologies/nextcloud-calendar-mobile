@@ -4,6 +4,7 @@ import {
   hasPin,
   addPin,
   removePinsForHost,
+  pushPinsToNative,
 } from '@/services/shared/certPins';
 import { storage } from '@/storage';
 import { TlsTrust } from '@/services/shared/nativeTlsTrust';
@@ -39,5 +40,11 @@ describe('certPins', () => {
     removePinsForHost('h:443');
     expect(getPins()).toEqual({});
     expect(TlsTrust.setPins).toHaveBeenLastCalledWith({});
+  });
+
+  it('pushPinsToNative loads persisted pins into the native module', () => {
+    storage.set('cert_pins', JSON.stringify({ 'a:443': ['X'], 'b:443': ['Y'] }));
+    pushPinsToNative();
+    expect(TlsTrust.setPins).toHaveBeenLastCalledWith({ 'a:443': ['X'], 'b:443': ['Y'] });
   });
 });
