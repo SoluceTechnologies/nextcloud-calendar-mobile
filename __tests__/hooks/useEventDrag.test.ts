@@ -65,6 +65,34 @@ describe('useEventDrag', () => {
     expect(nextEnd).toEqual(new Date(2026, 7, 7, 10, 30));
   });
 
+  it('refuses to arm a drag on a task (VTODO) event', () => {
+    const event = gridEvent('a', 9, 60);
+    event._event.isTask = true;
+    const { result, onMoveEvent } = setup([event]);
+
+    act(() => { result.current.gesture.handlers.onStart?.({ x: 50, y: 570 } as never); });
+    act(() => {
+      result.current.gesture.handlers.onUpdate?.({ translationX: 0, translationY: 32 } as never);
+      result.current.gesture.handlers.onEnd?.({ translationX: 0, translationY: 32 } as never, true);
+    });
+
+    expect(onMoveEvent).not.toHaveBeenCalled();
+  });
+
+  it('refuses to arm a drag on a read-only / subscribed calendar event', () => {
+    const event = gridEvent('a', 9, 60);
+    event._event.readOnly = true;
+    const { result, onMoveEvent } = setup([event]);
+
+    act(() => { result.current.gesture.handlers.onStart?.({ x: 50, y: 570 } as never); });
+    act(() => {
+      result.current.gesture.handlers.onUpdate?.({ translationX: 0, translationY: 32 } as never);
+      result.current.gesture.handlers.onEnd?.({ translationX: 0, translationY: 32 } as never, true);
+    });
+
+    expect(onMoveEvent).not.toHaveBeenCalled();
+  });
+
   it('a resize that overshoots the floor commits the clamped duration rather than nothing', () => {
     const event = gridEvent('a', 9, 60);
     const { result, onMoveEvent } = setup([event]);

@@ -53,6 +53,7 @@ describe('parseIcsObjects', () => {
     const events = parseIcsObjects([{ ics: sampleIcs, href: '/cal/event.ics' }], calMeta);
     expect(events).toHaveLength(1);
     const e = events[0];
+    expect(e.isTask).toBeFalsy();
     expect(e.uid).toBe('event-abc-123');
     expect(e.summary).toBe('Team Meeting');
     expect(e.description).toBe('Weekly sync');
@@ -286,5 +287,127 @@ END:VCALENDAR`;
   it('reports no alarm when the event carries no VALARM', () => {
     const [event] = parseIcsObjects([{ ics: sampleIcs, href: '/cal/event.ics' }], calMeta);
     expect(event.alarmMinutes).toBeUndefined();
+  });
+});
+
+describe('parseIcsObjects VTODO (Deck cards / tasks)', () => {
+  const calMeta = { calendarId: 'deck-1', accountId: 'acc-1', color: '#ff0000' };
+
+  // Nextcloud Deck exposes each board card as a VTODO with a DUE date.
+  const deckCardTimed = `BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//Nextcloud deck//EN
+BEGIN:VTODO
+UID:deck-card-42
+SUMMARY:Ship the release
+DESCRIPTION:Board: Roadmap
+DUE:20260815T090000Z
+STATUS:NEEDS-ACTION
+END:VTODO
+END:VCALENDAR`;
+
+  const deckCardAllDay = `BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//Nextcloud deck//EN
+BEGIN:VTODO
+UID:deck-card-allday
+SUMMARY:Review PRs
+DUE;VALUE=DATE:20260815
+END:VTODO
+END:VCALENDAR`;
+
+  const deckCardNoDate = `BEGIN:VCALENDAR
+VERSION:2.0
+BEGIN:VTODO
+UID:deck-card-nodate
+SUMMARY:Someday task
+END:VTODO
+END:VCALENDAR`;
+
+  const deckCardSpan = `BEGIN:VCALENDAR
+VERSION:2.0
+BEGIN:VTODO
+UID:deck-card-span
+SUMMARY:Sprint
+DTSTART:20260815T090000Z
+DUE:20260815T173000Z
+END:VTODO
+END:VCALENDAR`;
+
+  it('parses a DUE-only VTODO with a default 15-minute duration so it renders', () => {
+    const events = parseIcsObjects([{ ics: deckCardTimed, href: '/deck/42.ics' }], calMeta);
+    expect(events).toHaveLength(1);
+    const e = events[0];
+    expect(e.uid).toBe('deck-card-42');
+    expect(e.summary).toBe('Ship the release');
+    expect(e.description).toBe('Board: Roadmap');
+    expect(e.allDay).toBe(false);
+    expect(e.dtstart.toISOString()).toBe('2026-08-15T09:00:00.000Z');
+    // DUE only -> non-zero block ending 15 min later (not a zero-height event).
+    expect(e.dtend.toISOString()).toBe('2026-08-15T09:15:00.000Z');
+    expect(e.dtend.getTime()).toBeGreaterThan(e.dtstart.getTime());
+    expect(e.color).toBe('#ff0000');
+    expect(e.calendarId).toBe('deck-1');
+    expect(e.isTask).toBe(true);
+  });
+
+  it('spans a timed VTODO that carries both DTSTART and DUE', () => {
+    const events = parseIcsObjects([{ ics: deckCardSpan, href: '/deck/span.ics' }], calMeta);
+    expect(events).toHaveLength(1);
+    expect(events[0].allDay).toBe(false);
+    expect(events[0].dtstart.toISOString()).toBe('2026-08-15T09:00:00.000Z');
+    expect(events[0].dtend.toISOString()).toBe('2026-08-15T17:30:00.000Z');
+  });
+
+  it('spans an all-day VTODO that carries both DTSTART and DUE (date-valued)', () => {
+    const ics = `BEGIN:VCALENDAR
+VERSION:2.0
+BEGIN:VTODO
+UID:deck-allday-span
+SUMMARY:Multi-day task
+DTSTART;VALUE=DATE:20260815
+DUE;VALUE=DATE:20260818
+END:VTODO
+END:VCALENDAR`;
+    const events = parseIcsObjects([{ ics, href: '/deck/ads.ics' }], calMeta);
+    expect(events).toHaveLength(1);
+    const e = events[0];
+    expect(e.allDay).toBe(true);
+    // Exclusive date-valued end -> last shown day is Aug 17, like an all-day VEVENT.
+    expect(e.dtstart.getFullYear()).toBe(2026);
+    expect(e.dtstart.getMonth()).toBe(7);
+    expect(e.dtstart.getDate()).toBe(15);
+    expect(e.dtend.getDate()).toBe(17);
+    expect(e.dtend.getTime()).toBeGreaterThan(e.dtstart.getTime());
+  });
+
+  it('does not invert a same-day all-day VTODO with DTSTART === DUE', () => {
+    const ics = `BEGIN:VCALENDAR
+VERSION:2.0
+BEGIN:VTODO
+UID:deck-allday-same
+SUMMARY:Same-day task
+DTSTART;VALUE=DATE:20260815
+DUE;VALUE=DATE:20260815
+END:VTODO
+END:VCALENDAR`;
+    const events = parseIcsObjects([{ ics, href: '/deck/same.ics' }], calMeta);
+    expect(events).toHaveLength(1);
+    const e = events[0];
+    expect(e.allDay).toBe(true);
+    // Clamped to a single all-day cell rather than ending a day early.
+    expect(e.dtend.getTime()).toBe(e.dtstart.getTime());
+  });
+
+  it('parses an all-day VTODO (DATE-valued DUE)', () => {
+    const events = parseIcsObjects([{ ics: deckCardAllDay, href: '/deck/ad.ics' }], calMeta);
+    expect(events).toHaveLength(1);
+    expect(events[0].allDay).toBe(true);
+    expect(events[0].summary).toBe('Review PRs');
+  });
+
+  it('skips a VTODO without any date (cannot place on agenda)', () => {
+    const events = parseIcsObjects([{ ics: deckCardNoDate, href: '/deck/nd.ics' }], calMeta);
+    expect(events).toHaveLength(0);
   });
 });

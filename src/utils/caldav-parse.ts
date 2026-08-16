@@ -14,6 +14,8 @@ const TALK_URL_PATTERN = /\/call\//;
 
 const MAX_OCCURRENCES = 1000;
 
+const DEFAULT_TODO_DURATION_MS = 15 * 60 * 1000;
+
 function firstAlarmMinutes(vevent: ICAL.Component): number | undefined {
   const alarm = vevent.getFirstSubcomponent('valarm');
   const trigger = alarm?.getFirstProperty('trigger');
@@ -81,6 +83,65 @@ function parseIcsToJcal(ics: string): ReturnType<typeof ICAL.parse> {
   }
 }
 
+function propTime(prop: ICAL.Property | null | undefined):
+  { time: ICAL.Time; tzid?: string } | undefined {
+  const value = prop?.getFirstValue();
+  if (!(value instanceof ICAL.Time)) return undefined;
+  const rawTz = prop?.getParameter('tzid');
+  const tzid = typeof rawTz === 'string' && rawTz && isValidTimeZone(rawTz) ? rawTz : undefined;
+  return { time: value, tzid };
+}
+
+function parseVtodo(
+  vtodo: ICAL.Component,
+  meta: ParseCalMeta,
+  href: string,
+): CalendarEvent | undefined {
+  const uid = vtodo.getFirstPropertyValue('uid') as string | null;
+  if (!uid) return undefined;
+
+  const start = propTime(vtodo.getFirstProperty('dtstart'));
+  const due = propTime(vtodo.getFirstProperty('due'));
+  const anchor = start ?? due;
+  if (!anchor) return undefined;
+
+  const allDay = anchor.time.isDate;
+  const dtstart = resolveInstant(anchor.time, anchor.tzid);
+
+  let dtend: Date;
+  if (start && due) {
+    dtend = resolveInstant(due.time, due.tzid, allDay);
+  } else if (allDay) {
+    dtend = dtstart;
+  } else {
+    dtend = new Date(dtstart.getTime() + DEFAULT_TODO_DURATION_MS);
+  }
+  if (dtend.getTime() < dtstart.getTime()) {
+    dtend = dtstart;
+  }
+  if (!allDay && dtend.getTime() <= dtstart.getTime()) {
+    dtend = new Date(dtstart.getTime() + DEFAULT_TODO_DURATION_MS);
+  }
+
+  return {
+    uid,
+    href,
+    calendarId: meta.calendarId,
+    accountId: meta.accountId,
+    summary: (vtodo.getFirstPropertyValue('summary') as string) ?? '',
+    description: (vtodo.getFirstPropertyValue('description') as string) ?? undefined,
+    location: (vtodo.getFirstPropertyValue('location') as string) ?? undefined,
+    dtstart,
+    dtend,
+    allDay,
+    color: meta.color,
+    attendees: [],
+    isRecurring: false,
+    alarmMinutes: firstAlarmMinutes(vtodo),
+    isTask: true,
+  };
+}
+
 export function parseIcsItem(
   item: { ics: string; href: string },
   meta: ParseCalMeta,
@@ -94,6 +155,12 @@ export function parseIcsItem(
     const jcal = parseIcsToJcal(ics);
     const comp = new ICAL.Component(jcal);
     const vevents = comp.getAllSubcomponents('vevent');
+    const vtodos = comp.getAllSubcomponents('vtodo');
+
+    for (const vtodo of vtodos) {
+      const todo = parseVtodo(vtodo, meta, href);
+      if (todo) events.push(todo);
+    }
 
     for (const vevent of vevents) {
       if (vevent.getFirstPropertyValue('recurrence-id')) continue;

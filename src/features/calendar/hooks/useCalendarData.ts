@@ -54,10 +54,16 @@ export function useCalendarData(date: Date) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeAccount?.id, calendars, start.getTime(), end.getTime()]);
 
-  const allEvents = useMemo(
-    () => normalizeEvents(dbEvents.filter((e) => !hiddenCalendarIds.includes(e.calendarId))),
-    [dbEvents, hiddenCalendarIds],
-  );
+  const allEvents = useMemo(() => {
+    const nonEditableCalendarIds = new Set(
+      calendars.filter((c) => c.isReadOnly || c.isSubscribed).map((c) => c.id),
+    );
+    return normalizeEvents(
+      dbEvents.filter((e) => !hiddenCalendarIds.includes(e.calendarId)),
+    ).map((e) =>
+      nonEditableCalendarIds.has(e.calendarId) ? { ...e, readOnly: true } : e,
+    );
+  }, [dbEvents, hiddenCalendarIds, calendars]);
 
   const hadEventsRef = useRef(false);
   useEffect(() => {

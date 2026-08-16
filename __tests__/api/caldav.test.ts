@@ -1,4 +1,4 @@
-import { deleteEvent, moveEvent, syncCollection, fetchEventsByHrefs, fetchCalendars, validateCredentials, MULTIGET_BATCH } from '../../src/services/nextcloud/caldav';
+import { deleteEvent, moveEvent, syncCollection, fetchEvents, fetchEventsByHrefs, fetchCalendars, validateCredentials, MULTIGET_BATCH } from '../../src/services/nextcloud/caldav';
 import type { Account, CalendarMeta } from '../../src/types';
 
 const account: Account = {
@@ -128,6 +128,47 @@ describe('syncCollection', () => {
   });
 });
 
+describe('fetchEvents', () => {
+  const range = { s: new Date('2026-08-01T00:00:00Z'), e: new Date('2026-09-01T00:00:00Z') };
+  const respFor = (ics: string, path: string) =>
+    `<d:response><d:href>${path}</d:href><d:propstat><d:prop><cal:calendar-data>${ics}</cal:calendar-data></d:prop></d:propstat></d:response>`;
+  const multistatus = (inner: string) =>
+    `<d:multistatus xmlns:d="DAV:" xmlns:cal="urn:ietf:params:xml:ns:caldav">${inner}</d:multistatus>`;
+
+  it('issues separate VEVENT and VTODO queries and merges Deck cards (VTODO)', async () => {
+    const eventIcs = 'BEGIN:VCALENDAR\r\nBEGIN:VEVENT\r\nUID:ev-1\r\nSUMMARY:Meeting\r\nDTSTART:20260815T090000Z\r\nDTEND:20260815T100000Z\r\nEND:VEVENT\r\nEND:VCALENDAR';
+    const deckIcs = 'BEGIN:VCALENDAR\r\nBEGIN:VTODO\r\nUID:deck-1\r\nSUMMARY:Card\r\nDUE:20260816T090000Z\r\nEND:VTODO\r\nEND:VCALENDAR';
+
+    mockFetch.mockImplementation((_url: string, opts: any) => {
+      const body = opts.body as string;
+      const xml = body.includes('name="VTODO"')
+        ? multistatus(respFor(deckIcs, '/cal/deck-1.ics'))
+        : multistatus(respFor(eventIcs, '/cal/ev-1.ics'));
+      return Promise.resolve({ status: 207, text: async () => xml });
+    });
+
+    const events = await fetchEvents(account, targetCalendar, range.s, range.e);
+
+    expect(mockFetch).toHaveBeenCalledTimes(2);
+    const comps = mockFetch.mock.calls.map((c) =>
+      (c[1].body as string).includes('name="VTODO"') ? 'VTODO' : 'VEVENT');
+    expect(comps).toEqual(expect.arrayContaining(['VEVENT', 'VTODO']));
+    expect(events.map((e) => e.uid).sort()).toEqual(['deck-1', 'ev-1']);
+  });
+
+  it('still returns VEVENTs when the VTODO query is rejected by the server', async () => {
+    const eventIcs = 'BEGIN:VCALENDAR\r\nBEGIN:VEVENT\r\nUID:ev-1\r\nSUMMARY:Meeting\r\nDTSTART:20260815T090000Z\r\nDTEND:20260815T100000Z\r\nEND:VEVENT\r\nEND:VCALENDAR';
+    mockFetch.mockImplementation((_url: string, opts: any) => {
+      const body = opts.body as string;
+      if (body.includes('name="VTODO"')) return Promise.resolve({ status: 400, text: async () => '' });
+      return Promise.resolve({ status: 207, text: async () => multistatus(respFor(eventIcs, '/cal/ev-1.ics')) });
+    });
+
+    const events = await fetchEvents(account, targetCalendar, range.s, range.e);
+    expect(events.map((e) => e.uid)).toEqual(['ev-1']);
+  });
+});
+
 describe('fetchEventsByHrefs', () => {
   const cal = targetCalendar;
   const range = { s: new Date('2026-01-01T00:00:00Z'), e: new Date('2026-12-31T00:00:00Z') };
@@ -232,6 +273,64 @@ describe('fetchCalendars', () => {
     const [cal] = await fetchCalendars(account);
 
     expect(cal.sourceUrl).toBe('https://ics.example.com/f?a=1&b=2');
+  });
+
+  it('marks a calendar that supports VEVENT as event-capable', async () => {
+    mockFetch.mockResolvedValue({
+      status: 207,
+      text: async () => propfind(
+        'Personal',
+        '<c:supported-calendar-component-set><c:comp name="VEVENT"/><c:comp name="VTODO"/></c:supported-calendar-component-set>',
+      ),
+    });
+
+    const [cal] = await fetchCalendars(account);
+
+    expect(cal.supportsEvents).toBe(true);
+  });
+
+  it('marks a VTODO-only calendar as not event-capable', async () => {
+    mockFetch.mockResolvedValue({
+      status: 207,
+      text: async () => propfind(
+        'Tasks',
+        '<c:supported-calendar-component-set><c:comp name="VTODO"/></c:supported-calendar-component-set>',
+      ),
+    });
+
+    const [cal] = await fetchCalendars(account);
+
+    expect(cal.supportsEvents).toBe(false);
+  });
+
+  it('assumes event support when the component set is absent', async () => {
+    mockFetch.mockResolvedValue({ status: 207, text: async () => propfind('Legacy') });
+
+    const [cal] = await fetchCalendars(account);
+
+    expect(cal.supportsEvents).toBe(true);
+  });
+
+  it('treats a Deck board calendar as not event-capable via its URI', async () => {
+    const deckXml = `<?xml version="1.0"?>
+<d:multistatus xmlns:d="DAV:" xmlns:cs="http://calendarserver.org/ns/" xmlns:c="urn:ietf:params:xml:ns:caldav">
+  <d:response>
+    <d:href>/remote.php/dav/calendars/john/app-generated--deck--board-3/</d:href>
+    <d:propstat>
+      <d:prop>
+        <d:resourcetype><d:collection/><c:calendar/></d:resourcetype>
+        <d:displayname>Roadmap</d:displayname>
+        <cs:getctag>7</cs:getctag>
+      </d:prop>
+      <d:status>HTTP/1.1 200 OK</d:status>
+    </d:propstat>
+  </d:response>
+</d:multistatus>`;
+    mockFetch.mockResolvedValue({ status: 207, text: async () => deckXml });
+
+    const [cal] = await fetchCalendars(account);
+
+    expect(cal.supportsEvents).toBe(false);
   });
 });
 
