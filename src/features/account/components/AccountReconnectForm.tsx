@@ -7,8 +7,10 @@ import { Button, IconButton, Stack, TextField, Typography } from '@/ui/component
 import { exchangeOneTimeToken } from '@/services/nextcloud/nextcloud';
 import { describeMutationError, HttpError } from '@/services/shared/errors';
 import { useReconnectAccount } from '../hooks/useMutateAccount';
+import { useCertTrust } from '../hooks/useCertTrust';
 import { AccountFieldError, type FieldErrors } from '../utils/account';
 import { QrLoginScanner, type NcLoginData } from './QrLoginScanner';
+import { CertTrustSheet } from './CertTrustSheet';
 import type { Account } from '@/types';
 
 interface Props {
@@ -29,12 +31,21 @@ export function AccountReconnectForm({ account, style }: Props) {
   const [done, setDone] = useState(false);
   const [exchanging, setExchanging] = useState(false);
 
+  const certTrust = useCertTrust();
+  const [lastReconnect, setLastReconnect] = useState<{ password: string; username?: string } | null>(null);
+
   async function submit(password: string, username?: string) {
     setErrors({});
     setFormError(null);
     setDone(false);
+    setLastReconnect({ password, username });
     try {
-      await reconnect.mutateAsync({ appPassword: password, username });
+      const ok = await certTrust.run(async () => {
+        await reconnect.mutateAsync({ appPassword: password, username });
+        return true;
+      });
+      // Untrusted certificate: the trust sheet is now shown; wait for the user.
+      if (!ok) return;
       setAppPassword('');
       setDone(true);
     } catch (error) {
@@ -47,6 +58,11 @@ export function AccountReconnectForm({ account, style }: Props) {
         setFormError(describeMutationError(error));
       }
     }
+  }
+
+  function handleTrustCert() {
+    certTrust.confirm();
+    if (lastReconnect) submit(lastReconnect.password, lastReconnect.username);
   }
 
   async function handleScanned(data: NcLoginData) {
@@ -131,6 +147,12 @@ export function AccountReconnectForm({ account, style }: Props) {
         visible={showScanner}
         onClose={() => setShowScanner(false)}
         onScanned={handleScanned}
+      />
+
+      <CertTrustSheet
+        error={certTrust.pending}
+        onTrust={handleTrustCert}
+        onCancel={certTrust.dismiss}
       />
     </Stack>
   );
