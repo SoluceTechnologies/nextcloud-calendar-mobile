@@ -185,6 +185,7 @@ export async function fetchCalendars(account: Account): Promise<CalendarMeta[]> 
     <ical:calendar-color/>
     <cs:getctag/>
     <cs:source/>
+    <c:supported-calendar-component-set/>
   </d:prop>
 </d:propfind>`;
 
@@ -229,6 +230,20 @@ export async function fetchCalendars(account: Account): Promise<CalendarMeta[]> 
     const hasBind = chunk.includes('<d:bind') || chunk.includes('<d:bind/>');
     const isReadOnly = hasPrivilegeSet && !hasAll && !hasWrite && !hasBind;
 
+    // A calendar can hold events only if its component set includes VEVENT.
+    // Deck boards / Tasks lists advertise VTODO only. When the server omits the
+    // set, assume VEVENT is allowed (the historical default). Deck's stable
+    // "app-generated--deck--board" URI is a belt-and-suspenders fallback.
+    const compSet = chunk.match(
+      /<[\w.-]*:?supported-calendar-component-set(?:\s[^>]*)?>([\s\S]*?)<\/[\w.-]*:?supported-calendar-component-set>/i,
+    );
+    const isDeckCalendar = /app-generated--deck/i.test(path);
+    const supportsEvents = isDeckCalendar
+      ? false
+      : compSet
+        ? /comp\s+name="VEVENT"/i.test(compSet[1])
+        : true;
+
     calendars.push({
       id: calFullUrl,
       accountId: account.id,
@@ -240,9 +255,62 @@ export async function fetchCalendars(account: Account): Promise<CalendarMeta[]> 
       isSubscribed: isSubscribed && !isCalendar,
       isReadOnly,
       sourceUrl,
+      supportsEvents,
     });
   }
   return calendars;
+}
+
+function caldavStamp(d: Date): string {
+  return `${d.toISOString().replace(/[-:]/g, '').split('.')[0]}Z`;
+}
+
+function calendarQueryBody(comp: 'VEVENT' | 'VTODO', start: Date, end: Date): string {
+  return `<?xml version="1.0"?>
+<c:calendar-query xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav">
+  <d:prop>
+    <d:getetag/>
+    <c:calendar-data/>
+  </d:prop>
+  <c:filter>
+    <c:comp-filter name="VCALENDAR">
+      <c:comp-filter name="${comp}">
+        <c:time-range start="${caldavStamp(start)}" end="${caldavStamp(end)}"/>
+      </c:comp-filter>
+    </c:comp-filter>
+  </c:filter>
+</c:calendar-query>`;
+}
+
+async function reportCalendarObjects(
+  account: Account,
+  calendar: CalendarMeta,
+  comp: 'VEVENT' | 'VTODO',
+  start: Date,
+  end: Date,
+  required: boolean,
+): Promise<{ ics: string; href: string }[]> {
+  const res = await davFetch(calendar.url, account, {
+    method: 'REPORT',
+    headers: { Depth: '1', 'Content-Type': 'application/xml' },
+    body: calendarQueryBody(comp, start, end),
+  });
+  if (res.status !== 207) {
+    if (required) throw new Error(`fetchEvents HTTP ${res.status}`);
+    return [];
+  }
+  const xml = await res.text();
+
+  const items: { ics: string; href: string }[] = [];
+  for (const chunk of splitResponses(xml)) {
+    const hrefMatch = chunk.match(/<d:href>([^<]+)<\/d:href>/);
+    const dataMatch = chunk.match(/<cal:calendar-data[^>]*>([\s\S]*?)<\/cal:calendar-data>/);
+    if (dataMatch?.[1] && hrefMatch?.[1]) {
+      const href = absUrl(account, hrefMatch[1]);
+      items.push({ ics: decodeXmlEntities(dataMatch[1].trim()), href });
+    }
+  }
+  return items;
 }
 
 export async function fetchEvents(
@@ -251,22 +319,6 @@ export async function fetchEvents(
   start: Date,
   end: Date
 ): Promise<CalendarEvent[]> {
-  const body = `<?xml version="1.0"?>
-<c:calendar-query xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav">
-  <d:prop>
-    <d:getetag/>
-    <c:calendar-data/>
-  </d:prop>
-  <c:filter>
-    <c:comp-filter name="VCALENDAR">
-      <c:comp-filter name="VEVENT">
-        <c:time-range start="${start.toISOString().replace(/[-:]/g, '').split('.')[0]}Z"
-                      end="${end.toISOString().replace(/[-:]/g, '').split('.')[0]}Z"/>
-      </c:comp-filter>
-    </c:comp-filter>
-  </c:filter>
-</c:calendar-query>`;
-
   if (calendar.isSubscribed && calendar.sourceUrl) {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 20000);
@@ -288,29 +340,19 @@ export async function fetchEvents(
     return parsed.filter((e) => e.dtend > start && e.dtstart < end);
   }
 
-  const res = await davFetch(calendar.url, account, {
-    method: 'REPORT',
-    headers: { Depth: '1', 'Content-Type': 'application/xml' },
-    body,
-  });
-  if (res.status !== 207) throw new Error(`fetchEvents HTTP ${res.status}`);
-  const xml = await res.text();
+  // VEVENT is the common case (throw on failure, preserving prior behavior).
+  // VTODO carries Deck cards and Tasks-app tasks; tolerate its failure so a
+  // server that rejects the task query still returns the regular events.
+  const vevents = await reportCalendarObjects(account, calendar, 'VEVENT', start, end, true);
+  const vtodos = await reportCalendarObjects(account, calendar, 'VTODO', start, end, false);
+  const items = [...vevents, ...vtodos];
 
-  const items: { ics: string; href: string }[] = [];
-  for (const chunk of splitResponses(xml)) {
-    const hrefMatch = chunk.match(/<d:href>([^<]+)<\/d:href>/);
-    const dataMatch = chunk.match(/<cal:calendar-data[^>]*>([\s\S]*?)<\/cal:calendar-data>/);
-    if (dataMatch?.[1] && hrefMatch?.[1]) {
-      const href = absUrl(account, hrefMatch[1]);
-      items.push({ ics: decodeXmlEntities(dataMatch[1].trim()), href });
-    }
-  }
-
-  return parseIcsObjectsAsync(items, {
+  const parsed = await parseIcsObjectsAsync(items, {
     calendarId: calendar.id,
     accountId: account.id,
     color: calendar.color,
   }, start, end);
+  return parsed;
 }
 
 export function fetchEventsForCalendars(

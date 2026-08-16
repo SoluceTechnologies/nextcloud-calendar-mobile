@@ -76,6 +76,10 @@ export function useEventDrag({
     if (!hit) return;
 
     const full = hit.event._event;
+    // Non-editable events cannot be dragged: tasks (VTODO — Deck cards, Tasks
+    // app) would be corrupted by a VEVENT write-back, and read-only/subscribed
+    // calendars reject writes entirely.
+    if (full.isTask || full.readOnly) return;
     if (
       hit.event.start.getTime() !== full.dtstart.getTime() ||
       hit.event.end.getTime() !== full.dtend.getTime()

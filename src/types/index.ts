@@ -20,6 +20,10 @@ export type CalendarMeta = {
   isSubscribed?: boolean;
   isReadOnly?: boolean;
   sourceUrl?: string;
+  // False when the calendar cannot hold VEVENTs (its supported-calendar-
+  // component-set lacks VEVENT), e.g. Deck boards / Tasks lists, which only
+  // accept VTODOs. Such calendars are excluded from the create-event picker.
+  supportsEvents?: boolean;
 };
 
 export type Attendee = {
@@ -59,6 +63,12 @@ export type CalendarEvent = {
   isRecurring: boolean;
   rrule?: string;
   alarmMinutes?: number;
+  // True for VTODO-derived items (Deck cards, Tasks app). Read-only in this app:
+  // it is not a VEVENT and editing it through the event form would corrupt it.
+  isTask?: boolean;
+  // Derived at render time (not persisted): the event's calendar is read-only or
+  // a subscription. Used to disable drag/drop for events that cannot be written.
+  readOnly?: boolean;
 };
 
 export type CreateEventInput = {

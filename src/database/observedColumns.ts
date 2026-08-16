@@ -14,6 +14,7 @@ export const EVENT_OBSERVED_COLUMNS = [
   'is_recurring',
   'rrule',
   'alarm_minutes',
+  'is_task',
 ];
 
 export const CALENDAR_OBSERVED_COLUMNS = [
@@ -25,4 +26,5 @@ export const CALENDAR_OBSERVED_COLUMNS = [
   'is_subscribed',
   'is_read_only',
   'source_url',
+  'supports_events',
 ];

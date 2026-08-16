@@ -19,6 +19,7 @@ export function mapCalendarToMeta(c: Calendar): CalendarMeta {
     isSubscribed: c.isSubscribed ?? undefined,
     isReadOnly: c.isReadOnly ?? undefined,
     sourceUrl: c.sourceUrl ?? undefined,
+    supportsEvents: c.supportsEvents ?? undefined,
   };
 }
 

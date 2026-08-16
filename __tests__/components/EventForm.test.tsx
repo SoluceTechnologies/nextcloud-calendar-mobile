@@ -43,6 +43,20 @@ describe('EventForm calendar picker', () => {
     const { queryByText } = render(<EventForm {...baseProps} />);
     expect(queryByText(LOCKED_CAPTION)).toBeNull();
   });
+
+  it('excludes calendars that cannot hold events (e.g. Deck boards) from the picker', () => {
+    const withDeck: CalendarMeta[] = [
+      ...calendars,
+      {
+        id: 'deck-url', accountId: 'acc-1', displayName: 'Deck Roadmap', color: '#ff0000',
+        ctag: '1', url: 'https://cloud.example.com/remote.php/dav/calendars/john/app-generated--deck--board-3/',
+        slug: 'app-generated--deck--board-3', supportsEvents: false,
+      },
+    ];
+    const { queryByText, getByText } = render(<EventForm {...baseProps} calendars={withDeck} />);
+    expect(getByText('Personal')).toBeTruthy();
+    expect(queryByText('Deck Roadmap')).toBeNull();
+  });
 });
 
 describe('EventForm all-day end date', () => {
