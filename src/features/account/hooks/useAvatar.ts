@@ -31,6 +31,7 @@ export function useAvatar(account: Account | null): { data: string | null | unde
         const url = `${account.baseUrl}/index.php/avatar/${encodeURIComponent(account.davUserId)}/96`;
         const res = await trustedFetch(url, { headers: { Authorization: basicAuth(account) } });
         if (!res.ok) {
+          console.warn('[useAvatar] non-ok response', res.status, url);
           if (active && !cached) setData(null);
           return;
         }
@@ -46,7 +47,8 @@ export function useAvatar(account: Account | null): { data: string | null | unde
         });
         storage.set(cacheKey(account.id), uri);
         if (active) setData(uri);
-      } catch {
+      } catch (e) {
+        console.warn('[useAvatar] failed to load avatar', account.baseUrl, e);
         if (active && !cached) setData(null);
       }
     })();

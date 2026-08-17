@@ -61,7 +61,10 @@ export async function trustedFetch(url: string, init: Init = {}): Promise<Truste
       bodyBase64: init.body != null ? utf8ToBase64(init.body) : undefined,
       timeoutMs: init.timeoutMs ?? 20000,
     });
-  } catch {
+  } catch (e) {
+    // Surface the real native failure reason (OkHttp/URLSession) before masking
+    // it as a generic network error for the UI's describeMutationError path.
+    console.warn('[trustedFetch] request failed', init.method ?? 'GET', url, e);
     throw new Error('Network request failed');
   }
 
@@ -79,7 +82,9 @@ export async function trustedFetch(url: string, init: Init = {}): Promise<Truste
     headers: { get: (name) => lower[name.toLowerCase()] ?? null },
     text: async () => base64ToUtf8(bodyBase64),
     arrayBuffer: async () => ab,
-    blob: async () => new Blob([ab]),
+    // Preserve the response's content-type so FileReader.readAsDataURL produces
+    // a usable `data:image/...;base64,` URI (needed by the avatar loader).
+    blob: async () => new Blob([ab], { type: lower['content-type'] ?? '' }),
     json: async () => JSON.parse(base64ToUtf8(bodyBase64)),
   };
 }

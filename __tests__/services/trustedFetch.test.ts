@@ -22,6 +22,18 @@ describe('trustedFetch', () => {
     expect(await res.text()).toBe('<xml/>');
   });
 
+  it('blob() carries the response content-type', async () => {
+    req.mockResolvedValueOnce({
+      type: 'response',
+      status: 200,
+      headers: { 'Content-Type': 'image/png' },
+      bodyBase64: b64('img'),
+    });
+    const res = await trustedFetch('https://h/avatar');
+    const blob = await res.blob();
+    expect(blob.type).toBe('image/png');
+  });
+
   it('marks a 4xx as not ok', async () => {
     req.mockResolvedValueOnce({ type: 'response', status: 401, headers: {}, bodyBase64: '' });
     const res = await trustedFetch('https://h/x');
