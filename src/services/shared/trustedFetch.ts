@@ -27,7 +27,8 @@ export interface TrustedResponse {
   headers: { get(name: string): string | null };
   text(): Promise<string>;
   arrayBuffer(): Promise<ArrayBuffer>;
-  blob(): Promise<Blob>;
+  /** Raw response body as base64 (React Native cannot build a Blob from bytes). */
+  base64(): Promise<string>;
   // Matches fetch()'s Response.json() (any), so existing json?.ocs?.data access compiles.
   json(): Promise<any>;
 }
@@ -82,9 +83,7 @@ export async function trustedFetch(url: string, init: Init = {}): Promise<Truste
     headers: { get: (name) => lower[name.toLowerCase()] ?? null },
     text: async () => base64ToUtf8(bodyBase64),
     arrayBuffer: async () => ab,
-    // Preserve the response's content-type so FileReader.readAsDataURL produces
-    // a usable `data:image/...;base64,` URI (needed by the avatar loader).
-    blob: async () => new Blob([ab], { type: lower['content-type'] ?? '' }),
+    base64: async () => bodyBase64,
     json: async () => JSON.parse(base64ToUtf8(bodyBase64)),
   };
 }

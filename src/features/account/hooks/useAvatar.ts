@@ -35,16 +35,9 @@ export function useAvatar(account: Account | null): { data: string | null | unde
           if (active && !cached) setData(null);
           return;
         }
-        const blob = await res.blob();
-        const uri = await new Promise<string>((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = () =>
-            typeof reader.result === 'string'
-              ? resolve(reader.result)
-              : reject(new Error('unexpected FileReader result type'));
-          reader.onerror = () => reject(new Error('FileReader failed'));
-          reader.readAsDataURL(blob);
-        });
+        const contentType = res.headers.get('content-type') || 'image/jpeg';
+        const base64 = await res.base64();
+        const uri = `data:${contentType};base64,${base64}`;
         storage.set(cacheKey(account.id), uri);
         if (active) setData(uri);
       } catch (e) {
