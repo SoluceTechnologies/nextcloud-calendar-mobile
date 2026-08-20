@@ -9,9 +9,14 @@ export async function settleAllOrThrow<T>(
     (r): r is PromiseRejectedResult => r.status === 'rejected',
   );
   if (failures.length > 0) {
-    const error = new Error(`${failures.length}/${results.length} fetch(es) failed`);
-    (error as Error & { failures: unknown[] }).failures = failures.map((f) => f.reason);
-    throw error;
+    // Log failures for diagnostics but don't abort the entire sync.
+    // If we throw here, syncEvents catches the error silently (empty catch {}),
+    // and deleteMissing=true would delete ALL events in the time range.
+    // Instead, return whatever succeeded so partial sync still works.
+    console.warn(
+      `[settleAllOrThrow] ${failures.length}/${results.length} fetch(es) failed:`,
+      failures.map((f) => String(f.reason)).slice(0, 5),
+    );
   }
 
   return (results as PromiseFulfilledResult<T[]>[]).flatMap((r) => r.value);

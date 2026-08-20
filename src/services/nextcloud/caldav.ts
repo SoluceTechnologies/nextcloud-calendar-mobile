@@ -299,18 +299,27 @@ export async function fetchEvents(
   const items: { ics: string; href: string }[] = [];
   for (const chunk of splitResponses(xml)) {
     const hrefMatch = chunk.match(/<d:href>([^<]+)<\/d:href>/);
-    const dataMatch = chunk.match(/<cal:calendar-data[^>]*>([\s\S]*?)<\/cal:calendar-data>/);
+    // Match calendar-data regardless of namespace prefix (cal:, c:, s:, etc.)
+    const dataMatch = chunk.match(/<[\w]+:calendar-data[^>]*>([\s\S]*?)<\/[\w]+:calendar-data>/);
     if (dataMatch?.[1] && hrefMatch?.[1]) {
       const href = absUrl(account, hrefMatch[1]);
       items.push({ ics: decodeXmlEntities(dataMatch[1].trim()), href });
     }
   }
 
-  return parseIcsObjectsAsync(items, {
+  const parsed = await parseIcsObjectsAsync(items, {
     calendarId: calendar.id,
     accountId: account.id,
     color: calendar.color,
   }, start, end);
+
+  if (items.length > 0 && parsed.length === 0) {
+    console.warn(
+      `[fetchEvents] ${calendar.slug}: extracted ${items.length} ICS items but parsed 0 events`,
+    );
+  }
+
+  return parsed;
 }
 
 export function fetchEventsForCalendars(

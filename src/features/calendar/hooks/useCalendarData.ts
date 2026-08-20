@@ -39,14 +39,19 @@ export function useCalendarData(date: Date) {
     (async () => {
       try {
         await syncEvents(activeAccount, calendars, start, end);
-      } catch {
+      } catch (error) {
+        console.warn('[useCalendarData] syncEvents failed:', String(error));
       } finally {
         if (active) setSyncing(false);
       }
       const prev = monthRangeAt(date, -1);
       const next = monthRangeAt(date, 1);
-      void syncEvents(activeAccount, calendars, prev.start, prev.end, false).catch(() => undefined);
-      void syncEvents(activeAccount, calendars, next.start, next.end, false).catch(() => undefined);
+      void syncEvents(activeAccount, calendars, prev.start, prev.end, false).catch((e) => {
+        console.warn('[useCalendarData] prev syncEvents failed:', String(e));
+      });
+      void syncEvents(activeAccount, calendars, next.start, next.end, false).catch((e) => {
+        console.warn('[useCalendarData] next syncEvents failed:', String(e));
+      });
     })();
     return () => {
       active = false;

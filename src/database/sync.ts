@@ -190,8 +190,16 @@ export async function syncEvents(
       }
     }
 
-    if (deleteMissing) {
+    if (deleteMissing && remote.length > 0) {
       for (const [k, r] of byKey) if (!seen.has(k)) ops.push(r.prepareMarkAsDeleted());
+    } else if (deleteMissing && remote.length === 0 && windowRows.length > 0) {
+      // Safety guard: if the remote fetch returned 0 events but we have events
+      // in the DB, don't delete them. This prevents a transient fetch failure
+      // (network error, parsing edge case, server hiccup) from wiping all
+      // events. The next successful sync will reconcile properly.
+      console.warn(
+        `[syncEvents] remote returned 0 events but DB has ${windowRows.length}, skipping deleteMissing to prevent data loss`,
+      );
     }
 
     if (ops.length > 0) await db.batch(ops);
