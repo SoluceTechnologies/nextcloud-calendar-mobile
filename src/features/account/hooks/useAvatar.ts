@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 
 import { storage } from '@/storage';
 import type { Account } from '@/types';
+import { trustedFetch } from '@/services/shared/trustedFetch';
 
 function cacheKey(id: string): string {
   return `avatar:${id}`;
@@ -28,24 +29,19 @@ export function useAvatar(account: Account | null): { data: string | null | unde
     (async () => {
       try {
         const url = `${account.baseUrl}/index.php/avatar/${encodeURIComponent(account.davUserId)}/96`;
-        const res = await fetch(url, { headers: { Authorization: basicAuth(account) } });
+        const res = await trustedFetch(url, { headers: { Authorization: basicAuth(account) } });
         if (!res.ok) {
+          console.warn('[useAvatar] non-ok response', res.status, url);
           if (active && !cached) setData(null);
           return;
         }
-        const blob = await res.blob();
-        const uri = await new Promise<string>((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = () =>
-            typeof reader.result === 'string'
-              ? resolve(reader.result)
-              : reject(new Error('unexpected FileReader result type'));
-          reader.onerror = () => reject(new Error('FileReader failed'));
-          reader.readAsDataURL(blob);
-        });
+        const contentType = res.headers.get('content-type') || 'image/jpeg';
+        const base64 = await res.base64();
+        const uri = `data:${contentType};base64,${base64}`;
         storage.set(cacheKey(account.id), uri);
         if (active) setData(uri);
-      } catch {
+      } catch (e) {
+        console.warn('[useAvatar] failed to load avatar', account.baseUrl, e);
         if (active && !cached) setData(null);
       }
     })();

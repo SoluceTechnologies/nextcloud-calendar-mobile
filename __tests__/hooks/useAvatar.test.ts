@@ -1,6 +1,7 @@
 import { renderHook, waitFor } from '@testing-library/react-native';
 import { useAvatar } from '@/features/account/hooks/useAvatar';
 import { storage } from '@/storage';
+import { utf8ToBase64 } from '@/services/shared/base64';
 import type { Account } from '../../src/types';
 
 jest.mock('@react-native-async-storage/async-storage', () =>
@@ -16,20 +17,6 @@ const account: Account = {
   davUserId: 'john',
 };
 
-const DATA_URI = 'data:image/png;base64,abc123';
-
-function mockFileReaderSuccess(dataUri: string) {
-  (globalThis as any).FileReader = jest.fn().mockImplementation(() => ({
-    readAsDataURL(this: Partial<FileReader>) {
-      // @ts-ignore
-      this.onload?.({ target: { result: dataUri } });
-    },
-    onload: null,
-    onerror: null,
-    result: dataUri,
-  }));
-}
-
 describe('useAvatar', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -43,19 +30,23 @@ describe('useAvatar', () => {
     expect((globalThis as any).fetch).not.toHaveBeenCalled();
   });
 
-  it('returns a base64 data URI on a successful fetch', async () => {
+  it('returns a base64 data URI built from the response body + content-type', async () => {
     ((globalThis as any).fetch as jest.Mock).mockResolvedValue({
       ok: true,
-      blob: jest.fn().mockResolvedValue(new Blob(['png'], { type: 'image/png' })),
+      status: 200,
+      text: async () => 'PNGDATA',
+      headers: { forEach: (cb: (v: string, k: string) => void) => cb('image/png', 'content-type') },
     });
-    mockFileReaderSuccess(DATA_URI);
 
     const { result } = renderHook(() => useAvatar(account));
-    await waitFor(() => expect(result.current.data).toBe(DATA_URI));
+    const expected = `data:image/png;base64,${utf8ToBase64('PNGDATA')}`;
+    await waitFor(() => expect(result.current.data).toBe(expected));
 
     expect((globalThis as any).fetch).toHaveBeenCalledWith(
       'https://cloud.example.com/index.php/avatar/john/96',
-      { headers: { Authorization: expect.stringMatching(/^Basic /) } },
+      expect.objectContaining({
+        headers: expect.objectContaining({ Authorization: expect.stringMatching(/^Basic /) }),
+      }),
     );
   });
 

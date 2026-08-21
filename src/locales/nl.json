@@ -273,5 +273,17 @@
       "today": "Vandaag",
       "tomorrow": "Morgen"
     }
+  },
+  "certTrust": {
+    "title": "Niet-vertrouwd certificaat",
+    "body": "De server {{host}} heeft een certificaat aangeboden dat niet is ondertekend door een bekende autoriteit.",
+    "warning": "Ga alleen verder als deze vingerafdruk overeenkomt met je server. Een verkeerde vingerafdruk betekent dat iemand je verbinding kan onderscheppen.",
+    "fingerprint": "SHA-256-vingerafdruk",
+    "subject": "Uitgegeven aan",
+    "issuer": "Uitgegeven door",
+    "validFrom": "Geldig vanaf",
+    "validTo": "Geldig tot",
+    "trust": "Vertrouwen en verbinden",
+    "cancel": "Annuleren"
   }
 }

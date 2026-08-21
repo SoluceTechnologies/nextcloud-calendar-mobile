@@ -2,6 +2,7 @@ import type { Account, CalendarMeta, CalendarEvent } from '@/types';
 import { parseIcsObjectsAsync } from '@/utils/caldav-parse';
 import { settleAllOrThrow } from '@/utils/settle';
 import { httpErrorFrom } from '../shared/errors';
+import { trustedFetch, type TrustedResponse } from '../shared/trustedFetch';
 
 function basicAuth(account: Pick<Account, 'username' | 'appPassword'>): string {
   return 'Basic ' + btoa(`${account.username}:${account.appPassword}`);
@@ -65,26 +66,14 @@ function splitResponses(xml: string): string[] {
 async function davFetch(
   url: string,
   account: Pick<Account, 'username' | 'appPassword'>,
-  options: RequestInit
-): Promise<Response> {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 20000);
-  try {
-    const res = await fetch(url, {
-      ...options,
-      credentials: 'omit',
-      headers: {
-        Authorization: basicAuth(account),
-        ...options.headers,
-      },
-      signal: controller.signal,
-    });
-    clearTimeout(timer);
-    return res;
-  } catch (e) {
-    clearTimeout(timer);
-    throw e;
-  }
+  options: { method?: string; headers?: Record<string, string>; body?: string }
+): Promise<TrustedResponse> {
+  return trustedFetch(url, {
+    method: options.method,
+    headers: { Authorization: basicAuth(account), ...(options.headers ?? {}) },
+    body: options.body,
+    timeoutMs: 20000,
+  });
 }
 
 export async function validateCredentials(params: {
@@ -320,18 +309,9 @@ export async function fetchEvents(
   end: Date
 ): Promise<CalendarEvent[]> {
   if (calendar.isSubscribed && calendar.sourceUrl) {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 20000);
-    let icsText: string;
-    try {
-      const r = await fetch(calendar.sourceUrl, { signal: controller.signal });
-      clearTimeout(timer);
-      if (!r.ok) throw new Error(`fetchSubscribed HTTP ${r.status}`);
-      icsText = await r.text();
-    } catch (e) {
-      clearTimeout(timer);
-      throw e;
-    }
+    const r = await trustedFetch(calendar.sourceUrl, { timeoutMs: 20000 });
+    if (!r.ok) throw new Error(`fetchSubscribed HTTP ${r.status}`);
+    const icsText = await r.text();
     const parsed = await parseIcsObjectsAsync(
       [{ ics: icsText, href: calendar.sourceUrl }],
       { calendarId: calendar.id, accountId: account.id, color: calendar.color },

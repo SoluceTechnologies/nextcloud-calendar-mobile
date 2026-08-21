@@ -1,0 +1,7 @@
+{
+  "name": "tls-trust",
+  "version": "0.1.0",
+  "description": "Trust-on-first-use TLS certificate pinning for self-signed Nextcloud instances",
+  "main": "",
+  "private": true
+}

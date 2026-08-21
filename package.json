@@ -17,6 +17,7 @@
     "ios": "expo run:ios",
     "web": "expo start --web",
     "build:live-updates": "cd android && ./gradlew :live-updates:compileDebugKotlin",
+    "build:tls-trust": "cd android && ./gradlew :tls-trust:compileDebugKotlin",
     "test": "jest",
     "release": "release-it",
     "postinstall": "patch-package"

@@ -273,5 +273,17 @@
       "today": "Aujourd'hui",
       "tomorrow": "Demain"
     }
+  },
+  "certTrust": {
+    "title": "Certificat non approuvé",
+    "body": "Le serveur {{host}} a présenté un certificat qui n'est pas signé par une autorité connue.",
+    "warning": "Ne continuez que si cette empreinte correspond à votre serveur. Une empreinte incorrecte signifie que quelqu'un pourrait intercepter votre connexion.",
+    "fingerprint": "Empreinte SHA-256",
+    "subject": "Délivré à",
+    "issuer": "Délivré par",
+    "validFrom": "Valide à partir du",
+    "validTo": "Valide jusqu'au",
+    "trust": "Approuver et se connecter",
+    "cancel": "Annuler"
   }
 }
