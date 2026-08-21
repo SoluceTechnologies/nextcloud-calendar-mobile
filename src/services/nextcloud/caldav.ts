@@ -219,19 +219,14 @@ export async function fetchCalendars(account: Account): Promise<CalendarMeta[]> 
     const hasBind = chunk.includes('<d:bind') || chunk.includes('<d:bind/>');
     const isReadOnly = hasPrivilegeSet && !hasAll && !hasWrite && !hasBind;
 
-    // A calendar can hold events only if its component set includes VEVENT.
-    // Deck boards / Tasks lists advertise VTODO only. When the server omits the
-    // set, assume VEVENT is allowed (the historical default). Deck's stable
-    // "app-generated--deck--board" URI is a belt-and-suspenders fallback.
-    const compSet = chunk.match(
-      /<[\w.-]*:?supported-calendar-component-set(?:\s[^>]*)?>([\s\S]*?)<\/[\w.-]*:?supported-calendar-component-set>/i,
+    // supported-calendar-component-set lists the component types the calendar
+    // accepts. If present and it doesn't list VEVENT (e.g. Tasks lists / Deck
+    // boards that only take VTODO), the calendar can't hold events. When the
+    // prop is absent, assume events are supported.
+    const compSetMatch = chunk.match(
+      /<c:supported-calendar-component-set[^>]*>([\s\S]*?)<\/c:supported-calendar-component-set>/,
     );
-    const isDeckCalendar = /app-generated--deck/i.test(path);
-    const supportsEvents = isDeckCalendar
-      ? false
-      : compSet
-        ? /comp\s+name="VEVENT"/i.test(compSet[1])
-        : true;
+    const supportsEvents = compSetMatch ? /name="VEVENT"/i.test(compSetMatch[1]) : true;
 
     calendars.push({
       id: calFullUrl,
@@ -278,7 +273,7 @@ async function reportCalendarObjects(
   start: Date,
   end: Date,
   required: boolean,
-): Promise<{ ics: string; href: string }[]> {
+): Promise<CalendarEvent[]> {
   const res = await davFetch(calendar.url, account, {
     method: 'REPORT',
     headers: { Depth: '1', 'Content-Type': 'application/xml' },
@@ -293,46 +288,49 @@ async function reportCalendarObjects(
   const items: { ics: string; href: string }[] = [];
   for (const chunk of splitResponses(xml)) {
     const hrefMatch = chunk.match(/<d:href>([^<]+)<\/d:href>/);
-    const dataMatch = chunk.match(/<cal:calendar-data[^>]*>([\s\S]*?)<\/cal:calendar-data>/);
+    const dataMatch = chunk.match(/<[\w]+:calendar-data[^>]*>([\s\S]*?)<\/[\w]+:calendar-data>/);
     if (dataMatch?.[1] && hrefMatch?.[1]) {
       const href = absUrl(account, hrefMatch[1]);
       items.push({ ics: decodeXmlEntities(dataMatch[1].trim()), href });
     }
   }
-  return items;
-}
-
-export async function fetchEvents(
-  account: Account,
-  calendar: CalendarMeta,
-  start: Date,
-  end: Date
-): Promise<CalendarEvent[]> {
-  if (calendar.isSubscribed && calendar.sourceUrl) {
-    const r = await trustedFetch(calendar.sourceUrl, { timeoutMs: 20000 });
-    if (!r.ok) throw new Error(`fetchSubscribed HTTP ${r.status}`);
-    const icsText = await r.text();
-    const parsed = await parseIcsObjectsAsync(
-      [{ ics: icsText, href: calendar.sourceUrl }],
-      { calendarId: calendar.id, accountId: account.id, color: calendar.color },
-      start, end,
-    );
-    return parsed.filter((e) => e.dtend > start && e.dtstart < end);
-  }
-
-  // VEVENT is the common case (throw on failure, preserving prior behavior).
-  // VTODO carries Deck cards and Tasks-app tasks; tolerate its failure so a
-  // server that rejects the task query still returns the regular events.
-  const vevents = await reportCalendarObjects(account, calendar, 'VEVENT', start, end, true);
-  const vtodos = await reportCalendarObjects(account, calendar, 'VTODO', start, end, false);
-  const items = [...vevents, ...vtodos];
 
   const parsed = await parseIcsObjectsAsync(items, {
     calendarId: calendar.id,
     accountId: account.id,
     color: calendar.color,
   }, start, end);
+
+  if (items.length > 0 && parsed.length === 0) {
+    console.warn(
+      `[fetchEvents] ${calendar.slug}: extracted ${items.length} ICS items but parsed 0 events`,
+    );
+  }
+
   return parsed;
+}
+
+export async function fetchEvents(
+    account: Account,
+    calendar: CalendarMeta,
+    start: Date,
+    end: Date
+): Promise<CalendarEvent[]> {
+    if (calendar.isSubscribed && calendar.sourceUrl) {
+        const r = await trustedFetch(calendar.sourceUrl, { timeoutMs: 20000 });
+        if (!r.ok) throw new Error(`fetchSubscribed HTTP ${r.status}`);
+        const icsText = await r.text();
+        const parsed = await parseIcsObjectsAsync(
+            [{ ics: icsText, href: calendar.sourceUrl }],
+            { calendarId: calendar.id, accountId: account.id, color: calendar.color },
+            start, end,
+        );
+        return parsed.filter((e) => e.dtend > start && e.dtstart < end);
+    }
+
+    const vevents = await reportCalendarObjects(account, calendar, 'VEVENT', start, end, true);
+    const vtodos = await reportCalendarObjects(account, calendar, 'VTODO', start, end, false);
+    return [...vevents, ...vtodos];
 }
 
 export function fetchEventsForCalendars(
