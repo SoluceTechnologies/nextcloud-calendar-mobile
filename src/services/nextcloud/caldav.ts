@@ -226,7 +226,15 @@ export async function fetchCalendars(account: Account): Promise<CalendarMeta[]> 
     const compSetMatch = chunk.match(
       /<c:supported-calendar-component-set[^>]*>([\s\S]*?)<\/c:supported-calendar-component-set>/,
     );
-    const supportsEvents = compSetMatch ? /name="VEVENT"/i.test(compSetMatch[1]) : true;
+    // Deck exposes each board as an app-generated CalDAV collection whose URI is
+    // marked `app-generated--deck--board-*`. These only carry VTODO-like cards,
+    // never events, and often omit the component-set prop — so key off the URI.
+    const isDeckBoard = /app-generated--deck/i.test(path);
+    const supportsEvents = isDeckBoard
+      ? false
+      : compSetMatch
+        ? /name="VEVENT"/i.test(compSetMatch[1])
+        : true;
 
     calendars.push({
       id: calFullUrl,

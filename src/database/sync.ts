@@ -186,12 +186,11 @@ export async function syncEvents(
       }
     }
 
-    if (deleteMissing && remote.length > 0) {
+    // A failed calendar fetch now throws in settleAllOrThrow, so an empty
+    // `remote` genuinely means the server has no events in the window — safe to
+    // remove the stale rows the server dropped.
+    if (deleteMissing) {
       for (const [k, r] of byKey) if (!seen.has(k)) ops.push(r.prepareMarkAsDeleted());
-    } else if (deleteMissing && remote.length === 0 && windowRows.length > 0) {
-      console.warn(
-        `[syncEvents] remote returned 0 events but DB has ${windowRows.length}, skipping deleteMissing to prevent data loss`,
-      );
     }
 
     if (ops.length > 0) await db.batch(ops);

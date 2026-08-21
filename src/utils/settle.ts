@@ -13,6 +13,11 @@ export async function settleAllOrThrow<T>(
             `[settleAllOrThrow] ${failures.length}/${results.length} fetch(es) failed:`,
             failures.map((f) => String(f.reason)).slice(0, 5),
         );
+        const err = new Error(
+            `[settleAllOrThrow] ${failures.length}/${results.length} fetch(es) failed`,
+        ) as Error & { failures: unknown[] };
+        err.failures = failures.map((f) => f.reason);
+        throw err;
     }
 
     return (results as PromiseFulfilledResult<T[]>[]).flatMap((r) => r.value);
