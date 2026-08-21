@@ -219,6 +219,15 @@ export async function fetchCalendars(account: Account): Promise<CalendarMeta[]> 
     const hasBind = chunk.includes('<d:bind') || chunk.includes('<d:bind/>');
     const isReadOnly = hasPrivilegeSet && !hasAll && !hasWrite && !hasBind;
 
+    // supported-calendar-component-set lists the component types the calendar
+    // accepts. If present and it doesn't list VEVENT (e.g. Tasks lists / Deck
+    // boards that only take VTODO), the calendar can't hold events. When the
+    // prop is absent, assume events are supported.
+    const compSetMatch = chunk.match(
+      /<c:supported-calendar-component-set[^>]*>([\s\S]*?)<\/c:supported-calendar-component-set>/,
+    );
+    const supportsEvents = compSetMatch ? /name="VEVENT"/i.test(compSetMatch[1]) : true;
+
     calendars.push({
       id: calFullUrl,
       accountId: account.id,
@@ -264,7 +273,7 @@ async function reportCalendarObjects(
   start: Date,
   end: Date,
   required: boolean,
-): Promise<{ ics: string; href: string }[]> {
+): Promise<CalendarEvent[]> {
   const res = await davFetch(calendar.url, account, {
     method: 'REPORT',
     headers: { Depth: '1', 'Content-Type': 'application/xml' },
@@ -321,14 +330,7 @@ export async function fetchEvents(
 
     const vevents = await reportCalendarObjects(account, calendar, 'VEVENT', start, end, true);
     const vtodos = await reportCalendarObjects(account, calendar, 'VTODO', start, end, false);
-    const items = [...vevents, ...vtodos];
-
-    const parsed = await parseIcsObjectsAsync(items, {
-        calendarId: calendar.id,
-        accountId: account.id,
-        color: calendar.color,
-    }, start, end);
-    return parsed;
+    return [...vevents, ...vtodos];
 }
 
 export function fetchEventsForCalendars(
