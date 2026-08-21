@@ -18,4 +18,5 @@ export default class Calendar extends Model {
   @field('source_url') sourceUrl?: string;
   @field('sync_token') syncToken?: string;
   @field('expanded_center') expandedCenter?: number;
+  @field('supports_events') supportsEvents?: boolean;
 }

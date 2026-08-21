@@ -2,6 +2,7 @@ import type { Account, CalendarMeta, CalendarEvent } from '@/types';
 import { parseIcsObjectsAsync } from '@/utils/caldav-parse';
 import { settleAllOrThrow } from '@/utils/settle';
 import { httpErrorFrom } from '../shared/errors';
+import { trustedFetch, type TrustedResponse } from '../shared/trustedFetch';
 
 function basicAuth(account: Pick<Account, 'username' | 'appPassword'>): string {
   return 'Basic ' + btoa(`${account.username}:${account.appPassword}`);
@@ -65,26 +66,14 @@ function splitResponses(xml: string): string[] {
 async function davFetch(
   url: string,
   account: Pick<Account, 'username' | 'appPassword'>,
-  options: RequestInit
-): Promise<Response> {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 20000);
-  try {
-    const res = await fetch(url, {
-      ...options,
-      credentials: 'omit',
-      headers: {
-        Authorization: basicAuth(account),
-        ...options.headers,
-      },
-      signal: controller.signal,
-    });
-    clearTimeout(timer);
-    return res;
-  } catch (e) {
-    clearTimeout(timer);
-    throw e;
-  }
+  options: { method?: string; headers?: Record<string, string>; body?: string }
+): Promise<TrustedResponse> {
+  return trustedFetch(url, {
+    method: options.method,
+    headers: { Authorization: basicAuth(account), ...(options.headers ?? {}) },
+    body: options.body,
+    timeoutMs: 20000,
+  });
 }
 
 export async function validateCredentials(params: {
@@ -185,6 +174,7 @@ export async function fetchCalendars(account: Account): Promise<CalendarMeta[]> 
     <ical:calendar-color/>
     <cs:getctag/>
     <cs:source/>
+    <c:supported-calendar-component-set/>
   </d:prop>
 </d:propfind>`;
 
@@ -240,18 +230,18 @@ export async function fetchCalendars(account: Account): Promise<CalendarMeta[]> 
       isSubscribed: isSubscribed && !isCalendar,
       isReadOnly,
       sourceUrl,
+      supportsEvents,
     });
   }
   return calendars;
 }
 
-export async function fetchEvents(
-  account: Account,
-  calendar: CalendarMeta,
-  start: Date,
-  end: Date
-): Promise<CalendarEvent[]> {
-  const body = `<?xml version="1.0"?>
+function caldavStamp(d: Date): string {
+  return `${d.toISOString().replace(/[-:]/g, '').split('.')[0]}Z`;
+}
+
+function calendarQueryBody(comp: 'VEVENT' | 'VTODO', start: Date, end: Date): string {
+  return `<?xml version="1.0"?>
 <c:calendar-query xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav">
   <d:prop>
     <d:getetag/>
@@ -259,41 +249,31 @@ export async function fetchEvents(
   </d:prop>
   <c:filter>
     <c:comp-filter name="VCALENDAR">
-      <c:comp-filter name="VEVENT">
-        <c:time-range start="${start.toISOString().replace(/[-:]/g, '').split('.')[0]}Z"
-                      end="${end.toISOString().replace(/[-:]/g, '').split('.')[0]}Z"/>
+      <c:comp-filter name="${comp}">
+        <c:time-range start="${caldavStamp(start)}" end="${caldavStamp(end)}"/>
       </c:comp-filter>
     </c:comp-filter>
   </c:filter>
 </c:calendar-query>`;
+}
 
-  if (calendar.isSubscribed && calendar.sourceUrl) {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 20000);
-    let icsText: string;
-    try {
-      const r = await fetch(calendar.sourceUrl, { signal: controller.signal });
-      clearTimeout(timer);
-      if (!r.ok) throw new Error(`fetchSubscribed HTTP ${r.status}`);
-      icsText = await r.text();
-    } catch (e) {
-      clearTimeout(timer);
-      throw e;
-    }
-    const parsed = await parseIcsObjectsAsync(
-      [{ ics: icsText, href: calendar.sourceUrl }],
-      { calendarId: calendar.id, accountId: account.id, color: calendar.color },
-      start, end,
-    );
-    return parsed.filter((e) => e.dtend > start && e.dtstart < end);
-  }
-
+async function reportCalendarObjects(
+  account: Account,
+  calendar: CalendarMeta,
+  comp: 'VEVENT' | 'VTODO',
+  start: Date,
+  end: Date,
+  required: boolean,
+): Promise<{ ics: string; href: string }[]> {
   const res = await davFetch(calendar.url, account, {
     method: 'REPORT',
     headers: { Depth: '1', 'Content-Type': 'application/xml' },
-    body,
+    body: calendarQueryBody(comp, start, end),
   });
-  if (res.status !== 207) throw new Error(`fetchEvents HTTP ${res.status}`);
+  if (res.status !== 207) {
+    if (required) throw new Error(`fetchEvents HTTP ${res.status}`);
+    return [];
+  }
   const xml = await res.text();
 
   const items: { ics: string; href: string }[] = [];
@@ -319,6 +299,36 @@ export async function fetchEvents(
   }
 
   return parsed;
+}
+
+export async function fetchEvents(
+    account: Account,
+    calendar: CalendarMeta,
+    start: Date,
+    end: Date
+): Promise<CalendarEvent[]> {
+    if (calendar.isSubscribed && calendar.sourceUrl) {
+        const r = await trustedFetch(calendar.sourceUrl, { timeoutMs: 20000 });
+        if (!r.ok) throw new Error(`fetchSubscribed HTTP ${r.status}`);
+        const icsText = await r.text();
+        const parsed = await parseIcsObjectsAsync(
+            [{ ics: icsText, href: calendar.sourceUrl }],
+            { calendarId: calendar.id, accountId: account.id, color: calendar.color },
+            start, end,
+        );
+        return parsed.filter((e) => e.dtend > start && e.dtstart < end);
+    }
+
+    const vevents = await reportCalendarObjects(account, calendar, 'VEVENT', start, end, true);
+    const vtodos = await reportCalendarObjects(account, calendar, 'VTODO', start, end, false);
+    const items = [...vevents, ...vtodos];
+
+    const parsed = await parseIcsObjectsAsync(items, {
+        calendarId: calendar.id,
+        accountId: account.id,
+        color: calendar.color,
+    }, start, end);
+    return parsed;
 }
 
 export function fetchEventsForCalendars(

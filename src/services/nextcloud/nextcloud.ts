@@ -1,5 +1,6 @@
 import type { Account, CalendarAppStatus, ServerCapabilities } from '@/types';
 import { httpErrorFrom } from '../shared/errors';
+import { trustedFetch } from '../shared/trustedFetch';
 
 function basicAuth(account: Pick<Account, 'username' | 'appPassword'>): string {
   return 'Basic ' + btoa(`${account.username}:${account.appPassword}`);
@@ -11,8 +12,7 @@ export async function exchangeOneTimeToken(params: {
   oneTimeToken: string;
 }): Promise<string> {
   const url = `${params.baseUrl}/ocs/v2.php/core/getapppassword-onetime`;
-  const res = await fetch(url, {
-    credentials: 'omit',
+  const res = await trustedFetch(url, {
     headers: {
       Authorization: 'Basic ' + btoa(`${params.username}:${params.oneTimeToken}`),
       'OCS-APIRequest': 'true',
@@ -34,8 +34,7 @@ export async function fetchUserInfo(
 ): Promise<{ timezone: string; email: string; displayName: string }> {
   try {
     const url = `${account.baseUrl}/ocs/v2.php/cloud/users/${encodeURIComponent(account.davUserId)}`;
-    const res = await fetch(url, {
-      credentials: 'omit',
+    const res = await trustedFetch(url, {
       headers: {
         Authorization: basicAuth(account),
         'OCS-APIRequest': 'true',
@@ -60,8 +59,7 @@ export async function fetchCalendarApp(
 ): Promise<CalendarAppStatus> {
   try {
     const url = `${account.baseUrl}/ocs/v2.php/core/navigation/apps`;
-    const res = await fetch(url, {
-      credentials: 'omit',
+    const res = await trustedFetch(url, {
       headers: {
         Authorization: basicAuth(account),
         'OCS-APIRequest': 'true',
@@ -83,8 +81,7 @@ async function fetchServerCaps(
 ): Promise<Omit<ServerCapabilities, 'calendarApp'>> {
   try {
     const url = `${account.baseUrl}/ocs/v2.php/cloud/capabilities`;
-    const res = await fetch(url, {
-      credentials: 'omit',
+    const res = await trustedFetch(url, {
       headers: {
         Authorization: basicAuth(account),
         'OCS-APIRequest': 'true',

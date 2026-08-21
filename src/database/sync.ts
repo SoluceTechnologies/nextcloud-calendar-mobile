@@ -40,6 +40,7 @@ function writeCalendar(row: Calendar, c: CalendarMeta, accountId: string): void 
   row.isSubscribed = c.isSubscribed ?? false;
   row.isReadOnly = c.isReadOnly ?? false;
   row.sourceUrl = c.sourceUrl ?? undefined;
+  row.supportsEvents = c.supportsEvents ?? true;
 }
 
 export function writeEvent(row: Event, ev: CalendarEvent): void {
@@ -60,6 +61,7 @@ export function writeEvent(row: Event, ev: CalendarEvent): void {
   row.isRecurring = ev.isRecurring;
   row.rrule = ev.rrule ?? undefined;
   row.alarmMinutes = ev.alarmMinutes ?? undefined;
+  row.isTask = ev.isTask ?? false;
 }
 
 function calendarUnchanged(row: Calendar, c: CalendarMeta): boolean {
@@ -71,6 +73,7 @@ function calendarUnchanged(row: Calendar, c: CalendarMeta): boolean {
     row.slug === c.slug &&
     (row.isSubscribed ?? false) === (c.isSubscribed ?? false) &&
     (row.isReadOnly ?? false) === (c.isReadOnly ?? false) &&
+    (row.supportsEvents ?? true) === (c.supportsEvents ?? true) &&
     (row.sourceUrl ?? undefined) === (c.sourceUrl ?? undefined)
   );
 }
@@ -87,6 +90,7 @@ function eventUnchanged(row: Event, ev: CalendarEvent): boolean {
     row.calendarId === ev.calendarId &&
     row.href === ev.href &&
     (row.rrule ?? undefined) === (ev.rrule ?? undefined) &&
+    !!row.isTask === !!ev.isTask &&
     (row.attendees ?? '[]') === JSON.stringify(ev.attendees ?? [])
   );
 }

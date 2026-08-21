@@ -273,5 +273,17 @@
       "today": "Heute",
       "tomorrow": "Morgen"
     }
+  },
+  "certTrust": {
+    "title": "Nicht vertrauenswürdiges Zertifikat",
+    "body": "Der Server {{host}} hat ein Zertifikat vorgelegt, das nicht von einer bekannten Zertifizierungsstelle signiert ist.",
+    "warning": "Fahren Sie nur fort, wenn dieser Fingerabdruck mit Ihrem Server übereinstimmt. Ein falscher Fingerabdruck bedeutet, dass jemand Ihre Verbindung abhören könnte.",
+    "fingerprint": "SHA-256-Fingerabdruck",
+    "subject": "Ausgestellt für",
+    "issuer": "Ausgestellt von",
+    "validFrom": "Gültig ab",
+    "validTo": "Gültig bis",
+    "trust": "Vertrauen und verbinden",
+    "cancel": "Abbrechen"
   }
 }

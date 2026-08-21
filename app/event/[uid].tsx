@@ -84,7 +84,8 @@ export default function EventDetailScreen() {
 
   const calendar = calendars.find((c) => c.id === event?.calendarId);
   const deleteMutation = useDeleteEvent(activeAccount!);
-  const canEdit = !calendar?.isReadOnly && !calendar?.isSubscribed;
+
+  const canEdit = !calendar?.isReadOnly && !calendar?.isSubscribed && !event?.isTask;
   const eventsLoading = !synced && event === undefined;
 
   const [copied, setCopied] = useState(false);

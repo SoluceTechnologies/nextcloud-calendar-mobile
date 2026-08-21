@@ -12,6 +12,8 @@ import { fetchUserInfo, exchangeOneTimeToken } from '@/services/nextcloud/nextcl
 import { useAccountStore } from '@/stores/accountStore';
 import { QrLoginScanner } from '@/features/account/components/QrLoginScanner';
 import type { NcLoginData } from '@/features/account/components/QrLoginScanner';
+import { CertTrustSheet } from '@/features/account/components/CertTrustSheet';
+import { useCertTrust } from '@/features/account/hooks/useCertTrust';
 import type { Account } from '@/types';
 import { useTranslation } from 'react-i18next';
 import { LanguageSheet } from '@/components/LanguageSheet';
@@ -34,38 +36,52 @@ export default function SetupScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [showScanner, setShowScanner] = useState(false);
 
+  const certTrust = useCertTrust();
+  const [lastParams, setLastParams] = useState<{
+    baseUrl: string;
+    username: string;
+    appPassword: string;
+  } | null>(null);
+
   async function connectWith(params: {
     baseUrl: string;
     username: string;
     appPassword: string;
   }) {
     setError(null);
+    setLastParams(params);
     let normalizedUrl = params.baseUrl.trim().replace(/\/$/, '');
     if (!/^https?:\/\//i.test(normalizedUrl)) {
       normalizedUrl = `https://${normalizedUrl}`;
     }
     setLoading(true);
     try {
-      const { davUserId } = await validateCredentials({
-        baseUrl: normalizedUrl,
-        username: params.username,
-        appPassword: params.appPassword,
+      const connected = await certTrust.run(async () => {
+        const { davUserId } = await validateCredentials({
+          baseUrl: normalizedUrl,
+          username: params.username,
+          appPassword: params.appPassword,
+        });
+        const userInfo = await fetchUserInfo({
+          baseUrl: normalizedUrl,
+          username: params.username,
+          appPassword: params.appPassword,
+          davUserId,
+        });
+        return { davUserId, userInfo };
       });
-      const userInfo = await fetchUserInfo({
-        baseUrl: normalizedUrl,
-        username: params.username,
-        appPassword: params.appPassword,
-        davUserId,
-      });
+      // Untrusted certificate: the trust sheet is now shown; wait for the user.
+      if (!connected) return;
+
       const account: Account = {
         id: Crypto.randomUUID(),
-        displayName: userInfo.displayName || params.username,
+        displayName: connected.userInfo.displayName || params.username,
         baseUrl: normalizedUrl,
         username: params.username,
         appPassword: params.appPassword,
-        davUserId,
-        timezone: userInfo.timezone,
-        email: userInfo.email,
+        davUserId: connected.davUserId,
+        timezone: connected.userInfo.timezone,
+        email: connected.userInfo.email,
       };
       await saveAccount(account);
       await setActiveAccountId(account.id);
@@ -83,6 +99,11 @@ export default function SetupScreen() {
     } finally {
       setLoading(false);
     }
+  }
+
+  function handleTrustCert() {
+    certTrust.confirm();
+    if (lastParams) connectWith(lastParams);
   }
 
   function handleAdd() {
@@ -218,6 +239,12 @@ export default function SetupScreen() {
         visible={showScanner}
         onClose={() => setShowScanner(false)}
         onScanned={handleQrScanned}
+      />
+
+      <CertTrustSheet
+        error={certTrust.pending}
+        onTrust={handleTrustCert}
+        onCancel={certTrust.dismiss}
       />
     </ViewContainer>
   );

@@ -1,7 +1,7 @@
 import { appSchema, tableSchema } from '@nozbe/watermelondb';
 
 export const mySchema = appSchema({
-  version: 3,
+  version: 5,
   tables: [
     tableSchema({
       name: 'events',
@@ -23,6 +23,7 @@ export const mySchema = appSchema({
         { name: 'is_recurring', type: 'boolean', isOptional: true },
         { name: 'rrule', type: 'string', isOptional: true },
         { name: 'alarm_minutes', type: 'number', isOptional: true },
+        { name: 'is_task', type: 'boolean', isOptional: true },
       ],
     }),
     tableSchema({
@@ -40,6 +41,7 @@ export const mySchema = appSchema({
         { name: 'source_url', type: 'string', isOptional: true },
         { name: 'sync_token', type: 'string', isOptional: true },
         { name: 'expanded_center', type: 'number', isOptional: true },
+        { name: 'supports_events', type: 'boolean', isOptional: true },
       ],
     }),
   ],

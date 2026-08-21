@@ -76,6 +76,7 @@ const config: ExpoConfig = {
                 },
             },
         ],
+        './plugins/withAndroidNetworkSecurityConfig',
         '@morrowdigital/watermelondb-expo-plugin',
         '@react-native-community/datetimepicker',
         'expo-router',

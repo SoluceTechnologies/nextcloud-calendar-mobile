@@ -44,6 +44,9 @@ ios/
 !ios/NextcloudCalendar
 !ios/NextcloudCalendar.xcodeproj/xcshareddata/xcschemes
 ios/Podfile
+
+!modules/**/ios/
+!modules/**/ios/**
 android/**
 android/*
 !android/app/

@@ -273,5 +273,17 @@
       "today": "Oggi",
       "tomorrow": "Domani"
     }
+  },
+  "certTrust": {
+    "title": "Certificato non attendibile",
+    "body": "Il server {{host}} ha presentato un certificato non firmato da un'autorità nota.",
+    "warning": "Continua solo se questa impronta corrisponde al tuo server. Un'impronta errata significa che qualcuno potrebbe intercettare la tua connessione.",
+    "fingerprint": "Impronta SHA-256",
+    "subject": "Rilasciato a",
+    "issuer": "Rilasciato da",
+    "validFrom": "Valido dal",
+    "validTo": "Valido fino al",
+    "trust": "Autorizza e connetti",
+    "cancel": "Annulla"
   }
 }

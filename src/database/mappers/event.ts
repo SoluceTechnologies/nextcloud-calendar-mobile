@@ -32,5 +32,6 @@ export function mapEventToShared(event: Event): CalendarEvent {
     isRecurring: !!event.isRecurring,
     rrule: event.rrule ?? undefined,
     alarmMinutes: event.alarmMinutes ?? undefined,
+    isTask: !!event.isTask,
   };
 }

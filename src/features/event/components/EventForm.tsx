@@ -53,7 +53,9 @@ export function EventForm({
   const twoColDates = useWindowDimensions().width >= 600;
 
   const [summary, setSummary] = useState(initialValues?.summary ?? '');
-  const writableCalendars = calendars.filter((c) => !c.isReadOnly && !c.isSubscribed);
+  const writableCalendars = calendars.filter(
+    (c) => !c.isReadOnly && !c.isSubscribed && c.supportsEvents !== false,
+  );
 
   const defaultCalendarId =
     initialValues?.calendarId ??
