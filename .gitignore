@@ -44,7 +44,7 @@ ios/
 !ios/NextcloudCalendar
 !ios/NextcloudCalendar.xcodeproj/xcshareddata/xcschemes
 ios/Podfile
-# Local native module iOS sources are real source, not the generated app project.
+
 !modules/**/ios/
 !modules/**/ios/**
 android/**

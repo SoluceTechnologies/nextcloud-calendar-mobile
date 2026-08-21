@@ -26,10 +26,6 @@ jest.mock('@/services/shared/nativeTlsTrust', () => {
     TlsTrust: {
       setPins: jest.fn((map) => { pins = map; }),
       __getPins: () => pins,
-      // Default: delegate to the (test-mocked) global fetch so existing api
-      // tests that mock `fetch` keep working through trustedFetch. Defensive
-      // about heterogeneous mock response shapes (text-only, json-only,
-      // blob-only, {ok,status}-only) and missing status.
       request: jest.fn(async ({ url, method, headers, bodyBase64 }) => {
         const body = bodyBase64
           ? Buffer.from(bodyBase64, 'base64').toString('utf8')

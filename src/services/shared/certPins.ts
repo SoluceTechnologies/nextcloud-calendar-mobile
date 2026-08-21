@@ -4,7 +4,6 @@ import { TlsTrust } from './nativeTlsTrust';
 const KEY = 'cert_pins';
 type PinMap = Record<string, string[]>;
 
-/** Host key used for pinning: always `hostname:port` with an explicit port. */
 export function hostKeyFromUrl(url: string): string {
   const u = new URL(url);
   const port = u.port || (u.protocol === 'https:' ? '443' : '80');
@@ -38,7 +37,6 @@ export function removePinsForHost(host: string): void {
   save(map);
 }
 
-/** Push the persisted pin map into the native module (call at startup). */
 export function pushPinsToNative(): void {
   TlsTrust.setPins(getPins());
 }
