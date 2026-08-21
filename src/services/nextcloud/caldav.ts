@@ -299,7 +299,6 @@ export async function fetchEvents(
   const items: { ics: string; href: string }[] = [];
   for (const chunk of splitResponses(xml)) {
     const hrefMatch = chunk.match(/<d:href>([^<]+)<\/d:href>/);
-    // Match calendar-data regardless of namespace prefix (cal:, c:, s:, etc.)
     const dataMatch = chunk.match(/<[\w]+:calendar-data[^>]*>([\s\S]*?)<\/[\w]+:calendar-data>/);
     if (dataMatch?.[1] && hrefMatch?.[1]) {
       const href = absUrl(account, hrefMatch[1]);

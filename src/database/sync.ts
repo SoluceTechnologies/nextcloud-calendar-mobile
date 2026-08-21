@@ -159,14 +159,6 @@ export async function syncEvents(
       )
       .fetch();
 
-    // A local write during either fetch above (the remote pull or this query)
-    // means this pull is now stale, so it must yield. Bail here, before any
-    // prepareUpdate/prepareMarkAsDeleted: those mutate the cached record
-    // instances synchronously and are cleared only by db.batch. Preparing and
-    // then returning would strand an instance with pending changes, and the
-    // next sync's prepareUpdate on that same cached instance throws "Cannot
-    // update a record with pending changes". Everything from here to the batch
-    // is synchronous, so a single check now covers the whole window.
     if (localWriteEpoch() !== epoch) return;
 
     const byKey = new Map<string, Event>();
@@ -193,10 +185,6 @@ export async function syncEvents(
     if (deleteMissing && remote.length > 0) {
       for (const [k, r] of byKey) if (!seen.has(k)) ops.push(r.prepareMarkAsDeleted());
     } else if (deleteMissing && remote.length === 0 && windowRows.length > 0) {
-      // Safety guard: if the remote fetch returned 0 events but we have events
-      // in the DB, don't delete them. This prevents a transient fetch failure
-      // (network error, parsing edge case, server hiccup) from wiping all
-      // events. The next successful sync will reconcile properly.
       console.warn(
         `[syncEvents] remote returned 0 events but DB has ${windowRows.length}, skipping deleteMissing to prevent data loss`,
       );
