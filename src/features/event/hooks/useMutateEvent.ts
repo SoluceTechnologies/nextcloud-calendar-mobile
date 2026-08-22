@@ -19,6 +19,7 @@ import {
   seriesBaseUid,
   shiftSeriesDates,
 } from '@/database/eventWrites';
+import { exceptionResourceUid, occurrenceSlot } from '@/features/event/occurrenceTarget';
 import type { Account, CalendarMeta, CalendarEvent, CreateEventInput, RecurrenceEditScope } from '@/types';
 
 const TALK_URL_PATTERN = /\/call\//;
@@ -302,23 +303,24 @@ export function useUpdateEvent(account: Account, calendars: CalendarMeta[]) {
             await moveEvent(account, event.href, cal, event.uid);
           }
         } else if (scope === 'this') {
+          const slot = occurrenceSlot(event);
           const masterIcs = await fetchEventIcs(account, event.href);
-          await updateEvent(account, event.href, injectExdate(masterIcs, event.dtstart, timezone));
+          await updateEvent(account, event.href, injectExdate(masterIcs, slot, timezone));
           const cal = calendars.find((c) => c.id === event.calendarId) ?? calendars.find((c) => c.id === input.calendarId);
           if (!cal) throw new Error('Calendar not found for exception VEVENT');
-          const exceptionUid = `${event.uid}-exc-${event.dtstart.getTime()}`;
+          const exceptionUid = exceptionResourceUid(event);
           const exIcs = buildExceptionIcs({
-            uid: event.uid, summary: input.summary, description, location,
+            uid: seriesBaseUid(event.uid), summary: input.summary, description, location,
             dtstart: input.dtstart, dtend: input.dtend,
             organizerEmail: scheduled.organizerEmail, organizerName: input.organizerName,
-            attendees: input.attendees, timezone, recurrenceId: event.dtstart,
+            attendees: input.attendees, timezone, recurrenceId: slot,
             sequence: extractSequence(masterIcs) + 1,
             extraLines: extractExtraVeventLines(masterIcs),
           });
           await putEvent(account, cal, exceptionUid, exIcs);
         } else if (scope === 'thisAndFollowing') {
           const masterIcs = await fetchEventIcs(account, event.href);
-          const oneDayBefore = dayjs(event.dtstart).subtract(1, 'day').endOf('day').toDate();
+          const oneDayBefore = dayjs(occurrenceSlot(event)).subtract(1, 'day').endOf('day').toDate();
           await updateEvent(account, event.href, truncateRruleUntil(masterIcs, oneDayBefore));
           const cal = calendars.find((c) => c.id === event.calendarId) ?? calendars.find((c) => c.id === input.calendarId);
           if (!cal) throw new Error('Calendar not found for new series');
@@ -341,7 +343,7 @@ export function useDeleteEvent(account: Account) {
       if (!event.isRecurring || scope === 'all') {
         removed = await removeWhere(account.id, (e) => seriesBaseUid(e.uid) === base);
       } else if (scope === 'thisAndFollowing') {
-        const from = event.dtstart.getTime();
+        const from = occurrenceSlot(event).getTime();
         removed = await removeWhere(
           account.id,
           (e) => seriesBaseUid(e.uid) === base && new Date(e.dtstart).getTime() >= from,
@@ -358,9 +360,9 @@ export function useDeleteEvent(account: Account) {
         const timezone = resolveTimezone(account);
         const masterIcs = await fetchEventIcs(account, event.href);
         if (scope === 'this') {
-          await updateEvent(account, event.href, injectExdate(masterIcs, event.dtstart, timezone));
+          await updateEvent(account, event.href, injectExdate(masterIcs, occurrenceSlot(event), timezone));
         } else if (scope === 'thisAndFollowing') {
-          const oneDayBefore = dayjs(event.dtstart).subtract(1, 'day').endOf('day').toDate();
+          const oneDayBefore = dayjs(occurrenceSlot(event)).subtract(1, 'day').endOf('day').toDate();
           await updateEvent(account, event.href, truncateRruleUntil(masterIcs, oneDayBefore));
         }
       } catch (error) {

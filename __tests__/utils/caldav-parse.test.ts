@@ -179,6 +179,189 @@ END:VCALENDAR`;
   });
 });
 
+describe('recurring expansion — moved occurrences (RECURRENCE-ID overrides)', () => {
+  const calMeta = { calendarId: 'cal-1', accountId: 'acc-1', color: '#0082c9' };
+  const rangeStart = new Date('2026-07-27T00:00:00Z');
+  const rangeEnd = new Date('2026-08-24T00:00:00Z');
+
+  const series = (exception: string[]) =>
+    [
+      'BEGIN:VCALENDAR', 'VERSION:2.0',
+      'BEGIN:VEVENT',
+      'UID:moved-1',
+      'SUMMARY:Busy',
+      'DTSTART:20260729T133000Z',
+      'DTEND:20260729T140000Z',
+      'RRULE:FREQ=WEEKLY;COUNT=4',
+      'END:VEVENT',
+      ...exception,
+      'END:VCALENDAR',
+    ].join('\r\n');
+
+  const expand = (ics: string) =>
+    parseIcsObjects([{ ics, href: '/cal/moved.ics' }], calMeta, rangeStart, rangeEnd);
+
+  it('takes the start from the exception DTSTART, not from RECURRENCE-ID', () => {
+    const events = expand(
+      series([
+        'BEGIN:VEVENT', 'UID:moved-1', 'SUMMARY:Busy',
+        'RECURRENCE-ID:20260729T133000Z',
+        'DTSTART:20260805T150000Z',
+        'DTEND:20260805T154500Z',
+        'END:VEVENT',
+      ]),
+    );
+
+    const moved = events.find((e) => e.dtend.toISOString() === '2026-08-05T15:45:00.000Z')!;
+    expect(moved).toBeDefined();
+    expect(moved.dtstart.toISOString()).toBe('2026-08-05T15:00:00.000Z');
+    expect(moved.dtend.getTime() - moved.dtstart.getTime()).toBe(45 * 60_000);
+  });
+
+  it('never yields an occurrence that ends before it starts', () => {
+    const events = expand(
+      series([
+        'BEGIN:VEVENT', 'UID:moved-1', 'SUMMARY:Busy',
+        'RECURRENCE-ID:20260805T133000Z',
+        'DTSTART:20260805T120000Z',
+        'DTEND:20260805T121500Z',
+        'END:VEVENT',
+      ]),
+    );
+
+    expect(events.every((e) => e.dtend.getTime() > e.dtstart.getTime())).toBe(true);
+  });
+
+  it('keeps the original slot as recurrenceId so edits target the right instance', () => {
+    const events = expand(
+      series([
+        'BEGIN:VEVENT', 'UID:moved-1', 'SUMMARY:Busy',
+        'RECURRENCE-ID:20260729T133000Z',
+        'DTSTART:20260805T150000Z',
+        'DTEND:20260805T154500Z',
+        'END:VEVENT',
+      ]),
+    );
+
+    const moved = events.find((e) => e.dtstart.toISOString() === '2026-08-05T15:00:00.000Z')!;
+    expect(moved.recurrenceId?.toISOString()).toBe('2026-07-29T13:30:00.000Z');
+
+    const untouched = events.find((e) => e.dtstart.toISOString() === '2026-08-12T13:30:00.000Z')!;
+    expect(untouched.recurrenceId?.toISOString()).toBe('2026-08-12T13:30:00.000Z');
+  });
+
+  it('keeps expanding the rest of the series when one occurrence moves past the window', () => {
+    const events = expand(
+      series([
+        'BEGIN:VEVENT', 'UID:moved-1', 'SUMMARY:Busy',
+        'RECURRENCE-ID:20260729T133000Z',
+        'DTSTART:20270729T133000Z',
+        'DTEND:20270729T140000Z',
+        'END:VEVENT',
+      ]),
+    );
+
+    expect(events.map((e) => e.dtstart.toISOString())).toEqual([
+      '2026-08-05T13:30:00.000Z',
+      '2026-08-12T13:30:00.000Z',
+      '2026-08-19T13:30:00.000Z',
+    ]);
+  });
+
+  it('takes summary, location and attendees from the exception that carries them', () => {
+    const events = expand(
+      series([
+        'BEGIN:VEVENT', 'UID:moved-1',
+        'RECURRENCE-ID:20260805T133000Z',
+        'SUMMARY:Rescheduled review',
+        'LOCATION:https://cloud.example.com/call/tok9',
+        'ATTENDEE;CN=Alice:mailto:alice@example.com',
+        'DTSTART:20260805T150000Z',
+        'DTEND:20260805T154500Z',
+        'END:VEVENT',
+      ]),
+    );
+
+    const moved = events.find((e) => e.dtstart.toISOString() === '2026-08-05T15:00:00.000Z')!;
+    expect(moved.summary).toBe('Rescheduled review');
+    expect(moved.location).toBe('https://cloud.example.com/call/tok9');
+    expect(moved.talkUrl).toBe('https://cloud.example.com/call/tok9');
+    expect(moved.attendees.map((a) => a.email)).toEqual(['alice@example.com']);
+
+    const untouched = events.find((e) => e.dtstart.toISOString() === '2026-08-12T13:30:00.000Z')!;
+    expect(untouched.summary).toBe('Busy');
+    expect(untouched.location).toBeUndefined();
+    expect(untouched.attendees).toEqual([]);
+  });
+
+  it('falls back to the master for fields the exception does not restate', () => {
+    const events = expand(
+      series([
+        'BEGIN:VEVENT', 'UID:moved-1',
+        'RECURRENCE-ID:20260805T133000Z',
+        'DTSTART:20260805T150000Z',
+        'DTEND:20260805T154500Z',
+        'END:VEVENT',
+      ]),
+    );
+
+    const moved = events.find((e) => e.dtstart.toISOString() === '2026-08-05T15:00:00.000Z')!;
+    expect(moved.summary).toBe('Busy');
+  });
+
+  it('keeps an exception attached to its own series in a multi-UID feed', () => {
+    const feed = [
+      'BEGIN:VCALENDAR', 'VERSION:2.0',
+      'BEGIN:VEVENT',
+      'UID:series-a', 'SUMMARY:A',
+      'DTSTART:20260729T133000Z', 'DTEND:20260729T140000Z',
+      'RRULE:FREQ=WEEKLY;COUNT=2',
+      'END:VEVENT',
+      'BEGIN:VEVENT',
+      'UID:series-b', 'SUMMARY:B',
+      'DTSTART:20260729T133000Z', 'DTEND:20260729T140000Z',
+      'RRULE:FREQ=WEEKLY;COUNT=2',
+      'END:VEVENT',
+      'BEGIN:VEVENT',
+      'UID:series-a', 'SUMMARY:A moved',
+      'RECURRENCE-ID:20260805T133000Z',
+      'DTSTART:20260806T100000Z', 'DTEND:20260806T101500Z',
+      'END:VEVENT',
+      'END:VCALENDAR',
+    ].join('\r\n');
+
+    const events = parseIcsObjects([{ ics: feed, href: '/cal/feed.ics' }], calMeta, rangeStart, rangeEnd);
+    const starts = (uid: string) =>
+      events
+        .filter((e) => e.uid.startsWith(uid))
+        .map((e) => e.dtstart.toISOString())
+        .sort();
+
+    expect(starts('series-a')).toEqual(['2026-07-29T13:30:00.000Z', '2026-08-06T10:00:00.000Z']);
+    expect(starts('series-b')).toEqual(['2026-07-29T13:30:00.000Z', '2026-08-05T13:30:00.000Z']);
+  });
+
+  it('filters on the moved time, so an occurrence pulled into the window is emitted', () => {
+    const events = parseIcsObjects(
+      [{
+        ics: series([
+          'BEGIN:VEVENT', 'UID:moved-1', 'SUMMARY:Busy',
+          'RECURRENCE-ID:20260819T133000Z',
+          'DTSTART:20260810T100000Z',
+          'DTEND:20260810T103000Z',
+          'END:VEVENT',
+        ]),
+        href: '/cal/moved.ics',
+      }],
+      calMeta,
+      new Date('2026-08-10T00:00:00Z'),
+      new Date('2026-08-11T00:00:00Z'),
+    );
+
+    expect(events.map((e) => e.dtstart.toISOString())).toEqual(['2026-08-10T10:00:00.000Z']);
+  });
+});
+
 describe('parseIcsObjectsAsync', () => {
   const calMeta = { calendarId: 'cal-1', accountId: 'acc-1', color: '#0082c9' };
   const rangeStart = new Date('2026-06-01T00:00:00Z');
