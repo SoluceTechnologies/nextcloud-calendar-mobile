@@ -54,12 +54,14 @@ function localStamp(date: Date, timezone: string): string {
   return `${g('year')}${g('month')}${g('day')}T${g('hour')}${g('minute')}${g('second')}`;
 }
 
-function rruleLine(rule: RecurrenceRule): string {
+// RFC 5545: UNTIL must use the same value type as DTSTART, so all-day series
+// (DTSTART;VALUE=DATE) need a bare date rather than a UTC timestamp.
+function rruleLine(rule: RecurrenceRule, allDay = false): string {
   const parts: string[] = [`FREQ=${rule.freq}`];
   if (rule.interval && rule.interval > 1) parts.push(`INTERVAL=${rule.interval}`);
   if (rule.byDay && rule.byDay.length > 0) parts.push(`BYDAY=${rule.byDay.join(',')}`);
   if (rule.count) parts.push(`COUNT=${rule.count}`);
-  else if (rule.until) parts.push(`UNTIL=${utcStamp(rule.until)}`);
+  else if (rule.until) parts.push(`UNTIL=${allDay ? dateStamp(rule.until) : utcStamp(rule.until)}`);
   return `RRULE:${parts.join(';')}`;
 }
 
@@ -156,7 +158,7 @@ export function buildAllDayIcs(params: BuildAllDayIcsParams): string {
     `DTSTART;VALUE=DATE:${dateStamp(dtstart)}`,
     `DTEND;VALUE=DATE:${dateStamp(endExclusive)}`,
     ...textLines(summary, description, location),
-    ...(rrule ? [rruleLine(rrule)] : []),
+    ...(rrule ? [rruleLine(rrule, true)] : []),
     ...schedulingLines(organizerName, organizerEmail, attendees),
     ...extraLines,
     ...alarmLines(alarmMinutes),

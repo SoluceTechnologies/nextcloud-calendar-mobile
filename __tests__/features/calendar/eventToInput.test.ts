@@ -102,3 +102,29 @@ describe('eventToInput', () => {
     });
   });
 });
+
+describe('eventToInput recurrence end date', () => {
+  it('reads a date-only UNTIL of an all-day series as a local day, not a UTC instant', () => {
+    const input = eventToInput(
+      { ...base, allDay: true, isRecurring: true, rrule: 'RRULE:FREQ=WEEKLY;UNTIL=20260815' },
+      account
+    );
+    expect(input.rrule?.until).toEqual(new Date(2026, 7, 15));
+  });
+
+  it('leaves the UTC UNTIL of a timed series untouched', () => {
+    const input = eventToInput(
+      { ...base, isRecurring: true, rrule: 'RRULE:FREQ=WEEKLY;UNTIL=20260815T093000Z' },
+      account
+    );
+    expect(input.rrule?.until?.toISOString()).toBe('2026-08-15T09:30:00.000Z');
+  });
+
+  it('keeps COUNT as-is', () => {
+    const input = eventToInput(
+      { ...base, allDay: true, isRecurring: true, rrule: 'RRULE:FREQ=WEEKLY;COUNT=4' },
+      account
+    );
+    expect(input.rrule).toEqual({ freq: 'WEEKLY', count: 4 });
+  });
+});

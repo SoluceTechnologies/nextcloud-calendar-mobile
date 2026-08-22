@@ -115,3 +115,55 @@ describe('EventForm all-day end date', () => {
     expect(onSubmit).not.toHaveBeenCalled();
   });
 });
+
+describe('EventForm recurrence end condition', () => {
+  beforeEach(async () => {
+    await i18n.changeLanguage('en');
+  });
+
+  it('submits the occurrence count chosen in the recurrence picker', () => {
+    const onSubmit = jest.fn();
+    const { getByText, getByDisplayValue } = render(
+      <EventForm
+        {...baseProps}
+        onSubmit={onSubmit}
+        initialValues={{ summary: 'Standup', rrule: { freq: 'WEEKLY' } }}
+      />
+    );
+
+    fireEvent.press(getByText('After'));
+    fireEvent.changeText(getByDisplayValue('10'), '6');
+    fireEvent.press(getByText('Save Event'));
+
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        rrule: expect.objectContaining({ freq: 'WEEKLY', count: 6, until: undefined }),
+      })
+    );
+  });
+
+  it('defaults the recurrence end date relative to the event start', () => {
+    const onSubmit = jest.fn();
+    const { getByText } = render(
+      <EventForm
+        {...baseProps}
+        onSubmit={onSubmit}
+        initialValues={{
+          summary: 'Standup',
+          dtstart: new Date(2026, 5, 1, 9, 0, 0),
+          dtend: new Date(2026, 5, 1, 10, 0, 0),
+          rrule: { freq: 'WEEKLY' },
+        }}
+      />
+    );
+
+    fireEvent.press(getByText('On date'));
+    fireEvent.press(getByText('Save Event'));
+
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        rrule: expect.objectContaining({ until: new Date(2026, 6, 1, 23, 59, 59) }),
+      })
+    );
+  });
+});

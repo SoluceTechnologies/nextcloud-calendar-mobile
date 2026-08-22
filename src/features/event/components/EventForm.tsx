@@ -336,7 +336,7 @@ export function EventForm({
           hAlign="stretch"
         >
           <View style={twoColDates ? styles.grow : undefined}>
-            <RecurrencePicker value={rrule} onChange={setRrule} />
+            <RecurrencePicker value={rrule} onChange={setRrule} dtstart={dtstart} allDay={allDay} />
           </View>
           <View style={twoColDates ? styles.grow : undefined}>
             <AlertPicker value={alarmMinutes} onChange={setAlarmMinutes} />

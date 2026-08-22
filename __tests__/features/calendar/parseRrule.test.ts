@@ -32,9 +32,9 @@ describe('parseRrule', () => {
     expect(parsed?.until?.toISOString()).toBe('2026-08-15T09:30:00.000Z');
   });
 
-  it('reads a date-only UNTIL', () => {
+  it('reads a date-only UNTIL as a local calendar day, like every other all-day date', () => {
     const parsed = parseRrule('RRULE:FREQ=DAILY;UNTIL=20260815');
-    expect(parsed?.until?.toISOString()).toBe('2026-08-15T00:00:00.000Z');
+    expect(parsed?.until).toEqual(new Date(2026, 7, 15));
   });
 
   it('round-trips every rule the app itself can write', () => {
@@ -77,9 +77,7 @@ describe('parseRrule', () => {
   });
 
   it('still reads the date-only and Z-suffixed UNTIL forms', () => {
-    expect(parseRrule('RRULE:FREQ=DAILY;UNTIL=20260815')?.until?.toISOString()).toBe(
-      '2026-08-15T00:00:00.000Z'
-    );
+    expect(parseRrule('RRULE:FREQ=DAILY;UNTIL=20260815')?.until).toEqual(new Date(2026, 7, 15));
     expect(
       parseRrule('RRULE:FREQ=DAILY;UNTIL=20260815T093000Z')?.until?.toISOString()
     ).toBe('2026-08-15T09:30:00.000Z');
