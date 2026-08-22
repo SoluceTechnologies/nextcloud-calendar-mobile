@@ -7,10 +7,10 @@ const SUPPORTED = new Set(['FREQ', 'INTERVAL', 'BYDAY', 'COUNT', 'UNTIL']);
 function parseUntil(raw: string): Date | undefined {
   const m = /^(\d{4})(\d{2})(\d{2})(?:T(\d{2})(\d{2})(\d{2})Z)?$/.exec(raw);
   if (!m) return undefined;
-  const [, y, mo, d, h = '0', mi = '0', s = '0'] = m;
-  const date = new Date(
-    Date.UTC(Number(y), Number(mo) - 1, Number(d), Number(h), Number(mi), Number(s))
-  );
+  const [, y, mo, d, h, mi, s] = m;
+  const date = h === undefined
+    ? new Date(Number(y), Number(mo) - 1, Number(d))
+    : new Date(Date.UTC(Number(y), Number(mo) - 1, Number(d), Number(h), Number(mi), Number(s)));
   return Number.isNaN(date.getTime()) ? undefined : date;
 }
 

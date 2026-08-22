@@ -1,4 +1,5 @@
 import { buildIcs, buildAllDayIcs, shiftIcsDates } from '@/utils/ics';
+import { parseRrule } from '@/features/calendar/utils/parseRrule';
 import type { Attendee } from '../../src/types';
 
 const base = {
@@ -12,6 +13,18 @@ const base = {
   organizerName: 'John Doe',
   attendees: [] as Attendee[],
   timezone: 'UTC',
+};
+
+const allDayBase = {
+  uid: 'allday-uid',
+  summary: 'Holiday',
+  description: '',
+  location: '',
+  dtstart: new Date(2026, 5, 15),
+  dtend: new Date(2026, 5, 15),
+  organizerEmail: 'john@example.com',
+  organizerName: 'John Doe',
+  attendees: [] as Attendee[],
 };
 
 describe('buildIcs', () => {
@@ -93,18 +106,6 @@ describe('buildIcs', () => {
 });
 
 describe('buildAllDayIcs', () => {
-  const allDayBase = {
-    uid: 'allday-uid',
-    summary: 'Holiday',
-    description: '',
-    location: '',
-    dtstart: new Date(2026, 5, 15),
-    dtend: new Date(2026, 5, 15),
-    organizerEmail: 'john@example.com',
-    organizerName: 'John Doe',
-    attendees: [] as Attendee[],
-  };
-
   it('uses DATE value type for DTSTART and exclusive DTEND (single day)', () => {
     const ics = buildAllDayIcs(allDayBase);
     expect(ics).toContain('DTSTART;VALUE=DATE:20260615\r\n');
@@ -130,6 +131,68 @@ describe('buildAllDayIcs', () => {
   it('does not contain a TZID in DTSTART', () => {
     const ics = buildAllDayIcs(allDayBase);
     expect(ics).not.toContain('TZID');
+  });
+
+  it('writes UNTIL as a DATE so it matches the DATE-valued DTSTART', () => {
+    const ics = buildAllDayIcs({
+      ...allDayBase,
+      rrule: { freq: 'WEEKLY', until: new Date(2026, 6, 20, 23, 59, 59) },
+    });
+    expect(ics).toContain('RRULE:FREQ=WEEKLY;UNTIL=20260720\r\n');
+  });
+
+  it('writes COUNT unchanged for all-day series', () => {
+    const ics = buildAllDayIcs({ ...allDayBase, rrule: { freq: 'DAILY', count: 5 } });
+    expect(ics).toContain('RRULE:FREQ=DAILY;COUNT=5\r\n');
+  });
+});
+
+describe('recurrence end date round-trip', () => {
+  function rruleOf(ics: string): string {
+    return ics.split('\r\n').find((line) => line.startsWith('RRULE:'))!;
+  }
+
+  it('survives a write/read cycle unchanged for an all-day series', () => {
+    const until = new Date(2026, 6, 20);
+    const ics = buildAllDayIcs({ ...allDayBase, rrule: { freq: 'WEEKLY', until } });
+
+    expect(parseRrule(rruleOf(ics))?.until).toEqual(until);
+  });
+
+  it('survives a write/read cycle unchanged for a timed series', () => {
+    const until = new Date(2026, 6, 20, 23, 59, 59);
+    const ics = buildIcs({ ...base, rrule: { freq: 'WEEKLY', until } });
+
+    expect(parseRrule(rruleOf(ics))?.until).toEqual(until);
+  });
+});
+
+describe('rruleLine end conditions', () => {
+  it('writes COUNT for a bounded number of occurrences', () => {
+    const ics = buildIcs({ ...base, rrule: { freq: 'WEEKLY', count: 10 } });
+    expect(ics).toContain('RRULE:FREQ=WEEKLY;COUNT=10\r\n');
+  });
+
+  it('writes UNTIL as a UTC timestamp for timed events', () => {
+    const ics = buildIcs({
+      ...base,
+      rrule: { freq: 'WEEKLY', until: new Date(Date.UTC(2026, 6, 20, 21, 59, 59)) },
+    });
+    expect(ics).toContain('RRULE:FREQ=WEEKLY;UNTIL=20260720T215959Z\r\n');
+  });
+
+  it('prefers COUNT over UNTIL when both are somehow set', () => {
+    const ics = buildIcs({
+      ...base,
+      rrule: { freq: 'WEEKLY', count: 3, until: new Date(Date.UTC(2026, 6, 20)) },
+    });
+    expect(ics).toContain('RRULE:FREQ=WEEKLY;COUNT=3\r\n');
+    expect(ics).not.toContain('UNTIL');
+  });
+
+  it('keeps BYDAY before the end condition', () => {
+    const ics = buildIcs({ ...base, rrule: { freq: 'WEEKLY', byDay: ['MO', 'WE'], count: 4 } });
+    expect(ics).toContain('RRULE:FREQ=WEEKLY;BYDAY=MO,WE;COUNT=4\r\n');
   });
 });
 
