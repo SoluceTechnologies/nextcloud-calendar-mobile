@@ -110,6 +110,11 @@
     "dayTh": "Ju",
     "dayFr": "Vi",
     "daySa": "Sa",
+    "ends": "Termina",
+    "endsNever": "Nunca",
+    "endsAfter": "Después de",
+    "endsOn": "En fecha",
+    "occurrences": "repeticiones",
     "talkCreateRoom": "Crear sala Talk",
     "talkRoomHint": "Se creará una sala Talk y se añadirá al evento.",
     "talkInviteOnly": "Solo por invitación",
@@ -273,5 +278,17 @@
       "today": "Hoy",
       "tomorrow": "Mañana"
     }
+  },
+  "certTrust": {
+    "title": "Certificado no confiable",
+    "body": "El servidor {{host}} presentó un certificado que no está firmado por una autoridad conocida.",
+    "warning": "Continúe solo si esta huella coincide con la de su servidor. Una huella incorrecta significa que alguien podría estar interceptando su conexión.",
+    "fingerprint": "Huella SHA-256",
+    "subject": "Emitido para",
+    "issuer": "Emitido por",
+    "validFrom": "Válido desde",
+    "validTo": "Válido hasta",
+    "trust": "Confiar y conectar",
+    "cancel": "Cancelar"
   }
 }

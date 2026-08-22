@@ -110,6 +110,11 @@
     "dayTh": "Qui",
     "dayFr": "Sex",
     "daySa": "Sáb",
+    "ends": "Termina",
+    "endsNever": "Nunca",
+    "endsAfter": "Após",
+    "endsOn": "Em data",
+    "occurrences": "ocorrências",
     "talkCreateRoom": "Criar sala do Talk",
     "talkRoomHint": "Será criada uma sala do Talk e adicionada ao evento.",
     "talkInviteOnly": "Apenas por convite",
@@ -273,5 +278,17 @@
       "today": "Hoje",
       "tomorrow": "Amanhã"
     }
+  },
+  "certTrust": {
+    "title": "Certificado não confiável",
+    "body": "O servidor {{host}} apresentou um certificado que não é assinado por uma autoridade conhecida.",
+    "warning": "Continue apenas se esta impressão digital corresponder ao seu servidor. Uma impressão digital incorreta significa que alguém pode estar a intercetar a sua ligação.",
+    "fingerprint": "Impressão digital SHA-256",
+    "subject": "Emitido para",
+    "issuer": "Emitido por",
+    "validFrom": "Válido desde",
+    "validTo": "Válido até",
+    "trust": "Confiar e ligar",
+    "cancel": "Cancelar"
   }
 }

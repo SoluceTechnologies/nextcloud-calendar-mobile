@@ -3,6 +3,33 @@ import { schemaMigrations, addColumns } from '@nozbe/watermelondb/Schema/migrati
 export const migrations = schemaMigrations({
   migrations: [
     {
+      toVersion: 6,
+      steps: [
+        addColumns({
+          table: 'events',
+          columns: [{ name: 'recurrence_id', type: 'number', isOptional: true }],
+        }),
+      ],
+    },
+    {
+      toVersion: 5,
+      steps: [
+        addColumns({
+          table: 'calendars',
+          columns: [{ name: 'supports_events', type: 'boolean', isOptional: true }],
+        }),
+      ],
+    },
+    {
+      toVersion: 4,
+      steps: [
+        addColumns({
+          table: 'events',
+          columns: [{ name: 'is_task', type: 'boolean', isOptional: true }],
+        }),
+      ],
+    },
+    {
       toVersion: 3,
       steps: [
         addColumns({

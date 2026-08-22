@@ -110,6 +110,11 @@
     "dayTh": "Th",
     "dayFr": "Fr",
     "daySa": "Sa",
+    "ends": "Ends",
+    "endsNever": "Never",
+    "endsAfter": "After",
+    "endsOn": "On date",
+    "occurrences": "occurrences",
     "talkCreateRoom": "Create Talk Room",
     "talkRoomHint": "A Talk room will be created and added to the event.",
     "talkInviteOnly": "Invite only",
@@ -273,5 +278,17 @@
       "today": "Today",
       "tomorrow": "Tomorrow"
     }
+  },
+  "certTrust": {
+    "title": "Untrusted certificate",
+    "body": "The server {{host}} presented a certificate that isn't signed by a known authority.",
+    "warning": "Only continue if this fingerprint matches your server. A wrong fingerprint means someone may be intercepting your connection.",
+    "fingerprint": "SHA-256 fingerprint",
+    "subject": "Issued to",
+    "issuer": "Issued by",
+    "validFrom": "Valid from",
+    "validTo": "Valid until",
+    "trust": "Trust & connect",
+    "cancel": "Cancel"
   }
 }

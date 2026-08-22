@@ -16,6 +16,7 @@ import { setupOnlineManager } from '@/services/shared/network';
 import { initializeDatabaseOnStartup } from '@/database/utils/initialization';
 import { syncCalendars } from '@/database/sync';
 import { migrateFromAsyncStorage } from '@/storage';
+import { pushPinsToNative } from '@/services/shared/certPins';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -34,6 +35,9 @@ export function useAppInitialization() {
     (async () => {
       try {
         await migrateFromAsyncStorage();
+        // Load trusted self-signed cert pins into the native layer before any
+        // network call so pinned hosts connect without a prompt.
+        pushPinsToNative();
         await Promise.all([
           useAccountStore.persist.rehydrate(),
           useCalendarStore.persist.rehydrate(),

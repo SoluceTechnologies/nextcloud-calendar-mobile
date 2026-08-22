@@ -43,6 +43,20 @@ describe('EventForm calendar picker', () => {
     const { queryByText } = render(<EventForm {...baseProps} />);
     expect(queryByText(LOCKED_CAPTION)).toBeNull();
   });
+
+  it('excludes calendars that cannot hold events (e.g. Deck boards) from the picker', () => {
+    const withDeck: CalendarMeta[] = [
+      ...calendars,
+      {
+        id: 'deck-url', accountId: 'acc-1', displayName: 'Deck Roadmap', color: '#ff0000',
+        ctag: '1', url: 'https://cloud.example.com/remote.php/dav/calendars/john/app-generated--deck--board-3/',
+        slug: 'app-generated--deck--board-3', supportsEvents: false,
+      },
+    ];
+    const { queryByText, getByText } = render(<EventForm {...baseProps} calendars={withDeck} />);
+    expect(getByText('Personal')).toBeTruthy();
+    expect(queryByText('Deck Roadmap')).toBeNull();
+  });
 });
 
 describe('EventForm all-day end date', () => {
@@ -99,5 +113,57 @@ describe('EventForm all-day end date', () => {
     fireEvent.press(getByText('Save Event'));
     expect(getByText('End time must be after start time.')).toBeTruthy();
     expect(onSubmit).not.toHaveBeenCalled();
+  });
+});
+
+describe('EventForm recurrence end condition', () => {
+  beforeEach(async () => {
+    await i18n.changeLanguage('en');
+  });
+
+  it('submits the occurrence count chosen in the recurrence picker', () => {
+    const onSubmit = jest.fn();
+    const { getByText, getByDisplayValue } = render(
+      <EventForm
+        {...baseProps}
+        onSubmit={onSubmit}
+        initialValues={{ summary: 'Standup', rrule: { freq: 'WEEKLY' } }}
+      />
+    );
+
+    fireEvent.press(getByText('After'));
+    fireEvent.changeText(getByDisplayValue('10'), '6');
+    fireEvent.press(getByText('Save Event'));
+
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        rrule: expect.objectContaining({ freq: 'WEEKLY', count: 6, until: undefined }),
+      })
+    );
+  });
+
+  it('defaults the recurrence end date relative to the event start', () => {
+    const onSubmit = jest.fn();
+    const { getByText } = render(
+      <EventForm
+        {...baseProps}
+        onSubmit={onSubmit}
+        initialValues={{
+          summary: 'Standup',
+          dtstart: new Date(2026, 5, 1, 9, 0, 0),
+          dtend: new Date(2026, 5, 1, 10, 0, 0),
+          rrule: { freq: 'WEEKLY' },
+        }}
+      />
+    );
+
+    fireEvent.press(getByText('On date'));
+    fireEvent.press(getByText('Save Event'));
+
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        rrule: expect.objectContaining({ until: new Date(2026, 6, 1, 23, 59, 59) }),
+      })
+    );
   });
 });

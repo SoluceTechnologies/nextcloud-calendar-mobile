@@ -40,6 +40,7 @@ function writeCalendar(row: Calendar, c: CalendarMeta, accountId: string): void 
   row.isSubscribed = c.isSubscribed ?? false;
   row.isReadOnly = c.isReadOnly ?? false;
   row.sourceUrl = c.sourceUrl ?? undefined;
+  row.supportsEvents = c.supportsEvents ?? true;
 }
 
 export function writeEvent(row: Event, ev: CalendarEvent): void {
@@ -59,7 +60,9 @@ export function writeEvent(row: Event, ev: CalendarEvent): void {
   row.talkUrl = ev.talkUrl ?? undefined;
   row.isRecurring = ev.isRecurring;
   row.rrule = ev.rrule ?? undefined;
+  row.recurrenceId = ev.recurrenceId?.getTime() ?? undefined;
   row.alarmMinutes = ev.alarmMinutes ?? undefined;
+  row.isTask = ev.isTask ?? false;
 }
 
 function calendarUnchanged(row: Calendar, c: CalendarMeta): boolean {
@@ -71,6 +74,7 @@ function calendarUnchanged(row: Calendar, c: CalendarMeta): boolean {
     row.slug === c.slug &&
     (row.isSubscribed ?? false) === (c.isSubscribed ?? false) &&
     (row.isReadOnly ?? false) === (c.isReadOnly ?? false) &&
+    (row.supportsEvents ?? true) === (c.supportsEvents ?? true) &&
     (row.sourceUrl ?? undefined) === (c.sourceUrl ?? undefined)
   );
 }
@@ -87,6 +91,8 @@ function eventUnchanged(row: Event, ev: CalendarEvent): boolean {
     row.calendarId === ev.calendarId &&
     row.href === ev.href &&
     (row.rrule ?? undefined) === (ev.rrule ?? undefined) &&
+    (row.recurrenceId ?? undefined) === (ev.recurrenceId?.getTime() ?? undefined) &&
+    !!row.isTask === !!ev.isTask &&
     (row.attendees ?? '[]') === JSON.stringify(ev.attendees ?? [])
   );
 }
@@ -159,14 +165,6 @@ export async function syncEvents(
       )
       .fetch();
 
-    // A local write during either fetch above (the remote pull or this query)
-    // means this pull is now stale, so it must yield. Bail here, before any
-    // prepareUpdate/prepareMarkAsDeleted: those mutate the cached record
-    // instances synchronously and are cleared only by db.batch. Preparing and
-    // then returning would strand an instance with pending changes, and the
-    // next sync's prepareUpdate on that same cached instance throws "Cannot
-    // update a record with pending changes". Everything from here to the batch
-    // is synchronous, so a single check now covers the whole window.
     if (localWriteEpoch() !== epoch) return;
 
     const byKey = new Map<string, Event>();

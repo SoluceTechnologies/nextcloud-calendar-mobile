@@ -53,6 +53,7 @@ describe('parseIcsObjects', () => {
     const events = parseIcsObjects([{ ics: sampleIcs, href: '/cal/event.ics' }], calMeta);
     expect(events).toHaveLength(1);
     const e = events[0];
+    expect(e.isTask).toBeFalsy();
     expect(e.uid).toBe('event-abc-123');
     expect(e.summary).toBe('Team Meeting');
     expect(e.description).toBe('Weekly sync');
@@ -178,6 +179,189 @@ END:VCALENDAR`;
   });
 });
 
+describe('recurring expansion — moved occurrences (RECURRENCE-ID overrides)', () => {
+  const calMeta = { calendarId: 'cal-1', accountId: 'acc-1', color: '#0082c9' };
+  const rangeStart = new Date('2026-07-27T00:00:00Z');
+  const rangeEnd = new Date('2026-08-24T00:00:00Z');
+
+  const series = (exception: string[]) =>
+    [
+      'BEGIN:VCALENDAR', 'VERSION:2.0',
+      'BEGIN:VEVENT',
+      'UID:moved-1',
+      'SUMMARY:Busy',
+      'DTSTART:20260729T133000Z',
+      'DTEND:20260729T140000Z',
+      'RRULE:FREQ=WEEKLY;COUNT=4',
+      'END:VEVENT',
+      ...exception,
+      'END:VCALENDAR',
+    ].join('\r\n');
+
+  const expand = (ics: string) =>
+    parseIcsObjects([{ ics, href: '/cal/moved.ics' }], calMeta, rangeStart, rangeEnd);
+
+  it('takes the start from the exception DTSTART, not from RECURRENCE-ID', () => {
+    const events = expand(
+      series([
+        'BEGIN:VEVENT', 'UID:moved-1', 'SUMMARY:Busy',
+        'RECURRENCE-ID:20260729T133000Z',
+        'DTSTART:20260805T150000Z',
+        'DTEND:20260805T154500Z',
+        'END:VEVENT',
+      ]),
+    );
+
+    const moved = events.find((e) => e.dtend.toISOString() === '2026-08-05T15:45:00.000Z')!;
+    expect(moved).toBeDefined();
+    expect(moved.dtstart.toISOString()).toBe('2026-08-05T15:00:00.000Z');
+    expect(moved.dtend.getTime() - moved.dtstart.getTime()).toBe(45 * 60_000);
+  });
+
+  it('never yields an occurrence that ends before it starts', () => {
+    const events = expand(
+      series([
+        'BEGIN:VEVENT', 'UID:moved-1', 'SUMMARY:Busy',
+        'RECURRENCE-ID:20260805T133000Z',
+        'DTSTART:20260805T120000Z',
+        'DTEND:20260805T121500Z',
+        'END:VEVENT',
+      ]),
+    );
+
+    expect(events.every((e) => e.dtend.getTime() > e.dtstart.getTime())).toBe(true);
+  });
+
+  it('keeps the original slot as recurrenceId so edits target the right instance', () => {
+    const events = expand(
+      series([
+        'BEGIN:VEVENT', 'UID:moved-1', 'SUMMARY:Busy',
+        'RECURRENCE-ID:20260729T133000Z',
+        'DTSTART:20260805T150000Z',
+        'DTEND:20260805T154500Z',
+        'END:VEVENT',
+      ]),
+    );
+
+    const moved = events.find((e) => e.dtstart.toISOString() === '2026-08-05T15:00:00.000Z')!;
+    expect(moved.recurrenceId?.toISOString()).toBe('2026-07-29T13:30:00.000Z');
+
+    const untouched = events.find((e) => e.dtstart.toISOString() === '2026-08-12T13:30:00.000Z')!;
+    expect(untouched.recurrenceId?.toISOString()).toBe('2026-08-12T13:30:00.000Z');
+  });
+
+  it('keeps expanding the rest of the series when one occurrence moves past the window', () => {
+    const events = expand(
+      series([
+        'BEGIN:VEVENT', 'UID:moved-1', 'SUMMARY:Busy',
+        'RECURRENCE-ID:20260729T133000Z',
+        'DTSTART:20270729T133000Z',
+        'DTEND:20270729T140000Z',
+        'END:VEVENT',
+      ]),
+    );
+
+    expect(events.map((e) => e.dtstart.toISOString())).toEqual([
+      '2026-08-05T13:30:00.000Z',
+      '2026-08-12T13:30:00.000Z',
+      '2026-08-19T13:30:00.000Z',
+    ]);
+  });
+
+  it('takes summary, location and attendees from the exception that carries them', () => {
+    const events = expand(
+      series([
+        'BEGIN:VEVENT', 'UID:moved-1',
+        'RECURRENCE-ID:20260805T133000Z',
+        'SUMMARY:Rescheduled review',
+        'LOCATION:https://cloud.example.com/call/tok9',
+        'ATTENDEE;CN=Alice:mailto:alice@example.com',
+        'DTSTART:20260805T150000Z',
+        'DTEND:20260805T154500Z',
+        'END:VEVENT',
+      ]),
+    );
+
+    const moved = events.find((e) => e.dtstart.toISOString() === '2026-08-05T15:00:00.000Z')!;
+    expect(moved.summary).toBe('Rescheduled review');
+    expect(moved.location).toBe('https://cloud.example.com/call/tok9');
+    expect(moved.talkUrl).toBe('https://cloud.example.com/call/tok9');
+    expect(moved.attendees.map((a) => a.email)).toEqual(['alice@example.com']);
+
+    const untouched = events.find((e) => e.dtstart.toISOString() === '2026-08-12T13:30:00.000Z')!;
+    expect(untouched.summary).toBe('Busy');
+    expect(untouched.location).toBeUndefined();
+    expect(untouched.attendees).toEqual([]);
+  });
+
+  it('falls back to the master for fields the exception does not restate', () => {
+    const events = expand(
+      series([
+        'BEGIN:VEVENT', 'UID:moved-1',
+        'RECURRENCE-ID:20260805T133000Z',
+        'DTSTART:20260805T150000Z',
+        'DTEND:20260805T154500Z',
+        'END:VEVENT',
+      ]),
+    );
+
+    const moved = events.find((e) => e.dtstart.toISOString() === '2026-08-05T15:00:00.000Z')!;
+    expect(moved.summary).toBe('Busy');
+  });
+
+  it('keeps an exception attached to its own series in a multi-UID feed', () => {
+    const feed = [
+      'BEGIN:VCALENDAR', 'VERSION:2.0',
+      'BEGIN:VEVENT',
+      'UID:series-a', 'SUMMARY:A',
+      'DTSTART:20260729T133000Z', 'DTEND:20260729T140000Z',
+      'RRULE:FREQ=WEEKLY;COUNT=2',
+      'END:VEVENT',
+      'BEGIN:VEVENT',
+      'UID:series-b', 'SUMMARY:B',
+      'DTSTART:20260729T133000Z', 'DTEND:20260729T140000Z',
+      'RRULE:FREQ=WEEKLY;COUNT=2',
+      'END:VEVENT',
+      'BEGIN:VEVENT',
+      'UID:series-a', 'SUMMARY:A moved',
+      'RECURRENCE-ID:20260805T133000Z',
+      'DTSTART:20260806T100000Z', 'DTEND:20260806T101500Z',
+      'END:VEVENT',
+      'END:VCALENDAR',
+    ].join('\r\n');
+
+    const events = parseIcsObjects([{ ics: feed, href: '/cal/feed.ics' }], calMeta, rangeStart, rangeEnd);
+    const starts = (uid: string) =>
+      events
+        .filter((e) => e.uid.startsWith(uid))
+        .map((e) => e.dtstart.toISOString())
+        .sort();
+
+    expect(starts('series-a')).toEqual(['2026-07-29T13:30:00.000Z', '2026-08-06T10:00:00.000Z']);
+    expect(starts('series-b')).toEqual(['2026-07-29T13:30:00.000Z', '2026-08-05T13:30:00.000Z']);
+  });
+
+  it('filters on the moved time, so an occurrence pulled into the window is emitted', () => {
+    const events = parseIcsObjects(
+      [{
+        ics: series([
+          'BEGIN:VEVENT', 'UID:moved-1', 'SUMMARY:Busy',
+          'RECURRENCE-ID:20260819T133000Z',
+          'DTSTART:20260810T100000Z',
+          'DTEND:20260810T103000Z',
+          'END:VEVENT',
+        ]),
+        href: '/cal/moved.ics',
+      }],
+      calMeta,
+      new Date('2026-08-10T00:00:00Z'),
+      new Date('2026-08-11T00:00:00Z'),
+    );
+
+    expect(events.map((e) => e.dtstart.toISOString())).toEqual(['2026-08-10T10:00:00.000Z']);
+  });
+});
+
 describe('parseIcsObjectsAsync', () => {
   const calMeta = { calendarId: 'cal-1', accountId: 'acc-1', color: '#0082c9' };
   const rangeStart = new Date('2026-06-01T00:00:00Z');
@@ -286,5 +470,127 @@ END:VCALENDAR`;
   it('reports no alarm when the event carries no VALARM', () => {
     const [event] = parseIcsObjects([{ ics: sampleIcs, href: '/cal/event.ics' }], calMeta);
     expect(event.alarmMinutes).toBeUndefined();
+  });
+});
+
+describe('parseIcsObjects VTODO (Deck cards / tasks)', () => {
+  const calMeta = { calendarId: 'deck-1', accountId: 'acc-1', color: '#ff0000' };
+
+  // Nextcloud Deck exposes each board card as a VTODO with a DUE date.
+  const deckCardTimed = `BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//Nextcloud deck//EN
+BEGIN:VTODO
+UID:deck-card-42
+SUMMARY:Ship the release
+DESCRIPTION:Board: Roadmap
+DUE:20260815T090000Z
+STATUS:NEEDS-ACTION
+END:VTODO
+END:VCALENDAR`;
+
+  const deckCardAllDay = `BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//Nextcloud deck//EN
+BEGIN:VTODO
+UID:deck-card-allday
+SUMMARY:Review PRs
+DUE;VALUE=DATE:20260815
+END:VTODO
+END:VCALENDAR`;
+
+  const deckCardNoDate = `BEGIN:VCALENDAR
+VERSION:2.0
+BEGIN:VTODO
+UID:deck-card-nodate
+SUMMARY:Someday task
+END:VTODO
+END:VCALENDAR`;
+
+  const deckCardSpan = `BEGIN:VCALENDAR
+VERSION:2.0
+BEGIN:VTODO
+UID:deck-card-span
+SUMMARY:Sprint
+DTSTART:20260815T090000Z
+DUE:20260815T173000Z
+END:VTODO
+END:VCALENDAR`;
+
+  it('parses a DUE-only VTODO with a default 15-minute duration so it renders', () => {
+    const events = parseIcsObjects([{ ics: deckCardTimed, href: '/deck/42.ics' }], calMeta);
+    expect(events).toHaveLength(1);
+    const e = events[0];
+    expect(e.uid).toBe('deck-card-42');
+    expect(e.summary).toBe('Ship the release');
+    expect(e.description).toBe('Board: Roadmap');
+    expect(e.allDay).toBe(false);
+    expect(e.dtstart.toISOString()).toBe('2026-08-15T09:00:00.000Z');
+    // DUE only -> non-zero block ending 15 min later (not a zero-height event).
+    expect(e.dtend.toISOString()).toBe('2026-08-15T09:15:00.000Z');
+    expect(e.dtend.getTime()).toBeGreaterThan(e.dtstart.getTime());
+    expect(e.color).toBe('#ff0000');
+    expect(e.calendarId).toBe('deck-1');
+    expect(e.isTask).toBe(true);
+  });
+
+  it('spans a timed VTODO that carries both DTSTART and DUE', () => {
+    const events = parseIcsObjects([{ ics: deckCardSpan, href: '/deck/span.ics' }], calMeta);
+    expect(events).toHaveLength(1);
+    expect(events[0].allDay).toBe(false);
+    expect(events[0].dtstart.toISOString()).toBe('2026-08-15T09:00:00.000Z');
+    expect(events[0].dtend.toISOString()).toBe('2026-08-15T17:30:00.000Z');
+  });
+
+  it('spans an all-day VTODO that carries both DTSTART and DUE (date-valued)', () => {
+    const ics = `BEGIN:VCALENDAR
+VERSION:2.0
+BEGIN:VTODO
+UID:deck-allday-span
+SUMMARY:Multi-day task
+DTSTART;VALUE=DATE:20260815
+DUE;VALUE=DATE:20260818
+END:VTODO
+END:VCALENDAR`;
+    const events = parseIcsObjects([{ ics, href: '/deck/ads.ics' }], calMeta);
+    expect(events).toHaveLength(1);
+    const e = events[0];
+    expect(e.allDay).toBe(true);
+    // Exclusive date-valued end -> last shown day is Aug 17, like an all-day VEVENT.
+    expect(e.dtstart.getFullYear()).toBe(2026);
+    expect(e.dtstart.getMonth()).toBe(7);
+    expect(e.dtstart.getDate()).toBe(15);
+    expect(e.dtend.getDate()).toBe(17);
+    expect(e.dtend.getTime()).toBeGreaterThan(e.dtstart.getTime());
+  });
+
+  it('does not invert a same-day all-day VTODO with DTSTART === DUE', () => {
+    const ics = `BEGIN:VCALENDAR
+VERSION:2.0
+BEGIN:VTODO
+UID:deck-allday-same
+SUMMARY:Same-day task
+DTSTART;VALUE=DATE:20260815
+DUE;VALUE=DATE:20260815
+END:VTODO
+END:VCALENDAR`;
+    const events = parseIcsObjects([{ ics, href: '/deck/same.ics' }], calMeta);
+    expect(events).toHaveLength(1);
+    const e = events[0];
+    expect(e.allDay).toBe(true);
+    // Clamped to a single all-day cell rather than ending a day early.
+    expect(e.dtend.getTime()).toBe(e.dtstart.getTime());
+  });
+
+  it('parses an all-day VTODO (DATE-valued DUE)', () => {
+    const events = parseIcsObjects([{ ics: deckCardAllDay, href: '/deck/ad.ics' }], calMeta);
+    expect(events).toHaveLength(1);
+    expect(events[0].allDay).toBe(true);
+    expect(events[0].summary).toBe('Review PRs');
+  });
+
+  it('skips a VTODO without any date (cannot place on agenda)', () => {
+    const events = parseIcsObjects([{ ics: deckCardNoDate, href: '/deck/nd.ics' }], calMeta);
+    expect(events).toHaveLength(0);
   });
 });

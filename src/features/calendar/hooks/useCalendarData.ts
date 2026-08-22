@@ -39,14 +39,19 @@ export function useCalendarData(date: Date) {
     (async () => {
       try {
         await syncEvents(activeAccount, calendars, start, end);
-      } catch {
+      } catch (error) {
+        console.warn('[useCalendarData] syncEvents failed:', String(error));
       } finally {
         if (active) setSyncing(false);
       }
       const prev = monthRangeAt(date, -1);
       const next = monthRangeAt(date, 1);
-      void syncEvents(activeAccount, calendars, prev.start, prev.end, false).catch(() => undefined);
-      void syncEvents(activeAccount, calendars, next.start, next.end, false).catch(() => undefined);
+      void syncEvents(activeAccount, calendars, prev.start, prev.end, false).catch((e) => {
+        console.warn('[useCalendarData] prev syncEvents failed:', String(e));
+      });
+      void syncEvents(activeAccount, calendars, next.start, next.end, false).catch((e) => {
+        console.warn('[useCalendarData] next syncEvents failed:', String(e));
+      });
     })();
     return () => {
       active = false;
@@ -54,10 +59,16 @@ export function useCalendarData(date: Date) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeAccount?.id, calendars, start.getTime(), end.getTime()]);
 
-  const allEvents = useMemo(
-    () => normalizeEvents(dbEvents.filter((e) => !hiddenCalendarIds.includes(e.calendarId))),
-    [dbEvents, hiddenCalendarIds],
-  );
+  const allEvents = useMemo(() => {
+    const nonEditableCalendarIds = new Set(
+      calendars.filter((c) => c.isReadOnly || c.isSubscribed).map((c) => c.id),
+    );
+    return normalizeEvents(
+      dbEvents.filter((e) => !hiddenCalendarIds.includes(e.calendarId)),
+    ).map((e) =>
+      nonEditableCalendarIds.has(e.calendarId) ? { ...e, readOnly: true } : e,
+    );
+  }, [dbEvents, hiddenCalendarIds, calendars]);
 
   const hadEventsRef = useRef(false);
   useEffect(() => {
