@@ -11,10 +11,6 @@ type EndMode = 'never' | 'count' | 'until';
 
 const DEFAULT_COUNT = 10;
 
-// UNTIL is inclusive, so a timed series is pinned to the end of the chosen day and
-// keeps that day's occurrence whatever time the event starts at. An all-day series
-// writes UNTIL as a bare date, so it uses local midnight like every other all-day
-// date in the app and round-trips through parseRrule unchanged.
 function untilAnchor(date: Date, allDay: boolean): Date {
   const y = date.getFullYear();
   const m = date.getMonth();
@@ -62,8 +58,6 @@ export function RecurrencePicker({ value, onChange, dtstart, allDay = false }: P
   const endMode: EndMode = value?.count ? 'count' : value?.until ? 'until' : 'never';
   const untilDate = value?.until ?? untilAnchor(dayjs(dtstart).add(1, 'month').toDate(), allDay);
 
-  // Frequency is one facet of the rule: keep the end condition the user already set,
-  // and the weekday selection for as long as it still applies.
   function handleFreqSelect(freq: RecurrenceFreq | null) {
     if (freq === null) {
       onChange(undefined);
@@ -85,7 +79,6 @@ export function RecurrencePicker({ value, onChange, dtstart, allDay = false }: P
     onChange({ ...value, byDay: next.length > 0 ? next : undefined });
   }
 
-  // COUNT and UNTIL are mutually exclusive in RFC 5545, so each mode clears the other.
   function handleEndModeSelect(mode: EndMode) {
     if (!value) return;
     if (mode === 'never') onChange({ ...value, count: undefined, until: undefined });
