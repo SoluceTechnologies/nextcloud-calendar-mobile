@@ -3,6 +3,15 @@ import { schemaMigrations, addColumns } from '@nozbe/watermelondb/Schema/migrati
 export const migrations = schemaMigrations({
   migrations: [
     {
+      toVersion: 6,
+      steps: [
+        addColumns({
+          table: 'events',
+          columns: [{ name: 'recurrence_id', type: 'number', isOptional: true }],
+        }),
+      ],
+    },
+    {
       toVersion: 5,
       steps: [
         addColumns({

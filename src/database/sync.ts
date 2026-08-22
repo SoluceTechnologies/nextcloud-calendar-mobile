@@ -60,6 +60,7 @@ export function writeEvent(row: Event, ev: CalendarEvent): void {
   row.talkUrl = ev.talkUrl ?? undefined;
   row.isRecurring = ev.isRecurring;
   row.rrule = ev.rrule ?? undefined;
+  row.recurrenceId = ev.recurrenceId?.getTime() ?? undefined;
   row.alarmMinutes = ev.alarmMinutes ?? undefined;
   row.isTask = ev.isTask ?? false;
 }
@@ -90,6 +91,7 @@ function eventUnchanged(row: Event, ev: CalendarEvent): boolean {
     row.calendarId === ev.calendarId &&
     row.href === ev.href &&
     (row.rrule ?? undefined) === (ev.rrule ?? undefined) &&
+    (row.recurrenceId ?? undefined) === (ev.recurrenceId?.getTime() ?? undefined) &&
     !!row.isTask === !!ev.isTask &&
     (row.attendees ?? '[]') === JSON.stringify(ev.attendees ?? [])
   );
@@ -186,9 +188,6 @@ export async function syncEvents(
       }
     }
 
-    // A failed calendar fetch now throws in settleAllOrThrow, so an empty
-    // `remote` genuinely means the server has no events in the window — safe to
-    // remove the stale rows the server dropped.
     if (deleteMissing) {
       for (const [k, r] of byKey) if (!seen.has(k)) ops.push(r.prepareMarkAsDeleted());
     }
