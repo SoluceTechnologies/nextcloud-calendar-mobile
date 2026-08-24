@@ -149,8 +149,21 @@ export async function syncEvents(
   end: Date,
   deleteMissing = true,
 ): Promise<void> {
+  if (calendars.length === 0) return;
+
   const epoch = localWriteEpoch();
-  const remote = await fetchEventsForCalendars(account, calendars, start, end);
+  const {
+    events: remote,
+    syncedCalendarIds,
+    failures,
+  } = await fetchEventsForCalendars(account, calendars, start, end);
+
+  if (syncedCalendarIds.length === 0) {
+    throw new Error(
+      `[syncEvents] ${failures.length}/${calendars.length} calendar fetch(es) failed`,
+    );
+  }
+
   const db = getDatabaseInstance();
   const events = db.get<Event>('events');
   const startMs = start.getTime();
@@ -189,7 +202,14 @@ export async function syncEvents(
     }
 
     if (deleteMissing) {
-      for (const [k, r] of byKey) if (!seen.has(k)) ops.push(r.prepareMarkAsDeleted());
+      const syncedIds = new Set(syncedCalendarIds);
+      const knownIds = new Set(calendars.map((c) => c.id));
+      for (const [k, r] of byKey) {
+        if (seen.has(k)) continue;
+        if (syncedIds.has(r.calendarId) || !knownIds.has(r.calendarId)) {
+          ops.push(r.prepareMarkAsDeleted());
+        }
+      }
     }
 
     if (ops.length > 0) await db.batch(ops);

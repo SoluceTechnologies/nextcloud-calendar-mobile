@@ -1,6 +1,6 @@
 import type { Account, CalendarMeta, CalendarEvent } from '@/types';
 import { parseIcsObjectsAsync } from '@/utils/caldav-parse';
-import { settleAllOrThrow } from '@/utils/settle';
+import { settleAll } from '@/utils/settle';
 import { httpErrorFrom } from '../shared/errors';
 import { trustedFetch, type TrustedResponse } from '../shared/trustedFetch';
 
@@ -219,16 +219,10 @@ export async function fetchCalendars(account: Account): Promise<CalendarMeta[]> 
     const hasBind = chunk.includes('<d:bind') || chunk.includes('<d:bind/>');
     const isReadOnly = hasPrivilegeSet && !hasAll && !hasWrite && !hasBind;
 
-    // supported-calendar-component-set lists the component types the calendar
-    // accepts. If present and it doesn't list VEVENT (e.g. Tasks lists / Deck
-    // boards that only take VTODO), the calendar can't hold events. When the
-    // prop is absent, assume events are supported.
     const compSetMatch = chunk.match(
       /<c:supported-calendar-component-set[^>]*>([\s\S]*?)<\/c:supported-calendar-component-set>/,
     );
-    // Deck exposes each board as an app-generated CalDAV collection whose URI is
-    // marked `app-generated--deck--board-*`. These only carry VTODO-like cards,
-    // never events, and often omit the component-set prop — so key off the URI.
+
     const isDeckBoard = /app-generated--deck/i.test(path);
     const supportsEvents = isDeckBoard
       ? false
@@ -342,15 +336,26 @@ export async function fetchEvents(
     return [...vevents, ...vtodos];
 }
 
-export function fetchEventsForCalendars(
+export interface CalendarFetchOutcome {
+  events: CalendarEvent[];
+  syncedCalendarIds: string[];
+  failures: unknown[];
+}
+
+export async function fetchEventsForCalendars(
   account: Account,
   calendars: CalendarMeta[],
   start: Date,
   end: Date,
-): Promise<CalendarEvent[]> {
-  return settleAllOrThrow(
+): Promise<CalendarFetchOutcome> {
+  const { values, failures, fulfilledIndexes } = await settleAll(
     calendars.map((cal) => () => fetchEvents(account, cal, start, end)),
   );
+  return {
+    events: values,
+    syncedCalendarIds: fulfilledIndexes.map((i) => calendars[i].id),
+    failures,
+  };
 }
 
 export async function fetchEventIcs(account: Account, href: string): Promise<string> {

@@ -1,44 +1,60 @@
-import { settleAllOrThrow } from '@/utils/settle';
+import { settleAll } from '@/utils/settle';
 
-describe('settleAllOrThrow', () => {
-  it('returns [] when there are no tasks', async () => {
-    await expect(settleAllOrThrow([])).resolves.toEqual([]);
+describe('settleAll', () => {
+  it('returns an empty result when there are no tasks', async () => {
+    await expect(settleAll([])).resolves.toEqual({
+      values: [],
+      failures: [],
+      fulfilledIndexes: [],
+    });
   });
 
-  it('concatenates results when all tasks succeed, preserving order', async () => {
-    const result = await settleAllOrThrow<number>([
+  it('concatenates values when all tasks succeed, preserving order', async () => {
+    const result = await settleAll<number>([
       () => Promise.resolve([1, 2]),
       () => Promise.resolve([]),
       () => Promise.resolve([3]),
     ]);
-    expect(result).toEqual([1, 2, 3]);
+    expect(result.values).toEqual([1, 2, 3]);
+    expect(result.failures).toEqual([]);
   });
 
-  it('throws when a single task rejects (does not drop the failure)', async () => {
-    await expect(
-      settleAllOrThrow<number>([
-        () => Promise.resolve([1]),
-        () => Promise.reject(new Error('network down')),
-      ]),
-    ).rejects.toThrow('1/2 fetch(es) failed');
+  it('keeps the values of the tasks that resolved when one rejects', async () => {
+    const result = await settleAll<number>([
+      () => Promise.resolve([1]),
+      () => Promise.reject(new Error('network down')),
+      () => Promise.resolve([2]),
+    ]);
+    expect(result.values).toEqual([1, 2]);
   });
 
-  it('throws when every task rejects', async () => {
-    await expect(
-      settleAllOrThrow<number>([
-        () => Promise.reject(new Error('a')),
-        () => Promise.reject(new Error('b')),
-      ]),
-    ).rejects.toThrow('2/2 fetch(es) failed');
+  it('reports the input index of every task that resolved', async () => {
+    const result = await settleAll<number>([
+      () => Promise.resolve([1]),
+      () => Promise.reject(new Error('network down')),
+      () => Promise.resolve([2]),
+    ]);
+    expect(result.fulfilledIndexes).toEqual([0, 2]);
   });
 
-  it('attaches the underlying reasons on the thrown error', async () => {
+  it('collects the rejection reasons', async () => {
     const boom = new Error('timeout');
-    await expect(
-      settleAllOrThrow<number>([
-        () => Promise.resolve([1]),
-        () => Promise.reject(boom),
-      ]),
-    ).rejects.toMatchObject({ failures: [boom] });
+    const result = await settleAll<number>([
+      () => Promise.resolve([1]),
+      () => Promise.reject(boom),
+    ]);
+    expect(result.failures).toEqual([boom]);
+  });
+
+  it('returns no values and every reason when all tasks reject', async () => {
+    const a = new Error('a');
+    const b = new Error('b');
+    const result = await settleAll<number>([
+      () => Promise.reject(a),
+      () => Promise.reject(b),
+    ]);
+    expect(result.values).toEqual([]);
+    expect(result.fulfilledIndexes).toEqual([]);
+    expect(result.failures).toEqual([a, b]);
   });
 });

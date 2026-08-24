@@ -52,6 +52,15 @@ function evt(href: string): CalendarEvent {
   } as CalendarEvent;
 }
 
+/** Shape returned by fetchEventsForCalendars: per-calendar partial success. */
+function outcome(
+  events: CalendarEvent[],
+  syncedCalendarIds: string[] = [calendar.id],
+  failures: unknown[] = [],
+) {
+  return { events, syncedCalendarIds, failures };
+}
+
 function makeDb(opts: { calendarRow?: any; eventRows?: any[] }) {
   const eventRows = opts.eventRows ?? [];
   const calendarRows = opts.calendarRow ? [opts.calendarRow] : [];
@@ -159,7 +168,7 @@ describe('syncEvents — local writes win over an in-flight pull', () => {
     // local row is already gone.
     mockFetchForCalendars.mockImplementation(async () => {
       markLocalWrite();
-      return [{ ...evt('h1'), uid: 'gone-uid' }];
+      return outcome([{ ...evt('h1'), uid: 'gone-uid' }]);
     });
     const { db, batch } = makeDb({ eventRows: [] });
     mockGetDb.mockReturnValue(db);
@@ -173,7 +182,7 @@ describe('syncEvents — local writes win over an in-flight pull', () => {
     const row = windowRow('edited-uid');
     mockFetchForCalendars.mockImplementation(async () => {
       markLocalWrite();
-      return [{ ...evt('h1'), uid: 'edited-uid', summary: 'stale' }];
+      return outcome([{ ...evt('h1'), uid: 'edited-uid', summary: 'stale' }]);
     });
     const { db, batch } = makeDb({ eventRows: [row] });
     mockGetDb.mockReturnValue(db);
@@ -194,7 +203,7 @@ describe('syncEvents — local writes win over an in-flight pull', () => {
     const dropped = windowRow('dropped-uid');
     mockFetchForCalendars.mockImplementation(async () => {
       markLocalWrite();
-      return [{ ...evt('h1'), uid: 'edited-uid', summary: 'stale' }];
+      return outcome([{ ...evt('h1'), uid: 'edited-uid', summary: 'stale' }]);
     });
     const { db, batch } = makeDb({ eventRows: [edited, dropped] });
     mockGetDb.mockReturnValue(db);
@@ -208,7 +217,7 @@ describe('syncEvents — local writes win over an in-flight pull', () => {
 
   it('still removes a row the server dropped when nothing was written locally', async () => {
     const stale = windowRow('stale-uid');
-    mockFetchForCalendars.mockResolvedValue([]);
+    mockFetchForCalendars.mockResolvedValue(outcome([]));
     const { db, batch } = makeDb({ eventRows: [stale] });
     mockGetDb.mockReturnValue(db);
 
@@ -221,12 +230,128 @@ describe('syncEvents — local writes win over an in-flight pull', () => {
   it('applies remote changes when the local write happened before the fetch', async () => {
     markLocalWrite();
     const row = windowRow('old-edit-uid');
-    mockFetchForCalendars.mockResolvedValue([{ ...evt('h1'), uid: 'old-edit-uid' }]);
+    mockFetchForCalendars.mockResolvedValue(outcome([{ ...evt('h1'), uid: 'old-edit-uid' }]));
     const { db, batch } = makeDb({ eventRows: [row] });
     mockGetDb.mockReturnValue(db);
 
     await syncEvents(account, [calendar], start, end);
 
     expect(batch).toHaveBeenCalled();
+  });
+});
+
+describe('syncEvents — one failing calendar must not wipe the others', () => {
+  const start = new Date('2026-07-01T00:00:00Z');
+  const end = new Date('2026-08-01T00:00:00Z');
+
+  const other: CalendarMeta = {
+    ...calendar,
+    id: 'https://cloud.example.com/remote.php/dav/calendars/john/shared/',
+    url: 'https://cloud.example.com/remote.php/dav/calendars/john/shared/',
+    displayName: 'Shared',
+    slug: 'shared',
+  };
+
+  function rowIn(cal: CalendarMeta, uid: string) {
+    return {
+      uid,
+      href: `h-${uid}`,
+      accountId: account.id,
+      calendarId: cal.id,
+      summary: 'old',
+      prepareMarkAsDeleted: jest.fn(() => ({ _op: 'del', uid })),
+      prepareUpdate: jest.fn(() => ({ _op: 'upd', uid })),
+    };
+  }
+
+  it('writes the events of the calendars that answered', async () => {
+    mockFetchForCalendars.mockResolvedValue({
+      events: [{ ...evt('h1'), uid: 'fresh-uid' }],
+      syncedCalendarIds: [calendar.id],
+      failures: [new Error('fetchEvents HTTP 403')],
+    });
+    const { db, batch, prepareCreate } = makeDb({ eventRows: [] });
+    mockGetDb.mockReturnValue(db);
+
+    await syncEvents(account, [calendar, other], start, end);
+
+    expect(prepareCreate).toHaveBeenCalledTimes(1);
+    expect(batch).toHaveBeenCalled();
+  });
+
+  it('keeps the stored rows of a calendar whose fetch failed', async () => {
+    const kept = rowIn(other, 'other-uid');
+    mockFetchForCalendars.mockResolvedValue({
+      events: [],
+      syncedCalendarIds: [calendar.id],
+      failures: [new Error('fetchEvents HTTP 403')],
+    });
+    const { db } = makeDb({ eventRows: [kept] });
+    mockGetDb.mockReturnValue(db);
+
+    await syncEvents(account, [calendar, other], start, end);
+
+    expect(kept.prepareMarkAsDeleted).not.toHaveBeenCalled();
+  });
+
+  it('still removes a stale row of a calendar that answered', async () => {
+    const stale = rowIn(calendar, 'stale-uid');
+    const kept = rowIn(other, 'other-uid');
+    mockFetchForCalendars.mockResolvedValue({
+      events: [],
+      syncedCalendarIds: [calendar.id],
+      failures: [new Error('fetchEvents HTTP 403')],
+    });
+    const { db } = makeDb({ eventRows: [stale, kept] });
+    mockGetDb.mockReturnValue(db);
+
+    await syncEvents(account, [calendar, other], start, end);
+
+    expect(stale.prepareMarkAsDeleted).toHaveBeenCalled();
+    expect(kept.prepareMarkAsDeleted).not.toHaveBeenCalled();
+  });
+
+  it('removes rows orphaned by a calendar that no longer exists', async () => {
+    const orphan = rowIn(other, 'orphan-uid');
+    mockFetchForCalendars.mockResolvedValue({
+      events: [],
+      syncedCalendarIds: [calendar.id],
+      failures: [],
+    });
+    const { db } = makeDb({ eventRows: [orphan] });
+    mockGetDb.mockReturnValue(db);
+
+    await syncEvents(account, [calendar], start, end);
+
+    expect(orphan.prepareMarkAsDeleted).toHaveBeenCalled();
+  });
+
+  it('throws and touches nothing when every calendar fetch failed', async () => {
+    const kept = rowIn(calendar, 'keep-uid');
+    mockFetchForCalendars.mockResolvedValue({
+      events: [],
+      syncedCalendarIds: [],
+      failures: [new Error('Network request failed'), new Error('Network request failed')],
+    });
+    const { db, batch } = makeDb({ eventRows: [kept] });
+    mockGetDb.mockReturnValue(db);
+
+    await expect(syncEvents(account, [calendar, other], start, end)).rejects.toThrow(
+      '2/2 calendar fetch(es) failed',
+    );
+    expect(kept.prepareMarkAsDeleted).not.toHaveBeenCalled();
+    expect(batch).not.toHaveBeenCalled();
+  });
+
+  it('does nothing when there are no calendars to sync', async () => {
+    const kept = rowIn(calendar, 'keep-uid');
+    const { db, batch } = makeDb({ eventRows: [kept] });
+    mockGetDb.mockReturnValue(db);
+
+    await syncEvents(account, [], start, end);
+
+    expect(mockFetchForCalendars).not.toHaveBeenCalled();
+    expect(kept.prepareMarkAsDeleted).not.toHaveBeenCalled();
+    expect(batch).not.toHaveBeenCalled();
   });
 });
