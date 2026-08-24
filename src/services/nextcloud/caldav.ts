@@ -325,7 +325,8 @@ export async function fetchEvents(
     end: Date
 ): Promise<CalendarEvent[]> {
     if (calendar.isSubscribed && calendar.sourceUrl) {
-        const r = await trustedFetch(calendar.sourceUrl, { timeoutMs: 20000 });
+        const sourceUrl = calendar.sourceUrl.replace(/^webcals?:\/\//i, 'https://');
+        const r = await trustedFetch(sourceUrl, { timeoutMs: 20000 });
         if (!r.ok) throw new Error(`fetchSubscribed HTTP ${r.status}`);
         const icsText = await r.text();
         const parsed = await parseIcsObjectsAsync(
