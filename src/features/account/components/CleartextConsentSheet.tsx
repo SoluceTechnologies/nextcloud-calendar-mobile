@@ -30,8 +30,6 @@ export function CleartextConsentSheet({ error, onConfirm, onCancel }: CleartextC
             {t('cleartext.remedy')}
           </Typography>
 
-          {/* Cancelling is the safe path here, so it carries the primary
-              emphasis — the reverse of CertTrustSheet. */}
           <Stack gap={8} style={styles.actions}>
             <Button variant="secondary" title={t('cleartext.connect')} onPress={onConfirm} />
             <Button variant="primary" title={t('cleartext.cancel')} onPress={onCancel} />

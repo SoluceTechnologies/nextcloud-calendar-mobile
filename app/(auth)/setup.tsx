@@ -60,13 +60,8 @@ export default function SetupScreen() {
     }
     setLoading(true);
     try {
-      // cleartextConsent.run is the outer wrapper: a public http host is
-      // refused before the app password is ever sent, and the consent sheet
-      // is shown. certTrust.run catches an untrusted certificate underneath.
       const connected = await cleartextConsent.run(async () =>
         certTrust.run(async () => {
-          // If the user typed http:// but the server also answers on https,
-          // silently prefer https before touching credentials.
           const baseUrl = await maybeUpgradeToHttps(normalizedUrl);
           const { davUserId } = await validateCredentials({
             baseUrl,
@@ -82,8 +77,7 @@ export default function SetupScreen() {
           return { davUserId, userInfo, baseUrl };
         }),
       );
-      // Untrusted certificate or unconsented cleartext: a sheet is now shown;
-      // wait for the user.
+
       if (!connected) return;
 
       const account: Account = {

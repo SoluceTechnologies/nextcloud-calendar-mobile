@@ -36,14 +36,6 @@ export function removeCleartextConsent(host: string): void {
   save(map);
 }
 
-/**
- * HTTPS is always allowed. Plain HTTP is allowed to hosts that are only
- * reachable from a network the user is already on; to a publicly routable
- * host it needs an explicit, previously stored, per-host consent.
- *
- * An unparseable URL is allowed through — the native layer will fail on it,
- * and the consent dialog has nothing meaningful to show for it.
- */
 export function isCleartextAllowed(url: string): boolean {
   let parsed: URL;
   try {

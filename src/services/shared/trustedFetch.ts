@@ -122,8 +122,6 @@ async function doRequest(
 }
 
 export async function trustedFetch(url: string, init: Init = {}): Promise<TrustedResponse> {
-    // Runs before the transport, not around it: the app password rides on the
-    // very first request, so a refusal must happen before anything is sent.
     if (!isCleartextAllowed(url)) {
         throw new CleartextNotConsentedError(hostKeyFromUrl(url));
     }
