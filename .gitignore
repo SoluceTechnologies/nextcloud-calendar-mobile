@@ -61,3 +61,7 @@ android/*
 
 .idea
 .env
+
+# Devin local working files
+AGENTS.md
+AUDIT.md
