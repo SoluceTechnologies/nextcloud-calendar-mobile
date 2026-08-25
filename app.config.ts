@@ -38,7 +38,8 @@ const config: ExpoConfig = {
             LSApplicationQueriesSchemes: ['nextcloudtalk'],
             ITSAppUsesNonExemptEncryption: false,
             NSAppTransportSecurity: {
-                NSAllowsArbitraryLoads: true,
+                NSAllowsArbitraryLoads: false,
+                NSAllowsLocalNetworking: true,
             },
         },
         entitlements: {
@@ -68,14 +69,6 @@ const config: ExpoConfig = {
     owner: 'soluce',
 
     plugins: [
-        [
-            'expo-build-properties',
-            {
-                android: {
-                    usesCleartextTraffic: true,
-                },
-            },
-        ],
         './plugins/withAndroidNetworkSecurityConfig',
         '@morrowdigital/watermelondb-expo-plugin',
         '@react-native-community/datetimepicker',
