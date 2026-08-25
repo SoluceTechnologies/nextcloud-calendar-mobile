@@ -5,8 +5,22 @@ import { utf8ToBase64 } from '@/services/shared/base64';
 const b64 = (s: string) => utf8ToBase64(s);
 const req = TlsTrust.request as jest.Mock;
 
+function mockSequence(responses: unknown[]) {
+  responses.forEach((r) => {
+    if (r instanceof Error) {
+      req.mockRejectedValueOnce(r);
+    } else {
+      req.mockResolvedValueOnce(r);
+    }
+  });
+}
+
 describe('trustedFetch', () => {
-  afterEach(() => jest.clearAllMocks());
+  afterEach(() => {
+    jest.clearAllMocks();
+    // Reset the mock implementation queue so mockResolvedValueOnce does not leak between tests.
+    (TlsTrust.request as jest.Mock).mockReset();
+  });
 
   it('adapts a native response (status/headers/text); 207 is 2xx-ok', async () => {
     req.mockResolvedValueOnce({
@@ -68,5 +82,63 @@ describe('trustedFetch', () => {
   it('maps a transport rejection to a network error', async () => {
     req.mockRejectedValueOnce(new Error('connect timeout'));
     await expect(trustedFetch('https://h/x')).rejects.toThrow(/network|fetch|timeout/i);
+  });
+
+  it('retries on 5xx and eventually succeeds', async () => {
+    mockSequence([
+      { type: 'response', status: 503, headers: {}, bodyBase64: b64('busy') },
+      { type: 'response', status: 502, headers: {}, bodyBase64: b64('busy') },
+      { type: 'response', status: 200, headers: {}, bodyBase64: b64('ok') },
+    ]);
+    const res = await trustedFetch('https://h/x', { maxRetries: 2 });
+    expect(res.ok).toBe(true);
+    expect(res.status).toBe(200);
+    expect(req).toHaveBeenCalledTimes(3);
+  });
+
+  it('retries on 429 with Retry-After', async () => {
+    mockSequence([
+      { type: 'response', status: 429, headers: { 'Retry-After': '1' }, bodyBase64: '' },
+      { type: 'response', status: 200, headers: {}, bodyBase64: b64('ok') },
+    ]);
+    const res = await trustedFetch('https://h/x', { maxRetries: 1 });
+    expect(res.ok).toBe(true);
+    expect(req).toHaveBeenCalledTimes(2);
+  });
+
+  it('returns the last 5xx response after exhausting maxRetries', async () => {
+    mockSequence([
+      { type: 'response', status: 503, headers: {}, bodyBase64: '' },
+      { type: 'response', status: 503, headers: {}, bodyBase64: '' },
+      { type: 'response', status: 503, headers: {}, bodyBase64: '' },
+    ]);
+    const res = await trustedFetch('https://h/x', { maxRetries: 2 });
+    expect(res.status).toBe(503);
+    expect(req).toHaveBeenCalledTimes(3);
+  });
+
+  it('does not retry 4xx errors', async () => {
+    mockSequence([
+      { type: 'response', status: 401, headers: {}, bodyBase64: '' },
+      { type: 'response', status: 200, headers: {}, bodyBase64: b64('ok') },
+    ]);
+    const res = await trustedFetch('https://h/x', { maxRetries: 1 });
+    expect(res.status).toBe(401);
+    expect(req).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not retry untrusted certificate errors', async () => {
+    const untrusted = {
+      type: 'untrusted_cert',
+      host: 'h:443',
+      sha256: 'AA:BB',
+      subject: 'CN=h',
+      issuer: 'CN=h',
+      notBefore: '2026-01-01T00:00:00Z',
+      notAfter: '2027-01-01T00:00:00Z',
+    };
+    mockSequence([untrusted, { type: 'response', status: 200, headers: {}, bodyBase64: b64('ok') }]);
+    await expect(trustedFetch('https://h/x', { maxRetries: 1 })).rejects.toBeInstanceOf(UntrustedCertError);
+    expect(req).toHaveBeenCalledTimes(1);
   });
 });
