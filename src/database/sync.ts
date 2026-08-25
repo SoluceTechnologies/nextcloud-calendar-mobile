@@ -247,7 +247,10 @@ export async function syncCalendarDelta(account: Account, calendar: CalendarMeta
   );
   const fetchedHrefs = new Set(fetched.map((e) => e.href));
 
-  if (fullSync && result.changed.length > 0 && fetched.length === 0) {
+  if (result.changed.length > 0 && fetched.length !== result.changed.length) {
+    console.warn(
+      `[syncCalendarDelta] multiget returned ${fetched.length}/${result.changed.length} events; skipping write`
+    );
     return;
   }
 
