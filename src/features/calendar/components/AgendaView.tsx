@@ -1,4 +1,4 @@
-import { memo, useRef, useEffect, useCallback, useMemo, forwardRef, useImperativeHandle } from 'react';
+import { memo, useRef, useCallback, useMemo, forwardRef, useImperativeHandle } from 'react';
 import {
   View, Text, SectionList, TouchableOpacity, StyleSheet,
 } from 'react-native';
@@ -119,7 +119,7 @@ export interface AgendaViewHandle {
 
 
 const AgendaViewImpl = forwardRef<AgendaViewHandle, Props>(function AgendaView(
-  { events, date, onPressEvent, onPressCell, onVisibleDateChange }, ref
+  { events, onPressEvent, onPressCell, onVisibleDateChange }, ref
 ) {
   const theme = useTheme();
   const listRef = useRef<SectionList<CalendarEvent, AgendaSection>>(null);

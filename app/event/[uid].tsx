@@ -19,7 +19,7 @@ import {
   SectionHeader, Avatar, Spinner, ScreenHeader,
   IconButton,
 } from '@/ui/components';
-import type { CalendarEvent, RecurrenceEditScope } from '@/types';
+import type { RecurrenceEditScope } from '@/types';
 import { askRecurrenceScope, type RecurrenceScopeStrings } from '@/features/event/recurrenceScope';
 import { decideMoveEventScope } from '@/features/calendar/utils/moveEventScope';
 import {
