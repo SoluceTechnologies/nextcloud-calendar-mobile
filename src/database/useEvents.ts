@@ -9,7 +9,32 @@ import { EVENT_OBSERVED_COLUMNS } from './observedColumns';
 import Event from './models/Event';
 
 function rowKey(r: Event): string {
-  return `${r.id}:${r.start},${r.end}`;
+  // Fingerprint on the full set of fields that shape the mapped CalendarEvent.
+  // This keeps the value-based comparison safe for drag-and-drop (start/end
+  // change on the same model instance) while also refreshing on edits that only
+  // touch metadata such as the summary, color or calendar.
+  return JSON.stringify([
+    r.id,
+    r.accountId,
+    r.calendarId,
+    r.uid,
+    r.href,
+    r.summary,
+    r.description ?? null,
+    r.location ?? null,
+    r.start,
+    r.end,
+    !!r.allDay,
+    r.color,
+    r.attendees ?? null,
+    r.organizerEmail ?? null,
+    r.talkUrl ?? null,
+    !!r.isRecurring,
+    r.rrule ?? null,
+    r.recurrenceId ?? null,
+    r.alarmMinutes ?? null,
+    !!r.isTask,
+  ]);
 }
 
 function eventsFingerprint(rows: Event[]): string {
@@ -22,7 +47,7 @@ function eventsFingerprint(rows: Event[]): string {
     keys[i] = rowKey(rows[i]);
   }
   keys.sort();
-  return keys.join('|');
+  return keys.join('\0');
 }
 
 export function useEventsForRange(accountId: string, start: Date, end: Date, refresh = 0) {
