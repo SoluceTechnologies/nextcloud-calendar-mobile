@@ -290,5 +290,13 @@
     "validTo": "Valide jusqu'au",
     "trust": "Approuver et se connecter",
     "cancel": "Annuler"
+  },
+  "cleartext": {
+    "title": "Connexion non chiffrée",
+    "body": "La connexion à {{host}} n'est pas chiffrée. Votre nom d'utilisateur et votre mot de passe d'application seraient transmis en clair sur le réseau.",
+    "warning": "Toute personne située entre ce téléphone et le serveur — opérateur du Wi-Fi, fournisseur d'accès, réseau intermédiaire — peut lire votre mot de passe et vos données de calendrier. Un mot de passe d'application Nextcloud donne accès à tout le compte, pas seulement au calendrier.",
+    "remedy": "Options plus sûres : joindre le serveur via un VPN comme Tailscale ou WireGuard, ou installer un certificat gratuit avec DuckDNS et Let's Encrypt.",
+    "connect": "Se connecter quand même",
+    "cancel": "Annuler"
   }
 }

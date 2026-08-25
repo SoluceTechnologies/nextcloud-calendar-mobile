@@ -290,5 +290,13 @@
     "validTo": "Valid until",
     "trust": "Trust & connect",
     "cancel": "Cancel"
+  },
+  "cleartext": {
+    "title": "Unencrypted connection",
+    "body": "The connection to {{host}} isn't encrypted. Your username and app password would be sent in clear text over the network.",
+    "warning": "Anyone between this phone and the server — the Wi-Fi operator, your internet provider, any network in between — can read your password and your calendar data. A Nextcloud app password grants access to your whole account, not just the calendar.",
+    "remedy": "Safer options: reach the server through a VPN such as Tailscale or WireGuard, or set up a free certificate with DuckDNS and Let's Encrypt.",
+    "connect": "Connect anyway",
+    "cancel": "Cancel"
   }
 }

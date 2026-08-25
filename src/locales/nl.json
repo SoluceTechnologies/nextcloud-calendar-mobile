@@ -290,5 +290,13 @@
     "validTo": "Geldig tot",
     "trust": "Vertrouwen en verbinden",
     "cancel": "Annuleren"
+  },
+  "cleartext": {
+    "title": "Onversleutelde verbinding",
+    "body": "De verbinding met {{host}} is niet versleuteld. Je gebruikersnaam en app-wachtwoord zouden als platte tekst over het netwerk worden verzonden.",
+    "warning": "Iedereen tussen deze telefoon en de server — de wifibeheerder, je internetprovider, elk netwerk ertussen — kan je wachtwoord en agendagegevens meelezen. Een Nextcloud app-wachtwoord geeft toegang tot je hele account, niet alleen tot de agenda.",
+    "remedy": "Veiligere opties: de server bereiken via een VPN zoals Tailscale of WireGuard, of een gratis certificaat instellen met DuckDNS en Let's Encrypt.",
+    "connect": "Toch verbinden",
+    "cancel": "Annuleren"
   }
 }
