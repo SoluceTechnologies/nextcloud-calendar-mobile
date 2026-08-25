@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
-import { View, StyleSheet, ScrollView, Platform, KeyboardAvoidingView, useWindowDimensions } from 'react-native';
-import DateTimePicker from '@react-native-community/datetimepicker';
+import { View, StyleSheet, ScrollView, Platform, KeyboardAvoidingView, useWindowDimensions, LayoutChangeEvent } from 'react-native';
+import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import dayjs from 'dayjs';
 import localizedFormat from 'dayjs/plugin/localizedFormat';
 import { useTranslation } from 'react-i18next';
@@ -90,7 +90,7 @@ export function EventForm({
     if (y != null) scrollRef.current?.scrollTo({ y: Math.max(0, y - 80), animated: true });
   }
 
-  function onFieldLayout(key: string, event: any) {
+  function onFieldLayout(key: string, event: LayoutChangeEvent) {
     inputOffsets.current[key] = event.nativeEvent.layout.y;
   }
 
@@ -134,15 +134,15 @@ export function EventForm({
     }
   }
 
-  function handleIosStartChange(_: any, d?: Date) {
+  function handleIosStartChange(_: DateTimePickerEvent, d?: Date) {
     if (d) applyStart(d);
   }
 
-  function handleIosEndChange(_: any, d?: Date) {
+  function handleIosEndChange(_: DateTimePickerEvent, d?: Date) {
     if (d) applyEnd(d);
   }
 
-  function handleAndroidChange(_: any, selected?: Date) {
+  function handleAndroidChange(_: DateTimePickerEvent, selected?: Date) {
     if (!androidStep) return;
 
     if (selected === undefined) {
