@@ -41,6 +41,13 @@ export function getInitialLanguage(): AppLanguage {
   return isSupported(code) ? code : 'en';
 }
 
+export function getInitialWeekStartsOn(): 0 | 1 {
+  // expo-localization uses 1 = Sunday ... 7 = Saturday.
+  const firstWeekday = (getLocales()[0] as { firstWeekday?: number } | undefined)?.firstWeekday;
+  if (firstWeekday === 2) return 1; // Monday
+  return 0; // Sunday (default)
+}
+
 i18n.use(initReactI18next).init({
   resources: {
     en: { translation: en },
