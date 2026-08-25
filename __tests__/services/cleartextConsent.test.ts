@@ -49,4 +49,22 @@ describe('cleartextConsent', () => {
   it('does not block on an unparseable url', () => {
     expect(isCleartextAllowed('not a url')).toBe(true);
   });
+
+  it('recovers gracefully from invalid json in storage', () => {
+    storage.set('cleartext_consent', '{invalid json}');
+    expect(isCleartextAllowed('http://203.0.113.5/dav')).toBe(false);
+    expect(() => isCleartextAllowed('http://203.0.113.5/dav')).not.toThrow();
+  });
+
+  it('recovers gracefully when storage contains null string', () => {
+    storage.set('cleartext_consent', 'null');
+    expect(isCleartextAllowed('http://203.0.113.5/dav')).toBe(false);
+    expect(() => isCleartextAllowed('http://203.0.113.5/dav')).not.toThrow();
+  });
+
+  it('treats explicit default port equivalently to implicit port', () => {
+    addCleartextConsent('203.0.113.5:80');
+    expect(isCleartextAllowed('http://203.0.113.5/dav')).toBe(true);
+    expect(isCleartextAllowed('http://203.0.113.5:80/dav')).toBe(true);
+  });
 });

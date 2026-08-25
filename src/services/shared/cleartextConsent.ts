@@ -8,7 +8,14 @@ type ConsentMap = Record<string, true>;
 
 export function getCleartextConsents(): ConsentMap {
   const raw = storage.getString(KEY);
-  return raw ? (JSON.parse(raw) as ConsentMap) : {};
+  if (!raw) return {};
+  try {
+    const parsed = JSON.parse(raw);
+    if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) return {};
+    return parsed as ConsentMap;
+  } catch {
+    return {};
+  }
 }
 
 function save(map: ConsentMap): void {
