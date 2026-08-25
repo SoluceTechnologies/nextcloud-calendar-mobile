@@ -24,19 +24,12 @@ import javax.net.ssl.TrustManager
 import javax.net.ssl.TrustManagerFactory
 import javax.net.ssl.X509TrustManager
 
-/** Thrown by our trust manager when a leaf is neither pinned nor system-trusted. */
 class UntrustedCertException(val cert: X509Certificate) : CertificateException()
 
-/**
- * Hostname verification may only be skipped for a leaf the user has explicitly
- * pinned. Skipping it for every connection to a host that merely *has* a pin
- * would let any publicly-signed certificate impersonate that host.
- */
 internal fun shouldSkipHostnameVerification(pinned: Set<String>, leafSha256: String?): Boolean =
   leafSha256 != null && pinned.contains(leafSha256)
 
 class TlsTrustModule : Module() {
-  // host ("hostname:port") -> set of uppercased colon-hex SHA-256 fingerprints.
   private val pins = ConcurrentHashMap<String, Set<String>>()
 
   private val defaultTrust: X509TrustManager by lazy {

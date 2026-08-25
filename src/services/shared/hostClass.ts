@@ -1,21 +1,9 @@
-/**
- * Splits hostnames into "reachable only from a network the user is already on"
- * and "routable from the public internet". Used to decide whether cleartext
- * HTTP needs explicit consent.
- *
- * Anything unparseable is reported as `public`: a wrong guess in that direction
- * costs one confirmation dialog, the other direction costs an app password.
- */
-
 const LOCAL_SUFFIXES = ['.local', '.home.arpa', '.internal', '.lan'];
 
 function ipv4Octets(host: string): number[] | null {
   const m = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(host);
   if (!m) return null;
   const parts = m.slice(1, 5);
-  // A leading zero is read as octal by inet_aton and by the WHATWG URL parser,
-  // so "010.0.0.1" may denote 8.0.0.1 (public) rather than 10.0.0.1 (private).
-  // Refuse to guess: fall through to the malformed branch, which reports public.
   if (parts.some((p) => p.length > 1 && p.startsWith('0'))) return null;
   const octets = parts.map(Number);
   return octets.every((n) => n <= 255) ? octets : null;
