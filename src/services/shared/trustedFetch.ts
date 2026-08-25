@@ -31,10 +31,8 @@ export interface TrustedResponse {
 
     arrayBuffer(): Promise<ArrayBuffer>;
 
-    /** Raw response body as base64 (React Native cannot build a Blob from bytes). */
     base64(): Promise<string>;
 
-    // Matches fetch()'s Response.json() (any), so existing json?.ocs?.data access compiles.
     json(): Promise<any>;
 }
 
@@ -64,8 +62,6 @@ function toRecord(h?: Record<string, string> | Headers): Record<string, string> 
 }
 
 function isRetryableStatus(status: number): boolean {
-    // 429: rate limit. 500/502/503/504: transient server errors.
-    // 507 is intentionally excluded: CalDAV sync logic uses it to trigger a full reset.
     return status === 429 || [500, 502, 503, 504].includes(status);
 }
 
