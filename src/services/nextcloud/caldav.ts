@@ -66,13 +66,14 @@ function splitResponses(xml: string): string[] {
 async function davFetch(
   url: string,
   account: Pick<Account, 'username' | 'appPassword'>,
-  options: { method?: string; headers?: Record<string, string>; body?: string }
+  options: { method?: string; headers?: Record<string, string>; body?: string; maxRetries?: number }
 ): Promise<TrustedResponse> {
   return trustedFetch(url, {
     method: options.method,
     headers: { Authorization: basicAuth(account), ...(options.headers ?? {}) },
     body: options.body,
     timeoutMs: 20000,
+    maxRetries: options.maxRetries ?? 2,
   });
 }
 
@@ -86,6 +87,7 @@ export async function validateCredentials(params: {
     headers: { Depth: '0', 'Content-Type': 'application/xml' },
     body: '<?xml version="1.0" encoding="utf-8"?>' +
     '<d:propfind xmlns:d="DAV:"><d:prop><d:current-user-principal/></d:prop></d:propfind>',
+    maxRetries: 0,
   });
   if (res.status !== 207 && !res.ok) throw httpErrorFrom(res, 'validateCredentials');
 
@@ -93,7 +95,7 @@ export async function validateCredentials(params: {
 
   if (!principalPath) {
     const principalUrl = `${params.baseUrl}/remote.php/dav/principals/users/${encodeURIComponent(params.username)}/`;
-    const fallback = await davFetch(principalUrl, params, { method: 'PROPFIND', headers: { Depth: '0', 'Content-Type': 'application/xml' } });
+    const fallback = await davFetch(principalUrl, params, { method: 'PROPFIND', headers: { Depth: '0', 'Content-Type': 'application/xml' }, maxRetries: 0 });
     if (fallback.status !== 207 && !fallback.ok) throw httpErrorFrom(fallback, 'validateCredentials');
     return { davUserId: params.username };
   }
@@ -104,6 +106,7 @@ export async function validateCredentials(params: {
     headers: { Depth: '0', 'Content-Type': 'application/xml' },
     body: '<?xml version="1.0" encoding="utf-8"?>' +
     '<d:propfind xmlns:d="DAV:" xmlns:cal="urn:ietf:params:xml:ns:caldav"><d:prop><cal:calendar-home-set/></d:prop></d:propfind>',
+    maxRetries: 0,
   });
   if (homeRes.status !== 207 && !homeRes.ok) {
     return { davUserId: extractSlug(principalPath) || params.username };
