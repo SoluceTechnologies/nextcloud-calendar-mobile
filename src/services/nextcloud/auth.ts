@@ -72,11 +72,22 @@ async function revokeHostTrustIfUnused(rawDeletedAccount: string | null): Promis
   } catch {
     return;
   }
-  const remaining = await loadAccounts();
+  let remaining: Account[];
+  try {
+    remaining = await loadAccounts();
+  } catch {
+    // Failure to enumerate accounts is absence of information: we cannot determine which
+    // accounts still exist, so we must not revoke any pins. Revoking blind could drop pins
+    // for many live accounts.
+    return;
+  }
   const stillUsed = remaining.some((a) => {
     try {
       return hostKeyFromUrl(a.baseUrl) === host;
     } catch {
+      // An unparseable baseUrl means this account cannot issue requests to any host,
+      // so it genuinely is not using the target host. Trust revocation deliberately fails
+      // toward revoking rather than toward keeping stale trust, so return false.
       return false;
     }
   });
