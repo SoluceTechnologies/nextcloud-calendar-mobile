@@ -1,6 +1,8 @@
 import {TlsTrust, type NativeResult} from './nativeTlsTrust';
 import {utf8ToBase64, base64ToBytes, base64ToUtf8} from './base64';
 import {parseRetryAfter} from './errors';
+import { isCleartextAllowed } from './cleartextConsent';
+import { hostKeyFromUrl } from './certPins';
 
 export class UntrustedCertError extends Error {
     host: string;
@@ -19,6 +21,16 @@ export class UntrustedCertError extends Error {
         this.issuer = d.issuer;
         this.notBefore = d.notBefore;
         this.notAfter = d.notAfter;
+    }
+}
+
+export class CleartextNotConsentedError extends Error {
+    host: string;
+
+    constructor(host: string) {
+        super(`Cleartext HTTP to ${host} has not been consented to`);
+        this.name = 'CleartextNotConsentedError';
+        this.host = host;
     }
 }
 
@@ -110,6 +122,12 @@ async function doRequest(
 }
 
 export async function trustedFetch(url: string, init: Init = {}): Promise<TrustedResponse> {
+    // Runs before the transport, not around it: the app password rides on the
+    // very first request, so a refusal must happen before anything is sent.
+    if (!isCleartextAllowed(url)) {
+        throw new CleartextNotConsentedError(hostKeyFromUrl(url));
+    }
+
     const maxRetries = init.maxRetries ?? 0;
     let lastError: unknown;
 
