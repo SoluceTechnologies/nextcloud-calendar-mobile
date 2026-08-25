@@ -3,6 +3,7 @@ import { asyncStorage as AsyncStorage } from '@/storage';
 import type { Account } from '@/types';
 import { fetchUserInfo } from './nextcloud';
 import { hostKeyFromUrl, removePinsForHost } from '@/services/shared/certPins';
+import { removeCleartextConsent } from '@/services/shared/cleartextConsent';
 
 const ACCOUNT_IDS_KEY = 'account_ids';
 const ACTIVE_ACCOUNT_KEY = 'active_account_id';
@@ -83,6 +84,7 @@ async function revokeHostTrustIfUnused(rawDeletedAccount: string | null): Promis
   });
   if (stillUsed) return;
   removePinsForHost(host);
+  removeCleartextConsent(host);
 }
 
 export async function getActiveAccountId(): Promise<string | null> {

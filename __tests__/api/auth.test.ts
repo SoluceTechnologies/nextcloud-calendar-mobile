@@ -150,6 +150,19 @@ describe('deleteAccount pin revocation', () => {
       'cloud.example.com:443': ['AA:BB'],
     });
   });
+
+  it('removes the cleartext consent along with the pins', async () => {
+    mockSecureStore.getItemAsync.mockResolvedValue(
+      JSON.stringify({ ...account, baseUrl: 'http://203.0.113.5' })
+    );
+    mockSecureStore.deleteItemAsync.mockResolvedValue();
+    storage.set('account_ids', JSON.stringify(['acc-1']));
+    storage.set('cleartext_consent', JSON.stringify({ '203.0.113.5:80': true }));
+
+    await deleteAccount('acc-1');
+
+    expect(JSON.parse(storage.getString('cleartext_consent') ?? '{}')).toEqual({});
+  });
 });
 
 describe('activeAccountId', () => {
