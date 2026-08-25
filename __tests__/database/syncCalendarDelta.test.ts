@@ -100,6 +100,40 @@ describe('syncCalendarDelta — non-destructive guards', () => {
     existing.forEach((r) => expect(r.prepareMarkAsDeleted).not.toHaveBeenCalled());
   });
 
+  it('does NOT delete when a full sync parses fewer events than expected', async () => {
+    mockSyncCollection.mockResolvedValue({ changed: ['h1', 'h2', 'h3'], deleted: [], newToken: 't2', reset: false });
+    mockFetchByHrefs.mockResolvedValue([evt('h1')]);
+    const h1 = makeRow('h1');
+    const h2 = makeRow('h2');
+    const h3 = makeRow('h3');
+    const { db, batch, prepareCreate } = makeDb({ calendarRow: noTokenRow(), eventRows: [h1, h2, h3] });
+    mockGetDb.mockReturnValue(db);
+
+    await syncCalendarDelta(account, calendar);
+
+    expect(batch).not.toHaveBeenCalled();
+    expect(h1.prepareMarkAsDeleted).not.toHaveBeenCalled();
+    expect(h2.prepareMarkAsDeleted).not.toHaveBeenCalled();
+    expect(h3.prepareMarkAsDeleted).not.toHaveBeenCalled();
+    expect(prepareCreate).not.toHaveBeenCalled();
+  });
+
+  it('does NOT delete when a delta sync parses fewer events than expected', async () => {
+    mockSyncCollection.mockResolvedValue({ changed: ['h1', 'h2'], deleted: ['h3'], newToken: 't2', reset: false });
+    mockFetchByHrefs.mockResolvedValue([evt('h1')]);
+    const h1 = makeRow('h1');
+    const h2 = makeRow('h2');
+    const h3 = makeRow('h3');
+    const { db, batch, prepareCreate } = makeDb({ calendarRow: tokenRow(), eventRows: [h1, h2, h3] });
+    mockGetDb.mockReturnValue(db);
+
+    await syncCalendarDelta(account, calendar);
+
+    expect(batch).not.toHaveBeenCalled();
+    [h1, h2, h3].forEach((r) => expect(r.prepareMarkAsDeleted).not.toHaveBeenCalled());
+    expect(prepareCreate).not.toHaveBeenCalled();
+  });
+
   it('does NOT delete existing rows when a full sync enumerates zero members (untrusted empty)', async () => {
     mockSyncCollection.mockResolvedValue({ changed: [], deleted: [], newToken: 't2', reset: false });
     mockFetchByHrefs.mockResolvedValue([]);
