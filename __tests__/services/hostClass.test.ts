@@ -19,6 +19,8 @@ describe('classifyHost', () => {
     'server.internal',
     'box.lan',
     'nextcloud',
+    '[fe80::1%eth0]',
+    'nextcloud.local.',
   ])('treats %s as local', (host) => {
     expect(classifyHost(host)).toBe('local');
   });
@@ -33,6 +35,12 @@ describe('classifyHost', () => {
     'cloud.example.com',
     'nextcloud.example.org',
     'example.local.com',
+    '010.0.0.1',
+    '010.010.010.010',
+    'fe80:evil.com',
+    'fc00:evil.com',
+    'fec0::1',
+    '::ffff:192.168.1.1',
   ])('treats %s as public', (host) => {
     expect(classifyHost(host)).toBe('public');
   });

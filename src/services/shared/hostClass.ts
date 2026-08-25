@@ -12,7 +12,12 @@ const LOCAL_SUFFIXES = ['.local', '.home.arpa', '.internal', '.lan'];
 function ipv4Octets(host: string): number[] | null {
   const m = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(host);
   if (!m) return null;
-  const octets = m.slice(1, 5).map(Number);
+  const parts = m.slice(1, 5);
+  // A leading zero is read as octal by inet_aton and by the WHATWG URL parser,
+  // so "010.0.0.1" may denote 8.0.0.1 (public) rather than 10.0.0.1 (private).
+  // Refuse to guess: fall through to the malformed branch, which reports public.
+  if (parts.some((p) => p.length > 1 && p.startsWith('0'))) return null;
+  const octets = parts.map(Number);
   return octets.every((n) => n <= 255) ? octets : null;
 }
 
@@ -27,14 +32,16 @@ function isPrivateIpv4(octets: number[]): boolean {
 }
 
 function isPrivateIpv6(host: string): boolean {
-  if (host === '::1') return true;                     // loopback
-  if (/^f[cd][0-9a-f]{2}:/.test(host)) return true;    // fc00::/7 unique local
-  if (/^fe[89ab][0-9a-f]:/.test(host)) return true;    // fe80::/10 link-local
+  const [addr] = host.split('%');
+  if (!/^[0-9a-f:]+$/.test(addr)) return false;
+  if (addr === '::1') return true;                     // loopback
+  if (/^f[cd][0-9a-f]{2}:/.test(addr)) return true;    // fc00::/7 unique local
+  if (/^fe[89ab][0-9a-f]:/.test(addr)) return true;    // fe80::/10 link-local
   return false;
 }
 
 export function classifyHost(hostname: string): 'local' | 'public' {
-  const host = hostname.replace(/^\[/, '').replace(/\]$/, '').toLowerCase();
+  const host = hostname.replace(/^\[/, '').replace(/\]$/, '').toLowerCase().replace(/\.$/, '');
   if (!host) return 'public';
   if (host === 'localhost') return 'local';
 
