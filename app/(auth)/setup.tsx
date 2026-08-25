@@ -14,6 +14,9 @@ import { QrLoginScanner } from '@/features/account/components/QrLoginScanner';
 import type { NcLoginData } from '@/features/account/components/QrLoginScanner';
 import { CertTrustSheet } from '@/features/account/components/CertTrustSheet';
 import { useCertTrust } from '@/features/account/hooks/useCertTrust';
+import { CleartextConsentSheet } from '@/features/account/components/CleartextConsentSheet';
+import { useCleartextConsent } from '@/features/account/hooks/useCleartextConsent';
+import { maybeUpgradeToHttps } from '@/services/shared/httpsProbe';
 import type { Account } from '@/types';
 import { useTranslation } from 'react-i18next';
 import { LanguageSheet } from '@/components/LanguageSheet';
@@ -37,6 +40,7 @@ export default function SetupScreen() {
   const [showScanner, setShowScanner] = useState(false);
 
   const certTrust = useCertTrust();
+  const cleartextConsent = useCleartextConsent();
   const [lastParams, setLastParams] = useState<{
     baseUrl: string;
     username: string;
@@ -56,27 +60,36 @@ export default function SetupScreen() {
     }
     setLoading(true);
     try {
-      const connected = await certTrust.run(async () => {
-        const { davUserId } = await validateCredentials({
-          baseUrl: normalizedUrl,
-          username: params.username,
-          appPassword: params.appPassword,
-        });
-        const userInfo = await fetchUserInfo({
-          baseUrl: normalizedUrl,
-          username: params.username,
-          appPassword: params.appPassword,
-          davUserId,
-        });
-        return { davUserId, userInfo };
-      });
-      // Untrusted certificate: the trust sheet is now shown; wait for the user.
+      // cleartextConsent.run is the outer wrapper: a public http host is
+      // refused before the app password is ever sent, and the consent sheet
+      // is shown. certTrust.run catches an untrusted certificate underneath.
+      const connected = await cleartextConsent.run(async () =>
+        certTrust.run(async () => {
+          // If the user typed http:// but the server also answers on https,
+          // silently prefer https before touching credentials.
+          const baseUrl = await maybeUpgradeToHttps(normalizedUrl);
+          const { davUserId } = await validateCredentials({
+            baseUrl,
+            username: params.username,
+            appPassword: params.appPassword,
+          });
+          const userInfo = await fetchUserInfo({
+            baseUrl,
+            username: params.username,
+            appPassword: params.appPassword,
+            davUserId,
+          });
+          return { davUserId, userInfo, baseUrl };
+        }),
+      );
+      // Untrusted certificate or unconsented cleartext: a sheet is now shown;
+      // wait for the user.
       if (!connected) return;
 
       const account: Account = {
         id: Crypto.randomUUID(),
         displayName: connected.userInfo.displayName || params.username,
-        baseUrl: normalizedUrl,
+        baseUrl: connected.baseUrl,
         username: params.username,
         appPassword: params.appPassword,
         davUserId: connected.davUserId,
@@ -103,6 +116,11 @@ export default function SetupScreen() {
 
   function handleTrustCert() {
     certTrust.confirm();
+    if (lastParams) connectWith(lastParams);
+  }
+
+  function handleConsentCleartext() {
+    cleartextConsent.confirm();
     if (lastParams) connectWith(lastParams);
   }
 
@@ -245,6 +263,12 @@ export default function SetupScreen() {
         error={certTrust.pending}
         onTrust={handleTrustCert}
         onCancel={certTrust.dismiss}
+      />
+
+      <CleartextConsentSheet
+        error={cleartextConsent.pending}
+        onConfirm={handleConsentCleartext}
+        onCancel={cleartextConsent.dismiss}
       />
     </ViewContainer>
   );
