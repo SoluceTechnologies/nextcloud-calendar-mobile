@@ -119,7 +119,7 @@ export async function validateCredentials(params: {
 export interface SyncCollectionResult {
   changed: string[];
   deleted: string[];
-  newToken: string;
+  newToken: string | undefined;
   reset: boolean;
 }
 
@@ -142,7 +142,7 @@ export async function syncCollection(
   });
 
   if (res.status === 507 || res.status === 403 || res.status === 409) {
-    return { changed: [], deleted: [], newToken: '', reset: true };
+    return { changed: [], deleted: [], newToken: undefined, reset: true };
   }
   if (res.status !== 207) throw new Error(`syncCollection HTTP ${res.status}`);
 
@@ -159,7 +159,8 @@ export async function syncCollection(
   }
 
   const tokenMatch = xml.match(/<d:sync-token>([^<]*)<\/d:sync-token>/);
-  return { changed, deleted, newToken: tokenMatch?.[1]?.trim() ?? '', reset: false };
+  const newToken = tokenMatch?.[1]?.trim() || undefined;
+  return { changed, deleted, newToken, reset: false };
 }
 
 export async function fetchCalendars(account: Account): Promise<CalendarMeta[]> {

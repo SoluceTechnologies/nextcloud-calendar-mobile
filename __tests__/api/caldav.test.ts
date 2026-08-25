@@ -121,6 +121,16 @@ describe('syncCollection', () => {
     expect(body).toContain('<d:sync-token></d:sync-token>');
   });
 
+  it('returns undefined newToken when server sends an empty sync-token', async () => {
+    mockFetch.mockResolvedValue({
+      status: 207,
+      text: async () => `<d:multistatus xmlns:d="DAV:"><d:response><d:href>/p/a.ics</d:href><d:propstat><d:status>HTTP/1.1 200 OK</d:status></d:propstat></d:response><d:sync-token></d:sync-token></d:multistatus>`,
+    });
+    const res = await syncCollection(account, cal, 't0');
+    expect(res.newToken).toBeUndefined();
+    expect(res.reset).toBe(false);
+  });
+
   it('signals reset on 507 (invalid/expired token)', async () => {
     mockFetch.mockResolvedValue({ status: 507, text: async () => '' });
     const res = await syncCollection(account, cal, 'stale');

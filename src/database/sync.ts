@@ -281,7 +281,7 @@ export async function syncCalendarDelta(account: Account, calendar: CalendarMeta
 
     if (row) {
       ops.push(row.prepareUpdate((r: Calendar) => {
-        r.syncToken = result.newToken || r.syncToken;
+        r.syncToken = result.newToken ?? r.syncToken;
         r.expandedCenter = now.getTime();
       }));
     }
