@@ -17,7 +17,9 @@ export function useCalendars(account: Account | null): { data: CalendarMeta[]; i
     const run = (withSpinner: boolean) => {
       if (withSpinner) setIsFetching(true);
       syncCalendars(account)
-        .catch(() => undefined)
+        .catch((e) => {
+          console.warn('[useCalendars] syncCalendars failed:', String(e));
+        })
         .finally(() => {
           if (active && withSpinner) setIsFetching(false);
         });

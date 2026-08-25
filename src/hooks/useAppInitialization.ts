@@ -54,13 +54,19 @@ export function useAppInitialization() {
           setStoreAccountId(id);
 
           const activeAccount = accounts.find((a) => a.id === id) ?? accounts[0];
-          void syncCalendars(activeAccount).catch(() => undefined);
-          void refreshAccountProfiles().then(setAccounts).catch(() => {});
+          void syncCalendars(activeAccount).catch((e) => {
+            console.warn('[useAppInitialization] syncCalendars failed:', String(e));
+          });
+          void refreshAccountProfiles().then(setAccounts).catch((e) => {
+            console.warn('[useAppInitialization] refreshAccountProfiles failed:', String(e));
+          });
           void fetchCapabilities(activeAccount)
             .then((caps) => {
               if (mounted && caps) setCapabilities(caps);
             })
-            .catch(() => undefined);
+            .catch((e) => {
+              console.warn('[useAppInitialization] fetchCapabilities failed:', String(e));
+            });
         }
       } finally {
         if (mounted) setIsAppReady(true);
