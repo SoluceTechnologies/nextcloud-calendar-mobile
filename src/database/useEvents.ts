@@ -8,19 +8,27 @@ import { mapEventToShared } from './mappers/event';
 import { EVENT_OBSERVED_COLUMNS } from './observedColumns';
 import Event from './models/Event';
 
-function rowsEqual(a: Event[], b: Event[]): boolean {
-  if (a.length !== b.length) return false;
-  for (let i = 0; i < a.length; i++) {
-    if (a[i] !== b[i]) return false;
+function rowKey(r: Event): string {
+  return `${r.id}:${r.start},${r.end}`;
+}
+
+function eventsFingerprint(rows: Event[]): string {
+  // Order-independent, value-based fingerprint. This is safe even when
+  // WatermelonDB re-uses the same model instances: it only depends on the
+  // observed column values at the moment of the emission.
+  if (rows.length === 0) return '';
+  const keys = new Array<string>(rows.length);
+  for (let i = 0; i < rows.length; i++) {
+    keys[i] = rowKey(rows[i]);
   }
-  return true;
+  keys.sort();
+  return keys.join('|');
 }
 
 export function useEventsForRange(accountId: string, start: Date, end: Date, refresh = 0) {
   const database = useDatabase();
   const [events, setEvents] = useState<CalendarEvent[]>([]);
-  const rowsRef = useRef<Event[]>([]);
-  const eventsRef = useRef<CalendarEvent[]>([]);
+  const fingerprintRef = useRef<string>('');
 
   useEffect(() => {
     const query = database.get<Event>('events').query(
@@ -29,16 +37,16 @@ export function useEventsForRange(accountId: string, start: Date, end: Date, ref
       Q.where('end', Q.gt(start.getTime())),
     );
     const subscription = query.observeWithColumns(EVENT_OBSERVED_COLUMNS).subscribe((rows) => {
-      if (rowsEqual(rows, rowsRef.current)) {
-        // WatermelonDB may re-emit the same rows after a resubscribe; skip the
-        // mapping/sort and avoid a new array reference for downstream memoization.
+      const fingerprint = eventsFingerprint(rows);
+      if (fingerprint === fingerprintRef.current) {
+        // WatermelonDB may re-emit the same rows; skip the mapping/sort and
+        // avoid a new array reference for downstream memoization.
         return;
       }
-      rowsRef.current = rows;
+      fingerprintRef.current = fingerprint;
       const next = rows
         .map(mapEventToShared)
         .sort((a, b) => a.dtstart.getTime() - b.dtstart.getTime());
-      eventsRef.current = next;
       setEvents(next);
     });
     return () => subscription.unsubscribe();
