@@ -384,6 +384,13 @@ describe('parseIcsObjectsAsync', () => {
     expect(events).toEqual(sync);
     expect(events.length).toBeGreaterThan(0);
   });
+
+  it('still resolves correctly with small chunk size', async () => {
+    const events = await parseIcsObjectsAsync(items, calMeta, rangeStart, rangeEnd, 16, 1);
+    const sync = parseIcsObjects(items, calMeta, rangeStart, rangeEnd);
+    expect(events).toEqual(sync);
+    expect(events.length).toBeGreaterThan(0);
+  });
 });
 
 function ics(lines: string[]): string {

@@ -413,16 +413,20 @@ export async function parseIcsObjectsAsync(
   meta: ParseCalMeta,
   rangeStart?: Date,
   rangeEnd?: Date,
-  frameBudgetMs = 8,
+  frameBudgetMs = 16,
+  chunkSize = 10,
 ): Promise<CalendarEvent[]> {
   const events: CalendarEvent[] = [];
   let sliceStart = Date.now();
 
-  for (const item of items) {
-    const parsed = parseIcsItem(item, meta, rangeStart, rangeEnd);
-    if (parsed.length) events.push(...parsed);
+  for (let i = 0; i < items.length; i += chunkSize) {
+    const batch = items.slice(i, i + chunkSize);
+    for (const item of batch) {
+      const parsed = parseIcsItem(item, meta, rangeStart, rangeEnd);
+      if (parsed.length) events.push(...parsed);
+    }
 
-    if (Date.now() - sliceStart >= frameBudgetMs) {
+    if (i + chunkSize < items.length || Date.now() - sliceStart >= frameBudgetMs) {
       await yieldToUI();
       sliceStart = Date.now();
     }
