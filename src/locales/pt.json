@@ -290,5 +290,13 @@
     "validTo": "Válido até",
     "trust": "Confiar e ligar",
     "cancel": "Cancelar"
+  },
+  "cleartext": {
+    "title": "Ligação não encriptada",
+    "body": "A ligação a {{host}} não está encriptada. O seu nome de utilizador e a palavra-passe da aplicação seriam enviados em texto simples pela rede.",
+    "warning": "Qualquer pessoa entre este telemóvel e o servidor — o operador do Wi-Fi, o seu fornecedor de internet, qualquer rede pelo meio — pode ler a sua palavra-passe e os dados do calendário. Uma palavra-passe de aplicação do Nextcloud dá acesso a toda a conta, não apenas ao calendário.",
+    "remedy": "Opções mais seguras: aceder ao servidor através de uma VPN como Tailscale ou WireGuard, ou configurar um certificado gratuito com DuckDNS e Let's Encrypt.",
+    "connect": "Ligar mesmo assim",
+    "cancel": "Cancelar"
   }
 }

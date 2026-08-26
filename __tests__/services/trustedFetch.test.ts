@@ -1,6 +1,8 @@
-import { trustedFetch, UntrustedCertError } from '@/services/shared/trustedFetch';
+import { trustedFetch, UntrustedCertError, CleartextNotConsentedError } from '@/services/shared/trustedFetch';
 import { TlsTrust } from '@/services/shared/nativeTlsTrust';
 import { utf8ToBase64 } from '@/services/shared/base64';
+import { addCleartextConsent } from '@/services/shared/cleartextConsent';
+import { storage } from '@/storage';
 
 const b64 = (s: string) => utf8ToBase64(s);
 const req = TlsTrust.request as jest.Mock;
@@ -140,5 +142,51 @@ describe('trustedFetch', () => {
     mockSequence([untrusted, { type: 'response', status: 200, headers: {}, bodyBase64: b64('ok') }]);
     await expect(trustedFetch('https://h/x', { maxRetries: 1 })).rejects.toBeInstanceOf(UntrustedCertError);
     expect(req).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('cleartext gate', () => {
+  beforeEach(() => {
+    storage.clearAll();
+    // This describe is a sibling of the main one, so its afterEach does not
+    // apply here; reset the native mock explicitly.
+    req.mockReset();
+  });
+
+  it('lets an https request through', async () => {
+    req.mockResolvedValueOnce({ type: 'response', status: 200, headers: {}, bodyBase64: b64('ok') });
+    const res = await trustedFetch('https://cloud.example.com/dav');
+    expect(res.status).toBe(200);
+  });
+
+  it('lets cleartext to a local host through', async () => {
+    req.mockResolvedValueOnce({ type: 'response', status: 200, headers: {}, bodyBase64: b64('ok') });
+    const res = await trustedFetch('http://192.168.1.50/dav');
+    expect(res.status).toBe(200);
+  });
+
+  it('refuses cleartext to a public host before any request leaves', async () => {
+    await expect(trustedFetch('http://203.0.113.5/dav')).rejects.toBeInstanceOf(
+      CleartextNotConsentedError
+    );
+    expect(req).not.toHaveBeenCalled();
+  });
+
+  it('reports the host on the error', async () => {
+    const err = await trustedFetch('http://203.0.113.5:8080/dav').catch((e) => e);
+    expect(err).toBeInstanceOf(CleartextNotConsentedError);
+    expect(err.host).toBe('203.0.113.5:8080');
+  });
+
+  it('lets cleartext through once consent is stored', async () => {
+    addCleartextConsent('203.0.113.5:80');
+    req.mockResolvedValueOnce({ type: 'response', status: 200, headers: {}, bodyBase64: b64('ok') });
+    const res = await trustedFetch('http://203.0.113.5/dav');
+    expect(res.status).toBe(200);
+  });
+
+  it('does not retry a refused request', async () => {
+    await trustedFetch('http://203.0.113.5/dav', { maxRetries: 3 }).catch(() => undefined);
+    expect(req).not.toHaveBeenCalled();
   });
 });

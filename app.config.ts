@@ -68,14 +68,6 @@ const config: ExpoConfig = {
     owner: 'soluce',
 
     plugins: [
-        [
-            'expo-build-properties',
-            {
-                android: {
-                    usesCleartextTraffic: true,
-                },
-            },
-        ],
         './plugins/withAndroidNetworkSecurityConfig',
         '@morrowdigital/watermelondb-expo-plugin',
         '@react-native-community/datetimepicker',

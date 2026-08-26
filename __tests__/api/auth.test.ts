@@ -72,6 +72,99 @@ describe('deleteAccount', () => {
   });
 });
 
+describe('deleteAccount pin revocation', () => {
+  const other: Account = {
+    id: 'acc-2',
+    displayName: 'Home',
+    baseUrl: 'https://cloud.example.com',
+    username: 'jane',
+    appPassword: 'yyyy-yyyy',
+    davUserId: 'jane',
+  };
+
+  it('removes pins for the host when no account is left on it', async () => {
+    mockSecureStore.getItemAsync.mockResolvedValue(JSON.stringify(account));
+    mockSecureStore.deleteItemAsync.mockResolvedValue();
+    storage.set('account_ids', JSON.stringify(['acc-1']));
+    storage.set('cert_pins', JSON.stringify({ 'cloud.example.com:443': ['AA:BB'] }));
+
+    await deleteAccount('acc-1');
+
+    expect(JSON.parse(storage.getString('cert_pins') ?? '{}')).toEqual({});
+  });
+
+  it('keeps pins while another account still uses the host', async () => {
+    mockSecureStore.getItemAsync.mockImplementation(async (key) =>
+      key === 'account_acc-1' ? JSON.stringify(account) : JSON.stringify(other)
+    );
+    mockSecureStore.deleteItemAsync.mockResolvedValue();
+    storage.set('account_ids', JSON.stringify(['acc-1', 'acc-2']));
+    storage.set('cert_pins', JSON.stringify({ 'cloud.example.com:443': ['AA:BB'] }));
+
+    await deleteAccount('acc-1');
+
+    expect(JSON.parse(storage.getString('cert_pins') ?? '{}')).toEqual({
+      'cloud.example.com:443': ['AA:BB'],
+    });
+  });
+
+  it('tolerates an unparseable stored baseUrl', async () => {
+    mockSecureStore.getItemAsync.mockResolvedValue(
+      JSON.stringify({ ...account, baseUrl: 'not a url' })
+    );
+    mockSecureStore.deleteItemAsync.mockResolvedValue();
+    storage.set('account_ids', JSON.stringify(['acc-1']));
+
+    await expect(deleteAccount('acc-1')).resolves.toBeUndefined();
+  });
+
+  it('revokes pins when remaining account has unparseable baseUrl', async () => {
+    const invalidOther: Account = { ...other, baseUrl: 'not a url' };
+    mockSecureStore.getItemAsync.mockImplementation(async (key) =>
+      key === 'account_acc-1' ? JSON.stringify(account) : JSON.stringify(invalidOther)
+    );
+    mockSecureStore.deleteItemAsync.mockResolvedValue();
+    storage.set('account_ids', JSON.stringify(['acc-1', 'acc-2']));
+    storage.set('cert_pins', JSON.stringify({ 'cloud.example.com:443': ['AA:BB'] }));
+
+    await deleteAccount('acc-1');
+
+    expect(JSON.parse(storage.getString('cert_pins') ?? '{}')).toEqual({});
+  });
+
+  it('tolerates loadAccounts failure and keeps pins', async () => {
+    mockSecureStore.getItemAsync.mockImplementation(async (key) => {
+      if (key === 'account_acc-1') {
+        return JSON.stringify(account);
+      }
+      // Return malformed JSON for account_acc-2 to make loadAccounts throw
+      return 'not valid json';
+    });
+    mockSecureStore.deleteItemAsync.mockResolvedValue();
+    storage.set('account_ids', JSON.stringify(['acc-1', 'acc-2']));
+    storage.set('cert_pins', JSON.stringify({ 'cloud.example.com:443': ['AA:BB'] }));
+
+    await expect(deleteAccount('acc-1')).resolves.toBeUndefined();
+
+    expect(JSON.parse(storage.getString('cert_pins') ?? '{}')).toEqual({
+      'cloud.example.com:443': ['AA:BB'],
+    });
+  });
+
+  it('removes the cleartext consent along with the pins', async () => {
+    mockSecureStore.getItemAsync.mockResolvedValue(
+      JSON.stringify({ ...account, baseUrl: 'http://203.0.113.5' })
+    );
+    mockSecureStore.deleteItemAsync.mockResolvedValue();
+    storage.set('account_ids', JSON.stringify(['acc-1']));
+    storage.set('cleartext_consent', JSON.stringify({ '203.0.113.5:80': true }));
+
+    await deleteAccount('acc-1');
+
+    expect(JSON.parse(storage.getString('cleartext_consent') ?? '{}')).toEqual({});
+  });
+});
+
 describe('activeAccountId', () => {
   it('gets and sets active account id', async () => {
     await setActiveAccountId('acc-1');

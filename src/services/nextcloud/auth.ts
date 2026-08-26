@@ -2,6 +2,8 @@ import * as SecureStore from 'expo-secure-store';
 import { asyncStorage as AsyncStorage } from '@/storage';
 import type { Account } from '@/types';
 import { fetchUserInfo } from './nextcloud';
+import { hostKeyFromUrl, removePinsForHost } from '@/services/shared/certPins';
+import { removeCleartextConsent } from '@/services/shared/cleartextConsent';
 
 const ACCOUNT_IDS_KEY = 'account_ids';
 const ACTIVE_ACCOUNT_KEY = 'active_account_id';
@@ -49,12 +51,40 @@ export async function refreshAccountProfiles(): Promise<Account[]> {
 }
 
 export async function deleteAccount(id: string): Promise<void> {
+  const raw = await SecureStore.getItemAsync(accountKey(id));
   await SecureStore.deleteItemAsync(accountKey(id));
   const ids = await getAccountIds();
   await AsyncStorage.setItem(
     ACCOUNT_IDS_KEY,
     JSON.stringify(ids.filter((i) => i !== id))
   );
+  await revokeHostTrustIfUnused(raw);
+}
+
+async function revokeHostTrustIfUnused(rawDeletedAccount: string | null): Promise<void> {
+  if (!rawDeletedAccount) return;
+  let host: string;
+  try {
+    host = hostKeyFromUrl((JSON.parse(rawDeletedAccount) as Account).baseUrl);
+  } catch {
+    return;
+  }
+  let remaining: Account[];
+  try {
+    remaining = await loadAccounts();
+  } catch {
+    return;
+  }
+  const stillUsed = remaining.some((a) => {
+    try {
+      return hostKeyFromUrl(a.baseUrl) === host;
+    } catch {
+      return false;
+    }
+  });
+  if (stillUsed) return;
+  removePinsForHost(host);
+  removeCleartextConsent(host);
 }
 
 export async function getActiveAccountId(): Promise<string | null> {

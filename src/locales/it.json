@@ -290,5 +290,13 @@
     "validTo": "Valido fino al",
     "trust": "Autorizza e connetti",
     "cancel": "Annulla"
+  },
+  "cleartext": {
+    "title": "Connessione non cifrata",
+    "body": "La connessione a {{host}} non è cifrata. Il tuo nome utente e la password dell'app verrebbero inviati in chiaro sulla rete.",
+    "warning": "Chiunque si trovi tra questo telefono e il server — gestore del Wi-Fi, provider internet, qualsiasi rete intermedia — può leggere la password e i dati del calendario. Una password dell'app Nextcloud dà accesso all'intero account, non solo al calendario.",
+    "remedy": "Opzioni più sicure: raggiungere il server tramite una VPN come Tailscale o WireGuard, oppure configurare un certificato gratuito con DuckDNS e Let's Encrypt.",
+    "connect": "Connetti comunque",
+    "cancel": "Annulla"
   }
 }
