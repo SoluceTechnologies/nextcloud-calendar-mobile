@@ -86,6 +86,7 @@
     "end": "Fine",
     "location": "Luogo",
     "locationPlaceholder": "Sala o indirizzo",
+    "openInMaps": "Open in Maps",
     "description": "Descrizione",
     "descriptionPlaceholder": "Dettagli...",
     "attendees": "Partecipanti",

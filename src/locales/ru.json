@@ -86,6 +86,7 @@
     "end": "Конец",
     "location": "Место",
     "locationPlaceholder": "Помещение или адрес",
+    "openInMaps": "Open in Maps",
     "description": "Описание",
     "descriptionPlaceholder": "Подробности...",
     "attendees": "Участники",

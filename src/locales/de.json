@@ -86,6 +86,7 @@
     "end": "Ende",
     "location": "Ort",
     "locationPlaceholder": "Raum oder Adresse",
+    "openInMaps": "Open in Maps",
     "description": "Beschreibung",
     "descriptionPlaceholder": "Details...",
     "attendees": "Teilnehmer",

@@ -86,6 +86,7 @@
     "end": "Fim",
     "location": "Localização",
     "locationPlaceholder": "Sala ou morada",
+    "openInMaps": "Open in Maps",
     "description": "Descrição",
     "descriptionPlaceholder": "Detalhes...",
     "attendees": "Participantes",
