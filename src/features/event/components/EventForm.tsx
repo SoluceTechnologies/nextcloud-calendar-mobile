@@ -5,13 +5,15 @@ import dayjs from 'dayjs';
 import localizedFormat from 'dayjs/plugin/localizedFormat';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from 'expo-router';
-import { X } from 'lucide-react-native';
+import { X, User } from 'lucide-react-native';
 import { TalkToggle } from './TalkToggle';
 import { requestAlertPermission } from '@/features/notifications/scheduleAlerts';
 import { AlertPicker } from './AlertPicker';
 import { RecurrencePicker } from './RecurrencePicker';
-import { Stack, Typography, TextField, DateField, Button, Chip, Toggle, IconButton } from '@/ui/components';
-import type { CalendarMeta, Attendee, CreateEventInput, RecurrenceRule, TalkRoomType } from '@/types';
+import { useContactSuggestions } from '@/features/event/hooks/useContactSuggestions';
+import { dedupeAttendees } from '@/utils/attendees';
+import { Stack, Typography, TextField, DateField, Button, Chip, Toggle, IconButton, List, Item, Spinner } from '@/ui/components';
+import type { CalendarMeta, Attendee, CreateEventInput, RecurrenceRule, TalkRoomType, Account } from '@/types';
 
 dayjs.extend(localizedFormat);
 
@@ -38,6 +40,7 @@ interface Props {
   initialValues?: InitialValues;
   submitLabel?: string;
   disableCalendarChange?: boolean;
+  account?: Pick<Account, 'baseUrl' | 'username' | 'appPassword'> | null;
 }
 
 
@@ -46,7 +49,7 @@ type AndroidPickerStep = null | { target: 'start' | 'end'; step: 'date' | 'time'
 
 export function EventForm({
   calendars, defaultDate, organizerEmail, organizerName, onSubmit, loading,
-  initialValues, submitLabel, disableCalendarChange = false,
+  initialValues, submitLabel, disableCalendarChange = false, account,
 }: Props) {
   const theme = useTheme();
   const { t } = useTranslation();
@@ -73,6 +76,10 @@ export function EventForm({
   const [talkRoomType, setTalkRoomType] = useState<TalkRoomType>('private');
   const [attendeeInput, setAttendeeInput] = useState('');
   const [attendees, setAttendees] = useState<Attendee[]>(initialValues?.attendees ?? []);
+  const { suggestions, loading: contactsLoading } = useContactSuggestions({
+    account: account ?? null,
+    query: attendeeInput,
+  });
   const [rrule, setRrule] = useState<RecurrenceRule | undefined>(initialValues?.rrule);
   const [alarmMinutes, setAlarmMinutes] = useState<number | undefined>(initialValues?.alarmMinutes);
   const [titleError, setTitleError] = useState<string | null>(null);
@@ -170,10 +177,16 @@ export function EventForm({
     }
   }
 
-  function addAttendee() {
+  function addAttendee(contact?: Attendee) {
+    if (contact?.email) {
+      setAttendees((prev) => dedupeAttendees([...prev, contact]));
+      setAttendeeInput('');
+      return;
+    }
+
     const email = attendeeInput.trim();
     if (!email || !email.includes('@')) return;
-    setAttendees((prev) => [...prev, { email }]);
+    setAttendees((prev) => dedupeAttendees([...prev, { email }]));
     setAttendeeInput('');
   }
 
@@ -386,14 +399,34 @@ export function EventForm({
                   spellCheck={false}
                   autoComplete="email"
                   textContentType="emailAddress"
-                  onSubmitEditing={addAttendee}
+                  onSubmitEditing={() => addAttendee()}
                   onFocus={() => scrollToField('attendee')}
                   onBlur={() => { attendeeFocused.current = false; }}
                 />
               </View>
-              <Button variant="primary" title={t('event.add')} onPress={addAttendee} />
+              <Button variant="primary" title={t('event.add')} onPress={() => addAttendee()} />
             </Stack>
           </View>
+
+          {contactsLoading && (
+            <View style={styles.suggestionLoading}>
+              <Spinner size="small" color="secondary" />
+            </View>
+          )}
+
+          {!contactsLoading && suggestions.length > 0 && (
+            <List radius={12} style={styles.suggestionList}>
+              {suggestions.map((contact) => (
+                <Item
+                  key={contact.id}
+                  title={contact.displayName}
+                  description={contact.email}
+                  leading={<User size={20} color={theme.colors.textTertiary} />}
+                  onPress={() => addAttendee({ email: contact.email, displayName: contact.displayName })}
+                />
+              ))}
+            </List>
+          )}
 
           {attendees.map((att) => (
             <Stack
@@ -401,7 +434,12 @@ export function EventForm({
               direction="horizontal" vAlign="center" bordered
               gap={8} padding={[12, 8]}
             >
-              <Typography variant="body2" color="primary">{att.email}</Typography>
+              <View>
+                <Typography variant="body2" color="primary">{att.displayName ?? att.email}</Typography>
+                {att.displayName ? (
+                  <Typography variant="caption" color="secondary">{att.email}</Typography>
+                ) : null}
+              </View>
               <View style={styles.pushRight}>
                 <IconButton variant="plain" size={32} onPress={() => removeAttendee(att.email)}>
                   <X size={18} color={theme.colors.textTertiary} />
@@ -439,4 +477,6 @@ const styles = StyleSheet.create({
   grow: { flex: 1 },
   pushRight: { marginLeft: 'auto' },
   iosPickerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 44 },
+  suggestionList: { maxHeight: 220 },
+  suggestionLoading: { paddingVertical: 8, alignItems: 'center' },
 });

@@ -1,5 +1,5 @@
 import type { ReactElement } from 'react';
-import { render as rtlRender, fireEvent } from '@testing-library/react-native';
+import { render as rtlRender, fireEvent, waitFor } from '@testing-library/react-native';
 import { ThemeWrapper } from '../helpers/theme';
 
 const render = (ui: ReactElement, opts?: Parameters<typeof rtlRender>[1]) =>
@@ -11,6 +11,18 @@ import type { CalendarMeta } from '../../src/types';
 jest.mock('@react-native-async-storage/async-storage', () =>
   require('@react-native-async-storage/async-storage/jest/async-storage-mock')
 );
+
+jest.mock('@/features/event/hooks/useContactSuggestions', () => ({
+  useContactSuggestions: jest.fn(),
+}));
+
+import { useContactSuggestions } from '@/features/event/hooks/useContactSuggestions';
+
+const mockedUseContactSuggestions = useContactSuggestions as jest.MockedFunction<typeof useContactSuggestions>;
+
+beforeEach(() => {
+  mockedUseContactSuggestions.mockReturnValue({ suggestions: [], loading: false, error: null });
+});
 
 const calendars: CalendarMeta[] = [
   {
@@ -164,6 +176,58 @@ describe('EventForm recurrence end condition', () => {
       expect.objectContaining({
         rrule: expect.objectContaining({ until: new Date(2026, 6, 1, 23, 59, 59) }),
       })
+    );
+  });
+});
+
+describe('EventForm contact suggestions', () => {
+  const account = {
+    baseUrl: 'https://cloud.example.com',
+    username: 'john',
+    appPassword: 'xxxx',
+  };
+
+  beforeEach(async () => {
+    await i18n.changeLanguage('en');
+    mockedUseContactSuggestions.mockReturnValue({ suggestions: [], loading: false, error: null });
+  });
+
+  it('shows contact suggestions from the account', async () => {
+    mockedUseContactSuggestions.mockReturnValue({
+      suggestions: [
+        { id: '1', displayName: 'John Smith', email: 'john.smith@example.com', source: 'emails' },
+      ],
+      loading: false,
+      error: null,
+    });
+
+    const onSubmit = jest.fn();
+    const { getByText, queryByText } = render(
+      <EventForm
+        {...baseProps}
+        account={account}
+        onSubmit={onSubmit}
+        initialValues={{ summary: 'Team sync' }}
+      />,
+    );
+
+    await waitFor(() => expect(getByText('John Smith')).toBeTruthy());
+    expect(queryByText('john.smith@example.com')).toBeTruthy();
+
+    fireEvent.press(getByText('John Smith'));
+
+    fireEvent.press(getByText('Save Event'));
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        attendees: [{ displayName: 'John Smith', email: 'john.smith@example.com' }],
+      }),
+    );
+  });
+
+  it('does not request suggestions when no account is provided', () => {
+    render(<EventForm {...baseProps} />);
+    expect(mockedUseContactSuggestions).toHaveBeenCalledWith(
+      expect.objectContaining({ account: null }),
     );
   });
 });
