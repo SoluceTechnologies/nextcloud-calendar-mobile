@@ -12,6 +12,7 @@ import type { AgendaEventItem, AgendaSnapshot, AgendaTimelineEntry, WidgetSurfac
 import { type AgendaGroup, agendaGroups, agendaHeader, agendaPalette, compactEvents, emptyLabel } from '../../core/agendaView';
 import { onEventColor, widgetPalette, widgetRadius, widgetSpacing, widgetType } from '../../core/theme';
 import { readAgendaSnapshot, writeAgendaTimeline } from '../../storage/widgetStore';
+import { buildFreshTimeline } from '../../core/buildTimeline';
 
 type Palette = ReturnType<typeof widgetPalette>;
 
@@ -133,8 +134,27 @@ function AndroidWidget({ widgetName, snapshot }: { widgetName: string; snapshot:
 }
 
 export const widgetTaskHandler = async (props: WidgetTaskHandlerProps) => {
-  const snapshot = readAgendaSnapshot();
-  props.renderWidget(<AndroidWidget widgetName={props.widgetInfo.widgetName} snapshot={snapshot} />);
+  // Render immediately with the last cached snapshot so the widget is never blank.
+  const cachedSnapshot = readAgendaSnapshot();
+  props.renderWidget(<AndroidWidget widgetName={props.widgetInfo.widgetName} snapshot={cachedSnapshot} />);
+
+  // When Android triggers a periodic update (every `updatePeriodMillis`) or the
+  // widget is first placed on the home screen, refresh from the local
+  // WatermelonDB so the widget shows current events even when the app is not
+  // open.  We use `props.renderWidget` (not `requestWidgetUpdate`) to avoid an
+  // infinite update loop.
+  if (props.widgetAction === 'WIDGET_ADDED' || props.widgetAction === 'WIDGET_UPDATE') {
+    try {
+      const timeline = await buildFreshTimeline();
+      if (timeline && timeline.length > 0) {
+        writeAgendaTimeline(timeline);
+        const snapshot = timeline[0].snapshot;
+        props.renderWidget(<AndroidWidget widgetName={props.widgetInfo.widgetName} snapshot={snapshot} />);
+      }
+    } catch (error) {
+      if (__DEV__) console.warn('[widget] handler refresh failed', error);
+    }
+  }
 };
 
 export const homeWidget: WidgetSurface<AgendaTimelineEntry[]> = {
