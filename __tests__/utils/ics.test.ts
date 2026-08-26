@@ -194,6 +194,21 @@ describe('rruleLine end conditions', () => {
     const ics = buildIcs({ ...base, rrule: { freq: 'WEEKLY', byDay: ['MO', 'WE'], count: 4 } });
     expect(ics).toContain('RRULE:FREQ=WEEKLY;BYDAY=MO,WE;COUNT=4\r\n');
   });
+
+  it('writes monthly positional BYDAY', () => {
+    const ics = buildIcs({ ...base, rrule: { freq: 'MONTHLY', byDay: ['3SA'] } });
+    expect(ics).toContain('RRULE:FREQ=MONTHLY;BYDAY=3SA\r\n');
+  });
+
+  it('writes yearly BYMONTH and positional BYDAY', () => {
+    const ics = buildIcs({ ...base, rrule: { freq: 'YEARLY', byMonth: [7], byDay: ['3SA'] } });
+    expect(ics).toContain('RRULE:FREQ=YEARLY;BYMONTH=7;BYDAY=3SA\r\n');
+  });
+
+  it('writes yearly BYWEEKNO and BYDAY', () => {
+    const ics = buildIcs({ ...base, rrule: { freq: 'YEARLY', byWeekNo: [31], byDay: ['SU'] } });
+    expect(ics).toContain('RRULE:FREQ=YEARLY;BYWEEKNO=31;BYDAY=SU\r\n');
+  });
 });
 
 describe('shiftIcsDates', () => {

@@ -39,6 +39,8 @@ export type RecurrenceRule = {
   count?: number;
   until?: Date;
   byDay?: string[];
+  byMonth?: number[];
+  byWeekNo?: number[];
 };
 
 export type RecurrenceEditScope = 'this' | 'thisAndFollowing' | 'all';

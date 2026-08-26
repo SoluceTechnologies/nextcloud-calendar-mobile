@@ -55,7 +55,7 @@
     "expo-web-browser": "~57.0.1",
     "expo-widgets": "~57.0.6",
     "i18next": "^26.3.1",
-    "ical.js": "^2.2.1",
+    "ical.js": "patch:ical.js@npm%3A2.2.1#~/.yarn/patches/ical.js-npm-2.2.1-bffc8d4f45.patch",
     "lucide-react-native": "^1.25.0",
     "react": "19.2.3",
     "react-dom": "19.2.3",
