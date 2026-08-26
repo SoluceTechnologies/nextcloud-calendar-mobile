@@ -6,7 +6,13 @@ interface MapHtmlData {
   label: string;
 }
 
-export function buildMapHtml({ lat, lon, zoom, interactive, label }: MapHtmlData): string {
+export function buildMapHtml({
+                               lat,
+                               lon,
+                               zoom,
+                               interactive,
+                               label,
+                             }: MapHtmlData): string {
   const data = JSON.stringify({
     lat,
     lon,
@@ -19,17 +25,54 @@ export function buildMapHtml({ lat, lon, zoom, interactive, label }: MapHtmlData
 <html>
 <head>
 <meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=${interactive ? 'yes' : 'no'}" />
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<meta
+  name="viewport"
+  content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=${interactive ? 'yes' : 'no'}"
+/>
+
+<link
+  rel="stylesheet"
+  href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+/>
+
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
 <style>
-  html, body, #map { margin: 0; padding: 0; width: 100%; height: 100%; }
-  body { background: transparent; }
-  #map { background: #e5e3df; }
+  html,
+  body,
+  #map {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+  }
+
+  body {
+    background: transparent;
+  }
+
+  #map {
+    background: #e5e3df;
+  }
+
+  .leaflet-control-attribution {
+    font-size: 8px !important;
+    line-height: 11px !important;
+    padding: 1px 3px !important;
+    background: rgba(255, 255, 255, 0.65) !important;
+    border-radius: 3px 0 0 0;
+  }
+
+  .leaflet-control-attribution a {
+    color: inherit !important;
+    text-decoration: none !important;
+  }
 </style>
 </head>
+
 <body>
 <div id="map"></div>
+
 <script>
   (function() {
     var data = ${data};
@@ -52,15 +95,22 @@ export function buildMapHtml({ lat, lon, zoom, interactive, label }: MapHtmlData
         tap: data.interactive,
       }).setView([data.lat, data.lon], data.zoom);
 
+      map.attributionControl.setPrefix(false);
+
       L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
         maxZoom: 19,
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        attribution: '&copy; OpenStreetMap',
       }).addTo(map);
 
-      L.marker([data.lat, data.lon], { title: data.label || '' }).addTo(map);
+      L.marker([data.lat, data.lon], {
+        title: data.label || '',
+      }).addTo(map);
     }
 
-    if (document.readyState === 'complete' || document.readyState === 'interactive') {
+    if (
+      document.readyState === 'complete' ||
+      document.readyState === 'interactive'
+    ) {
       initMap();
     } else {
       document.addEventListener('DOMContentLoaded', initMap);
