@@ -195,7 +195,7 @@ describe('EventForm contact suggestions', () => {
   it('shows contact suggestions from the account', async () => {
     mockedUseContactSuggestions.mockReturnValue({
       suggestions: [
-        { id: '1', displayName: 'John Smith', email: 'john.smith@example.com', source: 'emails' },
+        { id: '1', displayName: 'John Smith', email: 'john.smith@example.com', source: 'user' },
       ],
       loading: false,
       error: null,

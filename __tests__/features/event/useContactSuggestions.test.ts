@@ -44,7 +44,7 @@ interface HookProps { query: string }
 
 it('debounces the sharees call and returns results', async () => {
   mockedFetchSharees.mockResolvedValue([
-    { id: '1', displayName: 'John Doe', email: 'john@example.com', source: 'emails' },
+    { id: '1', displayName: 'John Doe', email: 'john@example.com', source: 'user' },
   ]);
 
   const { result, rerender } = renderHook(
@@ -73,9 +73,9 @@ it('ignores stale results when the query changes faster than the debounce', asyn
   mockedFetchSharees.mockImplementation(async ({ query }) => {
     if (query === 'old') {
       await new Promise((resolve) => setTimeout(resolve, 500));
-      return [{ id: 'old', displayName: 'Old', email: 'old@example.com', source: 'emails' }];
+      return [{ id: 'old', displayName: 'Old', email: 'old@example.com', source: 'user' }];
     }
-    return [{ id: 'new', displayName: 'New', email: 'new@example.com', source: 'emails' }];
+    return [{ id: 'new', displayName: 'New', email: 'new@example.com', source: 'user' }];
   });
 
   const { result, rerender } = renderHook(

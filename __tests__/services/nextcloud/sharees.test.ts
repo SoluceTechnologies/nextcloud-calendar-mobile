@@ -17,18 +17,22 @@ beforeEach(() => {
   jest.clearAllMocks();
 });
 
-function shareesResponse(extra: Record<string, unknown> = {}) {
-  return JSON.stringify({
-    ocs: {
-      meta: { status: 'ok' },
-      data: {
-        exact: { users: [], emails: [] },
-        users: [],
-        emails: [],
-        ...extra,
-      },
-    },
-  });
+function calendarResponse(entries: unknown[]) {
+  return {
+    status: 200,
+    ok: true,
+    json: async () => entries,
+    text: async () => JSON.stringify(entries),
+  };
+}
+
+function fetchError(status: number) {
+  return {
+    status,
+    ok: false,
+    json: async () => ({}),
+    text: async () => '',
+  };
 }
 
 describe('fetchSharees', () => {
@@ -38,102 +42,157 @@ describe('fetchSharees', () => {
     expect(mockFetch).not.toHaveBeenCalled();
   });
 
-  it('calls the Nextcloud sharees endpoint with the search query', async () => {
-    mockFetch.mockResolvedValue({
-      status: 200,
-      ok: true,
-      json: async () => JSON.parse(shareesResponse()),
-      text: async () => shareesResponse(),
-    });
+  it('calls the calendar attendee endpoint with the search query', async () => {
+    mockFetch.mockResolvedValue(calendarResponse([]));
 
     await fetchSharees({ account, query: 'john' });
 
-    const call = mockFetch.mock.calls[0];
-    expect(call[0]).toContain('/ocs/v2.php/apps/files_sharing/api/v1/sharees?');
-    expect(call[0]).toContain('search=john');
-    expect(call[0]).toContain('itemType=call');
-    expect(call[0]).toContain('perPage=25');
-    expect(call[1].headers).toMatchObject({
+    const [url, init] = mockFetch.mock.calls[0];
+    expect(url).toBe('https://cloud.example.com/apps/calendar/v1/autocompletion/attendee');
+    expect(init.method).toBe('POST');
+    expect(init.body).toBe(JSON.stringify({ search: 'john' }));
+    expect(init.headers).toMatchObject({
       Authorization: 'Basic ' + btoa('john:xxxx'),
       'OCS-APIRequest': 'true',
       Accept: 'application/json',
+      'Content-Type': 'application/json',
     });
   });
 
-  it('extracts users and contacts from the sharees response', async () => {
-    const response = JSON.stringify({
-      ocs: {
-        meta: { status: 'ok' },
-        data: {
-          exact: { users: [], emails: [] },
-          users: [
-            {
-              label: 'Jane Doe (jane.doe@example.com)',
-              value: { shareType: 0, shareWith: 'jane.doe@example.com' },
-            },
-          ],
-          emails: [
-            {
-              label: 'John Smith (john.smith@example.com)',
-              name: 'John Smith',
-              uuid: 'contact-1',
-              value: { shareType: 4, shareWith: 'john.smith@example.com' },
-            },
-          ],
-        },
-      },
-    });
+  it('falls back to index.php route when the pretty URL returns 404', async () => {
+    mockFetch
+      .mockResolvedValueOnce(fetchError(404))
+      .mockResolvedValueOnce(
+        calendarResponse([
+          { name: 'John Doe', emails: ['john@example.com'], type: 'individual', source: 'user' },
+        ]),
+      );
 
-    mockFetch.mockResolvedValue({
-      status: 200,
-      ok: true,
-      json: async () => JSON.parse(response),
-      text: async () => response,
-    });
+    const results = await fetchSharees({ account, query: 'john' });
 
-    const results = await fetchSharees({ account, query: 'jo' });
-
+    expect(mockFetch).toHaveBeenCalledTimes(2);
+    expect(mockFetch.mock.calls[0][0]).toBe('https://cloud.example.com/apps/calendar/v1/autocompletion/attendee');
+    expect(mockFetch.mock.calls[1][0]).toBe('https://cloud.example.com/index.php/apps/calendar/v1/autocompletion/attendee');
     expect(results).toEqual([
-      { id: 'jane.doe@example.com', displayName: 'Jane Doe', email: 'jane.doe@example.com', source: 'users' },
-      {
-        id: 'john.smith@example.com',
-        displayName: 'John Smith',
-        email: 'john.smith@example.com',
-        source: 'emails',
-      },
+      { id: 'john@example.com', displayName: 'John Doe', email: 'john@example.com', source: 'user' },
     ]);
   });
 
-  it('skips entries without an email address', async () => {
-    const response = JSON.stringify({
-      ocs: {
-        meta: { status: 'ok' },
-        data: {
-          exact: { users: [], emails: [] },
-          users: [{ label: 'Ghost', value: { shareType: 0 } }],
-          emails: [],
+  it('parses users and contacts from the calendar response', async () => {
+    mockFetch.mockResolvedValue(
+      calendarResponse([
+        {
+          name: 'Jane User',
+          emails: ['jane@example.com'],
+          type: 'individual',
+          source: 'system',
         },
-      },
-    });
+        {
+          name: 'John Smith',
+          emails: ['john.smith@example.com'],
+          type: 'individual',
+          source: 'user',
+        },
+      ]),
+    );
 
-    mockFetch.mockResolvedValue({
-      status: 200,
-      ok: true,
-      json: async () => JSON.parse(response),
-      text: async () => response,
-    });
+    const results = await fetchSharees({ account, query: 'j' });
+
+    expect(results).toEqual([
+      { id: 'jane@example.com', displayName: 'Jane User', email: 'jane@example.com', source: 'system' },
+      { id: 'john.smith@example.com', displayName: 'John Smith', email: 'john.smith@example.com', source: 'user' },
+    ]);
+  });
+
+  it('flattens multiple emails and strips mailto: prefix', async () => {
+    mockFetch.mockResolvedValue(
+      calendarResponse([
+        {
+          name: 'Multi Email',
+          emails: ['mailto:home%40example.com', 'work@example.com'],
+          type: 'individual',
+          source: 'user',
+        },
+      ]),
+    );
+
+    const results = await fetchSharees({ account, query: 'multi' });
+
+    expect(results).toEqual([
+      { id: 'home@example.com', displayName: 'Multi Email', email: 'home@example.com', source: 'user' },
+      { id: 'work@example.com', displayName: 'Multi Email', email: 'work@example.com', source: 'user' },
+    ]);
+  });
+
+  it('skips contact groups and entries without an email address', async () => {
+    mockFetch.mockResolvedValue(
+      calendarResponse([
+        {
+          name: 'Group',
+          emails: ['mailto:group%40group'],
+          type: 'contactsgroup',
+          source: 'user',
+          members: 5,
+        },
+        {
+          name: 'No Email',
+          emails: [],
+          type: 'individual',
+          source: 'user',
+        },
+        {
+          name: 'Ghost',
+          type: 'individual',
+          source: 'user',
+        },
+      ]),
+    );
 
     const results = await fetchSharees({ account, query: 'g' });
     expect(results).toEqual([]);
   });
 
+  it('deduplicates by email (case-insensitive)', async () => {
+    mockFetch.mockResolvedValue(
+      calendarResponse([
+        {
+          name: 'John Doe',
+          emails: ['John@Example.com'],
+          type: 'individual',
+          source: 'user',
+        },
+        {
+          name: 'John Doe',
+          emails: ['john@example.com'],
+          type: 'individual',
+          source: 'system',
+        },
+      ]),
+    );
+
+    const results = await fetchSharees({ account, query: 'john' });
+    expect(results).toHaveLength(1);
+    expect(results[0].email).toBe('John@Example.com');
+    expect(results[0].displayName).toBe('John Doe');
+  });
+
+  it('applies the limit client-side', async () => {
+    mockFetch.mockResolvedValue(
+      calendarResponse([
+        { name: 'One', emails: ['one@example.com'], type: 'individual', source: 'user' },
+        { name: 'Two', emails: ['two@example.com'], type: 'individual', source: 'user' },
+        { name: 'Three', emails: ['three@example.com'], type: 'individual', source: 'user' },
+      ]),
+    );
+
+    const results = await fetchSharees({ account, query: 'x', limit: 2 });
+    expect(results).toHaveLength(2);
+  });
+
   it('throws on HTTP error', async () => {
-    mockFetch.mockResolvedValue({
-      status: 403,
-      ok: false,
-      json: async () => ({}),
-      text: async () => '',
-    });
+    mockFetch
+      .mockResolvedValueOnce(fetchError(404))
+      .mockResolvedValueOnce(fetchError(403));
 
     await expect(fetchSharees({ account, query: 'x' })).rejects.toThrow('fetchSharees HTTP 403');
   });

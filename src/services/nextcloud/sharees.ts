@@ -6,7 +6,7 @@ function basicAuth(account: Pick<Account, 'username' | 'appPassword'>): string {
   return 'Basic ' + btoa(`${account.username}:${account.appPassword}`);
 }
 
-export type ShareeSource = 'users' | 'emails';
+export type ShareeSource = 'system' | 'user';
 
 export interface ShareeResult {
   id: string;
@@ -15,54 +15,66 @@ export interface ShareeResult {
   source: ShareeSource;
 }
 
-interface ShareeEntry {
-  label: string;
-  value?: { shareType: number; shareWith: string };
-  uuid?: string;
-  name?: string;
+interface ContactAutocompleteEntry {
+  name?: unknown;
+  emails?: unknown;
+  type?: unknown;
+  source?: unknown;
 }
 
-interface ShareesResponse {
-  ocs?: {
-    meta?: { status: string };
-    data?: {
-      exact?: Record<ShareeSource, ShareeEntry[]>;
-      users?: ShareeEntry[];
-      emails?: ShareeEntry[];
-    };
-  };
-}
+const CALENDAR_ATTENDEE_PATH = 'apps/calendar/v1/autocompletion/attendee';
 
-function parseShareeEmail(entry: ShareeEntry): string | undefined {
-  const label = entry.label ?? '';
-  const match = label.match(/\(([^)]+)\)$/);
-  if (match?.[1]?.includes('@')) {
-    return match[1].trim();
+function buildCalendarAttendeeUrl(baseUrl: string, withIndexPhp: boolean): string {
+  if (withIndexPhp) {
+    return `${baseUrl}/index.php/${CALENDAR_ATTENDEE_PATH}`;
   }
-  if (entry.value?.shareWith?.includes('@')) {
-    return entry.value.shareWith.trim();
+  return `${baseUrl}/${CALENDAR_ATTENDEE_PATH}`;
+}
+
+function stripMailto(value: string): string {
+  return value.replace(/^mailto:/i, '').trim();
+}
+
+function asStringList(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value.map((v) => (typeof v === 'string' ? v : String(v)));
   }
-  return undefined;
+  if (typeof value === 'string') return [value];
+  return [];
 }
 
-function parseShareeEntry(entry: ShareeEntry, source: ShareeSource): ShareeResult | undefined {
-  const email = parseShareeEmail(entry);
-  if (!email) return undefined;
+function parseContactEntry(entry: ContactAutocompleteEntry): ShareeResult[] {
+  if (entry.type !== 'individual') return [];
 
-  const displayName = (entry.name ?? entry.label ?? '').replace(/\s*\([^)]+\)$/, '').trim() || email;
-  const id = entry.value?.shareWith ?? entry.uuid ?? email;
+  const name = typeof entry.name === 'string' ? entry.name.trim() : '';
+  const rawSource = typeof entry.source === 'string' ? entry.source : 'user';
+  const source: ShareeSource = rawSource === 'system' ? 'system' : 'user';
 
-  return { id, email, displayName, source };
-}
-
-function extractSharees(list: ShareeEntry[] | undefined, source: ShareeSource): ShareeResult[] {
   const results: ShareeResult[] = [];
-  if (!Array.isArray(list)) return results;
+  const seen = new Set<string>();
 
-  for (const entry of list) {
-    const parsed = parseShareeEntry(entry, source);
-    if (parsed) results.push(parsed);
+  for (const raw of asStringList(entry.emails)) {
+    let email = stripMailto(raw);
+    try {
+      email = decodeURIComponent(email);
+    } catch {
+      // keep as-is
+    }
+    email = email.trim();
+    if (!email.includes('@')) continue;
+
+    const key = email.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+
+    results.push({
+      id: email,
+      email,
+      displayName: name || email,
+      source,
+    });
   }
+
   return results;
 }
 
@@ -80,31 +92,45 @@ export async function fetchSharees({
   const trimmed = query.trim();
   if (!trimmed) return [];
 
-  const searchParams = new URLSearchParams({
-    search: trimmed,
-    itemType: 'call',
-    page: '1',
-    perPage: String(limit),
-  });
+  const body = JSON.stringify({ search: trimmed });
+  const headers = {
+    Authorization: basicAuth(account),
+    'OCS-APIRequest': 'true',
+    Accept: 'application/json',
+    'Content-Type': 'application/json',
+  };
 
-  const url = `${account.baseUrl}/ocs/v2.php/apps/files_sharing/api/v1/sharees?${searchParams.toString()}`;
-  const res = await trustedFetch(url, {
-    headers: {
-      Authorization: basicAuth(account),
-      'OCS-APIRequest': 'true',
-      Accept: 'application/json',
-    },
+  let res = await trustedFetch(buildCalendarAttendeeUrl(account.baseUrl, false), {
+    method: 'POST',
+    headers,
+    body,
     maxRetries: 1,
   });
 
+  if (res.status === 404) {
+    res = await trustedFetch(buildCalendarAttendeeUrl(account.baseUrl, true), {
+      method: 'POST',
+      headers,
+      body,
+      maxRetries: 0,
+    });
+  }
+
   if (!res.ok) throw httpErrorFrom(res, 'fetchSharees');
 
-  const json: ShareesResponse = await res.json();
-  const data = json?.ocs?.data;
-  if (!data) return [];
+  const json: unknown = await res.json();
+  if (!Array.isArray(json)) return [];
 
-  const users = extractSharees(data.exact?.users, 'users').concat(extractSharees(data.users, 'users'));
-  const emails = extractSharees(data.exact?.emails, 'emails').concat(extractSharees(data.emails, 'emails'));
+  const byEmail = new Map<string, ShareeResult>();
+  for (const entry of json) {
+    for (const parsed of parseContactEntry(entry as ContactAutocompleteEntry)) {
+      const key = parsed.email.toLowerCase();
+      if (!byEmail.has(key)) {
+        byEmail.set(key, parsed);
+      }
+    }
+  }
 
-  return [...users, ...emails];
+  const results = Array.from(byEmail.values());
+  return limit > 0 ? results.slice(0, limit) : results;
 }
