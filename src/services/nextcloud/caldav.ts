@@ -371,13 +371,17 @@ export async function fetchEventIcs(account: Account, href: string): Promise<str
   return res.text();
 }
 
+export function buildEventHref(calendar: CalendarMeta, uid: string): string {
+  return `${calendar.url}${encodeURIComponent(uid)}.ics`;
+}
+
 export async function putEvent(
   account: Account,
   calendar: CalendarMeta,
   uid: string,
   ics: string
 ): Promise<void> {
-  const url = `${calendar.url}${uid}.ics`;
+  const url = buildEventHref(calendar, uid);
   const res = await davFetch(url, account, {
     method: 'PUT',
     headers: { 'Content-Type': 'text/calendar; charset=utf-8' },
@@ -413,7 +417,7 @@ export async function moveEvent(
   targetCalendar: CalendarMeta,
   uid: string
 ): Promise<void> {
-  const destination = `${targetCalendar.url}${uid}.ics`;
+  const destination = buildEventHref(targetCalendar, uid);
   const res = await davFetch(fromHref, account, {
     method: 'MOVE',
     headers: { Destination: destination, Overwrite: 'T' },

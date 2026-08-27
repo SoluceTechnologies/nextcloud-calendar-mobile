@@ -3,7 +3,7 @@ import { Alert } from 'react-native';
 import * as Crypto from 'expo-crypto';
 import dayjs from 'dayjs';
 
-import { putEvent, updateEvent, deleteEvent, moveEvent, fetchEventIcs } from '@/services/nextcloud/caldav';
+import { putEvent, updateEvent, deleteEvent, moveEvent, fetchEventIcs, buildEventHref } from '@/services/nextcloud/caldav';
 import { createTalkRoom } from '@/services/nextcloud/talk';
 import { describeMutationError } from '@/services/shared/errors';
 import { buildIcs, buildAllDayIcs, buildExceptionIcs, injectExdate, truncateRruleUntil, shiftIcsDates } from '@/utils/ics';
@@ -147,7 +147,7 @@ function eventFromInput(
   const { dtstart, dtend } = inputDates(input);
   return {
     uid,
-    href: `${calendar.url}${uid}.ics`,
+    href: buildEventHref(calendar, uid),
     calendarId: calendar.id,
     accountId: account.id,
     summary: input.summary,
@@ -171,13 +171,16 @@ function expandOccurrences(
   input: CreateEventInput,
   calendar: CalendarMeta,
   account: Account,
+  resolved?: { location: string; description: string },
 ): CalendarEvent[] {
   const timezone = resolveTimezone(account);
-  const ics = buildIcsForInput(baseUid, input, input.location ?? '', input.description ?? '', timezone);
+  const location = resolved?.location ?? input.location ?? '';
+  const description = resolved?.description ?? input.description ?? '';
+  const ics = buildIcsForInput(baseUid, input, location, description, timezone, 0, input.extraLines);
   const rangeStart = dayjs(input.dtstart).subtract(1, 'month').toDate();
   const rangeEnd = dayjs(input.dtstart).add(3, 'month').toDate();
   return parseIcsObjects(
-    [{ ics, href: `${calendar.url}${baseUid}.ics` }],
+    [{ ics, href: buildEventHref(calendar, baseUid) }],
     { calendarId: calendar.id, accountId: account.id, color: calendar.color },
     rangeStart,
     rangeEnd,
@@ -190,7 +193,7 @@ export function useCreateEvent(account: Account, calendars: CalendarMeta[]) {
       const calendar = resolveCalendar(calendars, input.calendarId);
       if (!calendar) return;
 
-      const uid = Crypto.randomUUID();
+      const uid = input.uid ?? Crypto.randomUUID();
       const optimistic = input.rrule
         ? expandOccurrences(uid, input, calendar, account)
         : [eventFromInput(uid, input, calendar, account)];
@@ -199,11 +202,11 @@ export function useCreateEvent(account: Account, calendars: CalendarMeta[]) {
       try {
         const resolved = await resolveLocationAndDescription(account, input);
         const timezone = resolveTimezone(account);
-        const ics = buildIcsForInput(uid, input, resolved.location, resolved.description, timezone);
+        const ics = buildIcsForInput(uid, input, resolved.location, resolved.description, timezone, 0, input.extraLines);
         await putEvent(account, calendar, uid, ics);
 
         const real = input.rrule
-          ? expandOccurrences(uid, input, calendar, account)
+          ? expandOccurrences(uid, input, calendar, account, resolved)
           : [eventFromInput(uid, input, calendar, account, resolved)];
         await insertEvents(real);
       } catch (error) {
@@ -245,7 +248,7 @@ export function useUpdateEvent(account: Account, calendars: CalendarMeta[]) {
           ...(targetCal && {
             calendarId: targetCal.id,
             color: targetCal.color,
-            href: `${targetCal.url}${event.uid}.ics`,
+            href: buildEventHref(targetCal, event.uid),
           }),
         });
       }

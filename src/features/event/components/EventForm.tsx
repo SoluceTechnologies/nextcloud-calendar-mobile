@@ -15,7 +15,7 @@ import type { CalendarMeta, Attendee, CreateEventInput, RecurrenceRule, TalkRoom
 
 dayjs.extend(localizedFormat);
 
-interface InitialValues {
+export interface InitialValues {
   summary?: string;
   calendarId?: string;
   allDay?: boolean;
@@ -26,6 +26,8 @@ interface InitialValues {
   attendees?: Attendee[];
   rrule?: RecurrenceRule;
   alarmMinutes?: number;
+  uid?: string;
+  extraLines?: string[];
 }
 
 interface Props {
@@ -199,6 +201,8 @@ export function EventForm({
       summary: summary.trim(), calendarId, dtstart, dtend, allDay,
       description, location, attendees, withTalkRoom, talkRoomType,
       organizerEmail, organizerName, rrule, alarmMinutes,
+      uid: initialValues?.uid,
+      extraLines: initialValues?.extraLines,
     });
   }
 

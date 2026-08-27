@@ -141,7 +141,7 @@ function repairIcsFolding(ics: string): string {
   return out.join('\r\n');
 }
 
-function parseIcsToJcal(ics: string): ReturnType<typeof ICAL.parse> {
+export function parseIcsToJcal(ics: string): ReturnType<typeof ICAL.parse> {
   try {
     return ICAL.parse(ics);
   } catch {
@@ -378,13 +378,19 @@ const WRITER_MANAGED_PROPS = new Set([
   'location', 'rrule', 'organizer', 'attendee', 'recurrence-id', 'last-modified', 'prodid',
 ]);
 
-export function extractExtraVeventLines(ics: string): string[] {
+export function extractExtraVeventLines(ics: string, targetUid?: string): string[] {
   try {
     const comp = new ICAL.Component(parseIcsToJcal(ics));
     const vevents = comp.getAllSubcomponents('vevent');
     if (vevents.length === 0) return [];
     const master =
-      vevents.find((v: ICAL.Component) => !v.getFirstPropertyValue('recurrence-id')) ?? vevents[0];
+      vevents.find((v: ICAL.Component) => {
+        if (v.getFirstPropertyValue('recurrence-id')) return false;
+        if (!targetUid) return true;
+        const uid = v.getFirstPropertyValue('uid');
+        return uid === targetUid;
+      }) ??
+      vevents[0];
     return master
       .getAllProperties()
       .filter((p: ICAL.Property) => !WRITER_MANAGED_PROPS.has(p.name))

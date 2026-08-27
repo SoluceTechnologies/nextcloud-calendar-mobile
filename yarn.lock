@@ -8559,6 +8559,7 @@ __metadata:
     expo-constants: "npm:~57.0.6"
     expo-crypto: "npm:~57.0.1"
     expo-dev-client: "npm:~57.0.9"
+    expo-file-system: "npm:~57.0.2"
     expo-font: "npm:~57.0.1"
     expo-haptics: "npm:~57.0.1"
     expo-linking: "npm:~57.0.3"

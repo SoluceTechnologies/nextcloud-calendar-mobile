@@ -83,6 +83,8 @@ export type CreateEventInput = {
   organizerName: string;
   rrule?: RecurrenceRule;
   alarmMinutes?: number;
+  uid?: string;
+  extraLines?: string[];
 };
 
 export type CalendarAppStatus = 'unknown' | 'available' | 'unconfigured';
