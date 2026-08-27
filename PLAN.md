@@ -4,6 +4,12 @@
 
 L'application Nextcloud Calendar Mobile ne prend pas en charge les invitations à des événements reçues par CalDAV. Quand un utilisateur (compte A) crée un événement et ajoute `ARASABruno` (compte B) comme participant, le compte B reçoit un mail avec un `.ics` en pièce jointe, mais l'application ne signale pas l'invitation, ne l'affiche pas dans l'agenda et ne permet pas d'accepter, de refuser ou de proposer.
 
+Cette feature est maintenant implémentée et validée :
+- lecture de la `schedule-inbox` CalDAV ;
+- affichage des invitations en attente avec actions Accepter / Refuser / Peut-être ;
+- mise à jour du calendrier cible et nettoyage de l'inbox ;
+- gestion du cas où le serveur a déjà pré-créé un événement avec le même UID.
+
 Cette feature vise à :
 - Lire la **schedule-inbox CalDAV** (`/remote.php/dav/calendars/<user>/inbox/`).
 - Afficher les invitations en attente.
@@ -35,19 +41,19 @@ Cette feature vise à :
 - [x] Permettre de choisir le calendrier cible dans un select.
 - [x] Pull-to-refresh et polling périodique.
 - [x] Clés i18n (en, fr).
-- [~] Badge dans `CalendarDrawer` (compteur désactivé temporairement à cause du crash Metro, voir Phase 4).
+- [~] Badge dans `CalendarDrawer` (compteur fonctionne ; l'entrée du drawer indique les invitations, voir Phase 4).
 
 ### Phase 4 — Tests et validation
 - [x] Tests unitaires pour `parseInvitation`, `fetchInvitations` et `respondToInvitation` (`__tests__/services/nextcloud/invitations.test.ts`).
 - [x] `yarn tsc --noEmit` OK.
 - [x] `yarn jest --ci` OK (72/72 suites, 671 tests).
-- [~] Test sur émulateur : l'app démarre, mais l'ouverture de l'écran Invitations ou le chargement du module `invitations.ts` provoque un crash natif `Cannot read property 'EventEmitter' of undefined` lié au chargement de `ical.js` dans Metro (à investiguer).
+- [~] Test sur émulateur : l'app démarre, l'écran Invitations s'ouvre, charge les invitations, et l'acceptation écrit l'événement dans le calendrier cible. Le crash `ical.js` / `EventEmitter` n'a pas été reproduit sur le build actuel.
 
 ### Phase 5 — Livraison
-- [ ] Créer une branche `feature/caldav-invitations` depuis `upstream/dev`.
-- [ ] Commiter avec Conventional Commits.
-- [ ] Pousser et créer la PR contre `upstream/dev`.
-- [ ] Rédiger la description de PR avec le test plan.
+- [x] Branche `feature/caldav-invitations` depuis `upstream/dev`.
+- [x] Commiter avec Conventional Commits.
+- [~] Pousser et mettre à jour la PR contre `upstream/dev`.
+- [~] Rédiger la réponse au maintainer avec captures d'écran.
 
 ## Décisions techniques
 
@@ -116,7 +122,7 @@ La première approche est la plus fiable et celle utilisée par les clients CalD
 
 ## Prochaine étape
 
-Continuer la Phase 3 : intégrer l'UI des invitations (drawer, écran liste/détail, picker de calendrier, i18n) et valider sur émulateur.
+Pousser le commit et répondre au maintainer de la PR #226 avec un use case détaillé et les captures d'écran du flux testé sur émulateur.
 
 ### Décisions validées
 
@@ -142,6 +148,14 @@ Continuer la Phase 3 : intégrer l'UI des invitations (drawer, écran liste/dét
 3. **Mode de réponse à l'organisateur** :
    - **A.** Faire confiance au serveur Nextcloud : on PUT l'event accepté dans le calendrier cible et on laisse le serveur envoyer le `REPLY`.
    - **B.** Générer et POST explicitement un `METHOD:REPLY` (approche iTIP) — plus complexe, peut ne pas être supporté par tous les serveurs.
+
+## Captures d'écran du flux testé (émulateur Android 36, 1080×2400)
+
+Captures stockées dans `.github/pr-assets/` :
+
+- `invitations-list.png` — liste des invitations en attente avec actions Accepter / Refuser / Peut-être.
+- `invitations-accepted.png` — inbox vide après acceptation.
+- `calendar-after-accept.png` — calendrier avec l'événement ajouté au jour choisi.
 
 4. **Persistence offline** :
    - **A.** Stocker les invitations dans WatermelonDB (table `invitations`) pour les afficher hors connexion.
