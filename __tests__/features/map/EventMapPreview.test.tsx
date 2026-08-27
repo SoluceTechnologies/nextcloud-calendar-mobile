@@ -9,7 +9,7 @@ const render = (ui: ReactElement, opts?: Parameters<typeof rtlRender>[1]) =>
 describe('EventMapPreview', () => {
   const coords = { lat: 48.8566, lon: 2.3522, displayName: 'Paris' };
 
-  it('renders a WebView and calls onPress when tapped', () => {
+  it('renders a map and calls onPress when the preview is tapped', () => {
     const onPress = jest.fn();
     const { getByTestId, getByLabelText } = render(
       <EventMapPreview

@@ -28,9 +28,9 @@ describe('EventMapSheet', () => {
 
   const coords = { lat: 48.8566, lon: 2.3522, displayName: 'Paris' };
 
-  it('renders the map and calls onClose when pressing close', () => {
+  it('renders the map and calls onClose on message', () => {
     const onClose = jest.fn();
-    const { getByTestId, getByLabelText } = render(
+    const { getByTestId } = render(
       <EventMapSheet
         visible
         onClose={onClose}
@@ -39,8 +39,9 @@ describe('EventMapSheet', () => {
       />,
     );
 
-    expect(getByTestId('web-view')).toBeTruthy();
-    fireEvent.press(getByLabelText('Close'));
+    const webview = getByTestId('web-view');
+    expect(webview).toBeTruthy();
+    fireEvent(webview, 'message', { nativeEvent: { data: 'close' } });
     expect(onClose).toHaveBeenCalled();
   });
 });

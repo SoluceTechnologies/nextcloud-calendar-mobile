@@ -39,7 +39,7 @@ export function EventMapPreview({
         label={location}
         interactive={false}
         pointerEvents="none"
-        style={styles.map}
+        style={[styles.map, { borderRadius: theme.radius.md }]}
       />
     </Pressable>
   );

@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import { StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
 import { useTheme } from 'expo-router';
 import WebView from 'react-native-webview';
@@ -12,6 +12,10 @@ interface MapViewProps {
   interactive: boolean;
   style?: StyleProp<ViewStyle>;
   pointerEvents?: 'none' | 'auto' | 'box-none';
+  bottomInset?: number;
+  showChrome?: boolean;
+  onClose?: () => void;
+  onOpenMaps?: () => void;
 }
 
 export function MapView({
@@ -20,6 +24,10 @@ export function MapView({
   interactive,
   style,
   pointerEvents,
+  bottomInset = 0,
+  showChrome,
+  onClose,
+  onOpenMaps,
 }: MapViewProps) {
   const theme = useTheme();
   const mapBackground = theme.colors.surface;
@@ -29,14 +37,26 @@ export function MapView({
       buildMapHtml({
         lat: coordinates.lat,
         lon: coordinates.lon,
-        zoom: interactive ? 17 : 16,
+        zoom: interactive ? 17 : 15,
         interactive,
         label,
         isDark: theme.dark,
         markerColor: theme.colors.primary,
         backgroundColor: mapBackground,
+        bottomInset,
+        showChrome,
+        textColor: theme.colors.text,
       }),
-    [coordinates, interactive, label, mapBackground, theme.colors.primary, theme.dark],
+    [coordinates, interactive, label, mapBackground, theme.colors.primary, theme.dark, bottomInset, showChrome, theme.colors.text],
+  );
+
+  const handleMessage = useCallback(
+    (event: { nativeEvent: { data: string } }) => {
+      const action = event.nativeEvent.data;
+      if (action === 'close') onClose?.();
+      else if (action === 'openMaps') onOpenMaps?.();
+    },
+    [onClose, onOpenMaps],
   );
 
   return (
@@ -60,8 +80,11 @@ export function MapView({
             <Spinner size="small" />
           </View>
         )}
+        contentInset={{ top: 0, left: 0, bottom: 0, right: 0 }}
         contentInsetAdjustmentBehavior="never"
         automaticallyAdjustContentInsets={false}
+        onMessage={handleMessage}
+        androidLayerType={interactive ? undefined : 'software'}
       />
     </View>
   );
