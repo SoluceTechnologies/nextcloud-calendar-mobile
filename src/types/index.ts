@@ -45,6 +45,8 @@ export type RecurrenceEditScope = 'this' | 'thisAndFollowing' | 'all';
 
 export type TalkRoomType = 'public' | 'private';
 
+export type TalkOpenMode = 'app' | 'browser' | 'ask';
+
 export type CalendarEvent = {
   uid: string;
   href: string;

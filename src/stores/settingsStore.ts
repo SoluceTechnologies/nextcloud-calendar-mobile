@@ -3,6 +3,7 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import { legacyBackedStorage } from '@/stores/legacyStorage';
 import { getInitialLanguage, type AppLanguage } from '@/utils/i18n';
 import type { AllDayAlert, TimedAlert } from '@/features/notifications/alerts';
+import type { TalkOpenMode } from '@/types';
 
 export type ThemePreference = 'system' | 'light' | 'dark';
 
@@ -15,6 +16,7 @@ interface SettingsState {
   allDayAlert: AllDayAlert;
   hapticsEnabled: boolean;
   reduceMotion: boolean;
+  talkOpenMode: TalkOpenMode;
   setThemePreference: (pref: ThemePreference) => void;
   setLanguage: (lang: AppLanguage) => void;
   setWeekStartsOn: (v: 0 | 1) => void;
@@ -23,6 +25,7 @@ interface SettingsState {
   setAllDayAlert: (v: AllDayAlert) => void;
   setHapticsEnabled: (v: boolean) => void;
   setReduceMotion: (v: boolean) => void;
+  setTalkOpenMode: (v: TalkOpenMode) => void;
 }
 
 export const useSettingsStore = create<SettingsState>()(
@@ -36,6 +39,7 @@ export const useSettingsStore = create<SettingsState>()(
       allDayAlert: null,
       hapticsEnabled: true,
       reduceMotion: false,
+      talkOpenMode: 'app',
       setTimedAlert: (v) => set({ timedAlert: v }),
       setAllDayAlert: (v) => set({ allDayAlert: v }),
       setThemePreference: (pref) => set({ themePreference: pref }),
@@ -44,6 +48,7 @@ export const useSettingsStore = create<SettingsState>()(
       setLiveActivityEnabled: (v) => set({ liveActivityEnabled: v }),
       setHapticsEnabled: (v) => set({ hapticsEnabled: v }),
       setReduceMotion: (v) => set({ reduceMotion: v }),
+      setTalkOpenMode: (v) => set({ talkOpenMode: v }),
     }),
     {
       name: 'settings-store',
@@ -63,6 +68,7 @@ export const useSettingsStore = create<SettingsState>()(
         allDayAlert: state.allDayAlert,
         hapticsEnabled: state.hapticsEnabled,
         reduceMotion: state.reduceMotion,
+        talkOpenMode: state.talkOpenMode,
       }),
     }
   )

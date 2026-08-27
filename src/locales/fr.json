@@ -121,6 +121,9 @@
     "talkPublicLink": "Lien public",
     "talkAnyoneWithLink": "Toute personne ayant le lien peut rejoindre",
     "talkOnlyInvited": "Uniquement les participants invités",
+    "talkOpenTitle": "Ouvrir la salle Talk",
+    "openInTalk": "Ouvrir dans l'app Talk",
+    "openInBrowser": "Ouvrir dans le navigateur",
     "loadingCalendars": "Chargement des agendas…",
     "newEvent": "Nouvel événement",
     "editEvent": "Modifier l'événement",
@@ -258,7 +261,15 @@
       "use": "Utiliser",
       "editOnNextcloud": "Éditer sur Nextcloud"
     },
-    "accountActive": "Actif"
+    "accountActive": "Actif",
+    "talk": {
+      "title": "Talk",
+      "openWith": "Ouvrir les liens Talk avec",
+      "openWithHint": "Choisissez comment s'ouvrent par défaut les liens d'appel des événements. Faites un appui long sur Rejoindre la salle Talk pour inverser.",
+      "openInApp": "Application Nextcloud Talk",
+      "openInBrowser": "Navigateur",
+      "askEachTime": "Demander à chaque fois"
+    }
   },
   "widget": {
     "liveRemaining": "il reste {{duration}}",

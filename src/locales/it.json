@@ -121,6 +121,9 @@
     "talkPublicLink": "Link pubblico",
     "talkAnyoneWithLink": "Chiunque abbia il link può partecipare",
     "talkOnlyInvited": "Solo partecipanti invitati",
+    "talkOpenTitle": "Open Talk room",
+    "openInTalk": "Open in Talk app",
+    "openInBrowser": "Open in browser",
     "loadingCalendars": "Caricamento dei calendari…",
     "newEvent": "Nuovo evento",
     "editEvent": "Modifica evento",
@@ -258,7 +261,15 @@
       "use": "Usa",
       "editOnNextcloud": "Modifica su Nextcloud"
     },
-    "accountActive": "Attivo"
+    "accountActive": "Attivo",
+    "talk": {
+      "title": "Talk",
+      "openWith": "Open Talk links with",
+      "openWithHint": "Choose how event call links open by default. Long-press the Join Talk Room button to override.",
+      "openInApp": "Nextcloud Talk app",
+      "openInBrowser": "Browser",
+      "askEachTime": "Ask each time"
+    }
   },
   "widget": {
     "liveRemaining": "{{duration}} rimanenti",
