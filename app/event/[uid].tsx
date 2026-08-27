@@ -5,7 +5,7 @@ import * as Clipboard from 'expo-clipboard';
 import { haptic } from '@/utils/haptics';
 import {
   Pencil, Clock, CalendarDays, MapPin, Video, Repeat, Trash2, Copy, Check, Bell,
-  Map as MapIcon,
+  Navigation,
 } from 'lucide-react-native';
 import { useLocalSearchParams, useNavigation, useRouter, useTheme } from 'expo-router';
 import dayjs from 'dayjs';
@@ -18,7 +18,7 @@ import { useAccounts } from '@/hooks/useAccounts';
 import { useDeleteEvent } from '@/features/event/hooks/useMutateEvent';
 import { useEventLocation } from '@/features/map/hooks/useEventLocation';
 import { EventMapPreview, EventMapSheet } from '@/features/map/components';
-import { openMapsUrl } from '@/features/map/utils/mapLinks';
+import { openMaps } from '@/features/map/utils/mapLinks';
 import { useAccountStore } from '@/stores/accountStore';
 import {
   ViewContainer, Stack, Typography, Button, Chip, Icon, List, Item,
@@ -99,7 +99,7 @@ export default function EventDetailScreen() {
   const copyResetRef = useRef<ReturnType<typeof setTimeout>>(undefined);
   useEffect(() => () => clearTimeout(copyResetRef.current), []);
 
-  const { coordinates, isVirtual } = useEventLocation(event?.location, event?.talkUrl);
+  const { coordinates, isVirtual, loading } = useEventLocation(event?.location, event?.talkUrl);
 
   const handleCopyLocation = useCallback(async () => {
     if (!event?.location) return;
@@ -112,8 +112,7 @@ export default function EventDetailScreen() {
 
   const handleOpenMaps = useCallback(async () => {
     if (!event?.location) return;
-    const url = openMapsUrl(event.location, coordinates?.lat, coordinates?.lon);
-    await Linking.openURL(url).catch(() => {});
+    await openMaps(event.location, coordinates?.lat, coordinates?.lon);
   }, [event?.location, coordinates]);
 
   const recurrenceScopeStrings: RecurrenceScopeStrings = {
@@ -280,7 +279,7 @@ export default function EventDetailScreen() {
                           onPress={handleOpenMaps}
                           accessibilityLabel={t('event.openInMaps')}
                         >
-                          <MapIcon size={18} color={theme.colors.textSecondary} />
+                          <Navigation size={18} color={theme.colors.textSecondary} />
                         </IconButton>
                       )}
                       <IconButton
@@ -297,6 +296,17 @@ export default function EventDetailScreen() {
                 />
               )}
             </List>
+
+            {event.location && !isVirtual && loading && (
+              <View
+                style={[
+                  styles.mapPlaceholder,
+                  { backgroundColor: theme.colors.surface, borderRadius: theme.radius.md },
+                ]}
+              >
+                <Spinner size="large" />
+              </View>
+            )}
 
             {coordinates && !isVirtual && (
               <EventMapPreview
@@ -379,4 +389,11 @@ const styles = StyleSheet.create({
   colorBar: { height: 6 },
   content: { padding: 20 },
   footer: { borderTopWidth: StyleSheet.hairlineWidth },
+  mapPlaceholder: {
+    height: 200,
+    width: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
 });

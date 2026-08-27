@@ -26,7 +26,11 @@ export function EventMapPreview({
   return (
     <Pressable
       onPress={handlePress}
-      style={[styles.pressable, style]}
+      style={[
+        styles.pressable,
+        { borderRadius: theme.radius.md, overflow: 'hidden' },
+        style,
+      ]}
       accessibilityRole="button"
       accessibilityLabel={location}
     >
@@ -35,7 +39,7 @@ export function EventMapPreview({
         label={location}
         interactive={false}
         pointerEvents="none"
-        style={[styles.map, { borderRadius: theme.radius.md }]}
+        style={styles.map}
       />
     </Pressable>
   );
@@ -43,5 +47,5 @@ export function EventMapPreview({
 
 const styles = StyleSheet.create({
   pressable: { height: 200, width: '100%' },
-  map: { width: '100%', height: '100%', overflow: 'hidden' },
+  map: { width: '100%', height: '100%' },
 });
