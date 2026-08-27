@@ -4,6 +4,45 @@ import type { Account, CalendarInvitation, CalendarMeta, InvitationResponse } fr
 import { parseIcsToJcal, resolveInstant, extractDtstartTzid } from '@/utils/caldav-parse';
 import { davFetch, splitResponses, decodeXmlEntities } from './caldav';
 
+function uidQueryBody(uid: string): string {
+  return `<?xml version="1.0" encoding="utf-8" ?>
+<C:calendar-query xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:caldav">
+  <D:prop>
+    <D:getetag/>
+  </D:prop>
+  <C:filter>
+    <C:comp-filter name="VCALENDAR">
+      <C:comp-filter name="VEVENT">
+        <C:prop-filter name="UID">
+          <C:text-match collation="i;octet">${uid.replace(/&/g, '&amp;').replace(/</g, '&lt;')}</C:text-match>
+        </C:prop-filter>
+      </C:comp-filter>
+    </C:comp-filter>
+  </C:filter>
+</C:calendar-query>`;
+}
+
+async function findExistingEventHref(
+  account: Account,
+  calendar: CalendarMeta,
+  uid: string,
+): Promise<string | undefined> {
+  const res = await davFetch(calendar.url, account, {
+    method: 'REPORT',
+    headers: { Depth: '1', 'Content-Type': 'application/xml' },
+    body: uidQueryBody(uid),
+  });
+  if (!res.ok && res.status !== 207) return undefined;
+  const xml = await res.text();
+  for (const chunk of splitResponses(xml)) {
+    const hrefMatch = chunk.match(/<d:href>([^<]+)<\/d:href>/);
+    if (hrefMatch?.[1] && !hrefMatch[1].replace(/\/$/, '').endsWith(calendar.url.replace(/\/$/, '').split('/').pop() ?? '')) {
+      return absUrl(account, hrefMatch[1]);
+    }
+  }
+  return undefined;
+}
+
 function inboxUrl(account: Account): string {
   return `${account.baseUrl}/remote.php/dav/calendars/${encodeURIComponent(account.davUserId)}/inbox/`;
 }
@@ -298,7 +337,8 @@ export async function respondToInvitation(
   }
 
   const eventIcs = buildAcceptedEventIcs(invitation, response);
-  const url = `${targetCalendar.url}${encodeURIComponent(invitation.uid)}.ics`;
+  const existingHref = await findExistingEventHref(account, targetCalendar, invitation.uid);
+  const url = existingHref ?? `${targetCalendar.url}${encodeURIComponent(invitation.uid)}.ics`;
   const putRes = await davFetch(url, account, {
     method: 'PUT',
     headers: { 'Content-Type': 'text/calendar; charset=utf-8' },
