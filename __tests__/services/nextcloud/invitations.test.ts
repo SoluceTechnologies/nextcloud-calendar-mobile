@@ -112,14 +112,15 @@ describe('respondToInvitation', () => {
     }, account)!;
 
     mockFetch
+      .mockResolvedValueOnce({ ok: true, status: 207, text: async () => '<d:multistatus xmlns:d="DAV:"></d:multistatus>' }) // REPORT: no existing event
       .mockResolvedValueOnce({ ok: true, status: 201 }) // PUT
       .mockResolvedValueOnce({ ok: false, status: 404 }) // outbox POST ignored
       .mockResolvedValueOnce({ ok: true, status: 204 }); // DELETE
 
     await respondToInvitation(account, invitation, 'accepted', targetCalendar);
 
-    expect(mockFetch).toHaveBeenCalledTimes(3);
-    const putCall = mockFetch.mock.calls[0];
+    expect(mockFetch).toHaveBeenCalledTimes(4);
+    const putCall = mockFetch.mock.calls[1];
     expect(putCall[0]).toBe('https://cloud.example.com/remote.php/dav/calendars/bob/personal/invite-001.ics');
     expect(putCall[1].method).toBe('PUT');
     const putBody = putCall[1].body as string;
@@ -127,7 +128,7 @@ describe('respondToInvitation', () => {
     expect(unfolded).toContain('PARTSTAT=ACCEPTED');
     expect(unfolded).not.toMatch(/^METHOD:/m);
 
-    const deleteCall = mockFetch.mock.calls[2];
+    const deleteCall = mockFetch.mock.calls[3];
     expect(deleteCall[0]).toBe(invitation.href);
     expect(deleteCall[1].method).toBe('DELETE');
   });
