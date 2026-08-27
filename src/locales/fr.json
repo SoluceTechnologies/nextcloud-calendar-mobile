@@ -279,6 +279,22 @@
       "tomorrow": "Demain"
     }
   },
+  "invitations": {
+    "title": "Invitations",
+    "noInvitations": "Aucune invitation en attente.",
+    "accept": "Accepter",
+    "decline": "Refuser",
+    "tentative": "Peut-être",
+    "accepted": "Acceptée",
+    "declined": "Refusée",
+    "organizer": "De",
+    "selectCalendar": "Ajouter à l'agenda",
+    "loading": "Chargement des invitations…",
+    "error": "Impossible de charger les invitations.",
+    "calendar": "Agenda",
+    "from": "De {{name}}",
+    "responseFailed": "Impossible de répondre à l'invitation."
+  },
   "certTrust": {
     "title": "Certificat non approuvé",
     "body": "Le serveur {{host}} a présenté un certificat qui n'est pas signé par une autorité connue.",

@@ -213,12 +213,17 @@ export default function CalendarScreen() {
         calendars={calendars}
         hiddenCalendarIds={hiddenCalendarIds}
         notifDisabledCalendarIds={notifDisabledCalendarIds}
+        pendingInvitationsCount={0}
         toggleCalendarVisibility={toggleCalendarVisibility}
         toggleCalendarNotifications={toggleCalendarNotifications}
         onClose={drawer.closeDrawer}
         onNavigateSettings={() => {
           drawer.closeDrawer();
           router.push('/(tabs)/settings');
+        }}
+        onNavigateInvitations={() => {
+          drawer.closeDrawer();
+          router.push('/invitations');
         }}
       />
     </ViewContainer>

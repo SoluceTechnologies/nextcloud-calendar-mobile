@@ -279,6 +279,22 @@
       "tomorrow": "Tomorrow"
     }
   },
+  "invitations": {
+    "title": "Invitations",
+    "noInvitations": "No pending invitations.",
+    "accept": "Accept",
+    "decline": "Decline",
+    "tentative": "Maybe",
+    "accepted": "Accepted",
+    "declined": "Declined",
+    "organizer": "From",
+    "selectCalendar": "Add to calendar",
+    "loading": "Loading invitations…",
+    "error": "Could not load invitations.",
+    "calendar": "Calendar",
+    "from": "From {{name}}",
+    "responseFailed": "Could not respond to the invitation."
+  },
   "certTrust": {
     "title": "Untrusted certificate",
     "body": "The server {{host}} presented a certificate that isn't signed by a known authority.",

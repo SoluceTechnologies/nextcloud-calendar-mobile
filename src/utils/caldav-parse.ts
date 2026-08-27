@@ -112,7 +112,7 @@ function isOverridden(slot: ICAL.Time, overrideIds: Set<string>): boolean {
   return overrideIds.has(slot.convertToZone(ICAL.Timezone.utcTimezone).toString());
 }
 
-function resolveInstant(t: ICAL.Time, tzid: string | undefined, isEnd = false): Date {
+export function resolveInstant(t: ICAL.Time, tzid: string | undefined, isEnd = false): Date {
   if (t.isDate) {
     return isEnd
       ? new Date(t.year, t.month - 1, t.day - 1)
@@ -141,7 +141,7 @@ function repairIcsFolding(ics: string): string {
   return out.join('\r\n');
 }
 
-function parseIcsToJcal(ics: string): ReturnType<typeof ICAL.parse> {
+export function parseIcsToJcal(ics: string): ReturnType<typeof ICAL.parse> {
   try {
     return ICAL.parse(ics);
   } catch {
