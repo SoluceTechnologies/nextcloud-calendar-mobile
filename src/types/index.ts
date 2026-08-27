@@ -63,6 +63,34 @@ export type TalkRoomType = 'public' | 'private';
 
 export type TalkOpenMode = 'app' | 'browser' | 'ask';
 
+export type InvitationStatus = 'needs-action' | 'accepted' | 'declined' | 'tentative';
+
+export type InvitationResponse = 'accepted' | 'declined' | 'tentative';
+
+export type CalendarInvitation = {
+  uid: string;
+  href: string;
+  accountId: string;
+  summary: string;
+  description?: string;
+  location?: string;
+  dtstart: Date;
+  dtend: Date;
+  allDay: boolean;
+  organizerEmail?: string;
+  organizerName?: string;
+  attendeeEmail: string;
+  attendeeDisplayName?: string;
+  partstat: InvitationStatus;
+  method: string;
+  ics: string;
+  timezone?: string;
+  talkUrl?: string;
+  isRecurring: boolean;
+  rrule?: string;
+  alarmMinutes?: number;
+};
+
 export type CalendarEvent = {
     uid: string;
     href: string;

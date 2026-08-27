@@ -2,7 +2,7 @@ import { Animated, ScrollView, StyleSheet, View } from 'react-native';
 
 import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ChevronsUpDown, Settings } from 'lucide-react-native';
+import { ChevronsUpDown, Inbox, Settings } from 'lucide-react-native';
 import { useTheme } from 'expo-router';
 
 import { AvatarImage } from '@/components/AvatarImage';
@@ -23,10 +23,12 @@ interface CalendarDrawerProps {
   calendars: CalendarMeta[];
   hiddenCalendarIds: string[];
   notifDisabledCalendarIds: string[];
+  pendingInvitationsCount: number;
   toggleCalendarVisibility: (id: string) => void;
   toggleCalendarNotifications: (id: string) => void;
   onClose: () => void;
   onNavigateSettings: () => void;
+  onNavigateInvitations: () => void;
 }
 
 export function CalendarDrawer({
@@ -39,10 +41,12 @@ export function CalendarDrawer({
   calendars,
   hiddenCalendarIds,
   notifDisabledCalendarIds,
+  pendingInvitationsCount,
   toggleCalendarVisibility,
   toggleCalendarNotifications,
   onClose,
   onNavigateSettings,
+  onNavigateInvitations,
 }: CalendarDrawerProps) {
   const { colors } = useTheme();
   const { t } = useTranslation();
@@ -110,6 +114,17 @@ export function CalendarDrawer({
           contentContainerStyle={[styles.scrollContent, { paddingBottom: safeInsets.bottom + 24 }]}
           showsVerticalScrollIndicator={false}
         >
+          <Item
+            onPress={() => { onClose(); onNavigateInvitations(); }}
+            leading={<Inbox size={20} color={colors.textSecondary} />}
+            title={t('invitations.title')}
+            trailing={pendingInvitationsCount > 0 ? (
+              <View style={[styles.badge, { backgroundColor: colors.danger }]}>
+                <Typography variant="caption" color="light">{pendingInvitationsCount}</Typography>
+              </View>
+            ) : undefined}
+          />
+
           {calendars.length === 0 ? (
             <>
               <SectionHeader title={t('calendar.drawerCalendars')} />
@@ -161,4 +176,12 @@ const styles = StyleSheet.create({
   header: { paddingHorizontal: 12, paddingBottom: 20 },
   scroll: { flex: 1 },
   scrollContent: { paddingHorizontal: 12 },
+  badge: {
+    minWidth: 22,
+    height: 22,
+    borderRadius: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 6,
+  },
 });
