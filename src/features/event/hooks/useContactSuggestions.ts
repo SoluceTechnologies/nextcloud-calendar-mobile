@@ -63,9 +63,6 @@ export function useContactSuggestions({
         if (cached && isCacheStale(account.id)) {
           contacts = await prefetchContacts(account);
         } else if (!cached) {
-          // First call while the background cache is not ready: query the
-          // server for the current input and prime the cache in the background
-          // so the next search is instantaneous.
           const [serverResults] = await Promise.all([
             fetchSharees({ account, query: trimmed, limit }),
             prefetchContacts(account).catch(() => [] as ShareeResult[]),
