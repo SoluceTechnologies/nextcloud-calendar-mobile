@@ -133,7 +133,7 @@ describe('respondToInvitation', () => {
     expect(deleteCall[1].method).toBe('DELETE');
   });
 
-  it('decline deletes the inbox item', async () => {
+  it('decline sends a reply, deletes the calendar event, and deletes the inbox item', async () => {
     const invitation = parseInvitation({
       ics: makeInvitationIcs(),
       href: 'https://cloud.example.com/remote.php/dav/calendars/bob/inbox/invite-001.ics',
@@ -141,12 +141,32 @@ describe('respondToInvitation', () => {
 
     mockFetch
       .mockResolvedValueOnce({ ok: false, status: 404 }) // outbox POST ignored
-      .mockResolvedValueOnce({ ok: true, status: 204 }); // DELETE
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 207,
+        text: async () => `<d:multistatus xmlns:d="DAV:">
+          <d:response>
+            <d:href>/remote.php/dav/calendars/bob/personal/invite-001.ics</d:href>
+          </d:response>
+        </d:multistatus>`,
+      }) // REPORT: existing calendar event
+      .mockResolvedValueOnce({ ok: true, status: 204 }) // DELETE calendar event
+      .mockResolvedValueOnce({ ok: true, status: 204 }); // DELETE inbox item
 
     await respondToInvitation(account, invitation, 'declined', targetCalendar);
 
-    const deleteCall = mockFetch.mock.calls[1];
-    expect(deleteCall[0]).toBe(invitation.href);
-    expect(deleteCall[1].method).toBe('DELETE');
+    expect(mockFetch).toHaveBeenCalledTimes(4);
+
+    const reportCall = mockFetch.mock.calls[1];
+    expect(reportCall[0]).toBe(targetCalendar.url);
+    expect(reportCall[1].method).toBe('REPORT');
+
+    const deleteCalendarCall = mockFetch.mock.calls[2];
+    expect(deleteCalendarCall[0]).toBe('https://cloud.example.com/remote.php/dav/calendars/bob/personal/invite-001.ics');
+    expect(deleteCalendarCall[1].method).toBe('DELETE');
+
+    const deleteInboxCall = mockFetch.mock.calls[3];
+    expect(deleteInboxCall[0]).toBe(invitation.href);
+    expect(deleteInboxCall[1].method).toBe('DELETE');
   });
 });

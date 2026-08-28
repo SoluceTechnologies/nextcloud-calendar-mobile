@@ -92,7 +92,7 @@ function findTargetAttendee(
       ? email === accountEmail
       : email.startsWith(`${accountUsername}@`) || email === accountUsername;
 
-    if (isMatch || partstat === 'needs-action') {
+    if (isMatch) {
       const displayName = (prop.getParameter('cn') as string | undefined) ?? undefined;
       return { email: value.replace(/^mailto:/i, ''), displayName };
     }
@@ -331,6 +331,10 @@ export async function respondToInvitation(
     });
     if (!postRes.ok && postRes.status !== 403 && postRes.status !== 404) {
       console.warn(`[respondToInvitation] outbox POST HTTP ${postRes.status}`);
+    }
+    const existingHref = await findExistingEventHref(account, targetCalendar, invitation.uid);
+    if (existingHref) {
+      await davFetch(existingHref, account, { method: 'DELETE' });
     }
     await davFetch(invitation.href, account, { method: 'DELETE' });
     return;
