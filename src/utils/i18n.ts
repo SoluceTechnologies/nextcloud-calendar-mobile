@@ -17,7 +17,7 @@ import it from '@/locales/it.json';
 import ru from '@/locales/ru.json';
 import pt from '@/locales/pt.json';
 import nl from '@/locales/nl.json';
-import nl from '@/locales/oc.json';
+import oc from '@/locales/oc.json';
 
 export const LANGUAGES = [
   { code: 'en', label: 'English', region: 'GB' },
