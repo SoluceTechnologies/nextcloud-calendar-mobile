@@ -1,13 +1,22 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { fetchSharees, type ShareeResult } from '@/services/nextcloud/sharees';
+import type { ShareeResult } from '@/services/nextcloud/sharees';
+import {
+  filterContacts,
+  getCachedContacts,
+  isCacheStale,
+  prefetchContacts,
+} from '@/services/nextcloud/contactCache';
+import { fetchSharees } from '@/services/nextcloud/sharees';
 import { trailingDebounce } from '@/utils/debounce';
 import type { Account } from '@/types';
 
-const DEBOUNCE_MS = 300;
+const DEBOUNCE_MS = 150;
 const MIN_QUERY_LENGTH = 2;
 
+type AccountRef = Pick<Account, 'id' | 'baseUrl' | 'username' | 'appPassword'>;
+
 interface UseContactSuggestionsOptions {
-  account: Pick<Account, 'baseUrl' | 'username' | 'appPassword'> | null;
+  account: AccountRef | null;
   query: string;
   limit?: number;
 }
@@ -28,37 +37,65 @@ export function useContactSuggestions({
   const [error, setError] = useState<Error | null>(null);
   const activeRef = useRef(0);
 
+  const setStable = useCallback(
+    (nonce: number, next: Partial<UseContactSuggestionsResult>) => {
+      if (activeRef.current !== nonce) return;
+      if (next.suggestions !== undefined) setSuggestions(next.suggestions);
+      if (next.loading !== undefined) setLoading(next.loading);
+      if (next.error !== undefined) setError(next.error);
+    },
+    [],
+  );
+
   const fetchForQuery = useCallback(
     async (q: string, nonce: number) => {
       if (!account) return;
       const trimmed = q.trim();
       if (trimmed.length < MIN_QUERY_LENGTH) {
-        setSuggestions([]);
-        setLoading(false);
-        setError(null);
+        setStable(nonce, { suggestions: [], loading: false, error: null });
         return;
       }
 
-      setLoading(true);
-      setError(null);
+      const cached = getCachedContacts(account.id);
+
       try {
-        const results = await fetchSharees({ account, query: trimmed, limit });
+        let contacts: ShareeResult[];
+        if (cached && isCacheStale(account.id)) {
+          contacts = await prefetchContacts(account);
+        } else if (!cached) {
+          // First call while the background cache is not ready: query the
+          // server for the current input and prime the cache in the background
+          // so the next search is instantaneous.
+          const [serverResults] = await Promise.all([
+            fetchSharees({ account, query: trimmed, limit }),
+            prefetchContacts(account).catch(() => [] as ShareeResult[]),
+          ]);
+          contacts = serverResults;
+        } else {
+          contacts = cached;
+        }
+
         if (activeRef.current === nonce) {
-          setSuggestions(results);
-          setError(null);
+          setStable(nonce, {
+            suggestions: filterContacts(contacts, trimmed, limit),
+            loading: false,
+            error: null,
+          });
         }
       } catch (e) {
         if (activeRef.current === nonce) {
-          setSuggestions([]);
-          setError(e instanceof Error ? e : new Error(String(e)));
-        }
-      } finally {
-        if (activeRef.current === nonce) {
-          setLoading(false);
+          const maybeCached = getCachedContacts(account.id);
+          setStable(nonce, {
+            suggestions: maybeCached
+              ? filterContacts(maybeCached, trimmed, limit)
+              : [],
+            loading: false,
+            error: e instanceof Error ? e : new Error(String(e)),
+          });
         }
       }
     },
-    [account, limit],
+    [account, limit, setStable],
   );
 
   const debounce = useRef(
@@ -86,7 +123,20 @@ export function useContactSuggestions({
       return;
     }
 
+    // Show cached matches immediately for a snappy UI, then refresh in the
+    // background if the cache is stale or missing.
+    const cached = getCachedContacts(account.id);
+    if (cached) {
+      setSuggestions(filterContacts(cached, trimmed, limit));
+      if (!isCacheStale(account.id)) {
+        setLoading(false);
+        setError(null);
+        return;
+      }
+    }
+
     setLoading(true);
+    setError(null);
     debounce.call(trimmed, nonce);
 
     return () => {
@@ -94,7 +144,7 @@ export function useContactSuggestions({
         setLoading(false);
       }
     };
-  }, [query, account, debounce]);
+  }, [query, account, limit, debounce]);
 
   useEffect(() => () => {
     activeRef.current += 1;

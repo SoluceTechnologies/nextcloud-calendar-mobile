@@ -1,4 +1,4 @@
-import { fetchSharees } from '../../../src/services/nextcloud/sharees';
+import { fetchSharees, fetchAllContacts } from '../../../src/services/nextcloud/sharees';
 import type { Account } from '../../../src/types';
 
 const account: Account = {
@@ -195,5 +195,38 @@ describe('fetchSharees', () => {
       .mockResolvedValueOnce(fetchError(403));
 
     await expect(fetchSharees({ account, query: 'x' })).rejects.toThrow('fetchSharees HTTP 403');
+  });
+});
+
+describe('fetchAllContacts', () => {
+  it('fetches all contacts with an empty search', async () => {
+    mockFetch.mockResolvedValue(
+      calendarResponse([
+        { name: 'John Doe', emails: ['john@example.com'], type: 'individual', source: 'user' },
+        { name: 'Jane Doe', emails: ['jane@example.com'], type: 'individual', source: 'user' },
+      ]),
+    );
+
+    const results = await fetchAllContacts({ account });
+
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+    const [url, init] = mockFetch.mock.calls[0];
+    expect(url).toBe('https://cloud.example.com/apps/calendar/v1/autocompletion/attendee');
+    expect(init.method).toBe('POST');
+    expect(init.body).toBe(JSON.stringify({ search: '' }));
+    expect(results).toHaveLength(2);
+  });
+
+  it('can apply an optional client-side limit', async () => {
+    mockFetch.mockResolvedValue(
+      calendarResponse([
+        { name: 'One', emails: ['one@example.com'], type: 'individual', source: 'user' },
+        { name: 'Two', emails: ['two@example.com'], type: 'individual', source: 'user' },
+        { name: 'Three', emails: ['three@example.com'], type: 'individual', source: 'user' },
+      ]),
+    );
+
+    const results = await fetchAllContacts({ account, limit: 2 });
+    expect(results).toHaveLength(2);
   });
 });

@@ -78,21 +78,18 @@ function parseContactEntry(entry: ContactAutocompleteEntry): ShareeResult[] {
   return results;
 }
 
-export interface FetchShareesParams {
+export interface FetchCalendarAttendeesParams {
   account: Pick<Account, 'baseUrl' | 'username' | 'appPassword'>;
-  query: string;
+  search: string;
   limit?: number;
 }
 
-export async function fetchSharees({
+async function fetchCalendarAttendees({
   account,
-  query,
+  search,
   limit = 25,
-}: FetchShareesParams): Promise<ShareeResult[]> {
-  const trimmed = query.trim();
-  if (!trimmed) return [];
-
-  const body = JSON.stringify({ search: trimmed });
+}: FetchCalendarAttendeesParams): Promise<ShareeResult[]> {
+  const body = JSON.stringify({ search });
   const headers = {
     Authorization: basicAuth(account),
     'OCS-APIRequest': 'true',
@@ -133,4 +130,32 @@ export async function fetchSharees({
 
   const results = Array.from(byEmail.values());
   return limit > 0 ? results.slice(0, limit) : results;
+}
+
+export interface FetchAllContactsParams {
+  account: Pick<Account, 'baseUrl' | 'username' | 'appPassword'>;
+  limit?: number;
+}
+
+export async function fetchAllContacts({
+  account,
+  limit = 0,
+}: FetchAllContactsParams): Promise<ShareeResult[]> {
+  return fetchCalendarAttendees({ account, search: '', limit });
+}
+
+export interface FetchShareesParams {
+  account: Pick<Account, 'baseUrl' | 'username' | 'appPassword'>;
+  query: string;
+  limit?: number;
+}
+
+export async function fetchSharees({
+  account,
+  query,
+  limit = 25,
+}: FetchShareesParams): Promise<ShareeResult[]> {
+  const trimmed = query.trim();
+  if (!trimmed) return [];
+  return fetchCalendarAttendees({ account, search: trimmed, limit });
 }

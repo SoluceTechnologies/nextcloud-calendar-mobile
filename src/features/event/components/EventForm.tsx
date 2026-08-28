@@ -40,7 +40,7 @@ interface Props {
   initialValues?: InitialValues;
   submitLabel?: string;
   disableCalendarChange?: boolean;
-  account?: Pick<Account, 'baseUrl' | 'username' | 'appPassword'> | null;
+  account?: Pick<Account, 'id' | 'baseUrl' | 'username' | 'appPassword'> | null;
 }
 
 
