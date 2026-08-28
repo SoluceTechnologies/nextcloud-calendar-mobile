@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
+import * as Notifications from 'expo-notifications';
 
 import type { Account, CalendarInvitation } from '@/types';
-import { fetchInvitations } from '@/services/nextcloud/invitations';
 
 const POLL_MS = 60_000;
 
@@ -15,8 +15,10 @@ export function useInvitations(account: Account | null) {
     setIsFetching(true);
     setError(null);
     try {
+      const { fetchInvitations } = await import('@/services/nextcloud/invitations');
       const invitations = await fetchInvitations(account);
       setData(invitations);
+      await Notifications.setBadgeCountAsync(invitations.length);
     } catch (e) {
       setError(e instanceof Error ? e : new Error(String(e)));
       console.warn('[useInvitations] fetch failed:', String(e));
