@@ -124,6 +124,7 @@
     "talkOpenTitle": "Open Talk room",
     "openInTalk": "Open in Talk app",
     "openInBrowser": "Open in browser",
+    "talkAppNotInstalled": "Nextcloud Talk is not installed. Install it to open rooms directly in the app, or open in browser.",
     "loadingCalendars": "Kalender werden geladen…",
     "newEvent": "Neues Ereignis",
     "editEvent": "Ereignis bearbeiten",

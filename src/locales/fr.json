@@ -124,6 +124,7 @@
     "talkOpenTitle": "Ouvrir la salle Talk",
     "openInTalk": "Ouvrir dans l'app Talk",
     "openInBrowser": "Ouvrir dans le navigateur",
+    "talkAppNotInstalled": "L'application Nextcloud Talk n'est pas installée. Installez-la pour ouvrir les salons directement dans l'application, ou ouvrez-les dans le navigateur.",
     "loadingCalendars": "Chargement des agendas…",
     "newEvent": "Nouvel événement",
     "editEvent": "Modifier l'événement",

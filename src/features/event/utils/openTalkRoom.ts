@@ -1,4 +1,4 @@
-import { Alert, Linking, Platform } from 'react-native';
+import { Alert, Linking, Platform, type AlertButton } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
 import i18n from '@/utils/i18n';
 import type { TalkOpenMode } from '@/types';
@@ -11,6 +11,20 @@ export function buildTalkIntentUrl(talkUrl: string): string {
   return `intent://${withoutScheme}#Intent;scheme=https;package=${TALK_ANDROID_PACKAGE};S.browser_fallback_url=${fallback};end`;
 }
 
+export function getTalkLinkingUrl(talkUrl: string): string {
+  if (Platform.OS === 'android') {
+    return buildTalkIntentUrl(talkUrl);
+  }
+  // On iOS we test/open the original HTTPS URL so the OS can route it
+  // through Universal Links when the Nextcloud Talk app is installed.
+  return talkUrl;
+}
+
+export async function canOpenTalkApp(talkUrl: string): Promise<boolean> {
+  const url = getTalkLinkingUrl(talkUrl);
+  return Linking.canOpenURL(url).catch(() => false);
+}
+
 export async function openInBrowser(talkUrl: string): Promise<void> {
   try {
     await WebBrowser.openBrowserAsync(talkUrl);
@@ -20,21 +34,18 @@ export async function openInBrowser(talkUrl: string): Promise<void> {
 }
 
 export async function openInTalkApp(talkUrl: string): Promise<void> {
-  if (Platform.OS === 'android') {
-    try {
-      await Linking.openURL(buildTalkIntentUrl(talkUrl));
-      return;
-    } catch {
-      // Fall through to browser if Talk app is not installed.
-    }
+  const url = getTalkLinkingUrl(talkUrl);
+  const canOpen = await canOpenTalkApp(talkUrl);
+
+  if (!canOpen) {
     await openInBrowser(talkUrl);
     return;
   }
 
-  const canOpen = await Linking.canOpenURL(talkUrl).catch(() => false);
-  if (canOpen) {
-    await Linking.openURL(talkUrl);
-  } else {
+  try {
+    await Linking.openURL(url);
+  } catch {
+    // If the system couldn’t handle the URL, fall back to the browser.
     await openInBrowser(talkUrl);
   }
 }
@@ -46,18 +57,39 @@ export async function openTalkRoom(talkUrl: string, mode: TalkOpenMode): Promise
   }
 
   if (mode === 'app') {
-    await openInTalkApp(talkUrl);
+    const canOpen = await canOpenTalkApp(talkUrl);
+
+    if (canOpen) {
+      await openInTalkApp(talkUrl);
+    } else {
+      Alert.alert(
+        i18n.t('event.talkOpenTitle'),
+        i18n.t('event.talkAppNotInstalled'),
+        [
+          { text: i18n.t('common.cancel'), style: 'cancel' },
+          { text: i18n.t('event.openInBrowser'), onPress: () => void openInBrowser(talkUrl) },
+        ],
+        { cancelable: true }
+      );
+    }
     return;
   }
+
+  const canOpen = await canOpenTalkApp(talkUrl);
+  const buttons: AlertButton[] = [
+    { text: i18n.t('common.cancel'), style: 'cancel' },
+  ];
+
+  if (canOpen) {
+    buttons.push({ text: i18n.t('event.openInTalk'), onPress: () => void openInTalkApp(talkUrl) });
+  }
+
+  buttons.push({ text: i18n.t('event.openInBrowser'), onPress: () => void openInBrowser(talkUrl) });
 
   Alert.alert(
     i18n.t('event.talkOpenTitle'),
     talkUrl,
-    [
-      { text: i18n.t('common.cancel'), style: 'cancel' },
-      { text: i18n.t('event.openInTalk'), onPress: () => void openInTalkApp(talkUrl) },
-      { text: i18n.t('event.openInBrowser'), onPress: () => void openInBrowser(talkUrl) },
-    ],
+    buttons,
     { cancelable: true }
   );
 }
