@@ -5,14 +5,12 @@ import dayjs from 'dayjs';
 import localizedFormat from 'dayjs/plugin/localizedFormat';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from 'expo-router';
-import { X, User } from 'lucide-react-native';
 import { TalkToggle } from './TalkToggle';
+import { AttendeesField } from './AttendeesField';
 import { requestAlertPermission } from '@/features/notifications/scheduleAlerts';
 import { AlertPicker } from './AlertPicker';
 import { RecurrencePicker } from './RecurrencePicker';
-import { useContactSuggestions } from '@/features/event/hooks/useContactSuggestions';
-import { dedupeAttendees } from '@/utils/attendees';
-import { Stack, Typography, TextField, DateField, Button, Chip, Toggle, IconButton, List, Item, Spinner } from '@/ui/components';
+import { Stack, Typography, TextField, DateField, Button, Chip, Toggle } from '@/ui/components';
 import type { CalendarMeta, Attendee, CreateEventInput, RecurrenceRule, TalkRoomType, Account } from '@/types';
 
 dayjs.extend(localizedFormat);
@@ -74,12 +72,7 @@ export function EventForm({
   const [location, setLocation] = useState(initialValues?.location ?? '');
   const [withTalkRoom, setWithTalkRoom] = useState(false);
   const [talkRoomType, setTalkRoomType] = useState<TalkRoomType>('private');
-  const [attendeeInput, setAttendeeInput] = useState('');
   const [attendees, setAttendees] = useState<Attendee[]>(initialValues?.attendees ?? []);
-  const { suggestions, loading: contactsLoading } = useContactSuggestions({
-    account: account ?? null,
-    query: attendeeInput,
-  });
   const [rrule, setRrule] = useState<RecurrenceRule | undefined>(initialValues?.rrule);
   const [alarmMinutes, setAlarmMinutes] = useState<number | undefined>(initialValues?.alarmMinutes);
   const [titleError, setTitleError] = useState<string | null>(null);
@@ -89,7 +82,6 @@ export function EventForm({
   const [androidStep, setAndroidStep] = useState<AndroidPickerStep>(null);
 
   const scrollRef = useRef<ScrollView>(null);
-  const attendeeFocused = useRef(false);
   const inputOffsets = useRef<Record<string, number>>({});
 
   function scrollToField(key: string) {
@@ -175,23 +167,6 @@ export function EventForm({
     } else {
       setAndroidStep({ target, step: 'time', partial: selected });
     }
-  }
-
-  function addAttendee(contact?: Attendee) {
-    if (contact?.email) {
-      setAttendees((prev) => dedupeAttendees([...prev, contact]));
-      setAttendeeInput('');
-      return;
-    }
-
-    const email = attendeeInput.trim();
-    if (!email || !email.includes('@')) return;
-    setAttendees((prev) => dedupeAttendees([...prev, { email }]));
-    setAttendeeInput('');
-  }
-
-  function removeAttendee(email: string) {
-    setAttendees((prev) => prev.filter((a) => a.email !== email));
   }
 
   function handleSubmit() {
@@ -384,78 +359,13 @@ export function EventForm({
           />
         </View>
 
-        <Stack gap={8}>
-          <Typography variant="body2" color="secondary">{t('event.attendees')}</Typography>
-          <View onLayout={(e) => onFieldLayout('attendee', e)}>
-            <Stack direction="horizontal" vAlign="center" gap={8}>
-              <View style={styles.grow}>
-                <TextField
-                  value={attendeeInput}
-                  onChangeText={setAttendeeInput}
-                  placeholder={t('event.attendeePlaceholder')}
-                  autoCapitalize="none"
-                  keyboardType="email-address"
-                  autoCorrect={false}
-                  spellCheck={false}
-                  autoComplete="email"
-                  textContentType="emailAddress"
-                  onSubmitEditing={() => addAttendee()}
-                  onFocus={() => scrollToField('attendee')}
-                  onBlur={() => { attendeeFocused.current = false; }}
-                />
-              </View>
-              <Button variant="primary" title={t('event.add')} onPress={() => addAttendee()} />
-            </Stack>
-          </View>
-
-          {contactsLoading && (
-            <View style={styles.suggestionLoading}>
-              <Spinner size="small" color="secondary" />
-            </View>
-          )}
-
-          {!contactsLoading && suggestions.length > 0 && (
-            <ScrollView
-              style={styles.suggestionScroll}
-              contentContainerStyle={styles.suggestionScrollContent}
-              nestedScrollEnabled
-              keyboardShouldPersistTaps="handled"
-              keyboardDismissMode="none"
-            >
-              <List radius={12}>
-                {suggestions.map((contact) => (
-                  <Item
-                    key={contact.id}
-                    title={contact.displayName}
-                    description={contact.email}
-                    leading={<User size={20} color={theme.colors.textTertiary} />}
-                    onPress={() => addAttendee({ email: contact.email, displayName: contact.displayName })}
-                  />
-                ))}
-              </List>
-            </ScrollView>
-          )}
-
-          {attendees.map((att) => (
-            <Stack
-              key={att.email}
-              direction="horizontal" vAlign="center" bordered
-              gap={8} padding={[12, 8]}
-            >
-              <View>
-                <Typography variant="body2" color="primary">{att.displayName ?? att.email}</Typography>
-                {att.displayName ? (
-                  <Typography variant="caption" color="secondary">{att.email}</Typography>
-                ) : null}
-              </View>
-              <View style={styles.pushRight}>
-                <IconButton variant="plain" size={32} onPress={() => removeAttendee(att.email)}>
-                  <X size={18} color={theme.colors.textTertiary} />
-                </IconButton>
-              </View>
-            </Stack>
-          ))}
-        </Stack>
+        <AttendeesField
+          attendees={attendees}
+          onChange={setAttendees}
+          account={account}
+          onInputLayout={(e) => onFieldLayout('attendee', e)}
+          onInputFocus={() => scrollToField('attendee')}
+        />
 
         <TalkToggle
           value={withTalkRoom}
@@ -485,7 +395,4 @@ const styles = StyleSheet.create({
   grow: { flex: 1 },
   pushRight: { marginLeft: 'auto' },
   iosPickerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 44 },
-  suggestionScroll: { maxHeight: 220 },
-  suggestionScrollContent: { flexGrow: 1 },
-  suggestionLoading: { paddingVertical: 8, alignItems: 'center' },
 });

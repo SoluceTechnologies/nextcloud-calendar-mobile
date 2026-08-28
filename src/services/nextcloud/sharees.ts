@@ -13,6 +13,7 @@ export interface ShareeResult {
   displayName: string;
   email: string;
   source: ShareeSource;
+  photoUrl?: string;
 }
 
 interface ContactAutocompleteEntry {
@@ -20,6 +21,7 @@ interface ContactAutocompleteEntry {
   emails?: unknown;
   type?: unknown;
   source?: unknown;
+  photo?: unknown;
 }
 
 const CALENDAR_ATTENDEE_PATH = 'apps/calendar/v1/autocompletion/attendee';
@@ -43,12 +45,19 @@ function asStringList(value: unknown): string[] {
   return [];
 }
 
+function parsePhotoUrl(value: unknown): string | undefined {
+  if (typeof value !== 'string') return undefined;
+  const url = value.trim();
+  return /^https?:\/\//i.test(url) ? url : undefined;
+}
+
 function parseContactEntry(entry: ContactAutocompleteEntry): ShareeResult[] {
   if (entry.type !== 'individual') return [];
 
   const name = typeof entry.name === 'string' ? entry.name.trim() : '';
   const rawSource = typeof entry.source === 'string' ? entry.source : 'user';
   const source: ShareeSource = rawSource === 'system' ? 'system' : 'user';
+  const photoUrl = parsePhotoUrl(entry.photo);
 
   const results: ShareeResult[] = [];
   const seen = new Set<string>();
@@ -72,6 +81,7 @@ function parseContactEntry(entry: ContactAutocompleteEntry): ShareeResult[] {
       email,
       displayName: name || email,
       source,
+      ...(photoUrl ? { photoUrl } : {}),
     });
   }
 

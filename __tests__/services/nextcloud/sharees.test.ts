@@ -230,3 +230,58 @@ describe('fetchAllContacts', () => {
     expect(results).toHaveLength(2);
   });
 });
+
+describe('contact photos', () => {
+  it('keeps the photo URL returned by the instance', async () => {
+    mockFetch.mockResolvedValue(
+      calendarResponse([
+        {
+          name: 'John Doe',
+          emails: ['john@example.com'],
+          type: 'individual',
+          source: 'user',
+          photo: 'https://cloud.example.com/remote.php/dav/photo.png',
+        },
+      ]),
+    );
+
+    const results = await fetchSharees({ account, query: 'john' });
+
+    expect(results[0].photoUrl).toBe('https://cloud.example.com/remote.php/dav/photo.png');
+  });
+
+  it('applies the entry photo to every email of that contact', async () => {
+    mockFetch.mockResolvedValue(
+      calendarResponse([
+        {
+          name: 'John Doe',
+          emails: ['home@example.com', 'work@example.com'],
+          type: 'individual',
+          source: 'user',
+          photo: 'https://cloud.example.com/photo.png',
+        },
+      ]),
+    );
+
+    const results = await fetchSharees({ account, query: 'john' });
+
+    expect(results.map((r) => r.photoUrl)).toEqual([
+      'https://cloud.example.com/photo.png',
+      'https://cloud.example.com/photo.png',
+    ]);
+  });
+
+  it('leaves photoUrl unset when the contact has no usable photo', async () => {
+    mockFetch.mockResolvedValue(
+      calendarResponse([
+        { name: 'No Photo', emails: ['a@example.com'], type: 'individual', source: 'user', photo: null },
+        { name: 'Inline', emails: ['b@example.com'], type: 'individual', source: 'user', photo: 'data:image/png;base64,AAAA' },
+      ]),
+    );
+
+    const results = await fetchSharees({ account, query: 'x' });
+
+    expect(results[0].photoUrl).toBeUndefined();
+    expect(results[1].photoUrl).toBeUndefined();
+  });
+});
