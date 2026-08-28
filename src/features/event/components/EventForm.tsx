@@ -415,17 +415,25 @@ export function EventForm({
           )}
 
           {!contactsLoading && suggestions.length > 0 && (
-            <List radius={12} style={styles.suggestionList}>
-              {suggestions.map((contact) => (
-                <Item
-                  key={contact.id}
-                  title={contact.displayName}
-                  description={contact.email}
-                  leading={<User size={20} color={theme.colors.textTertiary} />}
-                  onPress={() => addAttendee({ email: contact.email, displayName: contact.displayName })}
-                />
-              ))}
-            </List>
+            <ScrollView
+              style={styles.suggestionScroll}
+              contentContainerStyle={styles.suggestionScrollContent}
+              nestedScrollEnabled
+              keyboardShouldPersistTaps="handled"
+              keyboardDismissMode="none"
+            >
+              <List radius={12}>
+                {suggestions.map((contact) => (
+                  <Item
+                    key={contact.id}
+                    title={contact.displayName}
+                    description={contact.email}
+                    leading={<User size={20} color={theme.colors.textTertiary} />}
+                    onPress={() => addAttendee({ email: contact.email, displayName: contact.displayName })}
+                  />
+                ))}
+              </List>
+            </ScrollView>
           )}
 
           {attendees.map((att) => (
@@ -477,6 +485,7 @@ const styles = StyleSheet.create({
   grow: { flex: 1 },
   pushRight: { marginLeft: 'auto' },
   iosPickerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 44 },
-  suggestionList: { maxHeight: 220 },
+  suggestionScroll: { maxHeight: 220 },
+  suggestionScrollContent: { flexGrow: 1 },
   suggestionLoading: { paddingVertical: 8, alignItems: 'center' },
 });
