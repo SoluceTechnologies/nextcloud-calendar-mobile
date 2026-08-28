@@ -30,6 +30,7 @@ export type Attendee = {
   email: string;
   displayName?: string;
   partstat?: string;
+  role?: string;
 };
 
 export type RecurrenceFreq = 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'YEARLY';
