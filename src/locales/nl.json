@@ -86,6 +86,7 @@
     "end": "Einde",
     "location": "Locatie",
     "locationPlaceholder": "Ruimte of adres",
+    "openInMaps": "Open in Maps",
     "description": "Omschrijving",
     "descriptionPlaceholder": "Details...",
     "attendees": "Deelnemers",

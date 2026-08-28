@@ -3,7 +3,10 @@ import { View, StyleSheet, ScrollView, Alert, Linking, Platform } from 'react-na
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
 import { haptic } from '@/utils/haptics';
-import { Pencil, Clock, CalendarDays, MapPin, Video, Repeat, Trash2, Copy, Check, Bell } from 'lucide-react-native';
+import {
+  Pencil, Clock, CalendarDays, MapPin, Video, Repeat, Trash2, Copy, Check, Bell,
+  Navigation,
+} from 'lucide-react-native';
 import { useLocalSearchParams, useNavigation, useRouter, useTheme } from 'expo-router';
 import dayjs from 'dayjs';
 import localizedFormat from 'dayjs/plugin/localizedFormat';
@@ -13,6 +16,9 @@ import { useEventByUid } from '@/database/useEventByUid';
 import { useCalendars } from '@/hooks/useCalendars';
 import { useAccounts } from '@/hooks/useAccounts';
 import { useDeleteEvent } from '@/features/event/hooks/useMutateEvent';
+import { useEventLocation } from '@/features/map/hooks/useEventLocation';
+import { EventMapPreview, EventMapSheet } from '@/features/map/components';
+import { openMaps } from '@/features/map/utils/mapLinks';
 import { useAccountStore } from '@/stores/accountStore';
 import {
   ViewContainer, Stack, Typography, Button, Chip, Icon, List, Item,
@@ -89,8 +95,11 @@ export default function EventDetailScreen() {
   const eventsLoading = !synced && event === undefined;
 
   const [copied, setCopied] = useState(false);
+  const [mapVisible, setMapVisible] = useState(false);
   const copyResetRef = useRef<ReturnType<typeof setTimeout>>(undefined);
   useEffect(() => () => clearTimeout(copyResetRef.current), []);
+
+  const { coordinates, isVirtual, loading } = useEventLocation(event?.location, event?.talkUrl);
 
   const handleCopyLocation = useCallback(async () => {
     if (!event?.location) return;
@@ -100,6 +109,11 @@ export default function EventDetailScreen() {
     clearTimeout(copyResetRef.current);
     copyResetRef.current = setTimeout(() => setCopied(false), 1500);
   }, [event?.location]);
+
+  const handleOpenMaps = useCallback(async () => {
+    if (!event?.location) return;
+    await openMaps(event.location, coordinates?.lat, coordinates?.lon);
+  }, [event?.location, coordinates]);
 
   const recurrenceScopeStrings: RecurrenceScopeStrings = {
     message: t('event.recurrenceScopeMessage'),
@@ -257,19 +271,59 @@ export default function EventDetailScreen() {
                   leading={<Icon size={20}><MapPin color={theme.colors.textSecondary} /></Icon>}
                   title={event.location}
                   trailing={
-                    <IconButton
-                      variant="plain"
-                      size={36}
-                      onPress={handleCopyLocation}
-                    >
-                      {copied
-                        ? <Check size={18} color={theme.colors.primary} />
-                        : <Copy size={18} color={theme.colors.textSecondary} />}
-                    </IconButton>
+                    <Stack direction="horizontal" gap={4} vAlign="center">
+                      {!isVirtual && (
+                        <IconButton
+                          variant="plain"
+                          size={36}
+                          onPress={handleOpenMaps}
+                          accessibilityLabel={t('event.openInMaps')}
+                        >
+                          <Navigation size={18} color={theme.colors.textSecondary} />
+                        </IconButton>
+                      )}
+                      <IconButton
+                        variant="plain"
+                        size={36}
+                        onPress={handleCopyLocation}
+                      >
+                        {copied
+                          ? <Check size={18} color={theme.colors.primary} />
+                          : <Copy size={18} color={theme.colors.textSecondary} />}
+                      </IconButton>
+                    </Stack>
                   }
                 />
               )}
             </List>
+
+            {event.location && !isVirtual && loading && (
+              <View
+                style={[
+                  styles.mapPlaceholder,
+                  { backgroundColor: theme.colors.surface, borderRadius: theme.radius.md },
+                ]}
+              >
+                <Spinner size="large" />
+              </View>
+            )}
+
+            {coordinates && !isVirtual && (
+              <EventMapPreview
+                location={event.location!}
+                coordinates={coordinates}
+                onPress={() => setMapVisible(true)}
+              />
+            )}
+
+            {coordinates && (
+              <EventMapSheet
+                visible={mapVisible}
+                onClose={() => setMapVisible(false)}
+                location={event.location!}
+                coordinates={coordinates}
+              />
+            )}
 
             {event.talkUrl && (
               <Button
@@ -335,4 +389,11 @@ const styles = StyleSheet.create({
   colorBar: { height: 6 },
   content: { padding: 20 },
   footer: { borderTopWidth: StyleSheet.hairlineWidth },
+  mapPlaceholder: {
+    height: 200,
+    width: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
 });

@@ -86,6 +86,7 @@
     "end": "End",
     "location": "Location",
     "locationPlaceholder": "Room or address",
+    "openInMaps": "Open in Maps",
     "description": "Description",
     "descriptionPlaceholder": "Details...",
     "attendees": "Attendees",
