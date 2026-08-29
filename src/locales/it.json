@@ -16,7 +16,8 @@
   },
   "tabs": {
     "calendar": "Calendario",
-    "settings": "Impostazioni"
+    "settings": "Impostazioni",
+    "notifications": "Notifications"
   },
   "setup": {
     "brand": "Calendario",
@@ -86,6 +87,7 @@
     "end": "Fine",
     "location": "Luogo",
     "locationPlaceholder": "Sala o indirizzo",
+    "openInMaps": "Open in Maps",
     "description": "Descrizione",
     "descriptionPlaceholder": "Dettagli...",
     "attendees": "Partecipanti",
@@ -196,7 +198,10 @@
       "liveActivityHint": "Mostra una notifica persistente mentre un evento è in corso.",
       "permissionDenied": "Le notifiche sono disattivate per questa app.",
       "openSettings": "Apri impostazioni di sistema",
-      "channelName": "Avvisi eventi"
+      "channelName": "Avvisi eventi",
+      "badgeChannelName": "App badge",
+      "push": "Push notifications",
+      "pushHint": "Receive real-time updates from the server."
     },
     "widgets": {
       "title": "Widget",
@@ -277,6 +282,18 @@
       "days": "tra {{value}} giorni",
       "today": "Oggi",
       "tomorrow": "Domani"
+    },
+    "title": "Notifications",
+    "empty": "No notifications",
+    "badgeTitle": "{{count}} unread notification",
+    "badgeTitle_other": "{{count}} unread notifications",
+    "type": {
+      "created": "Created",
+      "updated": "Updated",
+      "deleted": "Deleted",
+      "invited": "Invited",
+      "response": "Response",
+      "unknown": "Update"
     }
   },
   "certTrust": {
@@ -290,5 +307,29 @@
     "validTo": "Valido fino al",
     "trust": "Autorizza e connetti",
     "cancel": "Annulla"
+  },
+  "cleartext": {
+    "title": "Connessione non cifrata",
+    "body": "La connessione a {{host}} non è cifrata. Il tuo nome utente e la password dell'app verrebbero inviati in chiaro sulla rete.",
+    "warning": "Chiunque si trovi tra questo telefono e il server — gestore del Wi-Fi, provider internet, qualsiasi rete intermedia — può leggere la password e i dati del calendario. Una password dell'app Nextcloud dà accesso all'intero account, non solo al calendario.",
+    "remedy": "Opzioni più sicure: raggiungere il server tramite una VPN come Tailscale o WireGuard, oppure configurare un certificato gratuito con DuckDNS e Let's Encrypt.",
+    "connect": "Connetti comunque",
+    "cancel": "Annulla"
+  },
+  "invitations": {
+    "title": "Invitations",
+    "noInvitations": "No pending invitations.",
+    "accept": "Accept",
+    "decline": "Decline",
+    "tentative": "Maybe",
+    "accepted": "Accepted",
+    "declined": "Declined",
+    "organizer": "From",
+    "selectCalendar": "Add to calendar",
+    "loading": "Loading invitations…",
+    "error": "Could not load invitations.",
+    "calendar": "Calendar",
+    "from": "From {{name}}",
+    "responseFailed": "Could not respond to the invitation."
   }
 }

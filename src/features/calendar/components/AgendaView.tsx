@@ -1,13 +1,17 @@
-import { memo, useRef, useEffect, useCallback, useMemo, forwardRef, useImperativeHandle } from 'react';
+import { memo, useRef, useCallback, useMemo, forwardRef, useImperativeHandle } from 'react';
 import {
-  View, Text, SectionList, TouchableOpacity, StyleSheet,
+  View, Text, SectionList, TouchableOpacity, StyleSheet, type ViewToken,
 } from 'react-native';
 import dayjs from 'dayjs';
 import localizedFormat from 'dayjs/plugin/localizedFormat';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from 'expo-router';
+import { HelpCircle } from 'lucide-react-native';
 import type { Theme } from '@/theme';
 import type { CalendarEvent } from '@/types';
+import { useAccountStore } from '@/stores/accountStore';
+import { useActiveAccount } from '@/hooks/useAccounts';
+import { isEventPending } from '@/utils/eventPending';
 
 dayjs.extend(localizedFormat);
 
@@ -71,6 +75,9 @@ interface EventRowProps {
 
 const EventRow = memo(({ event, theme, onPress }: EventRowProps) => {
   const { t } = useTranslation();
+  const activeAccountId = useAccountStore((s) => s.activeAccountId);
+  const activeAccount = useActiveAccount(activeAccountId);
+  const pending = isEventPending(event, activeAccount);
   const duration = event.allDay
     ? null
     : (() => {
@@ -85,11 +92,20 @@ const EventRow = memo(({ event, theme, onPress }: EventRowProps) => {
 
   return (
     <TouchableOpacity
-      style={[styles.eventRow, { backgroundColor: theme.colors.surface }]}
+      style={[
+        styles.eventRow,
+        { backgroundColor: theme.colors.surface },
+        pending && styles.eventRowPending,
+      ]}
       onPress={() => onPress(event)}
       activeOpacity={0.75}
     >
       <View style={[styles.colorBar, { backgroundColor: event.color }]} />
+      {pending && (
+        <View style={styles.pendingIcon} pointerEvents="none">
+          <HelpCircle size={16} color={theme.colors.textTertiary} />
+        </View>
+      )}
       <View style={styles.eventContent}>
         <Text style={[styles.eventTitle, { color: theme.colors.text }]} numberOfLines={2}>
           {event.summary || t('calendar.noTitle')}
@@ -119,7 +135,7 @@ export interface AgendaViewHandle {
 
 
 const AgendaViewImpl = forwardRef<AgendaViewHandle, Props>(function AgendaView(
-  { events, date, onPressEvent, onPressCell, onVisibleDateChange }, ref
+  { events, onPressEvent, onPressCell, onVisibleDateChange }, ref
 ) {
   const theme = useTheme();
   const listRef = useRef<SectionList<CalendarEvent, AgendaSection>>(null);
@@ -169,7 +185,7 @@ const AgendaViewImpl = forwardRef<AgendaViewHandle, Props>(function AgendaView(
   }));
 
   const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 50 });
-  const onViewableItemsChanged = useCallback(({ viewableItems }: any) => {
+  const onViewableItemsChanged = useCallback(({ viewableItems }: { viewableItems: ViewToken[] }) => {
     if (!onVisibleDateChange || viewableItems.length === 0) return;
     const first = viewableItems[0];
     const d: Date | undefined = first?.section?.date ?? first?.item?.dtstart;
@@ -244,6 +260,18 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     overflow: 'hidden',
     minHeight: EVENT_ROW_HEIGHT - 6,
+  },
+  eventRowPending: {
+    borderStyle: 'dotted',
+    borderWidth: 2,
+    borderColor: 'rgba(0,0,0,0.15)',
+    opacity: 0.85,
+  },
+  pendingIcon: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    zIndex: 1,
   },
   colorBar: { width: 4 },
   eventContent: { flex: 1, padding: 10, justifyContent: 'center' },

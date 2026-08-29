@@ -16,7 +16,8 @@
   },
   "tabs": {
     "calendar": "Agenda",
-    "settings": "Instellingen"
+    "settings": "Instellingen",
+    "notifications": "Notifications"
   },
   "setup": {
     "brand": "Agenda",
@@ -86,6 +87,7 @@
     "end": "Einde",
     "location": "Locatie",
     "locationPlaceholder": "Ruimte of adres",
+    "openInMaps": "Open in Maps",
     "description": "Omschrijving",
     "descriptionPlaceholder": "Details...",
     "attendees": "Deelnemers",
@@ -196,7 +198,10 @@
       "liveActivityHint": "Toont een blijvende melding tijdens een lopende afspraak.",
       "permissionDenied": "Meldingen staan uit voor deze app.",
       "openSettings": "Systeeminstellingen openen",
-      "channelName": "Afspraakmeldingen"
+      "channelName": "Afspraakmeldingen",
+      "badgeChannelName": "App badge",
+      "push": "Push notifications",
+      "pushHint": "Receive real-time updates from the server."
     },
     "widgets": {
       "title": "Widgets",
@@ -277,6 +282,18 @@
       "days": "over {{value}} dagen",
       "today": "Vandaag",
       "tomorrow": "Morgen"
+    },
+    "title": "Notifications",
+    "empty": "No notifications",
+    "badgeTitle": "{{count}} unread notification",
+    "badgeTitle_other": "{{count}} unread notifications",
+    "type": {
+      "created": "Created",
+      "updated": "Updated",
+      "deleted": "Deleted",
+      "invited": "Invited",
+      "response": "Response",
+      "unknown": "Update"
     }
   },
   "certTrust": {
@@ -290,5 +307,29 @@
     "validTo": "Geldig tot",
     "trust": "Vertrouwen en verbinden",
     "cancel": "Annuleren"
+  },
+  "cleartext": {
+    "title": "Onversleutelde verbinding",
+    "body": "De verbinding met {{host}} is niet versleuteld. Je gebruikersnaam en app-wachtwoord zouden als platte tekst over het netwerk worden verzonden.",
+    "warning": "Iedereen tussen deze telefoon en de server — de wifibeheerder, je internetprovider, elk netwerk ertussen — kan je wachtwoord en agendagegevens meelezen. Een Nextcloud app-wachtwoord geeft toegang tot je hele account, niet alleen tot de agenda.",
+    "remedy": "Veiligere opties: de server bereiken via een VPN zoals Tailscale of WireGuard, of een gratis certificaat instellen met DuckDNS en Let's Encrypt.",
+    "connect": "Toch verbinden",
+    "cancel": "Annuleren"
+  },
+  "invitations": {
+    "title": "Invitations",
+    "noInvitations": "No pending invitations.",
+    "accept": "Accept",
+    "decline": "Decline",
+    "tentative": "Maybe",
+    "accepted": "Accepted",
+    "declined": "Declined",
+    "organizer": "From",
+    "selectCalendar": "Add to calendar",
+    "loading": "Loading invitations…",
+    "error": "Could not load invitations.",
+    "calendar": "Calendar",
+    "from": "From {{name}}",
+    "responseFailed": "Could not respond to the invitation."
   }
 }

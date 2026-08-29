@@ -16,7 +16,8 @@
   },
   "tabs": {
     "calendar": "Calendario",
-    "settings": "Ajustes"
+    "settings": "Ajustes",
+    "notifications": "Notifications"
   },
   "setup": {
     "brand": "Calendario",
@@ -86,6 +87,7 @@
     "end": "Fin",
     "location": "Ubicación",
     "locationPlaceholder": "Sala o dirección",
+    "openInMaps": "Open in Maps",
     "description": "Descripción",
     "descriptionPlaceholder": "Detalles...",
     "attendees": "Asistentes",
@@ -196,7 +198,10 @@
       "liveActivityHint": "Muestra una notificación persistente mientras un evento está en curso.",
       "permissionDenied": "Las notificaciones están desactivadas para esta app.",
       "openSettings": "Abrir ajustes del sistema",
-      "channelName": "Alertas de eventos"
+      "channelName": "Alertas de eventos",
+      "badgeChannelName": "App badge",
+      "push": "Push notifications",
+      "pushHint": "Receive real-time updates from the server."
     },
     "widgets": {
       "title": "Widgets",
@@ -277,6 +282,18 @@
       "days": "en {{value}} días",
       "today": "Hoy",
       "tomorrow": "Mañana"
+    },
+    "title": "Notifications",
+    "empty": "No notifications",
+    "badgeTitle": "{{count}} unread notification",
+    "badgeTitle_other": "{{count}} unread notifications",
+    "type": {
+      "created": "Created",
+      "updated": "Updated",
+      "deleted": "Deleted",
+      "invited": "Invited",
+      "response": "Response",
+      "unknown": "Update"
     }
   },
   "certTrust": {
@@ -290,5 +307,29 @@
     "validTo": "Válido hasta",
     "trust": "Confiar y conectar",
     "cancel": "Cancelar"
+  },
+  "cleartext": {
+    "title": "Conexión sin cifrar",
+    "body": "La conexión a {{host}} no está cifrada. Tu nombre de usuario y tu contraseña de aplicación se enviarían en texto plano por la red.",
+    "warning": "Cualquiera entre este teléfono y el servidor — el operador de la wifi, tu proveedor de internet, cualquier red intermedia — puede leer tu contraseña y tus datos de calendario. Una contraseña de aplicación de Nextcloud da acceso a toda la cuenta, no solo al calendario.",
+    "remedy": "Opciones más seguras: llegar al servidor mediante una VPN como Tailscale o WireGuard, o configurar un certificado gratuito con DuckDNS y Let's Encrypt.",
+    "connect": "Conectar de todos modos",
+    "cancel": "Cancelar"
+  },
+  "invitations": {
+    "title": "Invitations",
+    "noInvitations": "No pending invitations.",
+    "accept": "Accept",
+    "decline": "Decline",
+    "tentative": "Maybe",
+    "accepted": "Accepted",
+    "declined": "Declined",
+    "organizer": "From",
+    "selectCalendar": "Add to calendar",
+    "loading": "Loading invitations…",
+    "error": "Could not load invitations.",
+    "calendar": "Calendar",
+    "from": "From {{name}}",
+    "responseFailed": "Could not respond to the invitation."
   }
 }

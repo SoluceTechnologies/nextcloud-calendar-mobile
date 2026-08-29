@@ -29,6 +29,8 @@ export type CalendarMeta = {
 export type Attendee = {
   email: string;
   displayName?: string;
+  partstat?: string;
+  role?: string;
 };
 
 export type RecurrenceFreq = 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'YEARLY';
@@ -44,6 +46,34 @@ export type RecurrenceRule = {
 export type RecurrenceEditScope = 'this' | 'thisAndFollowing' | 'all';
 
 export type TalkRoomType = 'public' | 'private';
+
+export type InvitationStatus = 'needs-action' | 'accepted' | 'declined' | 'tentative';
+
+export type InvitationResponse = 'accepted' | 'declined' | 'tentative';
+
+export type CalendarInvitation = {
+  uid: string;
+  href: string;
+  accountId: string;
+  summary: string;
+  description?: string;
+  location?: string;
+  dtstart: Date;
+  dtend: Date;
+  allDay: boolean;
+  organizerEmail?: string;
+  organizerName?: string;
+  attendeeEmail: string;
+  attendeeDisplayName?: string;
+  partstat: InvitationStatus;
+  method: string;
+  ics: string;
+  timezone?: string;
+  talkUrl?: string;
+  isRecurring: boolean;
+  rrule?: string;
+  alarmMinutes?: number;
+};
 
 export type CalendarEvent = {
   uid: string;
@@ -87,9 +117,16 @@ export type CreateEventInput = {
 
 export type CalendarAppStatus = 'unknown' | 'available' | 'unconfigured';
 
+export type NotifyPushCapabilities = {
+  types: string[];
+  websocketUrl: string;
+  preAuthUrl?: string;
+};
+
 export type ServerCapabilities = {
   talkEnabled: boolean;
   calendarApp: CalendarAppStatus;
+  notifyPush?: NotifyPushCapabilities;
 };
 
 export type ViewMode = 'month' | 'week' | '3days' | 'day' | 'schedule';

@@ -16,7 +16,8 @@
   },
   "tabs": {
     "calendar": "Календарь",
-    "settings": "Настройки"
+    "settings": "Настройки",
+    "notifications": "Notifications"
   },
   "setup": {
     "brand": "Календарь",
@@ -86,6 +87,7 @@
     "end": "Конец",
     "location": "Место",
     "locationPlaceholder": "Помещение или адрес",
+    "openInMaps": "Open in Maps",
     "description": "Описание",
     "descriptionPlaceholder": "Подробности...",
     "attendees": "Участники",
@@ -196,7 +198,10 @@
       "liveActivityHint": "Показывает постоянное уведомление во время события.",
       "permissionDenied": "Уведомления для этого приложения отключены.",
       "openSettings": "Открыть системные настройки",
-      "channelName": "Напоминания о событиях"
+      "channelName": "Напоминания о событиях",
+      "badgeChannelName": "App badge",
+      "push": "Push notifications",
+      "pushHint": "Receive real-time updates from the server."
     },
     "widgets": {
       "title": "Виджеты",
@@ -277,6 +282,18 @@
       "days": "через {{value}} дн.",
       "today": "Сегодня",
       "tomorrow": "Завтра"
+    },
+    "title": "Notifications",
+    "empty": "No notifications",
+    "badgeTitle": "{{count}} unread notification",
+    "badgeTitle_other": "{{count}} unread notifications",
+    "type": {
+      "created": "Created",
+      "updated": "Updated",
+      "deleted": "Deleted",
+      "invited": "Invited",
+      "response": "Response",
+      "unknown": "Update"
     }
   },
   "certTrust": {
@@ -290,5 +307,29 @@
     "validTo": "Действителен до",
     "trust": "Доверять и подключиться",
     "cancel": "Отмена"
+  },
+  "cleartext": {
+    "title": "Незашифрованное соединение",
+    "body": "Соединение с {{host}} не зашифровано. Ваше имя пользователя и пароль приложения будут переданы по сети в открытом виде.",
+    "warning": "Любой между этим телефоном и сервером — оператор Wi-Fi, интернет-провайдер, любая промежуточная сеть — может прочитать ваш пароль и данные календаря. Пароль приложения Nextcloud даёт доступ ко всей учётной записи, а не только к календарю.",
+    "remedy": "Более безопасные варианты: подключаться к серверу через VPN, например Tailscale или WireGuard, либо настроить бесплатный сертификат с DuckDNS и Let's Encrypt.",
+    "connect": "Всё равно подключиться",
+    "cancel": "Отмена"
+  },
+  "invitations": {
+    "title": "Invitations",
+    "noInvitations": "No pending invitations.",
+    "accept": "Accept",
+    "decline": "Decline",
+    "tentative": "Maybe",
+    "accepted": "Accepted",
+    "declined": "Declined",
+    "organizer": "From",
+    "selectCalendar": "Add to calendar",
+    "loading": "Loading invitations…",
+    "error": "Could not load invitations.",
+    "calendar": "Calendar",
+    "from": "From {{name}}",
+    "responseFailed": "Could not respond to the invitation."
   }
 }

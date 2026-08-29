@@ -16,6 +16,7 @@
   },
   "tabs": {
     "calendar": "Calendrier",
+    "notifications": "Notifications",
     "settings": "Paramètres"
   },
   "setup": {
@@ -86,6 +87,7 @@
     "end": "Fin",
     "location": "Lieu",
     "locationPlaceholder": "Salle ou adresse",
+    "openInMaps": "Ouvrir dans l'app cartes",
     "description": "Description",
     "descriptionPlaceholder": "Détails...",
     "attendees": "Participants",
@@ -196,7 +198,10 @@
       "liveActivityHint": "Affiche une notification persistante pendant un événement en cours.",
       "permissionDenied": "Les notifications sont désactivées pour cette app.",
       "openSettings": "Ouvrir les réglages système",
-      "channelName": "Alertes d'événement"
+      "channelName": "Alertes d'événement",
+      "badgeChannelName": "Badge app",
+      "push": "Notifications push",
+      "pushHint": "Recevoir les mises à jour en temps réel depuis le serveur."
     },
     "widgets": {
       "title": "Widgets",
@@ -269,6 +274,18 @@
     "videoConference": "Visioconférence : {{provider}}"
   },
   "notifications": {
+    "title": "Notifications",
+    "empty": "Aucune notification",
+    "badgeTitle": "{{count}} notification non lue",
+    "badgeTitle_other": "{{count}} notifications non lues",
+    "type": {
+      "created": "Créé",
+      "updated": "Modifié",
+      "deleted": "Supprimé",
+      "invited": "Invité",
+      "response": "Réponse",
+      "unknown": "Mise à jour"
+    },
     "lead": {
       "now": "Maintenant",
       "minutes": "dans {{value}} min",
@@ -290,5 +307,29 @@
     "validTo": "Valide jusqu'au",
     "trust": "Approuver et se connecter",
     "cancel": "Annuler"
+  },
+  "cleartext": {
+    "title": "Connexion non chiffrée",
+    "body": "La connexion à {{host}} n'est pas chiffrée. Votre nom d'utilisateur et votre mot de passe d'application seraient transmis en clair sur le réseau.",
+    "warning": "Toute personne située entre ce téléphone et le serveur — opérateur du Wi-Fi, fournisseur d'accès, réseau intermédiaire — peut lire votre mot de passe et vos données de calendrier. Un mot de passe d'application Nextcloud donne accès à tout le compte, pas seulement au calendrier.",
+    "remedy": "Options plus sûres : joindre le serveur via un VPN comme Tailscale ou WireGuard, ou installer un certificat gratuit avec DuckDNS et Let's Encrypt.",
+    "connect": "Se connecter quand même",
+    "cancel": "Annuler"
+  },
+  "invitations": {
+    "title": "Invitations",
+    "noInvitations": "Aucune invitation en attente.",
+    "accept": "Accepter",
+    "decline": "Refuser",
+    "tentative": "Peut-être",
+    "accepted": "Acceptée",
+    "declined": "Refusée",
+    "organizer": "De",
+    "selectCalendar": "Ajouter à l'agenda",
+    "loading": "Chargement des invitations…",
+    "error": "Impossible de charger les invitations.",
+    "calendar": "Agenda",
+    "from": "De {{name}}",
+    "responseFailed": "Impossible de répondre à l'invitation."
   }
 }

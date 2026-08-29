@@ -35,7 +35,7 @@ const config: ExpoConfig = {
         icon: './assets/icon-ios.icon',
         infoPlist: {
             CFBundleDisplayName: 'Nextcloud Calendar',
-            LSApplicationQueriesSchemes: ['nextcloudtalk'],
+            LSApplicationQueriesSchemes: ['nextcloudtalk', 'comgooglemaps', 'waze'],
             ITSAppUsesNonExemptEncryption: false,
             NSAppTransportSecurity: {
                 NSAllowsArbitraryLoads: true,
@@ -54,6 +54,11 @@ const config: ExpoConfig = {
             backgroundColor: '#109be6',
         },
         softwareKeyboardLayoutMode: 'resize',
+        permissions: [
+            'android.permission.POST_NOTIFICATIONS',
+            'android.permission.RECEIVE_BOOT_COMPLETED',
+            'android.permission.VIBRATE',
+        ],
     },
 
     web: {
@@ -68,14 +73,6 @@ const config: ExpoConfig = {
     owner: 'soluce',
 
     plugins: [
-        [
-            'expo-build-properties',
-            {
-                android: {
-                    usesCleartextTraffic: true,
-                },
-            },
-        ],
         './plugins/withAndroidNetworkSecurityConfig',
         '@morrowdigital/watermelondb-expo-plugin',
         '@react-native-community/datetimepicker',

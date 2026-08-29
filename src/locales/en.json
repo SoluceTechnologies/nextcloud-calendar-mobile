@@ -16,6 +16,7 @@
   },
   "tabs": {
     "calendar": "Calendar",
+    "notifications": "Notifications",
     "settings": "Settings"
   },
   "setup": {
@@ -86,6 +87,7 @@
     "end": "End",
     "location": "Location",
     "locationPlaceholder": "Room or address",
+    "openInMaps": "Open in Maps",
     "description": "Description",
     "descriptionPlaceholder": "Details...",
     "attendees": "Attendees",
@@ -196,7 +198,10 @@
       "liveActivityHint": "Shows an ongoing notification while an event is running.",
       "permissionDenied": "Notifications are turned off for this app.",
       "openSettings": "Open system settings",
-      "channelName": "Event alerts"
+      "channelName": "Event alerts",
+      "badgeChannelName": "App badge",
+      "push": "Push notifications",
+      "pushHint": "Receive real-time updates from the server."
     },
     "widgets": {
       "title": "Widgets",
@@ -269,6 +274,18 @@
     "videoConference": "Video conference: {{provider}}"
   },
   "notifications": {
+    "title": "Notifications",
+    "empty": "No notifications",
+    "badgeTitle": "{{count}} unread notification",
+    "badgeTitle_other": "{{count}} unread notifications",
+    "type": {
+      "created": "Created",
+      "updated": "Updated",
+      "deleted": "Deleted",
+      "invited": "Invited",
+      "response": "Response",
+      "unknown": "Update"
+    },
     "lead": {
       "now": "Now",
       "minutes": "in {{value}} min",
@@ -290,5 +307,29 @@
     "validTo": "Valid until",
     "trust": "Trust & connect",
     "cancel": "Cancel"
+  },
+  "cleartext": {
+    "title": "Unencrypted connection",
+    "body": "The connection to {{host}} isn't encrypted. Your username and app password would be sent in clear text over the network.",
+    "warning": "Anyone between this phone and the server — the Wi-Fi operator, your internet provider, any network in between — can read your password and your calendar data. A Nextcloud app password grants access to your whole account, not just the calendar.",
+    "remedy": "Safer options: reach the server through a VPN such as Tailscale or WireGuard, or set up a free certificate with DuckDNS and Let's Encrypt.",
+    "connect": "Connect anyway",
+    "cancel": "Cancel"
+  },
+  "invitations": {
+    "title": "Invitations",
+    "noInvitations": "No pending invitations.",
+    "accept": "Accept",
+    "decline": "Decline",
+    "tentative": "Maybe",
+    "accepted": "Accepted",
+    "declined": "Declined",
+    "organizer": "From",
+    "selectCalendar": "Add to calendar",
+    "loading": "Loading invitations…",
+    "error": "Could not load invitations.",
+    "calendar": "Calendar",
+    "from": "From {{name}}",
+    "responseFailed": "Could not respond to the invitation."
   }
 }

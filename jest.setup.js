@@ -1,3 +1,32 @@
+global.self = global;
+
+global.TextEncoder = require('util').TextEncoder;
+global.TextDecoder = require('util').TextDecoder;
+
+jest.mock('expo-notifications', () => ({
+  __esModule: true,
+  setBadgeCountAsync: jest.fn(() => Promise.resolve(true)),
+  getBadgeCountAsync: jest.fn(() => Promise.resolve(0)),
+  getDevicePushTokenAsync: jest.fn(() => Promise.resolve({ data: 'test-token' })),
+  setNotificationHandler: jest.fn(),
+  setNotificationChannelAsync: jest.fn(),
+  getPermissionsAsync: jest.fn(() => Promise.resolve({ granted: true })),
+  requestPermissionsAsync: jest.fn(() => Promise.resolve({ granted: true })),
+  scheduleNotificationAsync: jest.fn(() => Promise.resolve('notif-id')),
+  cancelAllScheduledNotificationsAsync: jest.fn(() => Promise.resolve()),
+  dismissNotificationAsync: jest.fn(() => Promise.resolve()),
+  AndroidImportance: { HIGH: 'high', LOW: 'low', MIN: 'min' },
+  SchedulableTriggerInputTypes: { DATE: 'date' },
+  addNotificationReceivedListener: jest.fn(() => ({ remove: jest.fn() })),
+  addNotificationResponseReceivedListener: jest.fn(() => ({ remove: jest.fn() })),
+  removeNotificationSubscription: jest.fn(),
+}));
+
+jest.mock('@/features/notifications/appBadge', () => ({
+  __esModule: true,
+  setAppBadge: jest.fn(() => Promise.resolve()),
+}));
+
 jest.mock('@react-native-async-storage/async-storage', () => ({
   __esModule: true,
   default: {
@@ -47,6 +76,28 @@ jest.mock('@/services/shared/nativeTlsTrust', () => {
         };
       }),
     },
+  };
+});
+
+jest.mock('react-native-webview', () => {
+  const React = require('react');
+  const { View } = require('react-native');
+  return {
+    __esModule: true,
+    default: React.forwardRef(function WebView(props, ref) {
+      React.useImperativeHandle(ref, () => ({
+        postMessage: () => {},
+        reload: () => {},
+      }));
+      React.useEffect(() => {
+        if (props.onMessage) {
+          props.onMessage({
+            nativeEvent: { data: JSON.stringify({ type: 'ready' }) },
+          });
+        }
+      }, [props.onMessage]);
+      return React.createElement(View, { testID: 'web-view', ...props });
+    }),
   };
 });
 

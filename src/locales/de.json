@@ -16,7 +16,8 @@
   },
   "tabs": {
     "calendar": "Kalender",
-    "settings": "Einstellungen"
+    "settings": "Einstellungen",
+    "notifications": "Notifications"
   },
   "setup": {
     "brand": "Kalender",
@@ -86,6 +87,7 @@
     "end": "Ende",
     "location": "Ort",
     "locationPlaceholder": "Raum oder Adresse",
+    "openInMaps": "Open in Maps",
     "description": "Beschreibung",
     "descriptionPlaceholder": "Details...",
     "attendees": "Teilnehmer",
@@ -196,7 +198,10 @@
       "liveActivityHint": "Zeigt während eines laufenden Termins eine dauerhafte Benachrichtigung.",
       "permissionDenied": "Benachrichtigungen sind für diese App deaktiviert.",
       "openSettings": "Systemeinstellungen öffnen",
-      "channelName": "Terminerinnerungen"
+      "channelName": "Terminerinnerungen",
+      "badgeChannelName": "App badge",
+      "push": "Push notifications",
+      "pushHint": "Receive real-time updates from the server."
     },
     "widgets": {
       "title": "Widgets",
@@ -277,6 +282,18 @@
       "days": "in {{value}} Tagen",
       "today": "Heute",
       "tomorrow": "Morgen"
+    },
+    "title": "Notifications",
+    "empty": "No notifications",
+    "badgeTitle": "{{count}} unread notification",
+    "badgeTitle_other": "{{count}} unread notifications",
+    "type": {
+      "created": "Created",
+      "updated": "Updated",
+      "deleted": "Deleted",
+      "invited": "Invited",
+      "response": "Response",
+      "unknown": "Update"
     }
   },
   "certTrust": {
@@ -290,5 +307,29 @@
     "validTo": "Gültig bis",
     "trust": "Vertrauen und verbinden",
     "cancel": "Abbrechen"
+  },
+  "cleartext": {
+    "title": "Unverschlüsselte Verbindung",
+    "body": "Die Verbindung zu {{host}} ist nicht verschlüsselt. Ihr Benutzername und Ihr App-Passwort würden im Klartext über das Netzwerk gesendet.",
+    "warning": "Jeder zwischen diesem Telefon und dem Server – WLAN-Betreiber, Internetanbieter, jedes Netz dazwischen – kann Ihr Passwort und Ihre Kalenderdaten mitlesen. Ein Nextcloud-App-Passwort gewährt Zugriff auf das gesamte Konto, nicht nur auf den Kalender.",
+    "remedy": "Sicherere Optionen: den Server über ein VPN wie Tailscale oder WireGuard erreichen oder ein kostenloses Zertifikat mit DuckDNS und Let's Encrypt einrichten.",
+    "connect": "Trotzdem verbinden",
+    "cancel": "Abbrechen"
+  },
+  "invitations": {
+    "title": "Invitations",
+    "noInvitations": "No pending invitations.",
+    "accept": "Accept",
+    "decline": "Decline",
+    "tentative": "Maybe",
+    "accepted": "Accepted",
+    "declined": "Declined",
+    "organizer": "From",
+    "selectCalendar": "Add to calendar",
+    "loading": "Loading invitations…",
+    "error": "Could not load invitations.",
+    "calendar": "Calendar",
+    "from": "From {{name}}",
+    "responseFailed": "Could not respond to the invitation."
   }
 }

@@ -55,7 +55,7 @@ function extractPropHref(xml: string, localName: string): string | undefined {
   return href ? decodeXmlEntities(href).trim() : undefined;
 }
 
-function splitResponses(xml: string): string[] {
+export function splitResponses(xml: string): string[] {
   const chunks: string[] = [];
   const re = /<d:response[^>]*>([\s\S]*?)<\/d:response>/g;
   let m: RegExpExecArray | null;
@@ -63,16 +63,17 @@ function splitResponses(xml: string): string[] {
   return chunks;
 }
 
-async function davFetch(
+export async function davFetch(
   url: string,
   account: Pick<Account, 'username' | 'appPassword'>,
-  options: { method?: string; headers?: Record<string, string>; body?: string }
+  options: { method?: string; headers?: Record<string, string>; body?: string; maxRetries?: number }
 ): Promise<TrustedResponse> {
   return trustedFetch(url, {
     method: options.method,
     headers: { Authorization: basicAuth(account), ...(options.headers ?? {}) },
     body: options.body,
     timeoutMs: 20000,
+    maxRetries: options.maxRetries ?? 2,
   });
 }
 
@@ -86,6 +87,7 @@ export async function validateCredentials(params: {
     headers: { Depth: '0', 'Content-Type': 'application/xml' },
     body: '<?xml version="1.0" encoding="utf-8"?>' +
     '<d:propfind xmlns:d="DAV:"><d:prop><d:current-user-principal/></d:prop></d:propfind>',
+    maxRetries: 0,
   });
   if (res.status !== 207 && !res.ok) throw httpErrorFrom(res, 'validateCredentials');
 
@@ -104,6 +106,7 @@ export async function validateCredentials(params: {
     headers: { Depth: '0', 'Content-Type': 'application/xml' },
     body: '<?xml version="1.0" encoding="utf-8"?>' +
     '<d:propfind xmlns:d="DAV:" xmlns:cal="urn:ietf:params:xml:ns:caldav"><d:prop><cal:calendar-home-set/></d:prop></d:propfind>',
+    maxRetries: 0,
   });
   if (homeRes.status !== 207 && !homeRes.ok) {
     return { davUserId: extractSlug(principalPath) || params.username };
@@ -116,7 +119,7 @@ export async function validateCredentials(params: {
 export interface SyncCollectionResult {
   changed: string[];
   deleted: string[];
-  newToken: string;
+  newToken: string | undefined;
   reset: boolean;
 }
 
@@ -139,7 +142,7 @@ export async function syncCollection(
   });
 
   if (res.status === 507 || res.status === 403 || res.status === 409) {
-    return { changed: [], deleted: [], newToken: '', reset: true };
+    return { changed: [], deleted: [], newToken: undefined, reset: true };
   }
   if (res.status !== 207) throw new Error(`syncCollection HTTP ${res.status}`);
 
@@ -156,7 +159,8 @@ export async function syncCollection(
   }
 
   const tokenMatch = xml.match(/<d:sync-token>([^<]*)<\/d:sync-token>/);
-  return { changed, deleted, newToken: tokenMatch?.[1]?.trim() ?? '', reset: false };
+  const newToken = tokenMatch?.[1]?.trim() || undefined;
+  return { changed, deleted, newToken, reset: false };
 }
 
 export async function fetchCalendars(account: Account): Promise<CalendarMeta[]> {

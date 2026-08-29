@@ -1,5 +1,5 @@
-import React from 'react';
-import { FlexAlignType, StyleProp, StyleSheet, ViewProps, ViewStyle, DimensionValue } from 'react-native';
+import { memo } from 'react';
+import { FlexAlignType, StyleProp, ViewProps, ViewStyle, DimensionValue } from 'react-native';
 import Reanimated, { LinearTransition } from 'react-native-reanimated';
 import { useTheme } from 'expo-router';
 
@@ -133,4 +133,4 @@ function Stack({
   );
 }
 
-export default React.memo(Stack);
+export default memo(Stack);
