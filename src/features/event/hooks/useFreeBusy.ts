@@ -84,9 +84,13 @@ export function useFreeBusy({
     [account, organizer, attendees, start, durationMs],
   );
 
+  // Keep a ref to the latest doFetch so the debounce always calls the current version
+  const doFetchRef = useRef(doFetch);
+  doFetchRef.current = doFetch;
+
   const debounce = useRef(
     trailingDebounce((nonce: number) => {
-      void doFetch(nonce);
+      void doFetchRef.current(nonce);
     }, DEBOUNCE_MS),
   ).current;
 
