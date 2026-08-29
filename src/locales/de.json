@@ -150,7 +150,17 @@
     "errorCreateFailed": "Ereignis konnte nicht erstellt werden",
     "errorUpdateFailed": "Ereignis konnte nicht aktualisiert werden",
     "errorDeleteFailed": "Ereignis konnte nicht gelöscht werden",
-    "alert": "Erinnerung"
+    "alert": "Erinnerung",
+    "findTime": "Termin finden",
+    "findTimeTitle": "Termin finden",
+    "findTimeSuggested": "Vorgeschlagene Termine",
+    "findTimeNoSlots": "In den nächsten 7 Tagen wurden keine freien Termine gefunden.",
+    "findTimeAttendees": "Verfügbarkeit der Teilnehmer",
+    "findTimeAvailable": "Verfügbar",
+    "findTimeUnknown": "Unbekannt",
+    "findTimeApply": "Termin übernehmen",
+    "findTimeLoading": "Verfügbarkeit wird geprüft…",
+    "findTimeError": "Verfügbarkeit konnte nicht abgerufen werden. Der Server hat möglicherweise Free/Busy deaktiviert."
   },
   "settings": {
     "title": "Einstellungen",

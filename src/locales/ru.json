@@ -150,7 +150,17 @@
     "errorCreateFailed": "Не удалось создать событие",
     "errorUpdateFailed": "Не удалось обновить событие",
     "errorDeleteFailed": "Не удалось удалить событие",
-    "alert": "Напоминание"
+    "alert": "Напоминание",
+    "findTime": "Найти время",
+    "findTimeTitle": "Найти время",
+    "findTimeSuggested": "Предложенные слоты",
+    "findTimeNoSlots": "Свободных слотов на ближайшие 7 дней не найдено.",
+    "findTimeAttendees": "Доступность участников",
+    "findTimeAvailable": "Доступен",
+    "findTimeUnknown": "Неизвестно",
+    "findTimeApply": "Применить выбранный слот",
+    "findTimeLoading": "Проверка доступности…",
+    "findTimeError": "Не удалось получить данные о доступности. Сервер может отключить free/busy."
   },
   "settings": {
     "title": "Настройки",

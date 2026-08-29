@@ -150,7 +150,17 @@
     "errorCreateFailed": "Échec de la création de l'événement",
     "errorUpdateFailed": "Échec de la mise à jour de l'événement",
     "errorDeleteFailed": "Échec de la suppression de l'événement",
-    "alert": "Alerte"
+    "alert": "Alerte",
+    "findTime": "Trouver un créneau",
+    "findTimeTitle": "Trouver un créneau",
+    "findTimeSuggested": "Créneaux suggérés",
+    "findTimeNoSlots": "Aucun créneau libre dans les 7 prochains jours.",
+    "findTimeAttendees": "Disponibilité des participants",
+    "findTimeAvailable": "Disponible",
+    "findTimeUnknown": "Inconnu",
+    "findTimeApply": "Appliquer le créneau",
+    "findTimeLoading": "Vérification de la disponibilité…",
+    "findTimeError": "Impossible de récupérer la disponibilité. Le serveur a peut-être désactivé le free/busy."
   },
   "settings": {
     "title": "Paramètres",

@@ -150,7 +150,17 @@
     "errorCreateFailed": "Creazione dell'evento non riuscita",
     "errorUpdateFailed": "Aggiornamento dell'evento non riuscito",
     "errorDeleteFailed": "Eliminazione dell'evento non riuscita",
-    "alert": "Avviso"
+    "alert": "Avviso",
+    "findTime": "Trova orario",
+    "findTimeTitle": "Trova orario",
+    "findTimeSuggested": "Orari suggeriti",
+    "findTimeNoSlots": "Nessun orario libero trovato nei prossimi 7 giorni.",
+    "findTimeAttendees": "Disponibilità partecipanti",
+    "findTimeAvailable": "Disponibile",
+    "findTimeUnknown": "Sconosciuto",
+    "findTimeApply": "Applica orario selezionato",
+    "findTimeLoading": "Verifica disponibilità…",
+    "findTimeError": "Impossibile recuperare la disponibilità. Il server potrebbe avere free/busy disabilitato."
   },
   "settings": {
     "title": "Impostazioni",

@@ -145,7 +145,17 @@
     "errorCreateFailed": "La creacion de l'eveniment a pas capitat",
     "errorUpdateFailed": "La mesa a jorn de l'eveniment a pas capitat",
     "errorDeleteFailed": "La supression de l'eveniment a pas capitat",
-    "alert": "Alèrta"
+    "alert": "Alèrta",
+    "findTime": "Trobar un creneau",
+    "findTimeTitle": "Trobar un creneau",
+    "findTimeSuggested": "Crenaus prepausats",
+    "findTimeNoSlots": "Cap de creneau liure pas trobat dins los 7 jorns que venon.",
+    "findTimeAttendees": "Disponibilitat dels participants",
+    "findTimeAvailable": "Disponible",
+    "findTimeUnknown": "Desconegut",
+    "findTimeApply": "Aplicar lo creneau",
+    "findTimeLoading": "Verificacion de la disponibilitat…",
+    "findTimeError": "Impossible de recuperar la disponibilitat. Lo servidor a benlèu desactivat lo free/busy."
   },
   "settings": {
     "title": "Paramètres",

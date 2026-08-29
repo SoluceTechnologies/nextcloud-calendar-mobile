@@ -150,7 +150,17 @@
     "errorCreateFailed": "Failed to create event",
     "errorUpdateFailed": "Failed to update event",
     "errorDeleteFailed": "Failed to delete event",
-    "alert": "Alert"
+    "alert": "Alert",
+    "findTime": "Find a time",
+    "findTimeTitle": "Find a time",
+    "findTimeSuggested": "Suggested slots",
+    "findTimeNoSlots": "No free slots found in the next 7 days.",
+    "findTimeAttendees": "Attendee availability",
+    "findTimeAvailable": "Available",
+    "findTimeUnknown": "Unknown",
+    "findTimeApply": "Apply selected slot",
+    "findTimeLoading": "Checking availability…",
+    "findTimeError": "Could not fetch availability. The server may have free/busy disabled."
   },
   "settings": {
     "title": "Settings",

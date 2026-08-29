@@ -95,3 +95,23 @@ export type ServerCapabilities = {
 };
 
 export type ViewMode = 'month' | 'week' | '3days' | 'day' | 'schedule';
+
+export type FreeBusyType = 'BUSY' | 'BUSY-UNAVAILABLE' | 'BUSY-TENTATIVE' | 'FREE';
+
+export type BusySlot = {
+  start: Date;
+  end: Date;
+  fbType: FreeBusyType;
+};
+
+export type AttendeeAvailability = {
+  email: string;
+  displayName?: string;
+  slots: BusySlot[];
+  available: boolean;
+};
+
+export type SuggestedSlot = {
+  start: Date;
+  end: Date;
+};

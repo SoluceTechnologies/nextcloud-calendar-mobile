@@ -150,7 +150,17 @@
     "errorCreateFailed": "Falha ao criar o evento",
     "errorUpdateFailed": "Falha ao atualizar o evento",
     "errorDeleteFailed": "Falha ao eliminar o evento",
-    "alert": "Alerta"
+    "alert": "Alerta",
+    "findTime": "Encontrar horário",
+    "findTimeTitle": "Encontrar horário",
+    "findTimeSuggested": "Horários sugeridos",
+    "findTimeNoSlots": "Nenhum horário livre encontrado nos próximos 7 dias.",
+    "findTimeAttendees": "Disponibilidade dos participantes",
+    "findTimeAvailable": "Disponível",
+    "findTimeUnknown": "Desconhecido",
+    "findTimeApply": "Aplicar horário selecionado",
+    "findTimeLoading": "Verificando disponibilidade…",
+    "findTimeError": "Não foi possível obter a disponibilidade. O servidor pode ter free/busy desativado."
   },
   "settings": {
     "title": "Definições",

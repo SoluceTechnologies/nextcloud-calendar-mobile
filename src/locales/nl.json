@@ -150,7 +150,17 @@
     "errorCreateFailed": "Aanmaken van afspraak mislukt",
     "errorUpdateFailed": "Bijwerken van afspraak mislukt",
     "errorDeleteFailed": "Verwijderen van afspraak mislukt",
-    "alert": "Melding"
+    "alert": "Melding",
+    "findTime": "Tijd vinden",
+    "findTimeTitle": "Tijd vinden",
+    "findTimeSuggested": "Voorgestelde tijden",
+    "findTimeNoSlots": "Geen vrije tijden gevonden in de komende 7 dagen.",
+    "findTimeAttendees": "Beschikbaarheid deelnemers",
+    "findTimeAvailable": "Beschikbaar",
+    "findTimeUnknown": "Onbekend",
+    "findTimeApply": "Geselecteerde tijd toepassen",
+    "findTimeLoading": "Beschikbaarheid controleren…",
+    "findTimeError": "Kon beschikbaarheid niet ophalen. De server heeft mogelijk free/busy uitgeschakeld."
   },
   "settings": {
     "title": "Instellingen",
