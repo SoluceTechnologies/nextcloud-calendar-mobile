@@ -152,6 +152,18 @@
     "errorDeleteFailed": "Не удалось удалить событие",
     "alert": "Напоминание"
   },
+  "import": {
+    "title": "Import Event",
+    "selectEvent": "Select an event to import",
+    "noEventsFound": "No events found in this file.",
+    "fileError": "Could not read the file.",
+    "parseError": "Could not parse the .ics file.",
+    "importEvent": "Import Event",
+    "retry": "Retry",
+    "back": "Back",
+    "errorNoAccount": "Please set up a Nextcloud account first.",
+    "untitledEvent": "(No title)"
+  },
   "settings": {
     "title": "Настройки",
     "appearance": "Оформление",

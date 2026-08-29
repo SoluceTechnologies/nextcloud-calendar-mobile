@@ -40,6 +40,28 @@ const config: ExpoConfig = {
             NSAppTransportSecurity: {
                 NSAllowsArbitraryLoads: true,
             },
+            CFBundleDocumentTypes: [
+                {
+                    CFBundleTypeName: 'iCalendar File',
+                    CFBundleTypeRole: 'Editor',
+                    LSHandlerRank: 'Alternate',
+                    LSItemContentTypes: [
+                        'com.apple.ical.ics',
+                        'public.data',
+                    ],
+                },
+            ],
+            UTImportedTypeDeclarations: [
+                {
+                    UTTypeConformsTo: ['public.data', 'public.content'],
+                    UTTypeDescription: 'iCalendar File',
+                    UTTypeIdentifier: 'com.soluce.nextcloud-calendar.ics',
+                    UTTypeTagSpecification: {
+                        'public.filename-extension': ['ics'],
+                        'public.mime-type': ['text/calendar', 'application/ics'],
+                    },
+                },
+            ],
         },
         entitlements: {
             'com.apple.security.application-groups': ['group.com.soluce.nextcloud-calendar'],
@@ -54,6 +76,26 @@ const config: ExpoConfig = {
             backgroundColor: '#109be6',
         },
         softwareKeyboardLayoutMode: 'resize',
+        intentFilters: [
+            {
+                action: 'VIEW',
+                category: ['DEFAULT', 'BROWSABLE'],
+                data: [
+                    { scheme: 'content', mimeType: 'text/calendar' },
+                    { scheme: 'content', mimeType: 'application/ics' },
+                    { scheme: 'file', mimeType: 'text/calendar' },
+                    { scheme: 'file', mimeType: 'application/ics' },
+                ],
+            },
+            {
+                action: 'VIEW',
+                category: ['DEFAULT', 'BROWSABLE'],
+                data: [
+                    { scheme: 'content', mimeType: '*/*', pathPattern: '/.*\\.ics' },
+                    { scheme: 'file', mimeType: '*/*', pathPattern: '/.*\\.ics' },
+                ],
+            },
+        ],
     },
 
     web: {

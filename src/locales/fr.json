@@ -152,6 +152,18 @@
     "errorDeleteFailed": "Échec de la suppression de l'événement",
     "alert": "Alerte"
   },
+  "import": {
+    "title": "Importer un événement",
+    "selectEvent": "Sélectionnez un événement à importer",
+    "noEventsFound": "Aucun événement trouvé dans ce fichier.",
+    "fileError": "Impossible de lire le fichier.",
+    "parseError": "Impossible d'analyser le fichier .ics.",
+    "importEvent": "Importer l'événement",
+    "retry": "Réessayer",
+    "back": "Retour",
+    "errorNoAccount": "Veuillez d'abord configurer un compte Nextcloud.",
+    "untitledEvent": "(Sans titre)"
+  },
   "settings": {
     "title": "Paramètres",
     "appearance": "Apparence",
