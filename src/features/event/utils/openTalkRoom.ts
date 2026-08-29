@@ -4,10 +4,9 @@ import { getAccounts } from '@/hooks/useAccounts';
 import { useAccountStore } from '@/stores/accountStore';
 import type { Account, TalkOpenMode } from '@/types';
 
-const TALK_ANDROID_PACKAGE = 'com.nextcloud.talk2';
-
 type TalkTarget = {
   server: string;
+  basePath: string;
   token: string;
 };
 
@@ -17,12 +16,6 @@ function stripTrailingSlashes(url: string): string {
 
 function hostOf(url: string): string {
   return url.match(/^https?:\/\/([^/?#]+)/i)?.[1].toLowerCase() ?? '';
-}
-
-export function buildTalkIntentUrl(talkUrl: string): string {
-  const withoutScheme = talkUrl.replace(/^https?:\/\//, '');
-  const fallback = encodeURIComponent(talkUrl);
-  return `intent://${withoutScheme}#Intent;scheme=https;package=${TALK_ANDROID_PACKAGE};S.browser_fallback_url=${fallback};end`;
 }
 
 
@@ -37,13 +30,32 @@ export function parseTalkUrl(talkUrl: string): TalkTarget | null {
   const callIndex = segments.lastIndexOf('call');
   const token = callIndex >= 0 ? segments[callIndex + 1] ?? '' : segments[segments.length - 1] ?? '';
   const prefix = (callIndex >= 0 ? segments.slice(0, callIndex) : []).filter((s) => s !== 'index.php');
+  const basePath = prefix.length ? `/${prefix.join('/')}` : '';
 
   return {
-    server: prefix.length ? `${origin}/${prefix.join('/')}` : origin,
+    server: `${origin}${basePath}`,
+    basePath,
     token,
   };
 }
 
+export function buildTalkAndroidUrl(talkUrl: string): string {
+  const target = parseTalkUrl(talkUrl);
+  if (!target) {
+    return talkUrl;
+  }
+
+  const account = resolveTalkAccount(talkUrl);
+  const host = hostOf(account?.baseUrl ?? target.server) || hostOf(target.server);
+  if (!host) {
+    return talkUrl;
+  }
+
+  const login = account?.username;
+  const authority = login ? `${encodeURIComponent(login)}@${host}` : host;
+
+  return `nextcloudtalk://${authority}${target.basePath}/call/${encodeURIComponent(target.token)}`;
+}
 
 export function resolveTalkAccount(talkUrl: string): Account | null {
   const target = parseTalkUrl(talkUrl);
@@ -86,17 +98,32 @@ export function buildTalkIOSUrl(talkUrl: string): string {
 
 export function getTalkLinkingUrl(talkUrl: string): string {
   if (Platform.OS === 'android') {
-    return buildTalkIntentUrl(talkUrl);
+    return buildTalkAndroidUrl(talkUrl);
   }
   return buildTalkIOSUrl(talkUrl);
 }
 
 export async function canOpenTalkApp(talkUrl: string): Promise<boolean> {
-  const url = getTalkLinkingUrl(talkUrl);
-  return Linking.canOpenURL(url).catch(() => false);
+  if (Platform.OS === 'android') {
+    return true;
+  }
+  return Linking.canOpenURL(getTalkLinkingUrl(talkUrl)).catch(() => false);
 }
 
-// Hands the URL to the system so it opens in the browser app, not in an in-app webview.
+async function launchTalkApp(talkUrl: string): Promise<boolean> {
+  const linkingUrl = getTalkLinkingUrl(talkUrl);
+  if (linkingUrl === talkUrl) {
+    return false;
+  }
+
+  try {
+    await Linking.openURL(linkingUrl);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export async function openInBrowser(talkUrl: string): Promise<void> {
   try {
     await Linking.openURL(talkUrl);
@@ -106,16 +133,8 @@ export async function openInBrowser(talkUrl: string): Promise<void> {
 }
 
 export async function openInTalkApp(talkUrl: string): Promise<void> {
-  const linkingUrl = getTalkLinkingUrl(talkUrl);
-  const canOpen = await canOpenTalkApp(talkUrl);
-
-  if (canOpen) {
-    try {
-      await Linking.openURL(linkingUrl);
-      return;
-    } catch {
-      // Fall through to the browser.
-    }
+  if (await launchTalkApp(talkUrl)) {
+    return;
   }
 
   await openInBrowser(talkUrl);
@@ -128,21 +147,19 @@ export async function openTalkRoom(talkUrl: string, mode: TalkOpenMode): Promise
   }
 
   if (mode === 'app') {
-    const canOpen = await canOpenTalkApp(talkUrl);
-
-    if (canOpen) {
-      await openInTalkApp(talkUrl);
-    } else {
-      Alert.alert(
-        i18n.t('event.talkOpenTitle'),
-        i18n.t('event.talkAppNotInstalled'),
-        [
-          { text: i18n.t('common.cancel'), style: 'cancel' },
-          { text: i18n.t('event.openInBrowser'), onPress: () => void openInBrowser(talkUrl) },
-        ],
-        { cancelable: true }
-      );
+    if (await launchTalkApp(talkUrl)) {
+      return;
     }
+
+    Alert.alert(
+      i18n.t('event.talkOpenTitle'),
+      i18n.t('event.talkAppNotInstalled'),
+      [
+        { text: i18n.t('common.cancel'), style: 'cancel' },
+        { text: i18n.t('event.openInBrowser'), onPress: () => void openInBrowser(talkUrl) },
+      ],
+      { cancelable: true }
+    );
     return;
   }
 
