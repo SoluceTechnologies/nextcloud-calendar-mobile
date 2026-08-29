@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { legacyBackedStorage } from '@/stores/legacyStorage';
-import { getInitialLanguage, type AppLanguage } from '@/utils/i18n';
+import { getInitialLanguage, getInitialWeekStartsOn, type AppLanguage } from '@/utils/i18n';
 import type { AllDayAlert, TimedAlert } from '@/features/notifications/alerts';
 
 export type ThemePreference = 'system' | 'light' | 'dark';
@@ -30,7 +30,7 @@ export const useSettingsStore = create<SettingsState>()(
     (set) => ({
       themePreference: 'system',
       language: getInitialLanguage(),
-      weekStartsOn: 0,
+      weekStartsOn: getInitialWeekStartsOn(),
       liveActivityEnabled: true,
       timedAlert: null,
       allDayAlert: null,
