@@ -4,6 +4,9 @@ import { useFocusEffect } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 
 import { useSettingsStore } from '@/stores/settingsStore';
+import { useAccountStore } from '@/stores/accountStore';
+import { useActiveAccount } from '@/hooks/useAccounts';
+import { registerPushNotifications, unregisterPushNotifications } from '@/services/push/pushRegistration';
 import { refreshWidgets } from '@/features/widget';
 import { liveActivity } from '@/features/widget/surfaces/liveActivity';
 import { AlarmOffsetPicker } from '@/features/notifications/AlarmOffsetPicker';
@@ -20,6 +23,11 @@ export function NotificationSettings() {
   const allDayAlerts = useSettingsStore((s) => s.allDayAlerts);
   const setTimedAlerts = useSettingsStore((s) => s.setTimedAlerts);
   const setAllDayAlerts = useSettingsStore((s) => s.setAllDayAlerts);
+  const pushEnabled = useSettingsStore((s) => s.pushNotifications);
+  const setPushEnabled = useSettingsStore((s) => s.setPushNotifications);
+
+  const activeAccountId = useAccountStore((s) => s.activeAccountId);
+  const account = useActiveAccount(activeAccountId);
 
   const [granted, setGranted] = useState(true);
 
@@ -48,6 +56,30 @@ export function NotificationSettings() {
     await scheduleEventAlerts();
   }
 
+  async function handlePushEnable(next: boolean) {
+    setPushEnabled(next);
+
+    if (!next || !account) {
+      if (account) {
+        try {
+          await unregisterPushNotifications(account);
+        } catch (err) {
+          console.warn('[NotificationSettings] unregister failed:', err);
+        }
+      }
+      return;
+    }
+
+    const ok = await requestAlertPermission();
+    if (!ok) return;
+
+    try {
+      await registerPushNotifications(account);
+    } catch (err) {
+      console.warn('[NotificationSettings] register failed:', err);
+    }
+  }
+
   return (
     <Stack card gap={12} padding={16} hAlign="stretch" style={cardOuter}>
       <Stack direction="horizontal" vAlign="center" gap={12}>
@@ -72,6 +104,18 @@ export function NotificationSettings() {
           />
         </>
       )}
+
+      <Divider />
+
+      <Stack direction="horizontal" vAlign="center" gap={12}>
+        <Stack gap={2} style={{ flex: 1 }}>
+          <Typography variant="body1">{t('settings.notifications.push')}</Typography>
+          <Typography variant="caption" color="secondary">
+            {t('settings.notifications.pushHint')}
+          </Typography>
+        </Stack>
+        <Toggle value={pushEnabled} onValueChange={handlePushEnable} />
+      </Stack>
 
       <Divider />
 
