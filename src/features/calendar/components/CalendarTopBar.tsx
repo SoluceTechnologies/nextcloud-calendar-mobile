@@ -13,6 +13,7 @@ interface Props {
   headerTitle: string;
   isToday: boolean;
   viewMode: ViewMode;
+  pendingInvitationsCount?: number;
   onOpenDrawer: () => void;
   onToday: () => void;
   onSwitchMode: (mode: ViewMode) => void;
@@ -26,7 +27,7 @@ const VIEW_MODE_KEYS: Record<ViewMode, string> = {
   schedule: 'calendar.schedule',
 };
 
-function CalendarTopBarImpl({ headerTitle, isToday, viewMode, onOpenDrawer, onToday, onSwitchMode }: Props) {
+function CalendarTopBarImpl({ headerTitle, isToday, viewMode, pendingInvitationsCount = 0, onOpenDrawer, onToday, onSwitchMode }: Props) {
   const { colors } = useTheme();
   const { t } = useTranslation();
   const todayDisabled = isToday;
@@ -64,6 +65,9 @@ function CalendarTopBarImpl({ headerTitle, isToday, viewMode, onOpenDrawer, onTo
                   {calendarUnreadCount > 99 ? '99+' : String(calendarUnreadCount)}
                 </Typography>
               </View>
+            )}
+            {pendingInvitationsCount > 0 && (
+              <View style={[styles.inviteBadge, { backgroundColor: colors.danger, borderColor: colors.headerBackground }]} pointerEvents="none" />
             )}
           </View>
         </AnimatedPressable>
@@ -110,6 +114,15 @@ export const CalendarTopBar = memo(CalendarTopBarImpl);
 const styles = StyleSheet.create({
   headerRow: { height: 44, paddingHorizontal: 12, paddingBottom: 4, alignItems: 'center' },
   hamburger: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', marginLeft: -4 },
+  inviteBadge: {
+    position: 'absolute',
+    bottom: -2,
+    right: -2,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    borderWidth: 2,
+  },
   title: { flex: 1, marginHorizontal: 4 },
   todayBtn: { minWidth: 44, height: 44, paddingLeft: 6, alignItems: 'flex-end', justifyContent: 'center' },
   pills: { paddingHorizontal: 12, paddingBottom: 8, gap: 8 },
