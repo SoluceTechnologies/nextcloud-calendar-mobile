@@ -15,6 +15,7 @@ interface SettingsState {
   allDayAlert: AllDayAlert;
   hapticsEnabled: boolean;
   reduceMotion: boolean;
+  pushNotifications: boolean;
   setThemePreference: (pref: ThemePreference) => void;
   setLanguage: (lang: AppLanguage) => void;
   setWeekStartsOn: (v: 0 | 1) => void;
@@ -23,6 +24,7 @@ interface SettingsState {
   setAllDayAlert: (v: AllDayAlert) => void;
   setHapticsEnabled: (v: boolean) => void;
   setReduceMotion: (v: boolean) => void;
+  setPushNotifications: (v: boolean) => void;
 }
 
 export const useSettingsStore = create<SettingsState>()(
@@ -36,6 +38,7 @@ export const useSettingsStore = create<SettingsState>()(
       allDayAlert: null,
       hapticsEnabled: true,
       reduceMotion: false,
+      pushNotifications: false,
       setTimedAlert: (v) => set({ timedAlert: v }),
       setAllDayAlert: (v) => set({ allDayAlert: v }),
       setThemePreference: (pref) => set({ themePreference: pref }),
@@ -44,6 +47,7 @@ export const useSettingsStore = create<SettingsState>()(
       setLiveActivityEnabled: (v) => set({ liveActivityEnabled: v }),
       setHapticsEnabled: (v) => set({ hapticsEnabled: v }),
       setReduceMotion: (v) => set({ reduceMotion: v }),
+      setPushNotifications: (v) => set({ pushNotifications: v }),
     }),
     {
       name: 'settings-store',
@@ -63,6 +67,7 @@ export const useSettingsStore = create<SettingsState>()(
         allDayAlert: state.allDayAlert,
         hapticsEnabled: state.hapticsEnabled,
         reduceMotion: state.reduceMotion,
+        pushNotifications: state.pushNotifications,
       }),
     }
   )

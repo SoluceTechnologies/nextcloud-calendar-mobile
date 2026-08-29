@@ -1,0 +1,12 @@
+appId: com.soluce.nextcloudcalendar
+name: Launch and reach login screen
+---
+- launchApp:
+    clearState: true
+- waitForAnimationToEnd:
+    timeout: 10000
+- tapOn: "Nextcloud Calendar"
+- waitForAnimationToEnd:
+    timeout: 20000
+- assertVisible: "Se connecter"
+- takeScreenshot: .maestro/launch.png

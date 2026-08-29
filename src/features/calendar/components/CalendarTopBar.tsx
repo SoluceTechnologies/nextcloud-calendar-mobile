@@ -1,10 +1,11 @@
 import { memo } from 'react';
-import { ScrollView, StyleSheet } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { Menu } from 'lucide-react-native';
 import { useTheme } from 'expo-router';
 import { Stack, Typography, Chip, Icon, AnimatedPressable } from '@/ui/components';
+import { useNotificationStore } from '@/stores/notificationStore';
 import type { ViewMode } from '@/types';
 import { VIEW_MODES } from '../constants';
 
@@ -29,6 +30,9 @@ function CalendarTopBarImpl({ headerTitle, isToday, viewMode, onOpenDrawer, onTo
   const { colors } = useTheme();
   const { t } = useTranslation();
   const todayDisabled = isToday;
+  const calendarUnreadCount = useNotificationStore(
+    (s) => s.notifications.filter((n) => (n.app === 'calendar' || n.app === 'event_update_notification') && !n.seen).length,
+  );
 
   return (
     <SafeAreaView
@@ -37,9 +41,31 @@ function CalendarTopBarImpl({ headerTitle, isToday, viewMode, onOpenDrawer, onTo
     >
       <Stack direction="horizontal" vAlign="center" gap={0} style={styles.headerRow}>
         <AnimatedPressable onPress={onOpenDrawer} hitSlop={8} style={styles.hamburger}>
-          <Icon size={24}>
-            <Menu color={colors.primary} />
-          </Icon>
+          <View style={{ position: 'relative', width: 24, height: 24 }}>
+            <Icon size={24}>
+              <Menu color={colors.primary} />
+            </Icon>
+            {calendarUnreadCount > 0 && (
+              <View
+                style={{
+                  position: 'absolute',
+                  top: -4,
+                  right: -4,
+                  minWidth: 14,
+                  height: 14,
+                  borderRadius: 7,
+                  zIndex: 10,
+                  backgroundColor: colors.notification,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <Typography variant="caption" color="primaryText" style={{ fontSize: 8, lineHeight: 12, paddingHorizontal: 3 }}>
+                  {calendarUnreadCount > 99 ? '99+' : String(calendarUnreadCount)}
+                </Typography>
+              </View>
+            )}
+          </View>
         </AnimatedPressable>
 
         <Typography

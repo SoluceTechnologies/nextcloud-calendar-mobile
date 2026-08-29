@@ -1,10 +1,11 @@
 import { Tabs, useTheme } from 'expo-router';
 import { NativeTabs } from 'expo-router/unstable-native-tabs';
-import { Calendar, Settings as SettingsIcon, type LucideIcon } from 'lucide-react-native';
+import { Calendar, Settings as SettingsIcon, Bell, type LucideIcon } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 import type { SFSymbol } from 'sf-symbols-typescript';
 import type { AndroidSymbol } from 'expo-symbols';
 import { nativeTabsEnabled } from '@/utils/nativeTabs';
+import { useNotificationStore } from '@/stores/notificationStore';
 
 type IconState<T> = { default: T; selected: T };
 
@@ -23,6 +24,13 @@ const TAB_ITEMS: TabItem[] = [
     sf: { default: 'calendar', selected: 'calendar' },
     md: { default: 'calendar_month', selected: 'calendar_month' },
     Icon: Calendar,
+  },
+  {
+    name: 'notifications',
+    labelKey: 'tabs.notifications',
+    sf: { default: 'bell', selected: 'bell.fill' },
+    md: { default: 'notifications', selected: 'notifications' },
+    Icon: Bell,
   },
   {
     name: 'settings',
@@ -52,6 +60,9 @@ function NativeTabsLayout() {
 function JsTabsLayout() {
   const theme = useTheme();
   const { t } = useTranslation();
+  const calendarUnreadCount = useNotificationStore(
+    (s) => s.notifications.filter((n) => n.app === 'calendar' || n.app === 'event_update_notification').filter((n) => !n.seen).length,
+  );
 
   return (
       <Tabs
@@ -78,6 +89,7 @@ function JsTabsLayout() {
                   tabBarIcon: ({ color, focused }) => (
                       <Icon size={focused ? 26 : 24} color={color} strokeWidth={focused ? 2.5 : 2} />
                   ),
+                  tabBarBadge: name === 'notifications' && calendarUnreadCount > 0 ? String(calendarUnreadCount) : undefined,
                 }}
             />
         ))}

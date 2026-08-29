@@ -292,3 +292,57 @@ export async function syncCalendarDelta(account: Account, calendar: CalendarMeta
     if (ops.length > 0) await db.batch(ops);
   }, 30000, 'syncCalendarDelta');
 }
+
+export async function syncCalendarByUrl(
+  account: Account,
+  calendarUrl: string,
+): Promise<void> {
+  const db = getDatabaseInstance();
+  const calendars = db.get<Calendar>('calendars');
+
+  // calendarUrl from notify_push does not always include the account host,
+  // so we match by the path portion if the URLs are absolute.
+  const all = await calendars.query(Q.where('account_id', account.id)).fetch();
+
+  const normalize = (url: string) => {
+    try {
+      return new URL(url).pathname.replace(/\/$/, '');
+    } catch {
+      return url.replace(/\/$/, '');
+    }
+  };
+
+  const targetPath = normalize(calendarUrl);
+  const row = all.find((r) => {
+    if (r.url === calendarUrl) return true;
+    return normalize(r.url) === targetPath;
+  });
+
+  if (!row) {
+    console.warn(`[syncCalendarByUrl] no local calendar found for ${calendarUrl}`);
+    // Fall back to refreshing all calendars so we don't miss changes
+    await syncCalendars(account);
+    return;
+  }
+
+  const calendar: CalendarMeta = {
+    id: row.remoteId,
+    accountId: row.accountId,
+    displayName: row.displayName,
+    color: row.color,
+    ctag: row.ctag,
+    url: row.url,
+    slug: row.slug,
+    isSubscribed: row.isSubscribed,
+    isReadOnly: row.isReadOnly,
+    sourceUrl: row.sourceUrl,
+    supportsEvents: row.supportsEvents,
+  };
+
+  // Use a full calendar-query sync for the current expansion horizon.
+  // This updates existing rows in place (instead of the delete/recreate
+  // behaviour of syncCalendarDelta) and therefore keeps the UI reactive.
+  const now = new Date();
+  const horizon = expansionHorizon(now);
+  await syncEvents(account, [calendar], horizon.start, horizon.end, true);
+}

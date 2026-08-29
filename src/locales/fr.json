@@ -16,6 +16,7 @@
   },
   "tabs": {
     "calendar": "Calendrier",
+    "notifications": "Notifications",
     "settings": "Paramètres"
   },
   "setup": {
@@ -197,7 +198,10 @@
       "liveActivityHint": "Affiche une notification persistante pendant un événement en cours.",
       "permissionDenied": "Les notifications sont désactivées pour cette app.",
       "openSettings": "Ouvrir les réglages système",
-      "channelName": "Alertes d'événement"
+      "channelName": "Alertes d'événement",
+      "badgeChannelName": "Badge app",
+      "push": "Notifications push",
+      "pushHint": "Recevoir les mises à jour en temps réel depuis le serveur."
     },
     "widgets": {
       "title": "Widgets",
@@ -270,6 +274,18 @@
     "videoConference": "Visioconférence : {{provider}}"
   },
   "notifications": {
+    "title": "Notifications",
+    "empty": "Aucune notification",
+    "badgeTitle": "{{count}} notification non lue",
+    "badgeTitle_other": "{{count}} notifications non lues",
+    "type": {
+      "created": "Créé",
+      "updated": "Modifié",
+      "deleted": "Supprimé",
+      "invited": "Invité",
+      "response": "Réponse",
+      "unknown": "Mise à jour"
+    },
     "lead": {
       "now": "Maintenant",
       "minutes": "dans {{value}} min",

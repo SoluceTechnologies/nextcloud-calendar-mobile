@@ -16,7 +16,8 @@
   },
   "tabs": {
     "calendar": "Kalender",
-    "settings": "Einstellungen"
+    "settings": "Einstellungen",
+    "notifications": "Notifications"
   },
   "setup": {
     "brand": "Kalender",
@@ -197,7 +198,10 @@
       "liveActivityHint": "Zeigt während eines laufenden Termins eine dauerhafte Benachrichtigung.",
       "permissionDenied": "Benachrichtigungen sind für diese App deaktiviert.",
       "openSettings": "Systemeinstellungen öffnen",
-      "channelName": "Terminerinnerungen"
+      "channelName": "Terminerinnerungen",
+      "badgeChannelName": "App badge",
+      "push": "Push notifications",
+      "pushHint": "Receive real-time updates from the server."
     },
     "widgets": {
       "title": "Widgets",
@@ -278,6 +282,18 @@
       "days": "in {{value}} Tagen",
       "today": "Heute",
       "tomorrow": "Morgen"
+    },
+    "title": "Notifications",
+    "empty": "No notifications",
+    "badgeTitle": "{{count}} unread notification",
+    "badgeTitle_other": "{{count}} unread notifications",
+    "type": {
+      "created": "Created",
+      "updated": "Updated",
+      "deleted": "Deleted",
+      "invited": "Invited",
+      "response": "Response",
+      "unknown": "Update"
     }
   },
   "certTrust": {

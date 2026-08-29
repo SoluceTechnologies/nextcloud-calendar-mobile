@@ -13,6 +13,9 @@ import { useCapabilitiesSync } from '@/hooks/useCapabilitiesSync';
 import { useLanguageSync } from '@/hooks/useLanguageSync';
 import { useWidgetSync } from '@/features/widget';
 import { useEventAlerts } from '@/features/notifications/useEventAlerts';
+import { usePushSync } from '@/hooks/usePushSync';
+import { usePushNotifications } from '@/hooks/usePushNotifications';
+import { useNotifications } from '@/hooks/useNotifications';
 import { useContactCache } from '@/hooks/useContactCache';
 import { isTablet } from '@/utils/device';
 
@@ -39,6 +42,9 @@ export default function RootLayout() {
   useWidgetSync();
   useEventAlerts();
   useContactCache();
+  usePushSync();
+  usePushNotifications();
+  useNotifications();
 
   const onLayoutRootView = useCallback(() => {
     SplashScreen.hideAsync().catch(() => undefined);

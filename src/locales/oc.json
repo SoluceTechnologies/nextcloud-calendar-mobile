@@ -16,7 +16,8 @@
   },
   "tabs": {
     "calendar": "Calendari",
-    "settings": "Paramètres"
+    "settings": "Paramètres",
+    "notifications": "Notifications"
   },
   "setup": {
     "brand": "Calendari",
@@ -196,7 +197,10 @@
       "liveActivityHint": "Afichar una notificacion continua pendent lo debanament d'un eveniment.",
       "permissionDenied": "Las notificacions son desactivadas per aquesta aplicacion.",
       "openSettings": "Dobrir los paramètres sistèma",
-      "channelName": "Alèrtas d'eveniment"
+      "channelName": "Alèrtas d'eveniment",
+      "badgeChannelName": "App badge",
+      "push": "Push notifications",
+      "pushHint": "Receive real-time updates from the server."
     },
     "widgets": {
       "title": "Widgets",
@@ -277,6 +281,18 @@
       "days": "d’aquí {{value}} jorns",
       "today": "Uèi",
       "tomorrow": "Deman"
+    },
+    "title": "Notifications",
+    "empty": "No notifications",
+    "badgeTitle": "{{count}} unread notification",
+    "badgeTitle_other": "{{count}} unread notifications",
+    "type": {
+      "created": "Created",
+      "updated": "Updated",
+      "deleted": "Deleted",
+      "invited": "Invited",
+      "response": "Response",
+      "unknown": "Update"
     }
   },
   "certTrust": {

@@ -54,6 +54,11 @@ const config: ExpoConfig = {
             backgroundColor: '#109be6',
         },
         softwareKeyboardLayoutMode: 'resize',
+        permissions: [
+            'android.permission.POST_NOTIFICATIONS',
+            'android.permission.RECEIVE_BOOT_COMPLETED',
+            'android.permission.VIBRATE',
+        ],
     },
 
     web: {

@@ -16,7 +16,8 @@
   },
   "tabs": {
     "calendar": "Calendário",
-    "settings": "Definições"
+    "settings": "Definições",
+    "notifications": "Notifications"
   },
   "setup": {
     "brand": "Calendário",
@@ -197,7 +198,10 @@
       "liveActivityHint": "Mostra uma notificação persistente enquanto um evento decorre.",
       "permissionDenied": "As notificações estão desativadas para esta app.",
       "openSettings": "Abrir definições do sistema",
-      "channelName": "Alertas de eventos"
+      "channelName": "Alertas de eventos",
+      "badgeChannelName": "App badge",
+      "push": "Push notifications",
+      "pushHint": "Receive real-time updates from the server."
     },
     "widgets": {
       "title": "Widgets",
@@ -278,6 +282,18 @@
       "days": "em {{value}} dias",
       "today": "Hoje",
       "tomorrow": "Amanhã"
+    },
+    "title": "Notifications",
+    "empty": "No notifications",
+    "badgeTitle": "{{count}} unread notification",
+    "badgeTitle_other": "{{count}} unread notifications",
+    "type": {
+      "created": "Created",
+      "updated": "Updated",
+      "deleted": "Deleted",
+      "invited": "Invited",
+      "response": "Response",
+      "unknown": "Update"
     }
   },
   "certTrust": {
