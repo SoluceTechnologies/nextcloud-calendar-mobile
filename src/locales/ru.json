@@ -315,5 +315,21 @@
     "remedy": "Более безопасные варианты: подключаться к серверу через VPN, например Tailscale или WireGuard, либо настроить бесплатный сертификат с DuckDNS и Let's Encrypt.",
     "connect": "Всё равно подключиться",
     "cancel": "Отмена"
+  },
+  "invitations": {
+    "title": "Invitations",
+    "noInvitations": "No pending invitations.",
+    "accept": "Accept",
+    "decline": "Decline",
+    "tentative": "Maybe",
+    "accepted": "Accepted",
+    "declined": "Declined",
+    "organizer": "From",
+    "selectCalendar": "Add to calendar",
+    "loading": "Loading invitations…",
+    "error": "Could not load invitations.",
+    "calendar": "Calendar",
+    "from": "From {{name}}",
+    "responseFailed": "Could not respond to the invitation."
   }
 }

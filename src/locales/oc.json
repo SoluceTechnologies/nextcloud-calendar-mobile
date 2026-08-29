@@ -306,5 +306,21 @@
     "validTo": "Valid fins a",
     "trust": "Far fisança e se connectar",
     "cancel": "Anullar"
+  },
+  "invitations": {
+    "title": "Convits",
+    "noInvitations": "Cap de convit en espèra.",
+    "accept": "Acceptar",
+    "decline": "Refusar",
+    "tentative": "Benlèu",
+    "accepted": "Acceptat",
+    "declined": "Refusat",
+    "organizer": "De",
+    "selectCalendar": "Apondre a l'agenda",
+    "loading": "Cargament dels convits…",
+    "error": "Impossible de cargar los convits.",
+    "calendar": "Agenda",
+    "from": "De {{name}}",
+    "responseFailed": "Impossible de respondre al convit."
   }
 }
