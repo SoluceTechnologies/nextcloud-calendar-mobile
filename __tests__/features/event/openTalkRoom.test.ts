@@ -1,25 +1,46 @@
 import { Platform, Linking, Alert } from 'react-native';
-import * as WebBrowser from 'expo-web-browser';
 import {
   buildTalkIntentUrl,
   buildTalkIOSUrl,
+  parseTalkUrl,
+  resolveTalkAccount,
   openInBrowser,
   openInTalkApp,
   openTalkRoom,
 } from '../../../src/features/event/utils/openTalkRoom';
+import { getAccounts } from '../../../src/hooks/useAccounts';
+import { useAccountStore } from '../../../src/stores/accountStore';
+import type { Account } from '../../../src/types';
 
-jest.mock('expo-web-browser', () => ({
-  openBrowserAsync: jest.fn(),
+jest.mock('../../../src/hooks/useAccounts', () => ({
+  getAccounts: jest.fn(() => []),
 }));
 
-const webBrowser = WebBrowser as unknown as { openBrowserAsync: jest.Mock };
+const mockedGetAccounts = getAccounts as jest.MockedFunction<typeof getAccounts>;
+
+function account(partial: Partial<Account>): Account {
+  return {
+    id: 'acc-1',
+    displayName: 'Alice',
+    baseUrl: 'https://cloud.example.com',
+    username: 'alice',
+    appPassword: 'pw',
+    davUserId: 'alice',
+    ...partial,
+  };
+}
+
+function setAccounts(list: Account[], activeAccountId: string | null = null) {
+  mockedGetAccounts.mockReturnValue(list);
+  useAccountStore.setState({ activeAccountId });
+}
 
 beforeEach(() => {
   jest.clearAllMocks();
+  setAccounts([]);
   jest.spyOn(Linking, 'canOpenURL').mockResolvedValue(true);
   jest.spyOn(Linking, 'openURL').mockResolvedValue(true);
   jest.spyOn(Alert, 'alert').mockImplementation(() => {});
-  webBrowser.openBrowserAsync.mockResolvedValue({ type: 'opened' } as unknown as WebBrowser.WebBrowserResult);
 });
 
 afterEach(() => {
@@ -35,6 +56,8 @@ const INTENT_URL =
   'intent://cloud.example.com/call/abc123#Intent;scheme=https;package=com.nextcloud.talk2;S.browser_fallback_url=https%3A%2F%2Fcloud.example.com%2Fcall%2Fabc123;end';
 const IOS_TALK_URL =
   'nextcloudtalk://open-conversation?server=https%3A%2F%2Fcloud.example.com&withRoomToken=abc123';
+const IOS_TALK_URL_WITH_USER =
+  'nextcloudtalk://open-conversation?server=https%3A%2F%2Fcloud.example.com&user=alice&withRoomToken=abc123';
 
 describe('buildTalkIntentUrl', () => {
   it('builds an Android intent pointing at the Talk app', () => {
@@ -43,10 +66,90 @@ describe('buildTalkIntentUrl', () => {
   });
 });
 
+describe('parseTalkUrl', () => {
+  it('splits a plain Talk URL into server and token', () => {
+    expect(parseTalkUrl(TALK_URL)).toEqual({
+      server: 'https://cloud.example.com',
+      token: 'abc123',
+    });
+  });
+
+  it('strips index.php from the server', () => {
+    expect(parseTalkUrl('https://cloud.example.com/index.php/call/abc123')).toEqual({
+      server: 'https://cloud.example.com',
+      token: 'abc123',
+    });
+  });
+
+  it('keeps a subdirectory install in the server', () => {
+    expect(parseTalkUrl('https://host.tld/nextcloud/index.php/call/tok3n')).toEqual({
+      server: 'https://host.tld/nextcloud',
+      token: 'tok3n',
+    });
+  });
+
+  it('ignores query and hash fragments', () => {
+    expect(parseTalkUrl('https://cloud.example.com/call/abc123?from=mail#x')).toEqual({
+      server: 'https://cloud.example.com',
+      token: 'abc123',
+    });
+  });
+
+  it('returns null for a non-URL', () => {
+    expect(parseTalkUrl('not-a-url')).toBeNull();
+  });
+});
+
+describe('resolveTalkAccount', () => {
+  it('matches the account whose baseUrl equals the Talk server', () => {
+    const acc = account({});
+    setAccounts([account({ id: 'other', baseUrl: 'https://other.tld', davUserId: 'bob' }), acc]);
+    expect(resolveTalkAccount(TALK_URL)?.davUserId).toBe('alice');
+  });
+
+  it('ignores a trailing slash on the account baseUrl', () => {
+    setAccounts([account({ baseUrl: 'https://cloud.example.com/' })]);
+    expect(resolveTalkAccount(TALK_URL)?.davUserId).toBe('alice');
+  });
+
+  it('prefers the active account when several accounts share the server', () => {
+    setAccounts(
+      [
+        account({ id: 'a', davUserId: 'alice' }),
+        account({ id: 'b', davUserId: 'bob' }),
+      ],
+      'b'
+    );
+    expect(resolveTalkAccount(TALK_URL)?.davUserId).toBe('bob');
+  });
+
+  it('falls back to a host match when the path prefix differs', () => {
+    setAccounts([account({ baseUrl: 'https://cloud.example.com/nextcloud', davUserId: 'carol' })]);
+    expect(resolveTalkAccount(TALK_URL)?.davUserId).toBe('carol');
+  });
+
+  it('returns null when no account matches the server', () => {
+    setAccounts([account({ baseUrl: 'https://other.tld' })]);
+    expect(resolveTalkAccount(TALK_URL)).toBeNull();
+  });
+});
+
 describe('buildTalkIOSUrl', () => {
   it('builds a nextcloudtalk custom scheme URL from an HTTPS talk URL', () => {
     const url = buildTalkIOSUrl(TALK_URL);
     expect(url).toBe(IOS_TALK_URL);
+  });
+
+  it('adds the user query param so Talk can find the configured account', () => {
+    setAccounts([account({})]);
+    expect(buildTalkIOSUrl(TALK_URL)).toBe(IOS_TALK_URL_WITH_USER);
+  });
+
+  it('uses the account baseUrl as the server so it matches the Talk account record', () => {
+    setAccounts([account({ baseUrl: 'https://cloud.example.com/nextcloud', davUserId: 'carol' })]);
+    expect(buildTalkIOSUrl(TALK_URL)).toBe(
+      'nextcloudtalk://open-conversation?server=https%3A%2F%2Fcloud.example.com%2Fnextcloud&user=carol&withRoomToken=abc123'
+    );
   });
 
   it('preserves the http scheme and non-standard port', () => {
@@ -63,17 +166,15 @@ describe('buildTalkIOSUrl', () => {
 });
 
 describe('openInBrowser', () => {
-  it('uses expo-web-browser and falls back to Linking', async () => {
-    webBrowser.openBrowserAsync.mockRejectedValue(new Error('not supported'));
+  it('opens the external browser app through Linking', async () => {
     await openInBrowser(TALK_URL);
-    expect(webBrowser.openBrowserAsync).toHaveBeenCalledWith(TALK_URL);
     expect(Linking.openURL).toHaveBeenCalledWith(TALK_URL);
   });
 
-  it('does not fall back when expo-web-browser succeeds', async () => {
+  it('alerts when no browser can handle the URL', async () => {
+    (Linking.openURL as jest.Mock).mockRejectedValue(new Error('no handler'));
     await openInBrowser(TALK_URL);
-    expect(webBrowser.openBrowserAsync).toHaveBeenCalledWith(TALK_URL);
-    expect(Linking.openURL).not.toHaveBeenCalled();
+    expect(Alert.alert).toHaveBeenCalled();
   });
 });
 
@@ -83,7 +184,6 @@ describe('openInTalkApp', () => {
     await openInTalkApp(TALK_URL);
     expect(Linking.canOpenURL).toHaveBeenCalledWith(INTENT_URL);
     expect(Linking.openURL).toHaveBeenCalledWith(INTENT_URL);
-    expect(webBrowser.openBrowserAsync).not.toHaveBeenCalled();
   });
 
   it('falls back to the browser on Android when canOpenURL is false', async () => {
@@ -91,26 +191,23 @@ describe('openInTalkApp', () => {
     (Linking.canOpenURL as jest.Mock).mockResolvedValue(false);
     await openInTalkApp(TALK_URL);
     expect(Linking.canOpenURL).toHaveBeenCalledWith(INTENT_URL);
-    expect(Linking.openURL).not.toHaveBeenCalled();
-    expect(webBrowser.openBrowserAsync).toHaveBeenCalledWith(TALK_URL);
+    expect(Linking.openURL).toHaveBeenCalledWith(TALK_URL);
   });
 
   it('falls back to browser when the Talk intent fails on Android', async () => {
     setPlatform('android');
-    (Linking.openURL as jest.Mock).mockRejectedValue(new Error('no activity found'));
+    (Linking.openURL as jest.Mock).mockRejectedValueOnce(new Error('no activity found'));
     await openInTalkApp(TALK_URL);
-    expect(Linking.canOpenURL).toHaveBeenCalledWith(INTENT_URL);
-    expect(Linking.openURL).toHaveBeenCalled();
-    expect(webBrowser.openBrowserAsync).toHaveBeenCalledWith(TALK_URL);
+    expect(Linking.openURL).toHaveBeenNthCalledWith(1, INTENT_URL);
+    expect(Linking.openURL).toHaveBeenNthCalledWith(2, TALK_URL);
   });
 
-  it('checks canOpenURL with the custom scheme and opens it on iOS when the Talk app is installed', async () => {
+  it('opens the deep link with the account user on iOS when Talk is installed', async () => {
     setPlatform('ios');
-    (Linking.canOpenURL as jest.Mock).mockResolvedValue(true);
+    setAccounts([account({})]);
     await openInTalkApp(TALK_URL);
-    expect(Linking.canOpenURL).toHaveBeenCalledWith(IOS_TALK_URL);
-    expect(Linking.openURL).toHaveBeenCalledWith(IOS_TALK_URL);
-    expect(webBrowser.openBrowserAsync).not.toHaveBeenCalled();
+    expect(Linking.canOpenURL).toHaveBeenCalledWith(IOS_TALK_URL_WITH_USER);
+    expect(Linking.openURL).toHaveBeenCalledWith(IOS_TALK_URL_WITH_USER);
   });
 
   it('falls back to the HTTPS URL on iOS when the custom scheme cannot be opened', async () => {
@@ -119,25 +216,13 @@ describe('openInTalkApp', () => {
     await openInTalkApp(TALK_URL);
     expect(Linking.canOpenURL).toHaveBeenCalledWith(IOS_TALK_URL);
     expect(Linking.openURL).toHaveBeenCalledWith(TALK_URL);
-    expect(webBrowser.openBrowserAsync).not.toHaveBeenCalled();
-  });
-
-  it('falls back to the browser on iOS when both the custom scheme and HTTPS URL fail', async () => {
-    setPlatform('ios');
-    (Linking.canOpenURL as jest.Mock).mockResolvedValue(false);
-    (Linking.openURL as jest.Mock).mockRejectedValue(new Error('could not open'));
-    await openInTalkApp(TALK_URL);
-    expect(Linking.canOpenURL).toHaveBeenCalledWith(IOS_TALK_URL);
-    expect(Linking.openURL).toHaveBeenCalledWith(TALK_URL);
-    expect(webBrowser.openBrowserAsync).toHaveBeenCalledWith(TALK_URL);
   });
 });
 
 describe('openTalkRoom', () => {
-  it('opens the browser in browser mode', async () => {
+  it('opens the external browser in browser mode', async () => {
     await openTalkRoom(TALK_URL, 'browser');
-    expect(webBrowser.openBrowserAsync).toHaveBeenCalledWith(TALK_URL);
-    expect(Linking.openURL).not.toHaveBeenCalled();
+    expect(Linking.openURL).toHaveBeenCalledWith(TALK_URL);
   });
 
   it('opens the Talk app in app mode when canOpenURL is true', async () => {
@@ -146,7 +231,6 @@ describe('openTalkRoom', () => {
     expect(Linking.canOpenURL).toHaveBeenCalledWith(INTENT_URL);
     expect(Linking.openURL).toHaveBeenCalledWith(INTENT_URL);
     expect(Alert.alert).not.toHaveBeenCalled();
-    expect(webBrowser.openBrowserAsync).not.toHaveBeenCalled();
   });
 
   it('opens the Talk app in app mode on iOS when the custom scheme can be opened', async () => {
@@ -155,7 +239,6 @@ describe('openTalkRoom', () => {
     expect(Linking.canOpenURL).toHaveBeenCalledWith(IOS_TALK_URL);
     expect(Linking.openURL).toHaveBeenCalledWith(IOS_TALK_URL);
     expect(Alert.alert).not.toHaveBeenCalled();
-    expect(webBrowser.openBrowserAsync).not.toHaveBeenCalled();
   });
 
   it('shows an alert in app mode when canOpenURL is false', async () => {
@@ -163,7 +246,6 @@ describe('openTalkRoom', () => {
     (Linking.canOpenURL as jest.Mock).mockResolvedValue(false);
     await openTalkRoom(TALK_URL, 'app');
     expect(Linking.openURL).not.toHaveBeenCalled();
-    expect(webBrowser.openBrowserAsync).not.toHaveBeenCalled();
     expect(Alert.alert).toHaveBeenCalled();
 
     const [title, message, buttons] = (Alert.alert as jest.Mock).mock.calls[0];
@@ -179,7 +261,6 @@ describe('openTalkRoom', () => {
     (Linking.canOpenURL as jest.Mock).mockResolvedValue(false);
     await openTalkRoom(TALK_URL, 'app');
     expect(Linking.openURL).not.toHaveBeenCalled();
-    expect(webBrowser.openBrowserAsync).not.toHaveBeenCalled();
     expect(Alert.alert).toHaveBeenCalled();
 
     const [, , buttons] = (Alert.alert as jest.Mock).mock.calls[0];
@@ -193,7 +274,6 @@ describe('openTalkRoom', () => {
     await openTalkRoom(TALK_URL, 'ask');
     expect(Alert.alert).toHaveBeenCalled();
     expect(Linking.openURL).not.toHaveBeenCalled();
-    expect(webBrowser.openBrowserAsync).not.toHaveBeenCalled();
 
     const [, , buttons] = (Alert.alert as jest.Mock).mock.calls[0];
     expect(buttons).toHaveLength(3);
@@ -208,7 +288,6 @@ describe('openTalkRoom', () => {
     expect(Alert.alert).toHaveBeenCalled();
     expect(Linking.canOpenURL).toHaveBeenCalledWith(IOS_TALK_URL);
     expect(Linking.openURL).not.toHaveBeenCalled();
-    expect(webBrowser.openBrowserAsync).not.toHaveBeenCalled();
 
     const [, , buttons] = (Alert.alert as jest.Mock).mock.calls[0];
     expect(buttons).toHaveLength(3);
@@ -223,7 +302,6 @@ describe('openTalkRoom', () => {
     await openTalkRoom(TALK_URL, 'ask');
     expect(Alert.alert).toHaveBeenCalled();
     expect(Linking.openURL).not.toHaveBeenCalled();
-    expect(webBrowser.openBrowserAsync).not.toHaveBeenCalled();
 
     const [, , buttons] = (Alert.alert as jest.Mock).mock.calls[0];
     expect(buttons).toHaveLength(2);
@@ -238,7 +316,6 @@ describe('openTalkRoom', () => {
     expect(Alert.alert).toHaveBeenCalled();
     expect(Linking.canOpenURL).toHaveBeenCalledWith(IOS_TALK_URL);
     expect(Linking.openURL).not.toHaveBeenCalled();
-    expect(webBrowser.openBrowserAsync).not.toHaveBeenCalled();
 
     const [, , buttons] = (Alert.alert as jest.Mock).mock.calls[0];
     expect(buttons).toHaveLength(2);
