@@ -55,7 +55,7 @@ function extractPropHref(xml: string, localName: string): string | undefined {
   return href ? decodeXmlEntities(href).trim() : undefined;
 }
 
-function splitResponses(xml: string): string[] {
+export function splitResponses(xml: string): string[] {
   const chunks: string[] = [];
   const re = /<d:response[^>]*>([\s\S]*?)<\/d:response>/g;
   let m: RegExpExecArray | null;
@@ -63,7 +63,7 @@ function splitResponses(xml: string): string[] {
   return chunks;
 }
 
-async function davFetch(
+export async function davFetch(
   url: string,
   account: Pick<Account, 'username' | 'appPassword'>,
   options: { method?: string; headers?: Record<string, string>; body?: string; maxRetries?: number }
@@ -95,7 +95,7 @@ export async function validateCredentials(params: {
 
   if (!principalPath) {
     const principalUrl = `${params.baseUrl}/remote.php/dav/principals/users/${encodeURIComponent(params.username)}/`;
-    const fallback = await davFetch(principalUrl, params, { method: 'PROPFIND', headers: { Depth: '0', 'Content-Type': 'application/xml' }, maxRetries: 0 });
+    const fallback = await davFetch(principalUrl, params, { method: 'PROPFIND', headers: { Depth: '0', 'Content-Type': 'application/xml' } });
     if (fallback.status !== 207 && !fallback.ok) throw httpErrorFrom(fallback, 'validateCredentials');
     return { davUserId: params.username };
   }
