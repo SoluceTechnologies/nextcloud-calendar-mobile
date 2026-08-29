@@ -122,6 +122,10 @@
     "talkPublicLink": "Публичная ссылка",
     "talkAnyoneWithLink": "Любой, у кого есть ссылка, может присоединиться",
     "talkOnlyInvited": "Только приглашённые участники",
+    "talkOpenTitle": "Open Talk room",
+    "openInTalk": "Open in Talk app",
+    "openInBrowser": "Open in browser",
+    "talkAppNotInstalled": "Nextcloud Talk is not installed. Install it to open rooms directly in the app, or open in browser.",
     "loadingCalendars": "Загрузка календарей…",
     "newEvent": "Новое событие",
     "editEvent": "Редактировать событие",
@@ -259,7 +263,15 @@
       "use": "Выбрать",
       "editOnNextcloud": "Изменить в Nextcloud"
     },
-    "accountActive": "Активный"
+    "accountActive": "Активный",
+    "talk": {
+      "title": "Talk",
+      "openWith": "Open Talk links with",
+      "openWithHint": "Choose how event call links open by default. Long-press the Join Talk Room button to override.",
+      "openInApp": "Nextcloud Talk app",
+      "openInBrowser": "Browser",
+      "askEachTime": "Ask each time"
+    }
   },
   "widget": {
     "liveRemaining": "осталось {{duration}}",

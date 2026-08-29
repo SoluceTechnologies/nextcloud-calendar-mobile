@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { View, StyleSheet, ScrollView, Alert, Linking, Platform } from 'react-native';
+import { View, StyleSheet, ScrollView, Alert } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
 import { haptic } from '@/utils/haptics';
@@ -20,12 +20,14 @@ import { useEventLocation } from '@/features/map/hooks/useEventLocation';
 import { EventMapPreview, EventMapSheet } from '@/features/map/components';
 import { openMaps } from '@/features/map/utils/mapLinks';
 import { useAccountStore } from '@/stores/accountStore';
+import { useSettingsStore } from '@/stores/settingsStore';
 import {
   ViewContainer, Stack, Typography, Button, Chip, Icon, List, Item,
   SectionHeader, Avatar, Spinner, ScreenHeader,
   IconButton,
 } from '@/ui/components';
 import type { RecurrenceEditScope } from '@/types';
+import { openTalkRoom, promptTalkRoomOpen } from '@/features/event/utils/openTalkRoom';
 import { askRecurrenceScope, type RecurrenceScopeStrings } from '@/features/event/recurrenceScope';
 import { decideMoveEventScope } from '@/features/calendar/utils/moveEventScope';
 import {
@@ -35,20 +37,6 @@ import {
 import { goBackOrHome } from '@/utils/navigationGuard';
 
 dayjs.extend(localizedFormat);
-
-async function openTalkRoom(talkUrl: string) {
-  if (Platform.OS === 'android') {
-    const withoutScheme = talkUrl.replace(/^https?:\/\//, '');
-    const fallback = encodeURIComponent(talkUrl);
-    try {
-      await Linking.openURL(`intent://${withoutScheme}#Intent;scheme=https;package=com.nextcloud.talk2;S.browser_fallback_url=${fallback};end`);
-    } catch {
-      await Linking.openURL(talkUrl);
-    }
-    return;
-  }
-  await Linking.openURL(talkUrl);
-}
 
 export default function EventDetailScreen() {
   const { uid } = useLocalSearchParams<{ uid: string }>();
@@ -62,6 +50,7 @@ export default function EventDetailScreen() {
   const { data: calendars = [] } = useCalendars(activeAccount);
 
   const event = useEventByUid(activeAccountId, uid);
+  const talkOpenMode = useSettingsStore((s) => s.talkOpenMode);
 
   const navigation = useNavigation();
   useEffect(() => {
@@ -330,7 +319,8 @@ export default function EventDetailScreen() {
                 variant="primary"
                 title={t('event.joinTalkRoom')}
                 icon={<Video size={18} color="#fff" />}
-                onPress={() => openTalkRoom(event.talkUrl!)}
+                onPress={() => openTalkRoom(event.talkUrl!, talkOpenMode)}
+                onLongPress={() => promptTalkRoomOpen(event.talkUrl!)}
               />
             )}
 

@@ -122,6 +122,10 @@
     "talkPublicLink": "Openbare link",
     "talkAnyoneWithLink": "Iedereen met de link kan deelnemen",
     "talkOnlyInvited": "Alleen genodigde deelnemers",
+    "talkOpenTitle": "Open Talk room",
+    "openInTalk": "Open in Talk app",
+    "openInBrowser": "Open in browser",
+    "talkAppNotInstalled": "Nextcloud Talk is not installed. Install it to open rooms directly in the app, or open in browser.",
     "loadingCalendars": "Agenda's laden…",
     "newEvent": "Nieuwe afspraak",
     "editEvent": "Afspraak bewerken",
@@ -259,7 +263,15 @@
       "use": "Gebruiken",
       "editOnNextcloud": "Bewerken in Nextcloud"
     },
-    "accountActive": "Actief"
+    "accountActive": "Actief",
+    "talk": {
+      "title": "Talk",
+      "openWith": "Open Talk links with",
+      "openWithHint": "Choose how event call links open by default. Long-press the Join Talk Room button to override.",
+      "openInApp": "Nextcloud Talk app",
+      "openInBrowser": "Browser",
+      "askEachTime": "Ask each time"
+    }
   },
   "widget": {
     "liveRemaining": "nog {{duration}}",
