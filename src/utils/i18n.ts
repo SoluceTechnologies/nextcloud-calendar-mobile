@@ -56,8 +56,6 @@ const SUNDAY_START_REGIONS = new Set([
 ]);
 
 function getFirstDayOfWeek(languageTag: string, regionCode?: string | null): number {
-  // expo-localization's `firstWeekday` is unreliable/absent on Android,
-  // so we use CLDR region data, then language data.
   if (regionCode) {
     const region = regionCode.toUpperCase();
     if (MONDAY_START_REGIONS.has(region)) return 1;
