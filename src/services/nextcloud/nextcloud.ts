@@ -92,7 +92,18 @@ async function fetchServerCaps(
     const json = await res.json();
     const apps: Record<string, unknown> = json?.ocs?.data?.capabilities ?? {};
 
-    return { talkEnabled: 'spreed' in apps };
+    const notifyPushRaw = apps.notify_push as
+      | { type?: string[]; endpoints?: { websocket?: string; pre_auth?: string } }
+      | undefined;
+    const notifyPush = notifyPushRaw?.endpoints?.websocket
+      ? {
+          types: Array.isArray(notifyPushRaw.type) ? notifyPushRaw.type : [],
+          websocketUrl: notifyPushRaw.endpoints.websocket,
+          preAuthUrl: notifyPushRaw.endpoints.pre_auth,
+        }
+      : undefined;
+
+    return { talkEnabled: 'spreed' in apps, notifyPush };
   } catch {
     return { talkEnabled: false };
   }
