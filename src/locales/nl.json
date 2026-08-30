@@ -154,13 +154,20 @@
     "findTime": "Tijd vinden",
     "findTimeTitle": "Tijd vinden",
     "findTimeSuggested": "Voorgestelde tijden",
-    "findTimeNoSlots": "Geen vrije tijden gevonden in de komende 7 dagen.",
+    "findTimeNoSlots": "Geen vrije tijden gevonden in het venster van 15 dagen.",
     "findTimeAttendees": "Beschikbaarheid deelnemers",
     "findTimeAvailable": "Beschikbaar",
     "findTimeUnknown": "Onbekend",
     "findTimeApply": "Geselecteerde tijd toepassen",
     "findTimeLoading": "Beschikbaarheid controleren…",
-    "findTimeError": "Kon beschikbaarheid niet ophalen. De server heeft mogelijk free/busy uitgeschakeld."
+    "findTimeError": "Kon beschikbaarheid niet ophalen. De server heeft mogelijk free/busy uitgeschakeld.",
+    "findTimeTimeline": "Beschikbaarheidsoverzicht",
+    "findTimeTimelineBusy": "Bezig",
+    "findTimeTimelineUnavailable": "Niet beschikbaar",
+    "findTimeTimelineDragHint": "Sleep de greep om de gebeurtenis te verplaatsen",
+    "findTimeTimelineEvent": "Gebeurtenis",
+    "findTimePrevDay": "Vorige dag",
+    "findTimeNextDay": "Volgende dag"
   },
   "settings": {
     "title": "Instellingen",

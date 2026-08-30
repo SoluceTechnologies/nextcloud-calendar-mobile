@@ -154,13 +154,20 @@
     "findTime": "Trouver un créneau",
     "findTimeTitle": "Trouver un créneau",
     "findTimeSuggested": "Créneaux suggérés",
-    "findTimeNoSlots": "Aucun créneau libre dans les 7 prochains jours.",
+    "findTimeNoSlots": "Aucun créneau libre dans la fenêtre de 15 jours.",
     "findTimeAttendees": "Disponibilité des participants",
     "findTimeAvailable": "Disponible",
     "findTimeUnknown": "Inconnu",
     "findTimeApply": "Appliquer le créneau",
     "findTimeLoading": "Vérification de la disponibilité…",
-    "findTimeError": "Impossible de récupérer la disponibilité. Le serveur a peut-être désactivé le free/busy."
+    "findTimeError": "Impossible de récupérer la disponibilité. Le serveur a peut-être désactivé le free/busy.",
+    "findTimeTimeline": "Calendrier des disponibilités",
+    "findTimeTimelineBusy": "Occupé",
+    "findTimeTimelineUnavailable": "Indisponible",
+    "findTimeTimelineDragHint": "Faites glisser la poignée pour replanifier l’événement",
+    "findTimeTimelineEvent": "Événement",
+    "findTimePrevDay": "Jour précédent",
+    "findTimeNextDay": "Jour suivant"
   },
   "settings": {
     "title": "Paramètres",

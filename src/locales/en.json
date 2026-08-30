@@ -154,13 +154,20 @@
     "findTime": "Find a time",
     "findTimeTitle": "Find a time",
     "findTimeSuggested": "Suggested slots",
-    "findTimeNoSlots": "No free slots found in the next 7 days.",
+    "findTimeNoSlots": "No free slots found in the 15-day window.",
     "findTimeAttendees": "Attendee availability",
     "findTimeAvailable": "Available",
     "findTimeUnknown": "Unknown",
     "findTimeApply": "Apply selected slot",
     "findTimeLoading": "Checking availability…",
-    "findTimeError": "Could not fetch availability. The server may have free/busy disabled."
+    "findTimeError": "Could not fetch availability. The server may have free/busy disabled.",
+    "findTimeTimeline": "Availability timeline",
+    "findTimeTimelineBusy": "Busy",
+    "findTimeTimelineUnavailable": "Unavailable",
+    "findTimeTimelineDragHint": "Drag the handle to reschedule",
+    "findTimeTimelineEvent": "Event",
+    "findTimePrevDay": "Previous day",
+    "findTimeNextDay": "Next day"
   },
   "settings": {
     "title": "Settings",

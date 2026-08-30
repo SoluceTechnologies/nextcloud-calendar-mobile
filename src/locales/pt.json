@@ -154,13 +154,20 @@
     "findTime": "Encontrar horário",
     "findTimeTitle": "Encontrar horário",
     "findTimeSuggested": "Horários sugeridos",
-    "findTimeNoSlots": "Nenhum horário livre encontrado nos próximos 7 dias.",
+    "findTimeNoSlots": "Nenhum horário livre encontrado na janela de 15 dias.",
     "findTimeAttendees": "Disponibilidade dos participantes",
     "findTimeAvailable": "Disponível",
     "findTimeUnknown": "Desconhecido",
     "findTimeApply": "Aplicar horário selecionado",
     "findTimeLoading": "Verificando disponibilidade…",
-    "findTimeError": "Não foi possível obter a disponibilidade. O servidor pode ter free/busy desativado."
+    "findTimeError": "Não foi possível obter a disponibilidade. O servidor pode ter free/busy desativado.",
+    "findTimeTimeline": "Cronologia de disponibilidade",
+    "findTimeTimelineBusy": "Ocupado",
+    "findTimeTimelineUnavailable": "Indisponível",
+    "findTimeTimelineDragHint": "Arraste a alça para reagendar o evento",
+    "findTimeTimelineEvent": "Evento",
+    "findTimePrevDay": "Dia anterior",
+    "findTimeNextDay": "Próximo dia"
   },
   "settings": {
     "title": "Definições",
