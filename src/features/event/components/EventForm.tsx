@@ -414,6 +414,7 @@ export const EventForm = forwardRef<EventFormHandle, Props>(function EventForm({
             attendees={attendees}
             start={dtstart}
             end={dtend}
+            eventTitle={summary}
             onApplySlot={(slot: SuggestedSlot) => {
               setDtstart(slot.start);
               setDtend(slot.end);
