@@ -32,22 +32,25 @@
 - **Backend** : POST VFREEBUSY vers le scheduling outbox de admin
 - **Capture** : `04-find-time-loading.png` — spinner "Checking availability…"
 
-### Étape 6 — Vérifier les slots suggérés
-- **UI** : le sheet affiche une liste de créneaux libres + disponibilité de alice
+### Étape 6 — Vérifier la timeline de disponibilité
+- **UI** : le sheet affiche trois jours, les périodes occupées et la disponibilité de alice
 - **Vérification** :
   - alice est marquée "Available"
-  - les slots suggérés évitent la plage 10:00-10:30 (l'événement de alice)
-  - au moins un slot est proposé
-- **Capture** : `05-find-time-suggestions.png` — liste de slots + statut alice
+  - la plage 10:00-10:30 de alice est affichée comme occupée
+  - la brique de l'événement apparaît au jour et à l'heure sélectionnés
+- **Capture** : `05-find-time-suggestions.png` — timeline + statut alice
 
-### Étape 7 — Sélectionner un slot
-- **UI** : tap sur un slot suggéré (ex: 11:00)
-- **UI** : le bouton "Apply selected slot" apparaît
-- **Capture** : `06-slot-selected.png` — slot sélectionné (highlight)
+### Étape 7 — Déplacer l'événement
+- **UI** : faire glisser la poignée de la brique vers une plage libre
+- **Vérification** : seule la brique se déplace ; la timeline et le sheet restent fixes pendant le drag
+- **Vérification** : un glissement commencé hors de la poignée fait défiler le sheet normalement
+- **UI** : la bordure est verte sur une plage libre et rouge sur une plage occupée
+- **Capture** : `06-slot-selected.png` — brique déplacée avec retour visuel
 
-### Étape 8 — Appliquer le slot
-- **UI** : tap sur "Apply selected slot"
-- **UI** : le sheet se ferme, les dates start/end du formulaire sont mises à jour
+### Étape 8 — Appliquer le créneau
+- **UI** : relâcher la brique sur une plage libre
+- **UI** : le sheet reste ouvert et les dates start/end du formulaire sont mises à jour
+- **UI** : fermer le sheet pour vérifier les nouvelles dates du formulaire
 - **Capture** : `07-slot-applied.png` — formulaire avec nouvelles dates
 
 ### Étape 9 — Test participant externe (disponibilité inconnue)

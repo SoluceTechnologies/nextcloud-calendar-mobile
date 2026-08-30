@@ -1,12 +1,13 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import type { Account, Attendee, AttendeeAvailability, SuggestedSlot } from '@/types';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { Account, Attendee, AttendeeAvailability, BusySlot, SuggestedSlot } from '@/types';
 import { fetchFreeBusy } from '@/services/nextcloud/freeBusy';
 import { mergeBusySlots } from '@/utils/freeBusy';
 import { suggestSlots } from '@/features/event/utils/suggestSlots';
 import { trailingDebounce } from '@/utils/debounce';
 
 const DEBOUNCE_MS = 500;
-const SEARCH_WINDOW_DAYS = 7;
+const SEARCH_WINDOW_DAYS = 15;
+const SEARCH_WINDOW_PADDING_DAYS = 7;
 
 interface UseFreeBusyOptions {
   account: Account | null;
@@ -22,7 +23,27 @@ interface UseFreeBusyResult {
   error: Error | null;
   availabilities: AttendeeAvailability[];
   suggestions: SuggestedSlot[];
+  mergedBusy: BusySlot[];
+  searchStart: Date | null;
+  searchEnd: Date | null;
   refetch: () => void;
+}
+
+function startOfDay(d: Date): Date {
+  const result = new Date(d);
+  result.setHours(0, 0, 0, 0);
+  return result;
+}
+
+function addDays(d: Date, days: number): Date {
+  const result = new Date(d);
+  result.setDate(result.getDate() + days);
+  return result;
+}
+
+function isWithinRange(date: Date, rangeStart: Date, rangeEnd: Date): boolean {
+  const t = startOfDay(date).getTime();
+  return t >= startOfDay(rangeStart).getTime() && t < startOfDay(rangeEnd).getTime();
 }
 
 export function useFreeBusy({
@@ -33,14 +54,27 @@ export function useFreeBusy({
   end,
   enabled = true,
 }: UseFreeBusyOptions): UseFreeBusyResult {
+  const durationMs = end.getTime() - start.getTime();
+
+  // Needed window for the current start date.
+  const neededWindow = useMemo(() => {
+    const searchStart = addDays(startOfDay(start), -SEARCH_WINDOW_PADDING_DAYS);
+    const searchEnd = addDays(searchStart, SEARCH_WINDOW_DAYS);
+    return { start: searchStart, end: searchEnd };
+  }, [start]);
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
   const [availabilities, setAvailabilities] = useState<AttendeeAvailability[]>([]);
-  const [suggestions, setSuggestions] = useState<SuggestedSlot[]>([]);
+  const [mergedBusy, setMergedBusy] = useState<BusySlot[]>([]);
+  const [searchRange, setSearchRange] = useState<{ start: Date | null; end: Date | null }>({ start: null, end: null });
   const activeRef = useRef(0);
-  const triggerRef = useRef(0);
 
-  const durationMs = end.getTime() - start.getTime();
+  // Suggestions are computed locally from the fetched busy slots and the current event window.
+  const suggestions = useMemo(() => {
+    if (!searchRange.start || !searchRange.end || mergedBusy.length === 0) return [];
+    return suggestSlots(durationMs, searchRange.start, searchRange.end, mergedBusy);
+  }, [durationMs, searchRange, mergedBusy]);
 
   const doFetch = useCallback(
     async (nonce: number) => {
@@ -48,7 +82,8 @@ export function useFreeBusy({
         if (activeRef.current === nonce) {
           setLoading(false);
           setAvailabilities([]);
-          setSuggestions([]);
+          setMergedBusy([]);
+          setSearchRange({ start: null, end: null });
           setError(null);
         }
         return;
@@ -56,35 +91,26 @@ export function useFreeBusy({
 
       if (activeRef.current === nonce) setLoading(true);
 
-      // 7-day search window around the event start.
-      const searchStart = new Date(start);
-      searchStart.setHours(0, 0, 0, 0);
-      const searchEnd = new Date(searchStart);
-      searchEnd.setDate(searchEnd.getDate() + SEARCH_WINDOW_DAYS);
-
       try {
-        const results = await fetchFreeBusy(account, organizer, attendees, searchStart, searchEnd);
+        const results = await fetchFreeBusy(account, organizer, attendees, neededWindow.start, neededWindow.end);
         if (activeRef.current !== nonce) return;
 
         const merged = mergeBusySlots(results);
-        const slots = suggestSlots(durationMs, searchStart, searchEnd, merged);
 
         setAvailabilities(results);
-        setSuggestions(slots);
+        setMergedBusy(merged);
+        setSearchRange({ start: neededWindow.start, end: neededWindow.end });
         setError(null);
       } catch (e) {
         if (activeRef.current !== nonce) return;
         setError(e instanceof Error ? e : new Error(String(e)));
-        setAvailabilities([]);
-        setSuggestions([]);
       } finally {
         if (activeRef.current === nonce) setLoading(false);
       }
     },
-    [account, organizer, attendees, start, durationMs],
+    [account, organizer, attendees, neededWindow],
   );
 
-  // Keep a ref to the latest doFetch so the debounce always calls the current version
   const doFetchRef = useRef(doFetch);
   doFetchRef.current = doFetch;
 
@@ -95,22 +121,26 @@ export function useFreeBusy({
   ).current;
 
   const refetch = useCallback(() => {
-    triggerRef.current += 1;
     activeRef.current += 1;
     const nonce = activeRef.current;
     debounce.call(nonce);
   }, [debounce]);
 
-  // Serialise deps that should trigger a refetch.
   const attendeeKey = attendees.map((a) => a.email).join(',');
-  const startKey = start.toISOString();
-  const endKey = end.toISOString();
 
   useEffect(() => {
-    if (!enabled) {
+    if (!enabled || !account || !organizer || attendees.length === 0) {
       setLoading(false);
-      setAvailabilities([]);
-      setSuggestions([]);
+      return;
+    }
+
+    // Reuse existing data if the current start still falls within the already loaded window.
+    if (
+      searchRange.start &&
+      searchRange.end &&
+      isWithinRange(start, searchRange.start, searchRange.end)
+    ) {
+      setLoading(false);
       return;
     }
 
@@ -122,12 +152,12 @@ export function useFreeBusy({
       if (activeRef.current === nonce) setLoading(false);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [account, organizer, attendeeKey, startKey, endKey, enabled, debounce]);
+  }, [account, organizer, attendeeKey, neededWindow.start, neededWindow.end, enabled, debounce]);
 
   useEffect(() => () => {
     activeRef.current += 1;
     debounce.cancel();
   }, [debounce]);
 
-  return { loading, error, availabilities, suggestions, refetch };
+  return { loading, error, availabilities, suggestions, mergedBusy, searchStart: searchRange.start, searchEnd: searchRange.end, refetch };
 }
