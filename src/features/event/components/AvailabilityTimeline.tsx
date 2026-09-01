@@ -305,16 +305,29 @@ function AvailabilityTimelineImpl({
                           )}
                           {busyAttendees.length > 0 && (
                             <View style={styles.attendeeChips}>
-                              {busyAttendees.map((email) => (
-                                <View
-                                  key={email}
-                                  style={[
-                                    styles.attendeeDot,
-                                    { backgroundColor: attendeeColors[email.toLowerCase()] ?? theme.colors.danger },
-                                  ]}
-                                  accessibilityLabel={attendeeNames[email.toLowerCase()] ?? email}
-                                />
-                              ))}
+                              {busyAttendees.map((email) => {
+                                const name = attendeeNames[email.toLowerCase()] ?? email;
+                                const shortName = name.split(/[\s@]/)[0].slice(0, 8);
+                                return (
+                                  <View key={email} style={styles.attendeeChip}>
+                                    <View
+                                      style={[
+                                        styles.attendeeDot,
+                                        { backgroundColor: attendeeColors[email.toLowerCase()] ?? theme.colors.danger },
+                                      ]}
+                                    />
+                                    <Typography
+                                      variant="caption"
+                                      color="danger"
+                                      numberOfLines={1}
+                                      style={styles.attendeeChipLabel}
+                                      accessibilityLabel={name}
+                                    >
+                                      {shortName}
+                                    </Typography>
+                                  </View>
+                                );
+                              })}
                               {extra > 0 && (
                                 <Typography variant="caption" color="danger" style={styles.attendeeExtra}>
                                   +{extra}
@@ -428,17 +441,25 @@ const styles = StyleSheet.create({
     opacity: 0.7,
   },
   attendeeChips: {
-    position: 'absolute',
-    top: 4,
-    right: 4,
+    flexDirection: 'row',
+    flexWrap: 'nowrap',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 2,
+  },
+  attendeeChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 3,
+    gap: 2,
   },
   attendeeDot: {
     width: 8,
     height: 8,
     borderRadius: 4,
+  },
+  attendeeChipLabel: {
+    fontSize: 8,
+    maxWidth: 70,
   },
   attendeeExtra: {
     fontSize: 8,
