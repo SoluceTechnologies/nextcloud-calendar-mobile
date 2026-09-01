@@ -1,8 +1,8 @@
 import ICAL from 'ical.js';
 
-import type { Account, CalendarInvitation, CalendarMeta, InvitationResponse } from '@/types';
-import { parseIcsToJcal, resolveInstant, extractDtstartTzid } from '@/utils/caldav-parse';
-import { davFetch, splitResponses, decodeXmlEntities } from './caldav';
+import type { Account, Attendee, CalendarEvent, CalendarInvitation, CalendarMeta, InvitationResponse } from '@/types';
+import { parseIcsToJcal, parseIcsItem, resolveInstant, extractDtstartTzid } from '@/utils/caldav-parse';
+import { davFetch, splitResponses, decodeXmlEntities, fetchEventIcs, updateEvent, deleteEvent } from './caldav';
 
 function uidQueryBody(uid: string): string {
   return `<?xml version="1.0" encoding="utf-8" ?>
@@ -281,38 +281,54 @@ function updateProdid(comp: ICAL.Component): void {
   }
 }
 
-function buildAcceptedEventIcs(
-  invitation: CalendarInvitation,
+function buildUpdatedCalendarIcs(
+  rawIcs: string,
+  targetEmail: string,
   response: InvitationResponse,
 ): string {
-  const jcal = parseIcsToJcal(invitation.ics);
+  const jcal = parseIcsToJcal(rawIcs);
   const comp = new ICAL.Component(jcal);
   const vevent = masterVevent(comp);
-  if (!vevent) throw new Error('No VEVENT found in invitation');
+  if (!vevent) throw new Error('No VEVENT found in ICS');
 
   removeMethod(comp);
-  updateAttendeePartstat(vevent, invitation.attendeeEmail, response);
+  updateAttendeePartstat(vevent, targetEmail, response);
   updateDtstamp(vevent);
   updateProdid(comp);
 
   return ICAL.stringify(comp.jCal);
 }
 
-function buildReplyIcs(
-  invitation: CalendarInvitation,
+function buildReplyIcsFromRaw(
+  rawIcs: string,
+  targetEmail: string,
   response: InvitationResponse,
 ): string {
-  const jcal = parseIcsToJcal(invitation.ics);
+  const jcal = parseIcsToJcal(rawIcs);
   const comp = new ICAL.Component(jcal);
   const vevent = masterVevent(comp);
-  if (!vevent) throw new Error('No VEVENT found in invitation');
+  if (!vevent) throw new Error('No VEVENT found in ICS');
 
   setMethod(comp, 'REPLY');
-  updateAttendeePartstat(vevent, invitation.attendeeEmail, response);
+  updateAttendeePartstat(vevent, targetEmail, response);
   updateDtstamp(vevent);
   updateProdid(comp);
 
   return ICAL.stringify(comp.jCal);
+}
+
+function buildAcceptedEventIcs(
+  invitation: CalendarInvitation,
+  response: InvitationResponse,
+): string {
+  return buildUpdatedCalendarIcs(invitation.ics, invitation.attendeeEmail, response);
+}
+
+function buildReplyIcs(
+  invitation: CalendarInvitation,
+  response: InvitationResponse,
+): string {
+  return buildReplyIcsFromRaw(invitation.ics, invitation.attendeeEmail, response);
 }
 
 export async function respondToInvitation(
@@ -364,6 +380,60 @@ export async function respondToInvitation(
   }
 
   await davFetch(invitation.href, account, { method: 'DELETE' });
+}
+
+export async function updateAttendeeStatus(
+  account: Account,
+  event: CalendarEvent,
+  response: InvitationResponse,
+): Promise<Attendee[] | undefined> {
+  const rawIcs = await fetchEventIcs(account, event.href);
+  const comp = new ICAL.Component(parseIcsToJcal(rawIcs));
+  const vevent = masterVevent(comp);
+  if (!vevent) throw new Error('No VEVENT found in event');
+
+  const targetAttendee = findTargetAttendee(vevent, account);
+  if (!targetAttendee) throw new Error('Current account is not an attendee of this event');
+
+  const outboxUrl = `${account.baseUrl}/remote.php/dav/calendars/${encodeURIComponent(account.davUserId)}/outbox/`;
+
+  if (response === 'declined') {
+    const replyIcs = buildReplyIcsFromRaw(rawIcs, targetAttendee.email, response);
+    const postRes = await davFetch(outboxUrl, account, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/calendar; charset=utf-8' },
+      body: replyIcs,
+    });
+    if (!postRes.ok && postRes.status !== 403 && postRes.status !== 404) {
+      console.warn(`[updateAttendeeStatus] outbox POST HTTP ${postRes.status}`);
+    }
+    await deleteEvent(account, event.href);
+    return undefined;
+  }
+
+  const updatedIcs = buildUpdatedCalendarIcs(rawIcs, targetAttendee.email, response);
+  await updateEvent(account, event.href, updatedIcs);
+
+  const replyIcs = buildReplyIcsFromRaw(rawIcs, targetAttendee.email, response);
+  const postRes = await davFetch(outboxUrl, account, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/calendar; charset=utf-8' },
+    body: replyIcs,
+  });
+  if (!postRes.ok && postRes.status !== 403 && postRes.status !== 404) {
+    console.warn(`[updateAttendeeStatus] outbox POST HTTP ${postRes.status}`);
+  }
+
+  const parsed = parseIcsItem(
+    { ics: updatedIcs, href: event.href },
+    { calendarId: event.calendarId, accountId: event.accountId, color: event.color },
+  );
+  const nextAttendees = parsed[0]?.attendees ?? event.attendees.map((att) =>
+    att.email.toLowerCase() === targetAttendee.email.toLowerCase()
+      ? { ...att, partstat: response }
+      : att
+  );
+  return nextAttendees;
 }
 
 export async function deleteInvitation(account: Account, href: string): Promise<void> {
