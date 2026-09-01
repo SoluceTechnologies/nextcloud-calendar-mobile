@@ -57,9 +57,10 @@ Use **Find a time** when an event has at least one attendee to see when everyone
 
 ### Timeline
 
-The timeline shows a 3-day window centered on the current event date.
+The timeline shows a 15-day window centered on the current event date.
 
 - **Day columns** — swipe horizontally to see adjacent days.
+- **Sticky header** — the day columns, the mode buttons (`All free` / `Some may be busy`) and the timeline title stay fixed at the top of the sheet while you scroll down to the attendee list.
 - **Hour rail** — 00:00 to 24:00 on the left.
 - **Busy blocks** — red blocks are `BUSY`, dashed grey blocks are `BUSY-UNAVAILABLE` (outside working hours).
 - **Attendee colors** — each participant is assigned a unique color. Colored dots inside a busy block show who is unavailable during that period.
