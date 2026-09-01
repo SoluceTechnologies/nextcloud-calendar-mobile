@@ -74,4 +74,30 @@ describe('suggestSlots', () => {
     const slots = suggestSlots(HOUR, searchStart, searchEnd, busy);
     expect(slots).toHaveLength(0);
   });
+
+  it('avoids busy periods from multiple attendees', () => {
+    const busy: BusySlot[] = [
+      { start: new Date('2026-08-28T09:00Z'), end: new Date('2026-08-28T10:00Z'), fbType: 'BUSY' },
+      { start: new Date('2026-08-28T12:00Z'), end: new Date('2026-08-28T13:00Z'), fbType: 'BUSY' },
+    ];
+    const slots = suggestSlots(HOUR, searchStart, searchEnd, busy);
+    expect(slots[0].start).toEqual(new Date('2026-08-28T08:00:00Z'));
+    expect(slots[1].start).toEqual(new Date('2026-08-28T10:00:00Z'));
+
+    for (const slot of slots) {
+      const overlaps = busy.some(
+        (b) => slot.start.getTime() < b.end.getTime() && b.start.getTime() < slot.end.getTime(),
+      );
+      expect(overlaps).toBe(false);
+    }
+  });
+
+  it('returns empty when multiple attendees fill the day', () => {
+    const busy: BusySlot[] = [
+      { start: new Date('2026-08-28T08:00Z'), end: new Date('2026-08-28T12:00Z'), fbType: 'BUSY' },
+      { start: new Date('2026-08-28T12:00Z'), end: new Date('2026-08-28T20:00Z'), fbType: 'BUSY' },
+    ];
+    const slots = suggestSlots(HOUR, searchStart, searchEnd, busy);
+    expect(slots).toHaveLength(0);
+  });
 });
