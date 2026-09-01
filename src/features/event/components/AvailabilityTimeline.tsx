@@ -1,4 +1,4 @@
-import { memo, useEffect, useMemo, useRef, useCallback } from 'react';
+import { memo, useEffect, useMemo, useRef, useCallback, type RefObject } from 'react';
 import { View, StyleSheet, Pressable, ScrollView, type GestureResponderEvent } from 'react-native';
 import Animated, { useAnimatedStyle } from 'react-native-reanimated';
 import dayjs from 'dayjs';
@@ -26,6 +26,12 @@ interface Props {
   days: Date[];
   columnWidth: number;
   hourRowHeight: number;
+  attendeeColors?: Record<string, string>;
+  attendeeNames?: Record<string, string>;
+  scrollRef?: RefObject<ScrollView | null>;
+  scrollY?: RefObject<number>;
+  viewportHeight?: number;
+  maxScrollY?: number;
   onApplySlot: (slot: SuggestedSlot) => void;
 }
 
@@ -37,6 +43,12 @@ function AvailabilityTimelineImpl({
   days,
   columnWidth,
   hourRowHeight,
+  attendeeColors = {},
+  attendeeNames = {},
+  scrollRef,
+  scrollY,
+  viewportHeight,
+  maxScrollY,
   onApplySlot,
 }: Props) {
   const theme = useTheme();
@@ -96,10 +108,29 @@ function AvailabilityTimelineImpl({
   }, [durationMs]);
 
   const gridHeight = hourRowHeight * 24;
+  const brickHeightPx = (brickHeightPct / 100) * gridHeight;
+  const dragHitSlop = useMemo(() => {
+    const vertical = Math.max(0, (44 - brickHeightPx) / 2);
+    return { top: vertical, bottom: vertical, left: 8, right: 8 };
+  }, [brickHeightPx]);
+
   const totalWidth = columnWidth * days.length;
   const headerScrollRef = useRef<ScrollView>(null);
   const gridScrollRef = useRef<ScrollView>(null);
   const syncingScroll = useRef(false);
+
+  const brickRef = useRef<React.ElementRef<typeof Animated.View> | null>(null);
+
+  const handleAutoScroll = useCallback((delta: number) => {
+    if (!scrollRef?.current || !scrollY) return 0;
+    const current = scrollY.current ?? 0;
+    const max = Math.max(0, maxScrollY ?? 0);
+    const next = Math.max(0, Math.min(max, current + delta));
+    const applied = next - current;
+    scrollY.current = next;
+    scrollRef.current.scrollTo({ y: next, animated: false });
+    return applied;
+  }, [scrollRef, scrollY, maxScrollY]);
 
   const handleCommit = useCallback((start: Date, end: Date) => {
     onApplySlot({ start, end });
@@ -113,6 +144,9 @@ function AvailabilityTimelineImpl({
     daysCount: days.length,
     initialColumnIndex: Math.max(0, initialColumnIndex),
     mergedBusy,
+    brickRef,
+    viewportHeight,
+    onAutoScroll: handleAutoScroll,
     onCommit: handleCommit,
     onReject: () => {},
   });
@@ -242,6 +276,8 @@ function AvailabilityTimelineImpl({
                       const topPct = (startMin / (24 * 60)) * 100;
                       const heightPct = (durationMin / (24 * 60)) * 100;
                       const isUnavailable = busy.fbType === 'BUSY-UNAVAILABLE';
+                      const busyAttendees = (busy.attendees ?? []).slice(0, 3);
+                      const extra = (busy.attendees ?? []).length - busyAttendees.length;
                       return (
                         <View
                           key={`busy-${dayIdx}-${i}`}
@@ -267,6 +303,25 @@ function AvailabilityTimelineImpl({
                               {t('event.findTimeTimelineBusy')}
                             </Typography>
                           )}
+                          {busyAttendees.length > 0 && (
+                            <View style={styles.attendeeChips}>
+                              {busyAttendees.map((email) => (
+                                <View
+                                  key={email}
+                                  style={[
+                                    styles.attendeeDot,
+                                    { backgroundColor: attendeeColors[email.toLowerCase()] ?? theme.colors.danger },
+                                  ]}
+                                  accessibilityLabel={attendeeNames[email.toLowerCase()] ?? email}
+                                />
+                              ))}
+                              {extra > 0 && (
+                                <Typography variant="caption" color="danger" style={styles.attendeeExtra}>
+                                  +{extra}
+                                </Typography>
+                              )}
+                            </View>
+                          )}
                         </View>
                       );
                     })}
@@ -275,6 +330,7 @@ function AvailabilityTimelineImpl({
 
                 {/* Event brick (draggable ghost) */}
                 <Animated.View
+                  ref={brickRef}
                   testID="event-brick"
                   style={[
                     styles.brick,
@@ -301,6 +357,7 @@ function AvailabilityTimelineImpl({
                   <View
                     testID="event-brick-drag-handle"
                     {...panHandlers}
+                    hitSlop={dragHitSlop}
                     accessible
                     accessibilityRole="adjustable"
                     accessibilityLabel={t('event.findTimeTimelineDragHint')}
@@ -362,12 +419,30 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 0,
     right: 0,
-    justifyContent: 'center',
+    paddingTop: 4,
     paddingLeft: 4,
+    paddingRight: 4,
   },
   busyLabel: {
     fontSize: 9,
     opacity: 0.7,
+  },
+  attendeeChips: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+  },
+  attendeeDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  attendeeExtra: {
+    fontSize: 8,
+    marginLeft: 1,
   },
   brick: {
     position: 'absolute',

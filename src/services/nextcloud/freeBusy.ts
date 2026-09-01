@@ -1,6 +1,7 @@
 import type { Account, Attendee, AttendeeAvailability } from '@/types';
 import { utcStamp } from '@/utils/ics';
 import { parseVFreeBusy } from '@/utils/freeBusy';
+import { attendeeColor } from '@/utils/attendees';
 import { trustedFetch } from '../shared/trustedFetch';
 
 function basicAuth(account: Pick<Account, 'username' | 'appPassword'>): string {
@@ -140,6 +141,7 @@ export async function fetchFreeBusy(
       displayName: att.displayName,
       slots: [],
       available: false,
+      color: attendeeColor(att.email),
     });
   }
 
@@ -155,7 +157,11 @@ export async function fetchFreeBusy(
       continue;
     }
 
-    avail.slots = parseVFreeBusy(entry.calendarData);
+    // Tag each parsed slot with the attendee it belongs to.
+    avail.slots = parseVFreeBusy(entry.calendarData).map((slot) => ({
+      ...slot,
+      attendees: [avail.email],
+    }));
     avail.available = true;
   }
 

@@ -129,7 +129,7 @@ describe('FindTimeSheet', () => {
       loading: false,
       error: null,
       availabilities: [
-        { email: 'jane@example.com', displayName: 'Jane', slots: busySlots, available: true },
+        { email: 'jane@example.com', displayName: 'Jane', slots: busySlots, available: true, color: '#E53935' },
       ],
       suggestions: [{ start: new Date('2026-08-28T12:00:00Z'), end: new Date('2026-08-28T13:00:00Z') }],
       mergedBusy: busySlots,
@@ -164,7 +164,7 @@ describe('FindTimeSheet', () => {
       loading: false,
       error: null,
       availabilities: [
-        { email: 'external@example.com', slots: [], available: false },
+        { email: 'external@example.com', slots: [], available: false, color: '#E53935' },
       ],
       suggestions: [{ start: new Date('2026-08-28T12:00:00Z'), end: new Date('2026-08-28T13:00:00Z') }],
       mergedBusy: [],
@@ -187,5 +187,41 @@ describe('FindTimeSheet', () => {
     );
 
     await waitFor(() => expect(getByText('Unknown')).toBeTruthy());
+  });
+
+  it('renders mode buttons and required toggles in permissive mode', async () => {
+    mockedUseFreeBusy.mockReturnValue({
+      loading: false,
+      error: null,
+      availabilities: [
+        { email: 'jane@example.com', displayName: 'Jane', slots: busySlots, available: true, color: '#E53935' },
+      ],
+      suggestions: [],
+      mergedBusy: busySlots,
+      searchStart,
+      searchEnd,
+      refetch: jest.fn(),
+    });
+
+    const { getByText, queryByText } = render(
+      <FindTimeSheet
+        visible={true}
+        onClose={jest.fn()}
+        account={account}
+        organizer={organizer}
+        attendees={attendees}
+        start={new Date('2026-08-28T10:00:00Z')}
+        end={new Date('2026-08-28T11:00:00Z')}
+        onApplySlot={jest.fn()}
+      />,
+    );
+
+    await waitFor(() => expect(getByText('All free')).toBeTruthy());
+    expect(getByText('Some may be busy')).toBeTruthy();
+
+    // Switch to permissive mode to reveal required toggle.
+    const permissive = getByText('Some may be busy');
+    permissive.props.onPress?.();
+    await waitFor(() => expect(queryByText('Jane')).toBeTruthy());
   });
 });
