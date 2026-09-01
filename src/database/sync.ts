@@ -180,12 +180,34 @@ export async function syncEvents(
 
     if (localWriteEpoch() !== epoch) return;
 
+    // An all-day event stores an inclusive end, which for a single-day one is
+    // its own start, so a row landing exactly on the window's start edge fails
+    // the `end > startMs` test above while the server — which ends it on the
+    // following midnight — still reports it. Identity lives on the uid, not on
+    // the range: without this second lookup the row is created again on every
+    // sync and the event stacks up in the grid.
+    const windowKeys = new Set(windowRows.map(rowKey));
+    const strayUids = remote
+      .filter((ev) => !windowKeys.has(eventKey(ev.accountId, ev.calendarId, ev.uid)))
+      .map((ev) => ev.uid);
+    const strayRows = strayUids.length
+      ? await events
+          .query(Q.where('account_id', account.id), Q.where('uid', Q.oneOf(strayUids)))
+          .fetch()
+      : [];
+
+    // Last await: prepare* mutates the cached instances and only db.batch
+    // clears them, so an abort past this point must not leave any prepared.
+    if (localWriteEpoch() !== epoch) return;
+
+    const inWindow = new Set(windowRows.map((r) => r.id));
     const byKey = new Map<string, Event>();
     const ops = [];
-    for (const r of windowRows) {
+    for (const r of [...windowRows, ...strayRows]) {
       const k = rowKey(r);
-      if (byKey.has(k)) ops.push(r.prepareMarkAsDeleted());
-      else byKey.set(k, r);
+      const kept = byKey.get(k);
+      if (!kept) byKey.set(k, r);
+      else if (kept.id !== r.id) ops.push(r.prepareMarkAsDeleted());
     }
 
     const seen = new Set<string>();
@@ -206,6 +228,7 @@ export async function syncEvents(
       const knownIds = new Set(calendars.map((c) => c.id));
       for (const [k, r] of byKey) {
         if (seen.has(k)) continue;
+        if (!inWindow.has(r.id)) continue;
         if (syncedIds.has(r.calendarId) || !knownIds.has(r.calendarId)) {
           ops.push(r.prepareMarkAsDeleted());
         }

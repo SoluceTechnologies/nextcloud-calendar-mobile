@@ -389,3 +389,103 @@ describe('syncEvents — one failing calendar must not wipe the others', () => {
     expect(batch).not.toHaveBeenCalled();
   });
 });
+
+describe('syncEvents — an all-day event on the window edge must not be re-created', () => {
+  // A single-day all-day event stores an inclusive end, so start === end. The
+  // window query filters on `end > startMs`, which drops the row when it sits
+  // exactly on the window's start edge — while the server, ending it on the
+  // following midnight, still reports it. Identity has to come off the uid, or
+  // the row is created again on every sync (issue #259).
+  const edge = new Date(2026, 6, 1);
+  const start = edge;
+  const end = new Date(2026, 8, 30, 23, 59, 59, 999);
+
+  const allDayEvent = {
+    uid: 'boundary-uid',
+    href: 'h-boundary',
+    calendarId: calendar.id,
+    accountId: account.id,
+    summary: 'Braune Tonne',
+    allDay: true,
+    color: '#fff',
+    dtstart: edge,
+    dtend: edge,
+    isRecurring: false,
+  } as CalendarEvent;
+
+  function storedRow() {
+    return {
+      id: 'row-1',
+      uid: 'boundary-uid',
+      href: 'h-boundary',
+      accountId: account.id,
+      calendarId: calendar.id,
+      summary: 'Braune Tonne',
+      start: edge.getTime(),
+      end: edge.getTime(),
+      allDay: true,
+      color: '#fff',
+      attendees: '[]',
+      isTask: false,
+      prepareMarkAsDeleted: jest.fn(() => ({ _op: 'del' })),
+      prepareUpdate: jest.fn(() => ({ _op: 'upd' })),
+    };
+  }
+
+  /** Window query answers first, the uid lookup second. */
+  function makeEdgeDb(windowRows: any[], strayRows: any[]) {
+    const results = [windowRows, strayRows];
+    const batch = jest.fn(async () => {});
+    const prepareCreate = jest.fn(() => ({ _op: 'create' }));
+    const eventsCol = {
+      query: jest.fn(() => ({ fetch: jest.fn(async () => results.shift() ?? []) })),
+      prepareCreate,
+    };
+    const db = {
+      get: jest.fn(() => eventsCol),
+      write: jest.fn(async (fn: () => Promise<unknown>) => fn()),
+      batch,
+    };
+    return { db, batch, prepareCreate };
+  }
+
+  it('finds the row by uid instead of creating a duplicate', async () => {
+    const row = storedRow();
+    mockFetchForCalendars.mockResolvedValue(outcome([allDayEvent]));
+    const { db, batch, prepareCreate } = makeEdgeDb([], [row]);
+    mockGetDb.mockReturnValue(db);
+
+    await syncEvents(account, [calendar], start, end);
+
+    expect(prepareCreate).not.toHaveBeenCalled();
+    expect(row.prepareMarkAsDeleted).not.toHaveBeenCalled();
+    expect(batch).not.toHaveBeenCalled();
+  });
+
+  it('drops the extra copies an earlier sync already stacked up', async () => {
+    const kept = storedRow();
+    const dupe = { ...storedRow(), id: 'row-2' };
+    mockFetchForCalendars.mockResolvedValue(outcome([allDayEvent]));
+    const { db, prepareCreate } = makeEdgeDb([], [kept, dupe]);
+    mockGetDb.mockReturnValue(db);
+
+    await syncEvents(account, [calendar], start, end);
+
+    expect(prepareCreate).not.toHaveBeenCalled();
+    expect(kept.prepareMarkAsDeleted).not.toHaveBeenCalled();
+    expect(dupe.prepareMarkAsDeleted).toHaveBeenCalled();
+  });
+
+  it('never deletes a uid-matched row that lies outside the synced window', async () => {
+    // The row is reachable only through the uid lookup, so it is not in the
+    // window deleteMissing is allowed to prune.
+    const outside = { ...storedRow(), uid: 'other-uid', id: 'row-3' };
+    mockFetchForCalendars.mockResolvedValue(outcome([allDayEvent]));
+    const { db } = makeEdgeDb([], [outside]);
+    mockGetDb.mockReturnValue(db);
+
+    await syncEvents(account, [calendar], start, end);
+
+    expect(outside.prepareMarkAsDeleted).not.toHaveBeenCalled();
+  });
+});
