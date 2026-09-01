@@ -138,7 +138,6 @@ export async function geocodeLocation(
     writeCache(key, { result, ts: Date.now() });
     return result;
   } catch {
-    writeCache(key, { result: null, ts: Date.now() });
     return null;
   }
 }

@@ -1,10 +1,15 @@
 import { renderHook, waitFor } from '@testing-library/react-native';
 import { useEventLocation } from '@/features/map/hooks/useEventLocation';
 import { clearGeocodeCache } from '@/features/map/utils/geocode';
+import { useIsOnline } from '@/services/shared/network';
+
+jest.mock('@/services/shared/network', () => ({ useIsOnline: jest.fn(() => true) }));
+const mockIsOnline = useIsOnline as jest.MockedFunction<typeof useIsOnline>;
 
 beforeEach(() => {
   clearGeocodeCache();
   jest.restoreAllMocks();
+  mockIsOnline.mockReturnValue(true);
 });
 
 describe('useEventLocation', () => {
@@ -59,6 +64,28 @@ describe('useEventLocation', () => {
 
     expect(result.current.isVirtual).toBe(false);
     expect(result.current.coordinates).toBeNull();
+  });
+
+  it('hides the map and skips any request when offline', async () => {
+    const fetchSpy = jest.spyOn(globalThis as any, 'fetch');
+    mockIsOnline.mockReturnValue(false);
+
+    const { result } = renderHook(() => useEventLocation('geo:48.8566,2.3522'));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    expect(result.current.coordinates).toBeNull();
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it('still flags virtual locations when offline', async () => {
+    mockIsOnline.mockReturnValue(false);
+
+    const { result } = renderHook(() =>
+      useEventLocation('https://cloud.example.com/call/abc'),
+    );
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    expect(result.current.isVirtual).toBe(true);
   });
 
   it('returns null for an undefined location', async () => {
