@@ -123,6 +123,56 @@ describe('fetchFreeBusy', () => {
     expect(results[0].slots).toEqual([]);
   });
 
+  it('returns availability for multiple attendees', async () => {
+    const vfreebusyReplyAlice = `BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VFREEBUSY\r\nFREEBUSY:20260828T100000Z/20260828T110000Z\r\nEND:VFREEBUSY\r\nEND:VCALENDAR\r\n`;
+    const vfreebusyReplyBob = `BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VFREEBUSY\r\nFREEBUSY:20260828T120000Z/20260828T130000Z\r\nEND:VFREEBUSY\r\nEND:VCALENDAR\r\n`;
+
+    mockFetch.mockResolvedValue({
+      status: 207,
+      ok: true,
+      headers: { forEach: (cb: (v: string, k: string) => void) => {} },
+      text: async () => scheduleResponse([
+        { recipient: 'mailto:alice@example.com', status: '2.0;Success', calendarData: vfreebusyReplyAlice },
+        { recipient: 'mailto:bob@example.com', status: '2.0;Success', calendarData: vfreebusyReplyBob },
+      ]),
+    });
+
+    const multipleAttendees: Attendee[] = [
+      { email: 'alice@example.com', displayName: 'Alice' },
+      { email: 'bob@example.com', displayName: 'Bob' },
+    ];
+
+    const results = await fetchFreeBusy(account, organizer, multipleAttendees, new Date('2026-08-28T10:00Z'), new Date('2026-08-28T11:00Z'));
+    expect(results).toHaveLength(2);
+    expect(results[0].email).toBe('alice@example.com');
+    expect(results[0].slots).toHaveLength(1);
+    expect(results[0].slots[0].start.toISOString()).toBe('2026-08-28T10:00:00.000Z');
+    expect(results[1].email).toBe('bob@example.com');
+    expect(results[1].slots).toHaveLength(1);
+    expect(results[1].slots[0].start.toISOString()).toBe('2026-08-28T12:00:00.000Z');
+  });
+
+  it('marks one attendee as unavailable while others are available', async () => {
+    mockFetch.mockResolvedValue({
+      status: 207,
+      ok: true,
+      headers: { forEach: (cb: (v: string, k: string) => void) => {} },
+      text: async () => scheduleResponse([
+        { recipient: 'mailto:alice@example.com', status: '2.0;Success', calendarData: vfreebusyReply },
+        { recipient: 'mailto:external@example.com', status: '3.7;Could not find principal' },
+      ]),
+    });
+
+    const mixedAttendees: Attendee[] = [
+      { email: 'alice@example.com' },
+      { email: 'external@example.com' },
+    ];
+
+    const results = await fetchFreeBusy(account, organizer, mixedAttendees, new Date('2026-08-28T10:00Z'), new Date('2026-08-28T11:00Z'));
+    expect(results[0].available).toBe(true);
+    expect(results[1].available).toBe(false);
+  });
+
   it('returns empty array for no attendees', async () => {
     const results = await fetchFreeBusy(account, organizer, [], new Date('2026-08-28T10:00Z'), new Date('2026-08-28T11:00Z'));
     expect(results).toEqual([]);

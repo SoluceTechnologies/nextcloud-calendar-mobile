@@ -1,11 +1,11 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import { View, StyleSheet, ScrollView, useWindowDimensions } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from 'expo-router';
 import dayjs from 'dayjs';
 import localizedFormat from 'dayjs/plugin/localizedFormat';
-import { Sheet, Stack, Typography, Spinner, Button } from '@/ui/components';
-import { useFreeBusy } from '@/features/event/hooks/useFreeBusy';
+import { Sheet, Stack, Typography, Spinner, Button, Toggle } from '@/ui/components';
+import { useFreeBusy, type FindTimeMode } from '@/features/event/hooks/useFreeBusy';
 import { AvailabilityTimeline } from '@/features/event/components/AvailabilityTimeline';
 import type { Account, Attendee, SuggestedSlot } from '@/types';
 
@@ -40,6 +40,26 @@ export function FindTimeSheet({
   const { t } = useTranslation();
   const { width: screenWidth } = useWindowDimensions();
   const [draftSlot, setDraftSlot] = useState<SuggestedSlot | null>(null);
+  const [mode, setMode] = useState<FindTimeMode>('strict');
+  const [requiredAttendees, setRequiredAttendees] = useState<string[]>(() =>
+    attendees.map((a) => a.email),
+  );
+
+  const sheetScrollRef = useRef<ScrollView>(null);
+  const scrollY = useRef(0);
+  const [viewportHeight, setViewportHeight] = useState(0);
+  const [contentHeight, setContentHeight] = useState(0);
+  const maxScrollY = Math.max(0, contentHeight - viewportHeight);
+
+  const attendeeKey = useMemo(
+    () => attendees.map((a) => a.email.toLowerCase()).join(','),
+    [attendees],
+  );
+
+  useEffect(() => {
+    // When the attendee list changes, reset to all required by default.
+    setRequiredAttendees(attendees.map((a) => a.email));
+  }, [attendeeKey]);
 
   const currentStart = draftSlot?.start ?? start;
   const currentEnd = draftSlot?.end ?? end;
@@ -51,7 +71,33 @@ export function FindTimeSheet({
     start: currentStart,
     end: currentEnd,
     enabled: visible,
+    mode,
+    requiredAttendees,
   });
+
+  const toggleRequired = (email: string) => {
+    setRequiredAttendees((prev) =>
+      prev.includes(email)
+        ? prev.filter((e) => e.toLowerCase() !== email.toLowerCase())
+        : [...prev, email],
+    );
+  };
+
+  const attendeeColorMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    for (const a of attendees) {
+      map[a.email.toLowerCase()] = availabilities.find((av) => av.email.toLowerCase() === a.email.toLowerCase())?.color ?? '';
+    }
+    return map;
+  }, [attendees, availabilities]);
+
+  const attendeeNameMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    for (const a of attendees) {
+      map[a.email.toLowerCase()] = a.displayName ?? a.email;
+    }
+    return map;
+  }, [attendees]);
 
   const durationMs = currentEnd.getTime() - currentStart.getTime();
   const hourRowHeight = 40;
@@ -75,8 +121,13 @@ export function FindTimeSheet({
   return (
     <Sheet visible={visible} onClose={handleClose} title={t('event.findTimeTitle')}>
       <ScrollView
+        ref={sheetScrollRef}
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
+        scrollEventThrottle={16}
+        onScroll={(event) => { scrollY.current = event.nativeEvent.contentOffset.y; }}
+        onLayout={(event) => setViewportHeight(event.nativeEvent.layout.height)}
+        onContentSizeChange={(_, h) => setContentHeight(h)}
       >
           {loading && (
             <View style={styles.center}>
@@ -110,6 +161,25 @@ export function FindTimeSheet({
                   <Typography variant="body2" color="secondary" style={styles.sectionLabel}>
                     {t('event.findTimeTimeline')}
                   </Typography>
+                  <Typography variant="caption" color="secondary" style={styles.timelineTip}>
+                    {t('event.findTimeTimelineTip')}
+                  </Typography>
+                  <View style={styles.modeRow}>
+                    <Button
+                      size="small"
+                      inline
+                      variant={mode === 'strict' ? 'primary' : 'secondary'}
+                      title={t('event.findTimeModeStrict')}
+                      onPress={() => setMode('strict')}
+                    />
+                    <Button
+                      size="small"
+                      inline
+                      variant={mode === 'permissive' ? 'primary' : 'secondary'}
+                      title={t('event.findTimeModePermissive')}
+                      onPress={() => setMode('permissive')}
+                    />
+                  </View>
                   <AvailabilityTimeline
                     mergedBusy={mergedBusy}
                     searchStart={searchStart}
@@ -120,6 +190,12 @@ export function FindTimeSheet({
                     days={days}
                     columnWidth={columnWidth}
                     hourRowHeight={hourRowHeight}
+                    attendeeColors={attendeeColorMap}
+                    attendeeNames={attendeeNameMap}
+                    scrollRef={sheetScrollRef}
+                    scrollY={scrollY}
+                    viewportHeight={viewportHeight}
+                    maxScrollY={maxScrollY}
                     onApplySlot={(slot) => {
                       setDraftSlot(slot);
                       onApplySlot(slot);
@@ -138,6 +214,7 @@ export function FindTimeSheet({
                       key={avail.email}
                       style={[styles.attendeeRow, { borderColor: theme.colors.border }]}
                     >
+                      <View style={[styles.colorDot, { backgroundColor: avail.color }]} />
                       <View style={styles.attendeeInfo}>
                         <Typography variant="body2" color="primary">
                           {avail.displayName ?? avail.email}
@@ -158,6 +235,14 @@ export function FindTimeSheet({
                             : t('event.findTimeUnknown')}
                         </Typography>
                       </View>
+                      {mode === 'permissive' && (
+                        <View style={styles.toggleWrap}>
+                          <Toggle
+                            value={!!avail.required}
+                            onValueChange={() => toggleRequired(avail.email)}
+                          />
+                        </View>
+                      )}
                       {avail.available && avail.slots.length > 0 && (
                         <View style={styles.busyList}>
                           {avail.slots
@@ -184,6 +269,7 @@ export function FindTimeSheet({
 const styles = StyleSheet.create({
   scroll: { maxHeight: 600 },
   scrollContent: { paddingHorizontal: 4, paddingBottom: 16 },
+  timelineTip: { marginBottom: 8, opacity: 0.7 },
   center: { alignItems: 'center', paddingVertical: 24 },
   marginTop: { marginTop: 8 },
   sectionLabel: { marginBottom: 8 },
@@ -195,4 +281,20 @@ const styles = StyleSheet.create({
   attendeeInfo: { flex: 1 },
   pushRight: { marginLeft: 'auto' },
   busyList: { marginTop: 8, gap: 2 },
+  colorDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    marginRight: 8,
+    alignSelf: 'center',
+  },
+  modeRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 8,
+  },
+  toggleWrap: {
+    marginLeft: 8,
+    justifyContent: 'center',
+  },
 });

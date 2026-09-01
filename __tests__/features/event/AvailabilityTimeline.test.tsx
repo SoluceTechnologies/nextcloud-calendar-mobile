@@ -157,4 +157,30 @@ describe('AvailabilityTimeline', () => {
 
     expect(getByText('Drag the handle to reschedule')).toBeTruthy();
   });
+
+  it('renders busy blocks from two different attendees', () => {
+    const busySlots: BusySlot[] = [
+      { start: new Date('2026-08-31T10:00:00'), end: new Date('2026-08-31T10:30:00'), fbType: 'BUSY' },
+      { start: new Date('2026-08-31T14:00:00'), end: new Date('2026-08-31T15:00:00'), fbType: 'BUSY-UNAVAILABLE' },
+    ];
+
+    const { getByTestId, getByText } = render(
+      <AvailabilityTimeline
+        mergedBusy={busySlots}
+        searchStart={searchStart}
+        searchEnd={searchEnd}
+        initialStart={initialStart}
+        durationMs={durationMs}
+        eventTitle="Planning"
+        days={days}
+        columnWidth={columnWidth}
+        hourRowHeight={hourRowHeight}
+        onApplySlot={jest.fn()}
+      />,
+    );
+
+    expect(getByTestId('busy-block-1-0')).toBeTruthy();
+    expect(getByTestId('busy-block-1-1')).toBeTruthy();
+    expect(getByText('Busy')).toBeTruthy();
+  });
 });
