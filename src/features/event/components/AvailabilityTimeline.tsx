@@ -32,6 +32,8 @@ interface Props {
   scrollY?: RefObject<number>;
   viewportHeight?: number;
   maxScrollY?: number;
+  onDragStart?: () => void;
+  onDragEnd?: () => void;
   onApplySlot: (slot: SuggestedSlot) => void;
 }
 
@@ -49,6 +51,8 @@ function AvailabilityTimelineImpl({
   scrollY,
   viewportHeight,
   maxScrollY,
+  onDragStart,
+  onDragEnd,
   onApplySlot,
 }: Props) {
   const theme = useTheme();
@@ -147,6 +151,8 @@ function AvailabilityTimelineImpl({
     brickRef,
     viewportHeight,
     onAutoScroll: handleAutoScroll,
+    onDragStart,
+    onDragEnd,
     onCommit: handleCommit,
     onReject: () => {},
   });
