@@ -9,6 +9,7 @@ import { GridLines } from '@/features/calendar/components/GridLines';
 import { HourRail } from '@/features/calendar/components/HourRail';
 import { Typography } from '@/ui/components';
 import { useSlotDrag } from '@/features/event/hooks/useSlotDrag';
+import { useSyncedHorizontalScroll } from '@/features/event/hooks/useSyncedHorizontalScroll';
 import type { BusySlot, SuggestedSlot } from '@/types';
 
 const FREE_COLOR = '#4caf50';
@@ -16,10 +17,69 @@ const FREE_BG_ALPHA = 0.12;
 const BUSY_UNAVAILABLE_PATTERN = '#9e9e9e';
 const HOUR_RAIL_WIDTH = 56;
 
-interface Props {
+export interface AvailabilityTimelineHeaderProps {
+  days: Date[];
+  initialStart: Date;
+  columnWidth: number;
+  headerScrollRef?: RefObject<ScrollView | null>;
+  onHeaderScroll?: (x: number) => void;
+}
+
+function AvailabilityTimelineHeaderImpl({
+  days,
+  initialStart,
+  columnWidth,
+  headerScrollRef,
+  onHeaderScroll,
+}: AvailabilityTimelineHeaderProps) {
+  const theme = useTheme();
+  const totalWidth = columnWidth * days.length;
+
+  return (
+    <View style={styles.dayHeadersRow}>
+      <View style={{ width: HOUR_RAIL_WIDTH }} />
+      <ScrollView
+        ref={headerScrollRef}
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        scrollEventThrottle={16}
+        onScroll={(event) => onHeaderScroll?.(event.nativeEvent.contentOffset.x)}
+        style={styles.horizontalViewport}
+      >
+        <View style={[styles.headerContent, { width: totalWidth }]}>
+          {days.map((day, i) => {
+            const isInitial = dayjs(day).isSame(dayjs(initialStart).startOf('day'));
+            return (
+              <View key={`header-${i}`} style={[styles.dayHeader, { width: columnWidth }]}>
+                <Typography
+                  variant="caption"
+                  weight={isInitial ? '700' : '400'}
+                  color={isInitial ? 'primary' : 'secondary'}
+                  align="center"
+                >
+                  {dayjs(day).format('ddd')}
+                </Typography>
+                <Typography
+                  variant="caption"
+                  weight={isInitial ? '700' : '400'}
+                  color={isInitial ? 'primary' : 'secondary'}
+                  align="center"
+                >
+                  {dayjs(day).format('D/M')}
+                </Typography>
+              </View>
+            );
+          })}
+        </View>
+      </ScrollView>
+    </View>
+  );
+}
+
+export const AvailabilityTimelineHeader = memo(AvailabilityTimelineHeaderImpl);
+
+interface AvailabilityTimelineBodyProps {
   mergedBusy: BusySlot[];
-  searchStart: Date;
-  searchEnd: Date;
   initialStart: Date;
   durationMs: number;
   eventTitle: string;
@@ -28,6 +88,9 @@ interface Props {
   hourRowHeight: number;
   attendeeColors?: Record<string, string>;
   attendeeNames?: Record<string, string>;
+  initialColumnIndex?: number;
+  gridScrollRef?: RefObject<ScrollView | null>;
+  onGridScroll?: (x: number) => void;
   scrollRef?: RefObject<ScrollView | null>;
   scrollY?: RefObject<number>;
   viewportHeight?: number;
@@ -37,7 +100,7 @@ interface Props {
   onApplySlot: (slot: SuggestedSlot) => void;
 }
 
-function AvailabilityTimelineImpl({
+function AvailabilityTimelineBodyImpl({
   mergedBusy,
   initialStart,
   durationMs,
@@ -45,8 +108,11 @@ function AvailabilityTimelineImpl({
   days,
   columnWidth,
   hourRowHeight,
+  initialColumnIndex: initialColumnIndexProp,
   attendeeColors = {},
   attendeeNames = {},
+  gridScrollRef,
+  onGridScroll,
   scrollRef,
   scrollY,
   viewportHeight,
@@ -54,12 +120,9 @@ function AvailabilityTimelineImpl({
   onDragStart,
   onDragEnd,
   onApplySlot,
-}: Props) {
+}: AvailabilityTimelineBodyProps) {
   const theme = useTheme();
   const { t } = useTranslation();
-
-  // The brick owns the responder while dragging so the nested ScrollViews
-  // cannot take over the gesture.
 
   // Filter busy slots per day
   const daysBusy = useMemo(() => {
@@ -96,15 +159,16 @@ function AvailabilityTimelineImpl({
     });
   }, [daysBusy, days]);
 
-  const initialColumnIndex = useMemo(() => {
-    const startDay = dayjs(initialStart).startOf('day');
-    return days.findIndex((d) => dayjs(d).startOf('day').isSame(startDay));
-  }, [days, initialStart]);
-
   const brickTopPct = useMemo(() => {
     const startMin = initialStart.getHours() * 60 + initialStart.getMinutes();
     return (startMin / (24 * 60)) * 100;
   }, [initialStart]);
+
+  const initialColumnIndex = useMemo(() => {
+    if (initialColumnIndexProp !== undefined) return initialColumnIndexProp;
+    const startDay = dayjs(initialStart).startOf('day');
+    return days.findIndex((d) => dayjs(d).startOf('day').isSame(startDay));
+  }, [days, initialStart, initialColumnIndexProp]);
 
   const brickHeightPct = useMemo(() => {
     const durationMin = durationMs / 60_000;
@@ -119,9 +183,6 @@ function AvailabilityTimelineImpl({
   }, [brickHeightPx]);
 
   const totalWidth = columnWidth * days.length;
-  const headerScrollRef = useRef<ScrollView>(null);
-  const gridScrollRef = useRef<ScrollView>(null);
-  const syncingScroll = useRef(false);
 
   const brickRef = useRef<React.ElementRef<typeof Animated.View> | null>(null);
 
@@ -157,20 +218,6 @@ function AvailabilityTimelineImpl({
     onReject: () => {},
   });
 
-  useEffect(() => {
-    const offset = Math.max(0, (initialColumnIndex - 1) * columnWidth);
-    headerScrollRef.current?.scrollTo({ x: offset, animated: false });
-    gridScrollRef.current?.scrollTo({ x: offset, animated: false });
-  }, [initialColumnIndex, columnWidth]);
-
-  const syncHorizontalScroll = (x: number, source: 'header' | 'grid') => {
-    if (syncingScroll.current) return;
-    syncingScroll.current = true;
-    if (source === 'header') gridScrollRef.current?.scrollTo({ x, animated: false });
-    else headerScrollRef.current?.scrollTo({ x, animated: false });
-    syncingScroll.current = false;
-  };
-
   const handleFreeZoneLongPress = (zone: { start: Date; end: Date }, event: GestureResponderEvent) => {
     const offsetMinutes = Math.max(
       0,
@@ -196,46 +243,7 @@ function AvailabilityTimelineImpl({
   }));
 
   return (
-    <View style={styles.container}>
-      {/* Day headers */}
-      <View style={styles.dayHeadersRow}>
-        <View style={{ width: HOUR_RAIL_WIDTH }} />
-        <ScrollView
-          ref={headerScrollRef}
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          scrollEventThrottle={16}
-          onScroll={(event) => syncHorizontalScroll(event.nativeEvent.contentOffset.x, 'header')}
-          style={styles.horizontalViewport}
-        >
-          <View style={[styles.headerContent, { width: totalWidth }]}>
-            {days.map((day, i) => {
-              const isInitial = dayjs(day).isSame(dayjs(initialStart).startOf('day'));
-              return (
-                <View key={`header-${i}`} style={[styles.dayHeader, { width: columnWidth }]}>
-                  <Typography
-                    variant="caption"
-                    weight={isInitial ? '700' : '400'}
-                    color={isInitial ? 'primary' : 'secondary'}
-                    align="center"
-                  >
-                    {dayjs(day).format('ddd')}
-                  </Typography>
-                  <Typography
-                    variant="caption"
-                    weight={isInitial ? '700' : '400'}
-                    color={isInitial ? 'primary' : 'secondary'}
-                    align="center"
-                  >
-                    {dayjs(day).format('D/M')}
-                  </Typography>
-                </View>
-              );
-            })}
-          </View>
-        </ScrollView>
-      </View>
-
+    <View style={styles.bodyContainer}>
       {/* Timeline grid */}
       <View style={[styles.gridRow, { height: gridHeight }]}>
         <HourRail />
@@ -244,148 +252,148 @@ function AvailabilityTimelineImpl({
           horizontal
           showsHorizontalScrollIndicator={false}
           scrollEventThrottle={16}
-          onScroll={(event) => syncHorizontalScroll(event.nativeEvent.contentOffset.x, 'grid')}
+          onScroll={(event) => onGridScroll?.(event.nativeEvent.contentOffset.x)}
           style={styles.horizontalViewport}
         >
           <View style={[styles.columnsContainer, { width: totalWidth, height: gridHeight }]}>
-                {days.map((day, dayIdx) => (
-                  <View key={`col-${dayIdx}`} style={[styles.gridColumn, { width: columnWidth }]}>
-                    <GridLines />
+            {days.map((day, dayIdx) => (
+              <View key={`col-${dayIdx}`} style={[styles.gridColumn, { width: columnWidth }]}>
+                <GridLines />
 
-                    {/* Free zones */}
-                    {daysFreeZones[dayIdx].map((zone, i) => {
-                      const topPct = ((zone.start.getHours() * 60 + zone.start.getMinutes()) / (24 * 60)) * 100;
-                      const durationMin = (zone.end.getTime() - zone.start.getTime()) / 60_000;
-                      const heightPct = (durationMin / (24 * 60)) * 100;
-                      return (
-                        <Pressable
-                          key={`free-${dayIdx}-${i}`}
-                          testID={`free-zone-${dayIdx}-${i}`}
-                          delayLongPress={300}
-                          onLongPress={(event) => handleFreeZoneLongPress(zone, event)}
-                          style={[
-                            styles.freeZone,
-                            {
-                              top: `${topPct}%`,
-                              height: `${heightPct}%`,
-                              backgroundColor: `${FREE_COLOR}${Math.round(FREE_BG_ALPHA * 255).toString(16).padStart(2, '0')}`,
-                            },
-                          ]}
-                        />
-                      );
-                    })}
+                {/* Free zones */}
+                {daysFreeZones[dayIdx].map((zone, i) => {
+                  const topPct = ((zone.start.getHours() * 60 + zone.start.getMinutes()) / (24 * 60)) * 100;
+                  const durationMin = (zone.end.getTime() - zone.start.getTime()) / 60_000;
+                  const heightPct = (durationMin / (24 * 60)) * 100;
+                  return (
+                    <Pressable
+                      key={`free-${dayIdx}-${i}`}
+                      testID={`free-zone-${dayIdx}-${i}`}
+                      delayLongPress={300}
+                      onLongPress={(event) => handleFreeZoneLongPress(zone, event)}
+                      style={[
+                        styles.freeZone,
+                        {
+                          top: `${topPct}%`,
+                          height: `${heightPct}%`,
+                          backgroundColor: `${FREE_COLOR}${Math.round(FREE_BG_ALPHA * 255).toString(16).padStart(2, '0')}`,
+                        },
+                      ]}
+                    />
+                  );
+                })}
 
-                    {/* Busy blocks */}
-                    {daysBusy[dayIdx].map((busy, i) => {
-                      const startMin = busy.start.getHours() * 60 + busy.start.getMinutes();
-                      const durationMin = (busy.end.getTime() - busy.start.getTime()) / 60_000;
-                      const topPct = (startMin / (24 * 60)) * 100;
-                      const heightPct = (durationMin / (24 * 60)) * 100;
-                      const isUnavailable = busy.fbType === 'BUSY-UNAVAILABLE';
-                      const busyAttendees = (busy.attendees ?? []).slice(0, 3);
-                      const extra = (busy.attendees ?? []).length - busyAttendees.length;
-                      return (
-                        <View
-                          key={`busy-${dayIdx}-${i}`}
-                          testID={`busy-block-${dayIdx}-${i}`}
-                          pointerEvents="none"
-                          style={[
-                            styles.busyBlock,
-                            {
-                              top: `${topPct}%`,
-                              height: `${heightPct}%`,
-                              backgroundColor: isUnavailable
-                                ? `${BUSY_UNAVAILABLE_PATTERN}30`
-                                : `${theme.colors.danger}30`,
-                              borderTopWidth: 1,
-                              borderBottomWidth: 1,
-                              borderColor: isUnavailable ? BUSY_UNAVAILABLE_PATTERN : theme.colors.danger,
-                              borderStyle: isUnavailable ? 'dashed' : 'solid',
-                            },
-                          ]}
-                        >
-                          {!isUnavailable && durationMin >= 30 && (
-                            <Typography variant="caption" color="danger" style={styles.busyLabel}>
-                              {t('event.findTimeTimelineBusy')}
+                {/* Busy blocks */}
+                {daysBusy[dayIdx].map((busy, i) => {
+                  const startMin = busy.start.getHours() * 60 + busy.start.getMinutes();
+                  const durationMin = (busy.end.getTime() - busy.start.getTime()) / 60_000;
+                  const topPct = (startMin / (24 * 60)) * 100;
+                  const heightPct = (durationMin / (24 * 60)) * 100;
+                  const isUnavailable = busy.fbType === 'BUSY-UNAVAILABLE';
+                  const busyAttendees = (busy.attendees ?? []).slice(0, 3);
+                  const extra = (busy.attendees ?? []).length - busyAttendees.length;
+                  return (
+                    <View
+                      key={`busy-${dayIdx}-${i}`}
+                      testID={`busy-block-${dayIdx}-${i}`}
+                      pointerEvents="none"
+                      style={[
+                        styles.busyBlock,
+                        {
+                          top: `${topPct}%`,
+                          height: `${heightPct}%`,
+                          backgroundColor: isUnavailable
+                            ? `${BUSY_UNAVAILABLE_PATTERN}30`
+                            : `${theme.colors.danger}30`,
+                          borderTopWidth: 1,
+                          borderBottomWidth: 1,
+                          borderColor: isUnavailable ? BUSY_UNAVAILABLE_PATTERN : theme.colors.danger,
+                          borderStyle: isUnavailable ? 'dashed' : 'solid',
+                        },
+                      ]}
+                    >
+                      {!isUnavailable && durationMin >= 30 && (
+                        <Typography variant="caption" color="danger" style={styles.busyLabel}>
+                          {t('event.findTimeTimelineBusy')}
+                        </Typography>
+                      )}
+                      {busyAttendees.length > 0 && (
+                        <View style={styles.attendeeChips}>
+                          {busyAttendees.map((email) => {
+                            const name = attendeeNames[email.toLowerCase()] ?? email;
+                            const shortName = name.split(/[\s@]/)[0].slice(0, 8);
+                            return (
+                              <View key={email} style={styles.attendeeChip}>
+                                <View
+                                  style={[
+                                    styles.attendeeDot,
+                                    { backgroundColor: attendeeColors[email.toLowerCase()] ?? theme.colors.danger },
+                                  ]}
+                                />
+                                <Typography
+                                  variant="caption"
+                                  color="danger"
+                                  numberOfLines={1}
+                                  style={styles.attendeeChipLabel}
+                                  accessibilityLabel={name}
+                                >
+                                  {shortName}
+                                </Typography>
+                              </View>
+                            );
+                          })}
+                          {extra > 0 && (
+                            <Typography variant="caption" color="danger" style={styles.attendeeExtra}>
+                              +{extra}
                             </Typography>
                           )}
-                          {busyAttendees.length > 0 && (
-                            <View style={styles.attendeeChips}>
-                              {busyAttendees.map((email) => {
-                                const name = attendeeNames[email.toLowerCase()] ?? email;
-                                const shortName = name.split(/[\s@]/)[0].slice(0, 8);
-                                return (
-                                  <View key={email} style={styles.attendeeChip}>
-                                    <View
-                                      style={[
-                                        styles.attendeeDot,
-                                        { backgroundColor: attendeeColors[email.toLowerCase()] ?? theme.colors.danger },
-                                      ]}
-                                    />
-                                    <Typography
-                                      variant="caption"
-                                      color="danger"
-                                      numberOfLines={1}
-                                      style={styles.attendeeChipLabel}
-                                      accessibilityLabel={name}
-                                    >
-                                      {shortName}
-                                    </Typography>
-                                  </View>
-                                );
-                              })}
-                              {extra > 0 && (
-                                <Typography variant="caption" color="danger" style={styles.attendeeExtra}>
-                                  +{extra}
-                                </Typography>
-                              )}
-                            </View>
-                          )}
                         </View>
-                      );
-                    })}
-                  </View>
-                ))}
-
-                {/* Event brick (draggable ghost) */}
-                <Animated.View
-                  ref={brickRef}
-                  testID="event-brick"
-                  style={[
-                    styles.brick,
-                    {
-                      top: `${brickTopPct}%`,
-                      height: `${brickHeightPct}%`,
-                      width: columnWidth - 8,
-                      left: initialColumnIndex * columnWidth + 4,
-                      backgroundColor: theme.colors.primary,
-                    },
-                    brickStyle,
-                    brickBorderStyle,
-                  ]}
-                >
-                  <Typography
-                    variant="caption"
-                    weight="600"
-                    color="light"
-                    numberOfLines={1}
-                    style={styles.brickTitle}
-                  >
-                    {eventTitle || t('event.findTimeTimelineEvent')}
-                  </Typography>
-                  <View
-                    testID="event-brick-drag-handle"
-                    {...panHandlers}
-                    hitSlop={dragHitSlop}
-                    accessible
-                    accessibilityRole="adjustable"
-                    accessibilityLabel={t('event.findTimeTimelineDragHint')}
-                    style={styles.dragHandle}
-                  >
-                    <GripVertical size={16} color={theme.colors.primaryText} />
-                  </View>
-                </Animated.View>
+                      )}
+                    </View>
+                  );
+                })}
               </View>
+            ))}
+
+            {/* Event brick (draggable ghost) */}
+            <Animated.View
+              ref={brickRef}
+              testID="event-brick"
+              style={[
+                styles.brick,
+                {
+                  top: `${brickTopPct}%`,
+                  height: `${brickHeightPct}%`,
+                  width: columnWidth - 8,
+                  left: initialColumnIndex * columnWidth + 4,
+                  backgroundColor: theme.colors.primary,
+                },
+                brickStyle,
+                brickBorderStyle,
+              ]}
+            >
+              <Typography
+                variant="caption"
+                weight="600"
+                color="light"
+                numberOfLines={1}
+                style={styles.brickTitle}
+              >
+                {eventTitle || t('event.findTimeTimelineEvent')}
+              </Typography>
+              <View
+                testID="event-brick-drag-handle"
+                {...panHandlers}
+                hitSlop={dragHitSlop}
+                accessible
+                accessibilityRole="adjustable"
+                accessibilityLabel={t('event.findTimeTimelineDragHint')}
+                style={styles.dragHandle}
+              >
+                <GripVertical size={16} color={theme.colors.primaryText} />
+              </View>
+            </Animated.View>
+          </View>
         </ScrollView>
       </View>
 
@@ -397,10 +405,53 @@ function AvailabilityTimelineImpl({
   );
 }
 
+export const AvailabilityTimelineBody = memo(AvailabilityTimelineBodyImpl);
+
+interface AvailabilityTimelineProps extends AvailabilityTimelineBodyProps {
+  searchStart?: Date;
+  searchEnd?: Date;
+}
+
+function AvailabilityTimelineImpl(props: AvailabilityTimelineProps) {
+  const { days, initialStart, columnWidth } = props;
+  const { headerScrollRef, gridScrollRef, onHeaderScroll, onGridScroll, scrollBothTo } = useSyncedHorizontalScroll();
+
+  const initialColumnIndex = useMemo(() => {
+    const startDay = dayjs(initialStart).startOf('day');
+    return days.findIndex((d) => dayjs(d).startOf('day').isSame(startDay));
+  }, [days, initialStart]);
+
+  useEffect(() => {
+    const offset = Math.max(0, (initialColumnIndex - 1) * columnWidth);
+    scrollBothTo(offset);
+  }, [initialColumnIndex, columnWidth, scrollBothTo]);
+
+  return (
+    <View style={styles.container}>
+      <AvailabilityTimelineHeader
+        days={days}
+        initialStart={initialStart}
+        columnWidth={columnWidth}
+        headerScrollRef={headerScrollRef}
+        onHeaderScroll={onHeaderScroll}
+      />
+      <AvailabilityTimelineBody
+        {...props}
+        initialColumnIndex={initialColumnIndex}
+        gridScrollRef={gridScrollRef}
+        onGridScroll={onGridScroll}
+      />
+    </View>
+  );
+}
+
 export const AvailabilityTimeline = memo(AvailabilityTimelineImpl);
 
 const styles = StyleSheet.create({
   container: {
+    gap: 4,
+  },
+  bodyContainer: {
     gap: 4,
   },
   dayHeadersRow: {
