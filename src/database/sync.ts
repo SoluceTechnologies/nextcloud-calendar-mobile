@@ -180,12 +180,6 @@ export async function syncEvents(
 
     if (localWriteEpoch() !== epoch) return;
 
-    // An all-day event stores an inclusive end, which for a single-day one is
-    // its own start, so a row landing exactly on the window's start edge fails
-    // the `end > startMs` test above while the server — which ends it on the
-    // following midnight — still reports it. Identity lives on the uid, not on
-    // the range: without this second lookup the row is created again on every
-    // sync and the event stacks up in the grid.
     const windowKeys = new Set(windowRows.map(rowKey));
     const strayUids = remote
       .filter((ev) => !windowKeys.has(eventKey(ev.accountId, ev.calendarId, ev.uid)))
@@ -196,8 +190,6 @@ export async function syncEvents(
           .fetch()
       : [];
 
-    // Last await: prepare* mutates the cached instances and only db.batch
-    // clears them, so an abort past this point must not leave any prepared.
     if (localWriteEpoch() !== epoch) return;
 
     const inWindow = new Set(windowRows.map((r) => r.id));

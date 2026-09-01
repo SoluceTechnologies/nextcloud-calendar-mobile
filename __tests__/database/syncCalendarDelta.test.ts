@@ -198,8 +198,6 @@ describe('syncEvents — local writes win over an in-flight pull', () => {
   }
 
   it('does not resurrect an event deleted while the fetch was running', async () => {
-    // Remote snapshot predates the deletion: it still carries the event, and the
-    // local row is already gone.
     mockFetchForCalendars.mockImplementation(async () => {
       markLocalWrite();
       return outcome([{ ...evt('h1'), uid: 'gone-uid' }]);
@@ -227,12 +225,6 @@ describe('syncEvents — local writes win over an in-flight pull', () => {
   });
 
   it('aborts before preparing any record, leaving none with pending changes', async () => {
-    // The regression: prepareUpdate / prepareMarkAsDeleted mutate the cached
-    // WatermelonDB instance synchronously and are cleared only by db.batch. If
-    // the epoch guard aborts AFTER preparing, the instance keeps its pending
-    // state, and the next sync's prepareUpdate on that same cached instance
-    // throws "Cannot update a record with pending changes". So on abort, nothing
-    // may be prepared at all.
     const edited = windowRow('edited-uid');
     const dropped = windowRow('dropped-uid');
     mockFetchForCalendars.mockImplementation(async () => {
@@ -391,11 +383,6 @@ describe('syncEvents — one failing calendar must not wipe the others', () => {
 });
 
 describe('syncEvents — an all-day event on the window edge must not be re-created', () => {
-  // A single-day all-day event stores an inclusive end, so start === end. The
-  // window query filters on `end > startMs`, which drops the row when it sits
-  // exactly on the window's start edge — while the server, ending it on the
-  // following midnight, still reports it. Identity has to come off the uid, or
-  // the row is created again on every sync (issue #259).
   const edge = new Date(2026, 6, 1);
   const start = edge;
   const end = new Date(2026, 8, 30, 23, 59, 59, 999);
@@ -432,7 +419,6 @@ describe('syncEvents — an all-day event on the window edge must not be re-crea
     };
   }
 
-  /** Window query answers first, the uid lookup second. */
   function makeEdgeDb(windowRows: any[], strayRows: any[]) {
     const results = [windowRows, strayRows];
     const batch = jest.fn(async () => {});
@@ -477,8 +463,6 @@ describe('syncEvents — an all-day event on the window edge must not be re-crea
   });
 
   it('never deletes a uid-matched row that lies outside the synced window', async () => {
-    // The row is reachable only through the uid lookup, so it is not in the
-    // window deleteMissing is allowed to prune.
     const outside = { ...storedRow(), uid: 'other-uid', id: 'row-3' };
     mockFetchForCalendars.mockResolvedValue(outcome([allDayEvent]));
     const { db } = makeEdgeDb([], [outside]);
