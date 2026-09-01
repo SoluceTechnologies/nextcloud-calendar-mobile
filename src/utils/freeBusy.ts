@@ -38,6 +38,17 @@ export function parseVFreeBusy(ics: string): BusySlot[] {
   return slots.sort((a, b) => a.start.getTime() - b.start.getTime());
 }
 
+const FBTYPE_PRIORITY: Record<FreeBusyType, number> = {
+  'BUSY-UNAVAILABLE': 3,
+  'BUSY-TENTATIVE': 2,
+  'BUSY': 1,
+  'FREE': 0,
+};
+
+function mergeFbType(a: FreeBusyType, b: FreeBusyType): FreeBusyType {
+  return FBTYPE_PRIORITY[a] >= FBTYPE_PRIORITY[b] ? a : b;
+}
+
 /**
  * Merge overlapping or adjacent busy periods from multiple attendees into a
  * single sorted list. Only BUSY / BUSY-UNAVAILABLE / BUSY-TENTATIVE periods
@@ -56,12 +67,15 @@ export function mergeBusySlots(availabilities: AttendeeAvailability[]): BusySlot
   if (all.length === 0) return [];
   all.sort((a, b) => a.start.getTime() - b.start.getTime());
 
-  const merged: BusySlot[] = [all[0]];
+  const merged: BusySlot[] = [{ ...all[0] }];
   for (let i = 1; i < all.length; i++) {
     const last = merged[merged.length - 1];
     const cur = all[i];
     if (cur.start.getTime() <= last.end.getTime()) {
       last.end = new Date(Math.max(last.end.getTime(), cur.end.getTime()));
+      last.fbType = mergeFbType(last.fbType, cur.fbType);
+      const set = new Set([...(last.attendees ?? []), ...(cur.attendees ?? [])]);
+      last.attendees = Array.from(set);
     } else {
       merged.push({ ...cur });
     }

@@ -162,9 +162,13 @@
     "findTimeLoading": "Comprobando disponibilidad…",
     "findTimeError": "No se pudo obtener la disponibilidad. El servidor puede tener free/busy desactivado.",
     "findTimeTimeline": "Cronología de disponibilidad",
+    "findTimeModeStrict": "All free",
+    "findTimeModePermissive": "Some may be busy",
+    "findTimeRequired": "Required",
     "findTimeTimelineBusy": "Ocupado",
     "findTimeTimelineUnavailable": "No disponible",
     "findTimeTimelineDragHint": "Arrastra el control para reprogramar el evento",
+    "findTimeTimelineTip": "Arrastra el control o mantén presionada una zona verde para reprogramar",
     "findTimeTimelineEvent": "Evento",
     "findTimePrevDay": "Día anterior",
     "findTimeNextDay": "Día siguiente"

@@ -1,4 +1,4 @@
-import { dedupeAttendees } from '@/utils/attendees';
+import { dedupeAttendees, attendeeColor } from '@/utils/attendees';
 
 describe('dedupeAttendees', () => {
   it('leaves a list without duplicates alone', () => {
@@ -81,5 +81,29 @@ describe('dedupeAttendees', () => {
 
   it('returns an empty list unchanged', () => {
     expect(dedupeAttendees([])).toEqual([]);
+  });
+});
+
+describe('attendeeColor', () => {
+  it('returns a hex color for an email', () => {
+    expect(attendeeColor('a@example.org')).toMatch(/^#[0-9A-F]{6}$/i);
+  });
+
+  it('is deterministic for the same email', () => {
+    expect(attendeeColor('a@example.org')).toBe(attendeeColor('a@example.org'));
+  });
+
+  it('is case-insensitive', () => {
+    expect(attendeeColor('A@Example.org')).toBe(attendeeColor('a@example.org'));
+  });
+
+  it('produces different colors for different emails', () => {
+    const colors = new Set([
+      attendeeColor('a@example.org'),
+      attendeeColor('b@example.org'),
+      attendeeColor('c@example.org'),
+      attendeeColor('d@example.org'),
+    ]);
+    expect(colors.size).toBeGreaterThanOrEqual(2);
   });
 });

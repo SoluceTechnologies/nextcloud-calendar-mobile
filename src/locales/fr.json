@@ -162,9 +162,13 @@
     "findTimeLoading": "Vérification de la disponibilité…",
     "findTimeError": "Impossible de récupérer la disponibilité. Le serveur a peut-être désactivé le free/busy.",
     "findTimeTimeline": "Calendrier des disponibilités",
+    "findTimeModeStrict": "Tous libres",
+    "findTimeModePermissive": "Certains peuvent être occupés",
+    "findTimeRequired": "Obligatoire",
     "findTimeTimelineBusy": "Occupé",
     "findTimeTimelineUnavailable": "Indisponible",
     "findTimeTimelineDragHint": "Faites glisser la poignée pour replanifier l’événement",
+    "findTimeTimelineTip": "Faites glisser la poignée ou appuyez longuement sur une zone verte pour reprogrammer",
     "findTimeTimelineEvent": "Événement",
     "findTimePrevDay": "Jour précédent",
     "findTimeNextDay": "Jour suivant"

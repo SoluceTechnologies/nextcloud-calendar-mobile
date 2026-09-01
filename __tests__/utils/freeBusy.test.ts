@@ -1,6 +1,14 @@
 import { parseVFreeBusy, mergeBusySlots, isSlotFree } from '@/utils/freeBusy';
 import type { AttendeeAvailability, BusySlot } from '@/types';
 
+const attendee = (email: string, overrides: Partial<AttendeeAvailability> = {}): AttendeeAvailability => ({
+  email,
+  slots: [],
+  available: false,
+  color: '#E53935',
+  ...overrides,
+});
+
 describe('parseVFreeBusy', () => {
   const vfreebusyIcs = `BEGIN:VCALENDAR
 VERSION:2.0
@@ -68,22 +76,22 @@ describe('mergeBusySlots', () => {
 
   it('ignores unavailable attendees', () => {
     const avails: AttendeeAvailability[] = [
-      { email: 'a@x.com', slots: [], available: false },
+      { email: 'a@x.com', slots: [], available: false, color: '#E53935' },
     ];
     expect(mergeBusySlots(avails)).toEqual([]);
   });
 
   it('ignores FREE periods', () => {
     const avails: AttendeeAvailability[] = [
-      { email: 'a@x.com', slots: [slot('2026-08-28T10:00Z', '2026-08-28T11:00Z', 'FREE')], available: true },
+      { email: 'a@x.com', slots: [slot('2026-08-28T10:00Z', '2026-08-28T11:00Z', 'FREE')], available: true, color: '#E53935' },
     ];
     expect(mergeBusySlots(avails)).toEqual([]);
   });
 
   it('merges overlapping periods from multiple attendees', () => {
     const avails: AttendeeAvailability[] = [
-      { email: 'a@x.com', slots: [slot('2026-08-28T10:00Z', '2026-08-28T11:00Z')], available: true },
-      { email: 'b@x.com', slots: [slot('2026-08-28T10:30Z', '2026-08-28T11:30Z')], available: true },
+      { email: 'a@x.com', slots: [slot('2026-08-28T10:00Z', '2026-08-28T11:00Z')], available: true, color: '#E53935' },
+      { email: 'b@x.com', slots: [slot('2026-08-28T10:30Z', '2026-08-28T11:30Z')], available: true, color: '#E53935' },
     ];
     const merged = mergeBusySlots(avails);
     expect(merged).toHaveLength(1);
@@ -93,8 +101,8 @@ describe('mergeBusySlots', () => {
 
   it('keeps non-overlapping periods separate', () => {
     const avails: AttendeeAvailability[] = [
-      { email: 'a@x.com', slots: [slot('2026-08-28T10:00Z', '2026-08-28T11:00Z')], available: true },
-      { email: 'b@x.com', slots: [slot('2026-08-28T14:00Z', '2026-08-28T15:00Z')], available: true },
+      { email: 'a@x.com', slots: [slot('2026-08-28T10:00Z', '2026-08-28T11:00Z')], available: true, color: '#E53935' },
+      { email: 'b@x.com', slots: [slot('2026-08-28T14:00Z', '2026-08-28T15:00Z')], available: true, color: '#E53935' },
     ];
     const merged = mergeBusySlots(avails);
     expect(merged).toHaveLength(2);
@@ -102,12 +110,84 @@ describe('mergeBusySlots', () => {
 
   it('merges adjacent periods', () => {
     const avails: AttendeeAvailability[] = [
-      { email: 'a@x.com', slots: [slot('2026-08-28T10:00Z', '2026-08-28T11:00Z')], available: true },
-      { email: 'b@x.com', slots: [slot('2026-08-28T11:00Z', '2026-08-28T12:00Z')], available: true },
+      { email: 'a@x.com', slots: [slot('2026-08-28T10:00Z', '2026-08-28T11:00Z')], available: true, color: '#E53935' },
+      { email: 'b@x.com', slots: [slot('2026-08-28T11:00Z', '2026-08-28T12:00Z')], available: true, color: '#E53935' },
     ];
     const merged = mergeBusySlots(avails);
     expect(merged).toHaveLength(1);
     expect(merged[0].end.toISOString()).toBe('2026-08-28T12:00:00.000Z');
+  });
+
+  it('merges overlapping periods from three attendees', () => {
+    const avails: AttendeeAvailability[] = [
+      { email: 'a@x.com', slots: [slot('2026-08-28T10:00Z', '2026-08-28T11:00Z')], available: true, color: '#E53935' },
+      { email: 'b@x.com', slots: [slot('2026-08-28T10:30Z', '2026-08-28T12:00Z')], available: true, color: '#E53935' },
+      { email: 'c@x.com', slots: [slot('2026-08-28T11:00Z', '2026-08-28T11:30Z')], available: true, color: '#E53935' },
+    ];
+    const merged = mergeBusySlots(avails);
+    expect(merged).toHaveLength(1);
+    expect(merged[0].start.toISOString()).toBe('2026-08-28T10:00:00.000Z');
+    expect(merged[0].end.toISOString()).toBe('2026-08-28T12:00:00.000Z');
+  });
+
+  it('keeps partial overlaps from multiple attendees separate when no adjacency', () => {
+    const avails: AttendeeAvailability[] = [
+      { email: 'a@x.com', slots: [slot('2026-08-28T09:00Z', '2026-08-28T10:00Z')], available: true, color: '#E53935' },
+      { email: 'b@x.com', slots: [slot('2026-08-28T11:00Z', '2026-08-28T12:00Z')], available: true, color: '#E53935' },
+      { email: 'c@x.com', slots: [slot('2026-08-28T14:00Z', '2026-08-28T15:00Z')], available: true, color: '#E53935' },
+    ];
+    const merged = mergeBusySlots(avails);
+    expect(merged).toHaveLength(3);
+  });
+
+  it('preserves and deduplicates attendee emails on merged slots', () => {
+    const avails: AttendeeAvailability[] = [
+      { email: 'a@x.com', slots: [{ ...slot('2026-08-28T10:00Z', '2026-08-28T11:00Z'), attendees: ['a@x.com'] }], available: true, color: '#E53935' },
+      { email: 'b@x.com', slots: [{ ...slot('2026-08-28T10:30Z', '2026-08-28T11:30Z'), attendees: ['b@x.com'] }], available: true, color: '#E53935' },
+    ];
+    const merged = mergeBusySlots(avails);
+    expect(merged).toHaveLength(1);
+    expect(merged[0].attendees?.sort()).toEqual(['a@x.com', 'b@x.com']);
+  });
+
+  it('promotes the highest fbtype priority when merging', () => {
+    const avails: AttendeeAvailability[] = [
+      { email: 'a@x.com', slots: [{ ...slot('2026-08-28T10:00Z', '2026-08-28T11:00Z'), attendees: ['a@x.com'], fbType: 'BUSY' }], available: true, color: '#E53935' },
+      { email: 'b@x.com', slots: [{ ...slot('2026-08-28T10:00Z', '2026-08-28T11:00Z'), attendees: ['b@x.com'], fbType: 'BUSY-UNAVAILABLE' }], available: true, color: '#E53935' },
+    ];
+    const merged = mergeBusySlots(avails);
+    expect(merged[0].fbType).toBe('BUSY-UNAVAILABLE');
+  });
+});
+
+describe('isSlotFree with multiple busy periods', () => {
+  const busy: BusySlot[] = [
+    { start: new Date('2026-08-28T10:00Z'), end: new Date('2026-08-28T11:00Z'), fbType: 'BUSY' },
+    { start: new Date('2026-08-28T14:00Z'), end: new Date('2026-08-28T15:00Z'), fbType: 'BUSY' },
+  ];
+
+  it('returns false when a slot overlaps any of several busy periods', () => {
+    expect(isSlotFree({ start: new Date('2026-08-28T09:30Z'), end: new Date('2026-08-28T10:30Z') }, busy)).toBe(false);
+    expect(isSlotFree({ start: new Date('2026-08-28T14:30Z'), end: new Date('2026-08-28T15:30Z') }, busy)).toBe(false);
+  });
+
+  it('returns true only in gaps between busy periods', () => {
+    expect(isSlotFree({ start: new Date('2026-08-28T11:00Z'), end: new Date('2026-08-28T14:00Z') }, busy)).toBe(true);
+  });
+});
+
+describe('isSlotFree with BUSY-UNAVAILABLE periods', () => {
+  const busy: BusySlot[] = [
+    { start: new Date('2026-08-28T08:00Z'), end: new Date('2026-08-28T09:00Z'), fbType: 'BUSY-UNAVAILABLE' },
+    { start: new Date('2026-08-28T10:00Z'), end: new Date('2026-08-28T11:00Z'), fbType: 'BUSY' },
+  ];
+
+  it('treats BUSY-UNAVAILABLE as blocking', () => {
+    expect(isSlotFree({ start: new Date('2026-08-28T08:30Z'), end: new Date('2026-08-28T09:30Z') }, busy)).toBe(false);
+  });
+
+  it('keeps gaps between BUSY-UNAVAILABLE and BUSY free', () => {
+    expect(isSlotFree({ start: new Date('2026-08-28T09:00Z'), end: new Date('2026-08-28T10:00Z') }, busy)).toBe(true);
   });
 });
 

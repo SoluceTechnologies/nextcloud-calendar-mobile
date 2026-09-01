@@ -162,9 +162,13 @@
     "findTimeLoading": "Beschikbaarheid controleren…",
     "findTimeError": "Kon beschikbaarheid niet ophalen. De server heeft mogelijk free/busy uitgeschakeld.",
     "findTimeTimeline": "Beschikbaarheidsoverzicht",
+    "findTimeModeStrict": "All free",
+    "findTimeModePermissive": "Some may be busy",
+    "findTimeRequired": "Required",
     "findTimeTimelineBusy": "Bezig",
     "findTimeTimelineUnavailable": "Niet beschikbaar",
     "findTimeTimelineDragHint": "Sleep de greep om de gebeurtenis te verplaatsen",
+    "findTimeTimelineTip": "Sleep de greep of houd een groene zone lang ingedrukt om te verplaatsen",
     "findTimeTimelineEvent": "Gebeurtenis",
     "findTimePrevDay": "Vorige dag",
     "findTimeNextDay": "Volgende dag"

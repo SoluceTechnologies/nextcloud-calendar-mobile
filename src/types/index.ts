@@ -102,6 +102,8 @@ export type BusySlot = {
   start: Date;
   end: Date;
   fbType: FreeBusyType;
+  /** Emails of the attendees whose schedules occupy this slot. */
+  attendees?: string[];
 };
 
 export type AttendeeAvailability = {
@@ -109,6 +111,10 @@ export type AttendeeAvailability = {
   displayName?: string;
   slots: BusySlot[];
   available: boolean;
+  /** Deterministic color assigned to this attendee for the timeline. */
+  color: string;
+  /** Whether this attendee is treated as required in permissive mode. */
+  required?: boolean;
 };
 
 export type SuggestedSlot = {

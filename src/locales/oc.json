@@ -157,9 +157,13 @@
     "findTimeLoading": "Verificacion de la disponibilitat…",
     "findTimeError": "Impossible de recuperar la disponibilitat. Lo servidor a benlèu desactivat lo free/busy.",
     "findTimeTimeline": "Cronologia de disponibilitat",
+    "findTimeModeStrict": "All free",
+    "findTimeModePermissive": "Some may be busy",
+    "findTimeRequired": "Required",
     "findTimeTimelineBusy": "Ocupat",
     "findTimeTimelineUnavailable": "Indisponible",
     "findTimeTimelineDragHint": "Lisatz la maneta per replanificar l’eveniment",
+    "findTimeTimelineTip": "Lisatz la maneta o mantenetz una zòna verda per replanificar",
     "findTimeTimelineEvent": "Eveniment",
     "findTimePrevDay": "Jorn precedent",
     "findTimeNextDay": "Jorn seguent"
