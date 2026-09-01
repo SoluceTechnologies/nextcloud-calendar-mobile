@@ -112,6 +112,7 @@ export default function EditEventScreen() {
           initialValues={initialValues}
           submitLabel={t('event.updateEvent')}
           disableCalendarChange={event.isRecurring}
+          account={activeAccount}
         />
       </SafeAreaView>
     </ViewContainer>

@@ -1,27 +1,37 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { View, StyleSheet, ScrollView, Alert, Linking, Platform } from 'react-native';
+import { View, StyleSheet, ScrollView, Alert } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
 import { haptic } from '@/utils/haptics';
-import { Pencil, Clock, CalendarDays, MapPin, Video, Repeat, Trash2, Copy, Check, Bell } from 'lucide-react-native';
+import {
+  Pencil, Clock, CalendarDays, MapPin, Video, Repeat, Trash2, Copy, Check, Bell,
+  Navigation,
+} from 'lucide-react-native';
 import { useLocalSearchParams, useNavigation, useRouter, useTheme } from 'expo-router';
 import dayjs from 'dayjs';
 import localizedFormat from 'dayjs/plugin/localizedFormat';
 import { useTranslation } from 'react-i18next';
 import { syncEvents } from '@/database/sync';
 import { useEventByUid } from '@/database/useEventByUid';
+import { parseRrule } from '@/features/calendar/utils/parseRrule';
+import { formatRecurrenceRule } from '@/features/event/utils/recurrencePattern';
 import { useCalendars } from '@/hooks/useCalendars';
 import { useAccounts } from '@/hooks/useAccounts';
 import { useDeleteEvent } from '@/features/event/hooks/useMutateEvent';
 import { useUpdateAttendeeStatus } from '@/features/invitations/hooks/useUpdateAttendeeStatus';
 import { isCurrentUserAttendee, getAttendeePartstat } from '@/utils/attendees';
+import { useEventLocation } from '@/features/map/hooks/useEventLocation';
+import { EventMapPreview, EventMapSheet } from '@/features/map/components';
+import { openMaps } from '@/features/map/utils/mapLinks';
 import { useAccountStore } from '@/stores/accountStore';
+import { useSettingsStore } from '@/stores/settingsStore';
 import {
   ViewContainer, Stack, Typography, Button, Chip, Icon, List, Item,
   SectionHeader, Avatar, Spinner, ScreenHeader,
   IconButton,
 } from '@/ui/components';
 import type { InvitationResponse, RecurrenceEditScope } from '@/types';
+import { openTalkRoom, promptTalkRoomOpen } from '@/features/event/utils/openTalkRoom';
 import { askRecurrenceScope, type RecurrenceScopeStrings } from '@/features/event/recurrenceScope';
 import { decideMoveEventScope } from '@/features/calendar/utils/moveEventScope';
 import {
@@ -32,32 +42,19 @@ import { goBackOrHome } from '@/utils/navigationGuard';
 
 dayjs.extend(localizedFormat);
 
-async function openTalkRoom(talkUrl: string) {
-  if (Platform.OS === 'android') {
-    const withoutScheme = talkUrl.replace(/^https?:\/\//, '');
-    const fallback = encodeURIComponent(talkUrl);
-    try {
-      await Linking.openURL(`intent://${withoutScheme}#Intent;scheme=https;package=com.nextcloud.talk2;S.browser_fallback_url=${fallback};end`);
-    } catch {
-      await Linking.openURL(talkUrl);
-    }
-    return;
-  }
-  await Linking.openURL(talkUrl);
-}
-
 export default function EventDetailScreen() {
   const { uid } = useLocalSearchParams<{ uid: string }>();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const theme = useTheme();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const activeAccountId = useAccountStore((s) => s.activeAccountId);
   const accounts = useAccounts();
   const activeAccount = accounts.find((a) => a.id === activeAccountId) ?? null;
   const { data: calendars = [] } = useCalendars(activeAccount);
 
   const event = useEventByUid(activeAccountId, uid);
+  const talkOpenMode = useSettingsStore((s) => s.talkOpenMode);
 
   const navigation = useNavigation();
   useEffect(() => {
@@ -94,8 +91,11 @@ export default function EventDetailScreen() {
   const eventsLoading = !synced && event === undefined;
 
   const [copied, setCopied] = useState(false);
+  const [mapVisible, setMapVisible] = useState(false);
   const copyResetRef = useRef<ReturnType<typeof setTimeout>>(undefined);
   useEffect(() => () => clearTimeout(copyResetRef.current), []);
+
+  const { coordinates, isVirtual, loading } = useEventLocation(event?.location, event?.talkUrl);
 
   const handleCopyLocation = useCallback(async () => {
     if (!event?.location) return;
@@ -105,6 +105,11 @@ export default function EventDetailScreen() {
     clearTimeout(copyResetRef.current);
     copyResetRef.current = setTimeout(() => setCopied(false), 1500);
   }, [event?.location]);
+
+  const handleOpenMaps = useCallback(async () => {
+    if (!event?.location) return;
+    await openMaps(event.location, coordinates?.lat, coordinates?.lon);
+  }, [event?.location, coordinates]);
 
   const recurrenceScopeStrings: RecurrenceScopeStrings = {
     message: t('event.recurrenceScopeMessage'),
@@ -168,6 +173,13 @@ export default function EventDetailScreen() {
       goBackOrHome(router);
     }
   }, [event, respondMutation, router]);
+
+  const recurrenceLabel = useMemo(() => {
+    if (!event?.rrule || !event?.dtstart) return null;
+    const rule = parseRrule(event.rrule);
+    if (!rule) return null;
+    return formatRecurrenceRule(rule, event.dtstart, t, i18n.language);
+  }, [event?.rrule, event?.dtstart, t, i18n.language]);
 
   const isLoading = eventsLoading;
 
@@ -240,10 +252,11 @@ export default function EventDetailScreen() {
             <Stack gap={10}>
               <Typography variant="h3">{event.summary}</Typography>
               {event.isRecurring && (
-                <Stack direction="horizontal" inline>
-                  <Chip icon={<Repeat size={14} color={theme.colors.primary} />}>
-                    {t('event.recurring')}
-                  </Chip>
+                <Stack direction="horizontal" gap={6}>
+                  <Repeat size={16} color={theme.colors.primary} />
+                  <Typography variant="body2" color="secondary" style={{ flex: 1 }}>
+                    {recurrenceLabel ?? t('event.recurring')}
+                  </Typography>
                 </Stack>
               )}
             </Stack>
@@ -270,26 +283,67 @@ export default function EventDetailScreen() {
                   leading={<Icon size={20}><MapPin color={theme.colors.textSecondary} /></Icon>}
                   title={event.location}
                   trailing={
-                    <IconButton
-                      variant="plain"
-                      size={36}
-                      onPress={handleCopyLocation}
-                    >
-                      {copied
-                        ? <Check size={18} color={theme.colors.primary} />
-                        : <Copy size={18} color={theme.colors.textSecondary} />}
-                    </IconButton>
+                    <Stack direction="horizontal" gap={4} vAlign="center">
+                      {!isVirtual && (
+                        <IconButton
+                          variant="plain"
+                          size={36}
+                          onPress={handleOpenMaps}
+                          accessibilityLabel={t('event.openInMaps')}
+                        >
+                          <Navigation size={18} color={theme.colors.textSecondary} />
+                        </IconButton>
+                      )}
+                      <IconButton
+                        variant="plain"
+                        size={36}
+                        onPress={handleCopyLocation}
+                      >
+                        {copied
+                          ? <Check size={18} color={theme.colors.primary} />
+                          : <Copy size={18} color={theme.colors.textSecondary} />}
+                      </IconButton>
+                    </Stack>
                   }
                 />
               )}
             </List>
+
+            {event.location && !isVirtual && loading && (
+              <View
+                style={[
+                  styles.mapPlaceholder,
+                  { backgroundColor: theme.colors.surface, borderRadius: theme.radius.md },
+                ]}
+              >
+                <Spinner size="large" />
+              </View>
+            )}
+
+            {coordinates && !isVirtual && (
+              <EventMapPreview
+                location={event.location!}
+                coordinates={coordinates}
+                onPress={() => setMapVisible(true)}
+              />
+            )}
+
+            {coordinates && (
+              <EventMapSheet
+                visible={mapVisible}
+                onClose={() => setMapVisible(false)}
+                location={event.location!}
+                coordinates={coordinates}
+              />
+            )}
 
             {event.talkUrl && (
               <Button
                 variant="primary"
                 title={t('event.joinTalkRoom')}
                 icon={<Video size={18} color="#fff" />}
-                onPress={() => openTalkRoom(event.talkUrl!)}
+                onPress={() => openTalkRoom(event.talkUrl!, talkOpenMode)}
+                onLongPress={() => promptTalkRoomOpen(event.talkUrl!)}
               />
             )}
 
@@ -394,4 +448,11 @@ const styles = StyleSheet.create({
   colorBar: { height: 6 },
   content: { padding: 20 },
   footer: { borderTopWidth: StyleSheet.hairlineWidth },
+  mapPlaceholder: {
+    height: 200,
+    width: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
 });

@@ -57,6 +57,8 @@ function localStamp(date: Date, timezone: string): string {
 function rruleLine(rule: RecurrenceRule, allDay = false): string {
   const parts: string[] = [`FREQ=${rule.freq}`];
   if (rule.interval && rule.interval > 1) parts.push(`INTERVAL=${rule.interval}`);
+  if (rule.byMonth && rule.byMonth.length > 0) parts.push(`BYMONTH=${rule.byMonth.join(',')}`);
+  if (rule.byWeekNo && rule.byWeekNo.length > 0) parts.push(`BYWEEKNO=${rule.byWeekNo.join(',')}`);
   if (rule.byDay && rule.byDay.length > 0) parts.push(`BYDAY=${rule.byDay.join(',')}`);
   if (rule.count) parts.push(`COUNT=${rule.count}`);
   else if (rule.until) parts.push(`UNTIL=${allDay ? dateStamp(rule.until) : utcStamp(rule.until)}`);
