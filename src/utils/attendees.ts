@@ -1,4 +1,4 @@
-import type { Attendee } from '@/types';
+import type { Account, Attendee, CalendarEvent } from '@/types';
 
 const ATTENDEE_PARAM_KEYS = [
   'partstat', 'role', 'rsvp', 'cutype', 'member', 'delegatedTo', 'delegatedFrom',
@@ -39,4 +39,26 @@ export function dedupeAttendees(attendees: Attendee[]): Attendee[] {
   }
 
   return result;
+}
+
+export function isAttendeeOfAccount(attendee: Attendee, account: Account): boolean {
+  const accountEmail = account.email?.toLowerCase();
+  const accountUsername = account.username.toLowerCase();
+  const email = attendee.email?.toLowerCase();
+  if (!email) return false;
+  if (accountEmail) return email === accountEmail;
+  return email.startsWith(`${accountUsername}@`) || email === accountUsername;
+}
+
+export function findAttendeeForAccount(attendees: Attendee[], account: Account): Attendee | undefined {
+  return attendees.find((att) => isAttendeeOfAccount(att, account));
+}
+
+export function getAttendeePartstat(event: CalendarEvent, account: Account): string | undefined {
+  return findAttendeeForAccount(event.attendees, account)?.partstat?.toLowerCase();
+}
+
+export function isCurrentUserAttendee(event: CalendarEvent, account: Account | null): boolean {
+  if (!account || !event.attendees?.length) return false;
+  return !!findAttendeeForAccount(event.attendees, account);
 }
