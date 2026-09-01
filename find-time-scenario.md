@@ -105,6 +105,7 @@ adb reverse tcp:8081 tcp:8081
   - la plage 15:00-16:00 affiche la couleur de bob
   - les deux plages sont fusionnées de 14:00 à 16:00 avec les deux pastilles
   - la brique de l'événement apparaît à l'heure choisie
+  - en défilant vers la liste des participants, les boutons de mode et les en-têtes de jours restent visibles en haut du sheet
 - **Capture** : `05-find-time-timeline.png`
 
 ### Étape 5b — Test du mode "Certains peuvent être occupés"
