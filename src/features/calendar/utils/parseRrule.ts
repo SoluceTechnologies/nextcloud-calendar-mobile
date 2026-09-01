@@ -83,8 +83,6 @@ function parseByDayList(
     const position = Number(positionStr);
 
     if (freq === 'WEEKLY' || freq === 'DAILY') {
-      // Position prefixes are not meaningful for weekly/daily recurrences;
-      // keep the plain weekday so the UI can display and edit the rule.
       out.push(day);
       continue;
     }
@@ -95,11 +93,9 @@ function parseByDayList(
       continue;
     }
 
-    // YEARLY
     if (hasByMonth) {
       if (position < -5 || position > 5 || position === 0) return undefined;
     } else if (hasByWeekNo) {
-      // BYWEEKNO selects a single week; a positional BYDAY is not applicable.
       return undefined;
     } else {
       if (position < -53 || position > 53 || position === 0) return undefined;

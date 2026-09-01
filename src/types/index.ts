@@ -20,9 +20,6 @@ export type CalendarMeta = {
   isSubscribed?: boolean;
   isReadOnly?: boolean;
   sourceUrl?: string;
-  // False when the calendar cannot hold VEVENTs (its supported-calendar-
-  // component-set lacks VEVENT), e.g. Deck boards / Tasks lists, which only
-  // accept VTODOs. Such calendars are excluded from the create-event picker.
   supportsEvents?: boolean;
 };
 
