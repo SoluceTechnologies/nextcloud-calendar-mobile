@@ -1,5 +1,5 @@
-import { memo, useEffect, useMemo, useRef, useCallback, type RefObject } from 'react';
-import { View, StyleSheet, Pressable, ScrollView, type GestureResponderEvent } from 'react-native';
+import { memo, useEffect, useMemo, useRef, useState, useCallback, type RefObject } from 'react';
+import { View, StyleSheet, Pressable, ScrollView, useWindowDimensions, type GestureResponderEvent } from 'react-native';
 import Animated, { useAnimatedStyle } from 'react-native-reanimated';
 import dayjs from 'dayjs';
 import { useTheme } from 'expo-router';
@@ -10,6 +10,7 @@ import { HourRail } from '@/features/calendar/components/HourRail';
 import { Typography } from '@/ui/components';
 import { useSlotDrag } from '@/features/event/hooks/useSlotDrag';
 import { useSyncedHorizontalScroll } from '@/features/event/hooks/useSyncedHorizontalScroll';
+import { SNAP_MINUTES } from '@/features/calendar/utils/dragMath';
 import type { BusySlot, SuggestedSlot } from '@/types';
 
 const FREE_COLOR = '#4caf50';
@@ -41,6 +42,7 @@ function AvailabilityTimelineHeaderImpl({
       <ScrollView
         ref={headerScrollRef}
         horizontal
+        nestedScrollEnabled
         showsHorizontalScrollIndicator={false}
         scrollEventThrottle={16}
         onScroll={(event) => onHeaderScroll?.(event.nativeEvent.contentOffset.x)}
@@ -123,6 +125,9 @@ function AvailabilityTimelineBodyImpl({
 }: AvailabilityTimelineBodyProps) {
   const theme = useTheme();
   const { t } = useTranslation();
+  const { width: screenWidth } = useWindowDimensions();
+  const [measuredViewportWidth, setMeasuredViewportWidth] = useState(0);
+  const viewportWidth = measuredViewportWidth || screenWidth - HOUR_RAIL_WIDTH;
 
   // Filter busy slots per day
   const daysBusy = useMemo(() => {
@@ -131,7 +136,8 @@ function AvailabilityTimelineBodyImpl({
       const dayEnd = dayjs(day).endOf('day');
       return mergedBusy.filter((s) => {
         const sStart = dayjs(s.start);
-        return sStart.isAfter(dayStart.subtract(1, 'second')) && sStart.isBefore(dayEnd);
+        const sEnd = dayjs(s.end);
+        return sStart.isBefore(dayEnd) && sEnd.isAfter(dayStart);
       });
     });
   }, [mergedBusy, days]);
@@ -197,6 +203,28 @@ function AvailabilityTimelineBodyImpl({
     return applied;
   }, [scrollRef, scrollY, maxScrollY]);
 
+  // Auto-scroll the horizontal grid ScrollView when the brick is dragged
+  // near the left/right edges. Returns the actually applied delta.
+  const gridScrollXRef = useRef(0);
+  const programmaticScrollX = useRef<number | null>(null);
+  const handleGridScrollX = useCallback((x: number) => {
+    gridScrollXRef.current = x;
+  }, []);
+  const handleAutoScrollX = useCallback((delta: number) => {
+    if (!gridScrollRef?.current) return 0;
+    const current = gridScrollXRef.current;
+    const max = Math.max(0, columnWidth * days.length - viewportWidth);
+    const next = Math.max(0, Math.min(max, current + delta));
+    const applied = next - current;
+    if (applied === 0) return 0;
+    gridScrollXRef.current = next;
+    programmaticScrollX.current = next;
+    gridScrollRef.current.scrollTo({ x: next, animated: false });
+    // Keep the header in sync through the shared sync hook
+    onGridScroll?.(next);
+    return applied;
+  }, [gridScrollRef, onGridScroll, columnWidth, days.length, viewportWidth]);
+
   const handleCommit = useCallback((start: Date, end: Date) => {
     onApplySlot({ start, end });
   }, [onApplySlot]);
@@ -211,7 +239,9 @@ function AvailabilityTimelineBodyImpl({
     mergedBusy,
     brickRef,
     viewportHeight,
+    viewportWidth,
     onAutoScroll: handleAutoScroll,
+    onAutoScrollX: handleAutoScrollX,
     onDragStart,
     onDragEnd,
     onCommit: handleCommit,
@@ -219,11 +249,15 @@ function AvailabilityTimelineBodyImpl({
   });
 
   const handleFreeZoneLongPress = (zone: { start: Date; end: Date }, event: GestureResponderEvent) => {
-    const offsetMinutes = Math.max(
-      0,
-      Math.round((event.nativeEvent.locationY / hourRowHeight) * 4) * 15,
-    );
-    const start = new Date(zone.start.getTime() + offsetMinutes * 60_000);
+    const dayStart = dayjs(zone.start).startOf('day');
+    const zoneStartMinutes = (zone.start.getTime() - dayStart.valueOf()) / 60_000;
+    const rawOffsetMinutes = (event.nativeEvent.locationY / hourRowHeight) * 60;
+    const snappedMinutes =
+      Math.round((zoneStartMinutes + rawOffsetMinutes) / SNAP_MINUTES) * SNAP_MINUTES;
+    let start = dayStart.add(snappedMinutes, 'minute').toDate();
+    if (start.getTime() < zone.start.getTime()) {
+      start = dayStart.add(snappedMinutes + SNAP_MINUTES, 'minute').toDate();
+    }
     const end = new Date(start.getTime() + durationMs);
     if (end.getTime() <= zone.end.getTime()) {
       onApplySlot({ start, end });
@@ -250,9 +284,22 @@ function AvailabilityTimelineBodyImpl({
         <ScrollView
           ref={gridScrollRef}
           horizontal
+          nestedScrollEnabled
           showsHorizontalScrollIndicator={false}
           scrollEventThrottle={16}
-          onScroll={(event) => onGridScroll?.(event.nativeEvent.contentOffset.x)}
+          onLayout={(event) => setMeasuredViewportWidth(event.nativeEvent.layout.width)}
+          onScroll={(event) => {
+            const x = event.nativeEvent.contentOffset.x;
+            if (
+              programmaticScrollX.current !== null &&
+              Math.abs(x - programmaticScrollX.current) < 1
+            ) {
+              programmaticScrollX.current = null;
+            } else {
+              onGridScroll?.(x);
+            }
+            handleGridScrollX(x);
+          }}
           style={styles.horizontalViewport}
         >
           <View style={[styles.columnsContainer, { width: totalWidth, height: gridHeight }]}>
@@ -285,8 +332,12 @@ function AvailabilityTimelineBodyImpl({
 
                 {/* Busy blocks */}
                 {daysBusy[dayIdx].map((busy, i) => {
-                  const startMin = busy.start.getHours() * 60 + busy.start.getMinutes();
-                  const durationMin = (busy.end.getTime() - busy.start.getTime()) / 60_000;
+                  const dayStartMs = dayjs(day).startOf('day').valueOf();
+                  const dayEndMs = dayjs(day).endOf('day').valueOf();
+                  const displayStart = new Date(Math.max(busy.start.getTime(), dayStartMs));
+                  const displayEnd = new Date(Math.min(busy.end.getTime(), dayEndMs));
+                  const startMin = displayStart.getHours() * 60 + displayStart.getMinutes();
+                  const durationMin = (displayEnd.getTime() - displayStart.getTime()) / 60_000;
                   const topPct = (startMin / (24 * 60)) * 100;
                   const heightPct = (durationMin / (24 * 60)) * 100;
                   const isUnavailable = busy.fbType === 'BUSY-UNAVAILABLE';
