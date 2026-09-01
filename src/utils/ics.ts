@@ -92,7 +92,8 @@ function attendeeLines(attendees: Attendee[]): string[] {
     const cn = att.displayName ? `;CN=${att.displayName}` : '';
     const partstat = att.partstat ? att.partstat.toUpperCase() : 'NEEDS-ACTION';
     const rsvp = partstat === 'NEEDS-ACTION' ? ';RSVP=TRUE' : ';RSVP=FALSE';
-    return `ATTENDEE;CUTYPE=INDIVIDUAL;ROLE=REQ-PARTICIPANT${rsvp};PARTSTAT=${partstat}${cn}:mailto:${att.email}`;
+    const role = att.role ? att.role.toUpperCase() : 'REQ-PARTICIPANT';
+    return `ATTENDEE;CUTYPE=INDIVIDUAL;ROLE=${role}${rsvp};PARTSTAT=${partstat}${cn}:mailto:${att.email}`;
   });
 }
 

@@ -105,6 +105,7 @@ Create, view, and edit calendar events with support for:
 - All-day and timed events
 - Attendee lists with display names
 - Recurring event detection
+- Accept, tentatively accept, or decline CalDAV invitations, with the ability to change your response later
 
 ### Nextcloud Talk Integration
 Optionally attach a Nextcloud Talk room to any event at creation time, the Talk link is stored in the event and surfaced in the event detail view.

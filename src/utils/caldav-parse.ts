@@ -45,7 +45,7 @@ function readAttendees(props: ICAL.Property[]): Attendee[] {
     const value = (prop.getFirstValue() as string) ?? '';
     const email = value.replace(/^mailto:/i, '');
     const displayName = (prop.getParameter('cn') as string) ?? undefined;
-    const partstat = (prop.getParameter('partstat') as string) ?? undefined;
+    const partstat = ((prop.getParameter('partstat') as string)?.toLowerCase()) ?? undefined;
     const role = (prop.getParameter('role') as string) ?? undefined;
     const key = email.toLowerCase();
     if (email && seen.has(key)) continue;

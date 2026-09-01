@@ -1,5 +1,5 @@
-import { parseInvitation, fetchInvitations, respondToInvitation } from '../../../src/services/nextcloud/invitations';
-import type { Account, CalendarMeta } from '../../../src/types';
+import { parseInvitation, fetchInvitations, respondToInvitation, updateAttendeeStatus } from '../../../src/services/nextcloud/invitations';
+import type { Account, CalendarEvent, CalendarMeta } from '../../../src/types';
 
 const account: Account = {
   id: 'acc-1',
@@ -31,6 +31,25 @@ beforeEach(() => {
 function makeInvitationIcs(extra: string = ''): string {
   return `BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//Test//EN\r\nMETHOD:REQUEST\r\nBEGIN:VEVENT\r\nUID:invite-001\r\nDTSTAMP:20260827T120000Z\r\nSEQUENCE:0\r\nDTSTART;TZID=Europe/Paris:20260828T140000\r\nDTEND;TZID=Europe/Paris:20260828T150000\r\nSUMMARY:Team meeting\r\nORGANIZER;CN=Alice:mailto:alice@example.com\r\nATTENDEE;CUTYPE=INDIVIDUAL;ROLE=REQ-PARTICIPANT;RSVP=TRUE;PARTSTAT=NEEDS-ACTION;CN=Bob:mailto:bob@example.com\r\n${extra}END:VEVENT\r\nEND:VCALENDAR`;
 }
+
+function makeCalendarEventIcs(extra: string = ''): string {
+  return `BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//Test//EN\r\nBEGIN:VEVENT\r\nUID:invite-001\r\nDTSTAMP:20260827T120000Z\r\nSEQUENCE:1\r\nDTSTART;TZID=Europe/Paris:20260828T140000\r\nDTEND;TZID=Europe/Paris:20260828T150000\r\nSUMMARY:Team meeting\r\nORGANIZER;CN=Alice:mailto:alice@example.com\r\nATTENDEE;CUTYPE=INDIVIDUAL;ROLE=REQ-PARTICIPANT;RSVP=FALSE;PARTSTAT=ACCEPTED;CN=Bob:mailto:bob@example.com\r\n${extra}END:VEVENT\r\nEND:VCALENDAR`;
+}
+
+const existingEvent: CalendarEvent = {
+  uid: 'invite-001',
+  href: 'https://cloud.example.com/remote.php/dav/calendars/bob/personal/invite-001.ics',
+  calendarId: targetCalendar.id,
+  accountId: account.id,
+  summary: 'Team meeting',
+  dtstart: new Date('2026-08-28T12:00:00.000Z'),
+  dtend: new Date('2026-08-28T13:00:00.000Z'),
+  allDay: false,
+  color: targetCalendar.color,
+  attendees: [{ email: 'bob@example.com', displayName: 'Bob', partstat: 'accepted' }],
+  organizerEmail: 'alice@example.com',
+  isRecurring: false,
+};
 
 describe('parseInvitation', () => {
   it('parses a REQUEST invitation and extracts the target attendee', () => {
@@ -168,5 +187,78 @@ describe('respondToInvitation', () => {
     const deleteInboxCall = mockFetch.mock.calls[3];
     expect(deleteInboxCall[0]).toBe(invitation.href);
     expect(deleteInboxCall[1].method).toBe('DELETE');
+  });
+});
+
+describe('updateAttendeeStatus', () => {
+  it('PUTs the updated event and sends a REPLY when changing to tentative', async () => {
+    mockFetch
+      .mockResolvedValueOnce({ ok: true, status: 200, text: async () => makeCalendarEventIcs() }) // GET
+      .mockResolvedValueOnce({ ok: true, status: 204 }) // PUT
+      .mockResolvedValueOnce({ ok: true, status: 200 }); // outbox POST
+
+    const nextAttendees = await updateAttendeeStatus(account, existingEvent, 'tentative');
+
+    expect(mockFetch).toHaveBeenCalledTimes(3);
+
+    const getCall = mockFetch.mock.calls[0];
+    expect(getCall[0]).toBe(existingEvent.href);
+    expect(getCall[1].method).toBe('GET');
+
+    const putCall = mockFetch.mock.calls[1];
+    expect(putCall[0]).toBe(existingEvent.href);
+    expect(putCall[1].method).toBe('PUT');
+    const putBody = putCall[1].body as string;
+    const unfolded = putBody.replace(/\r?\n[ \t]/g, '');
+    expect(unfolded).toContain('PARTSTAT=TENTATIVE');
+    expect(unfolded).toContain('RSVP=FALSE');
+    expect(unfolded).not.toMatch(/^METHOD:/m);
+
+    const postCall = mockFetch.mock.calls[2];
+    expect(postCall[0]).toBe('https://cloud.example.com/remote.php/dav/calendars/bob/outbox/');
+    expect(postCall[1].method).toBe('POST');
+    const postBody = postCall[1].body as string;
+    const postUnfolded = postBody.replace(/\r?\n[ \t]/g, '');
+    expect(postUnfolded).toContain('METHOD:REPLY');
+    expect(postUnfolded).toContain('PARTSTAT=TENTATIVE');
+
+    expect(nextAttendees).toEqual([
+      { email: 'bob@example.com', displayName: 'Bob', partstat: 'tentative', role: 'REQ-PARTICIPANT' },
+    ]);
+  });
+
+  it('sends a REPLY and DELETEs the event when declining', async () => {
+    mockFetch
+      .mockResolvedValueOnce({ ok: true, status: 200, text: async () => makeCalendarEventIcs() }) // GET
+      .mockResolvedValueOnce({ ok: true, status: 200 }) // outbox POST
+      .mockResolvedValueOnce({ ok: true, status: 204 }); // DELETE
+
+    const nextAttendees = await updateAttendeeStatus(account, existingEvent, 'declined');
+
+    expect(mockFetch).toHaveBeenCalledTimes(3);
+
+    const postCall = mockFetch.mock.calls[1];
+    expect(postCall[1].method).toBe('POST');
+    const postBody = postCall[1].body as string;
+    expect(postBody.replace(/\r?\n[ \t]/g, '')).toContain('PARTSTAT=DECLINED');
+
+    const deleteCall = mockFetch.mock.calls[2];
+    expect(deleteCall[0]).toBe(existingEvent.href);
+    expect(deleteCall[1].method).toBe('DELETE');
+
+    expect(nextAttendees).toBeUndefined();
+  });
+
+  it('throws when the current account is not an attendee', async () => {
+    const otherAccount: Account = { ...account, email: 'nobody@example.com', username: 'nobody' };
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      text: async () => makeCalendarEventIcs(),
+    });
+
+    await expect(updateAttendeeStatus(otherAccount, existingEvent, 'tentative')).rejects.toThrow(
+      'Current account is not an attendee of this event',
+    );
   });
 });

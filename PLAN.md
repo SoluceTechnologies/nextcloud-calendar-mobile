@@ -114,6 +114,31 @@ La première approche est la plus fiable et celle utilisée par les clients CalD
 - `app/(tabs)/_layout.tsx` : ajouter un troisième onglet "Invitations" est possible mais réduit la place pour les libellés.
 - `src/types/index.ts` : le type `CalendarEvent` est presque utilisable pour une invitation ; il manque `partstat`, `method` et `organizerName`.
 
+## Itération — Modifier sa réponse après acceptation
+
+Cas utilisateur : l'utilisateur a accepté une invitation, puis ne peut finalement plus y participer. Il doit pouvoir changer son statut `PARTSTAT` et notifier l'organisateur.
+
+### Implémentation
+
+- `src/services/nextcloud/invitations.ts` : `updateAttendeeStatus(account, event, response)` :
+  - Récupère le VEVENT depuis le calendrier (`GET` sur `event.href`).
+  - Identifie l'`ATTENDEE` correspondant au compte (`findTargetAttendee`).
+  - Met à jour `PARTSTAT` et `RSVP` de l'attendee.
+  - Pour `accepted` / `tentative` : `PUT` de l'événement mis à jour dans le calendrier.
+  - Pour `declined` : envoi d'un `METHOD:REPLY` puis `DELETE` de l'événement du calendrier.
+  - Dans tous les cas : envoi d'un `METHOD:REPLY` via la CalDAV outbox (`POST`) pour notifier l'organisateur.
+- `src/features/invitations/hooks/useUpdateAttendeeStatus.ts` : hook React gérant le mutation state, la mise à jour WatermelonDB (`patchByUid` / `removeWhere`) et l'affichage d'erreur.
+- `app/event/[uid].tsx` : section "Ma participation" affichée si l'utilisateur courant est dans la liste des attendees. Boutons Accepter / Peut-être / Refuser avec le statut actuel mis en valeur.
+- `src/utils/attendees.ts` : helpers `isAttendeeOfAccount`, `findAttendeeForAccount`, `getAttendeePartstat`, `isCurrentUserAttendee`.
+- `src/utils/ics.ts` : `attendeeLines` préserve `partstat` et `role` des attendees pour ne pas réinitialiser `PARTSTAT=NEEDS-ACTION` à l'édition.
+- i18n : clés `event.myParticipation`, `event.participationAccepted`, `event.participationTentative`, `event.participationDeclined`, `event.participationNeedsAction`.
+- Tests unitaires : `updateAttendeeStatus` et `useUpdateAttendeeStatus`.
+
+### Points de vigilance
+
+- L'utilisateur peut-être un attendee d'un événement récurrent. Pour la v1, la réponse s'applique au maître (`event.href`) ; l'exception n'est pas traitée séparément.
+- Le serveur Nextcloud propage le `REPLY` à l'organisateur, qui peut ensuite informer les autres participants.
+
 ## Améliorations futures (v2)
 
 - **Notifications push / OCS** : investiguer si l'app Calendar de Nextcloud génère une notification OCS (`/ocs/v2.php/apps/notifications/api/v2/notifications`) à la réception d'une invitation. Si oui, utiliser `notify_push` ou le polling OCS pour alerter l'utilisateur sans lire l'inbox CalDAV à chaque ouverture. Le contenu et les actions resteraient cependant lus depuis le CalDAV inbox.

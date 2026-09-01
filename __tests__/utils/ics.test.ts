@@ -79,6 +79,21 @@ describe('buildIcs', () => {
     expect(ics).toContain('CN=Alice');
   });
 
+  it('preserves attendee PARTSTAT and ROLE', () => {
+    const ics = buildIcs({
+      ...base,
+      attendees: [
+        { email: 'alice@example.com', partstat: 'accepted', role: 'chair' },
+        { email: 'bob@example.com', partstat: 'declined' },
+        { email: 'carol@example.com' },
+      ],
+    });
+    const unfolded = ics.replace(/\r?\n[ \t]/g, '');
+    expect(unfolded).toContain('ATTENDEE;CUTYPE=INDIVIDUAL;ROLE=CHAIR;RSVP=FALSE;PARTSTAT=ACCEPTED:mailto:alice@example.com');
+    expect(unfolded).toContain('ATTENDEE;CUTYPE=INDIVIDUAL;ROLE=REQ-PARTICIPANT;RSVP=FALSE;PARTSTAT=DECLINED:mailto:bob@example.com');
+    expect(unfolded).toContain('ATTENDEE;CUTYPE=INDIVIDUAL;ROLE=REQ-PARTICIPANT;RSVP=TRUE;PARTSTAT=NEEDS-ACTION:mailto:carol@example.com');
+  });
+
   it('escapes special chars in summary', () => {
     const ics = buildIcs({ ...base, summary: 'Sync, Team; All' });
     expect(ics).toContain('SUMMARY:Sync\\, Team\\; All\r\n');
