@@ -137,11 +137,21 @@ export function FindTimeSheet({
     return days.findIndex((d) => dayjs(d).startOf('day').isSame(startDay));
   }, [days, currentStart]);
 
+  const hasData = !loading && !error && (mergedBusy.length > 0 || availabilities.length > 0);
+
   // Sync the day header and the grid horizontally, and scroll to the event's day.
+  // Re-run when the sheet becomes visible AND when data finishes loading, because
+  // the timeline ScrollView only mounts after hasData becomes true — so the refs
+  // are not ready in the same render cycle that initialColumnIndex is computed.
   useEffect(() => {
+    if (!visible || !hasData || initialColumnIndex < 0) return;
     const offset = Math.max(0, (initialColumnIndex - 1) * columnWidth);
-    scrollBothTo(offset);
-  }, [initialColumnIndex, columnWidth, scrollBothTo]);
+    const raf = requestAnimationFrame(() => {
+      if (!visible || !hasData || initialColumnIndex < 0) return;
+      scrollBothTo(offset);
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [visible, hasData, initialColumnIndex, columnWidth, scrollBothTo]);
 
   // Scroll the sheet so the initial event brick is vertically centered.
   useEffect(() => {
@@ -157,7 +167,6 @@ export function FindTimeSheet({
     scrollY.current = targetY;
   }, [visible, currentStart, durationMs, viewportHeight, contentHeight, hourRowHeight, maxScrollY]);
 
-  const hasData = !loading && !error && (mergedBusy.length > 0 || availabilities.length > 0);
   const stickyHeaderIndices = hasData ? [0] : undefined;
 
   function handleClose() {
