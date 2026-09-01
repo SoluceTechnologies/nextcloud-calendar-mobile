@@ -13,6 +13,8 @@ import type { BusySlot } from '@/types';
 const DAY_MINUTES = 1440;
 const AUTO_SCROLL_MAX_SPEED = 24;
 const AUTO_SCROLL_THRESHOLD = 20;
+const AUTO_SCROLL_X_MAX_SPEED = 20;
+const AUTO_SCROLL_X_THRESHOLD = 24;
 
 interface UseSlotDragOptions {
   initialStart: Date;
@@ -24,7 +26,9 @@ interface UseSlotDragOptions {
   mergedBusy: BusySlot[];
   brickRef?: RefObject<{ measureInWindow?: (callback: (x: number, y: number, width: number, height: number) => void) => void } | null>;
   viewportHeight?: number;
+  viewportWidth?: number;
   onAutoScroll?: (delta: number) => number;
+  onAutoScrollX?: (delta: number) => number;
   onDragStart?: () => void;
   onDragEnd?: () => void;
   onCommit: (start: Date, end: Date) => void;
@@ -49,7 +53,9 @@ export function useSlotDrag({
   mergedBusy,
   brickRef,
   viewportHeight,
+  viewportWidth,
   onAutoScroll,
+  onAutoScrollX,
   onDragStart,
   onDragEnd,
   onCommit,
@@ -68,8 +74,11 @@ export function useSlotDrag({
   const columnIndexSV = useSharedValue(0);
 
   const scrollCompensation = useSharedValue(0);
+  const scrollCompensationX = useSharedValue(0);
   const brickTopAtStart = useSharedValue(0);
   const brickBottomAtStart = useSharedValue(0);
+  const brickLeftAtStart = useSharedValue(0);
+  const brickRightAtStart = useSharedValue(0);
   const brickMeasured = useRef(false);
 
   const startMin = initialStart.getHours() * 60 + initialStart.getMinutes();
@@ -105,8 +114,8 @@ export function useSlotDrag({
     busyFlatSV.value = mergedBusy.flatMap((b) => [b.start.getTime(), b.end.getTime()]);
   }, [mergedBusy, busyFlatSV]);
 
-  const live = useRef({ initialStart, durationMs, mergedBusy, onCommit, onReject, onAutoScroll, onDragStart, onDragEnd, viewportHeight });
-  live.current = { initialStart, durationMs, mergedBusy, onCommit, onReject, onAutoScroll, onDragStart, onDragEnd, viewportHeight };
+  const live = useRef({ initialStart, durationMs, mergedBusy, onCommit, onReject, onAutoScroll, onAutoScrollX, onDragStart, onDragEnd, viewportHeight, viewportWidth });
+  live.current = { initialStart, durationMs, mergedBusy, onCommit, onReject, onAutoScroll, onAutoScrollX, onDragStart, onDragEnd, viewportHeight, viewportWidth };
 
   const heightPx = (durationMin / DAY_MINUTES) * gridHeight;
 
@@ -119,8 +128,9 @@ export function useSlotDrag({
     translateX.value = 0;
     height.value = heightPx;
     scrollCompensation.value = 0;
+    scrollCompensationX.value = 0;
     brickMeasured.current = false;
-  }, [initialStartMs, heightPx, initialColumnIndex, height, heightBase, leftBase, topBase, translateX, translateY, columnIndexSV, scrollCompensation]);
+  }, [initialStartMs, heightPx, initialColumnIndex, height, heightBase, leftBase, topBase, translateX, translateY, columnIndexSV, scrollCompensation, scrollCompensationX]);
 
   const isSlotFree = useCallback((startMs: number, endMs: number) => {
     const flat = busyFlatSV.value;
@@ -139,14 +149,18 @@ export function useSlotDrag({
     const snapped = Math.round(rawMinutes / SNAP_MINUTES) * SNAP_MINUTES;
     const clampedMinutes = Math.max(-startMin, Math.min(DAY_MINUTES - startMin - durationMin, snapped));
 
-    const rawColumns = Math.round(dx / columnWidthSV.value);
+    // Account for horizontal auto-scroll: when the viewport scrolls underneath
+    // the brick, the effective dx includes the scroll compensation so the brick
+    // stays aligned with the finger.
+    const effectiveDx = dx + scrollCompensationX.value;
+    const rawColumns = Math.round(effectiveDx / columnWidthSV.value);
     const columns = Math.min(
       daysCountSV.value - 1 - columnIndexSV.value,
       Math.max(-columnIndexSV.value, rawColumns),
     );
 
     return { deltaMinutes: clampedMinutes, columns, clampedY };
-  }, [hourRowHeight, startMin, durationMin, minTranslateY, maxTranslateY, columnWidthSV, daysCountSV, columnIndexSV, scrollCompensation]);
+  }, [hourRowHeight, startMin, durationMin, minTranslateY, maxTranslateY, columnWidthSV, daysCountSV, columnIndexSV, scrollCompensation, scrollCompensationX]);
 
   const applyVisuals = useCallback((deltaMinutes: number, columns: number, clampedY: number) => {
     const offsetPx = (deltaMinutes / 60) * hourRowHeight;
@@ -224,14 +238,17 @@ export function useSlotDrag({
       brickRef?.current?.measureInWindow?.((x, y, w, h) => {
         brickTopAtStart.value = y;
         brickBottomAtStart.value = y + h;
+        brickLeftAtStart.value = x;
+        brickRightAtStart.value = x + w;
         brickMeasured.current = true;
       });
     },
     onPanResponderMove: (_event, gestureState) => {
       if (!dragActive.value) return;
 
-      const { viewportHeight: vh, onAutoScroll: autoScroll } = live.current;
+      const { viewportHeight: vh, viewportWidth: vw, onAutoScroll: autoScroll, onAutoScrollX: autoScrollX } = live.current;
 
+      // --- Vertical auto-scroll ---
       if (brickMeasured.current && vh && vh > 0 && autoScroll) {
         const proposedY = gestureState.dy + scrollCompensation.value;
         const clampedY = Math.max(minTranslateY, Math.min(maxTranslateY, proposedY));
@@ -244,7 +261,6 @@ export function useSlotDrag({
         const distance = brickCenter - viewportCenter;
         const absDistance = Math.abs(distance);
         if (absDistance > AUTO_SCROLL_THRESHOLD) {
-          // Scroll as long as the brick can still move in that direction.
           if (distance < 0 && clampedY > minTranslateY) {
             autoScrollDelta = -AUTO_SCROLL_MAX_SPEED;
           } else if (distance > 0 && clampedY < maxTranslateY) {
@@ -255,6 +271,32 @@ export function useSlotDrag({
         if (autoScrollDelta !== 0) {
           const applied = autoScroll(autoScrollDelta);
           scrollCompensation.value += applied;
+        }
+      }
+
+      // --- Horizontal auto-scroll ---
+      // When the brick is dragged near the left/right edge of the horizontal
+      // viewport, scroll the grid ScrollView so the user can reach days that
+      // are initially off-screen. scrollCompensationX keeps the brick visually
+      // stable relative to the finger while the viewport scrolls underneath.
+      if (brickMeasured.current && vw && vw > 0 && autoScrollX) {
+        const proposedX = gestureState.dx + scrollCompensationX.value;
+        const proposedColumns = Math.round(proposedX / columnWidthSV.value);
+        const proposedTranslateX = proposedColumns * columnWidthSV.value;
+
+        const brickLeft = brickLeftAtStart.value + proposedTranslateX - scrollCompensationX.value;
+        const brickRight = brickRightAtStart.value + proposedTranslateX - scrollCompensationX.value;
+
+        let autoScrollXDelta = 0;
+        if (brickLeft < AUTO_SCROLL_X_THRESHOLD) {
+          autoScrollXDelta = -AUTO_SCROLL_X_MAX_SPEED;
+        } else if (brickRight > vw - AUTO_SCROLL_X_THRESHOLD) {
+          autoScrollXDelta = AUTO_SCROLL_X_MAX_SPEED;
+        }
+
+        if (autoScrollXDelta !== 0) {
+          const applied = autoScrollX(autoScrollXDelta);
+          scrollCompensationX.value += applied;
         }
       }
 
@@ -276,7 +318,8 @@ export function useSlotDrag({
     computeDeltas, applyVisuals, commit, cancel, hourRowHeight,
     translateY, translateX, topBase, leftBase, isFree, dragActive,
     initialStartMsSV, durationMsSV, columnWidthSV, daysCountSV, busyFlatSV, columnIndexSV,
-    brickRef, brickTopAtStart, brickBottomAtStart, scrollCompensation,
+    brickRef, brickTopAtStart, brickBottomAtStart, brickLeftAtStart, brickRightAtStart,
+    scrollCompensation, scrollCompensationX,
     minTranslateY, maxTranslateY,
   ]);
 
