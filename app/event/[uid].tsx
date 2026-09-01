@@ -13,6 +13,8 @@ import localizedFormat from 'dayjs/plugin/localizedFormat';
 import { useTranslation } from 'react-i18next';
 import { syncEvents } from '@/database/sync';
 import { useEventByUid } from '@/database/useEventByUid';
+import { parseRrule } from '@/features/calendar/utils/parseRrule';
+import { formatRecurrenceRule } from '@/features/event/utils/recurrencePattern';
 import { useCalendars } from '@/hooks/useCalendars';
 import { useAccounts } from '@/hooks/useAccounts';
 import { useDeleteEvent } from '@/features/event/hooks/useMutateEvent';
@@ -43,7 +45,7 @@ export default function EventDetailScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const theme = useTheme();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const activeAccountId = useAccountStore((s) => s.activeAccountId);
   const accounts = useAccounts();
   const activeAccount = accounts.find((a) => a.id === activeAccountId) ?? null;
@@ -159,6 +161,13 @@ export default function EventDetailScreen() {
     }
   }
 
+  const recurrenceLabel = useMemo(() => {
+    if (!event?.rrule || !event?.dtstart) return null;
+    const rule = parseRrule(event.rrule);
+    if (!rule) return null;
+    return formatRecurrenceRule(rule, event.dtstart, t, i18n.language);
+  }, [event?.rrule, event?.dtstart, t, i18n.language]);
+
   const isLoading = eventsLoading;
 
   if (isLoading) {
@@ -230,10 +239,11 @@ export default function EventDetailScreen() {
             <Stack gap={10}>
               <Typography variant="h3">{event.summary}</Typography>
               {event.isRecurring && (
-                <Stack direction="horizontal" inline>
-                  <Chip icon={<Repeat size={14} color={theme.colors.primary} />}>
-                    {t('event.recurring')}
-                  </Chip>
+                <Stack direction="horizontal" gap={6}>
+                  <Repeat size={16} color={theme.colors.primary} />
+                  <Typography variant="body2" color="secondary" style={{ flex: 1 }}>
+                    {recurrenceLabel ?? t('event.recurring')}
+                  </Typography>
                 </Stack>
               )}
             </Stack>
