@@ -42,13 +42,14 @@ export function FindTimeSheet({
   const [draftSlot, setDraftSlot] = useState<SuggestedSlot | null>(null);
   const [mode, setMode] = useState<FindTimeMode>('strict');
   const [requiredAttendees, setRequiredAttendees] = useState<string[]>(() =>
-    attendees.map((a) => a.email),
+    attendees.map((a) => a.email.toLowerCase()),
   );
 
   const sheetScrollRef = useRef<ScrollView>(null);
   const scrollY = useRef(0);
   const [viewportHeight, setViewportHeight] = useState(0);
   const [contentHeight, setContentHeight] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
   const maxScrollY = Math.max(0, contentHeight - viewportHeight);
 
   const attendeeKey = useMemo(
@@ -58,7 +59,7 @@ export function FindTimeSheet({
 
   useEffect(() => {
     // When the attendee list changes, reset to all required by default.
-    setRequiredAttendees(attendees.map((a) => a.email));
+    setRequiredAttendees(attendees.map((a) => a.email.toLowerCase()));
   }, [attendeeKey]);
 
   const currentStart = draftSlot?.start ?? start;
@@ -76,10 +77,11 @@ export function FindTimeSheet({
   });
 
   const toggleRequired = (email: string) => {
+    const emailLower = email.toLowerCase();
     setRequiredAttendees((prev) =>
-      prev.includes(email)
-        ? prev.filter((e) => e.toLowerCase() !== email.toLowerCase())
-        : [...prev, email],
+      prev.includes(emailLower)
+        ? prev.filter((e) => e !== emailLower)
+        : [...prev, emailLower],
     );
   };
 
@@ -103,6 +105,20 @@ export function FindTimeSheet({
   const hourRowHeight = 40;
   const columnWidth = (screenWidth - HOUR_RAIL_WIDTH - 16) / 3;
 
+  // Scroll the sheet so the initial event brick is vertically centered.
+  useEffect(() => {
+    if (!visible || !sheetScrollRef.current || viewportHeight <= 0 || contentHeight <= 0) return;
+    const startMin = currentStart.getHours() * 60 + currentStart.getMinutes();
+    const durationMin = durationMs / 60_000;
+    const brickTop = startMin * (hourRowHeight / 60);
+    const brickHeight = durationMin * (hourRowHeight / 60);
+    const brickCenter = brickTop + brickHeight / 2;
+    const headerOffset = 120;
+    const targetY = Math.max(0, Math.min(maxScrollY, brickCenter - viewportHeight / 2 + headerOffset));
+    sheetScrollRef.current.scrollTo({ y: targetY, animated: false });
+    scrollY.current = targetY;
+  }, [visible, currentStart, durationMs, viewportHeight, contentHeight, hourRowHeight, maxScrollY]);
+
   // Use the window actually returned by useFreeBusy so the timeline never asks
   // for busy data outside the already loaded range.
   const days = useMemo(() => {
@@ -124,6 +140,7 @@ export function FindTimeSheet({
         ref={sheetScrollRef}
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
+        scrollEnabled={!isDragging}
         scrollEventThrottle={16}
         onScroll={(event) => { scrollY.current = event.nativeEvent.contentOffset.y; }}
         onLayout={(event) => setViewportHeight(event.nativeEvent.layout.height)}
@@ -196,6 +213,8 @@ export function FindTimeSheet({
                     scrollY={scrollY}
                     viewportHeight={viewportHeight}
                     maxScrollY={maxScrollY}
+                    onDragStart={() => setIsDragging(true)}
+                    onDragEnd={() => setIsDragging(false)}
                     onApplySlot={(slot) => {
                       setDraftSlot(slot);
                       onApplySlot(slot);

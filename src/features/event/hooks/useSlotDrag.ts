@@ -11,8 +11,8 @@ import { SNAP_MINUTES, resolveDraggedBounds, snapDeltaMinutes } from '@/features
 import type { BusySlot } from '@/types';
 
 const DAY_MINUTES = 1440;
-const AUTO_SCROLL_MARGIN = 40;
-const AUTO_SCROLL_SPEED = 6;
+const AUTO_SCROLL_MAX_SPEED = 24;
+const AUTO_SCROLL_THRESHOLD = 20;
 
 interface UseSlotDragOptions {
   initialStart: Date;
@@ -25,6 +25,8 @@ interface UseSlotDragOptions {
   brickRef?: RefObject<{ measureInWindow?: (callback: (x: number, y: number, width: number, height: number) => void) => void } | null>;
   viewportHeight?: number;
   onAutoScroll?: (delta: number) => number;
+  onDragStart?: () => void;
+  onDragEnd?: () => void;
   onCommit: (start: Date, end: Date) => void;
   onReject: () => void;
 }
@@ -48,6 +50,8 @@ export function useSlotDrag({
   brickRef,
   viewportHeight,
   onAutoScroll,
+  onDragStart,
+  onDragEnd,
   onCommit,
   onReject,
 }: UseSlotDragOptions): UseSlotDragResult {
@@ -101,8 +105,8 @@ export function useSlotDrag({
     busyFlatSV.value = mergedBusy.flatMap((b) => [b.start.getTime(), b.end.getTime()]);
   }, [mergedBusy, busyFlatSV]);
 
-  const live = useRef({ initialStart, durationMs, mergedBusy, onCommit, onReject, onAutoScroll, viewportHeight });
-  live.current = { initialStart, durationMs, mergedBusy, onCommit, onReject, onAutoScroll, viewportHeight };
+  const live = useRef({ initialStart, durationMs, mergedBusy, onCommit, onReject, onAutoScroll, onDragStart, onDragEnd, viewportHeight });
+  live.current = { initialStart, durationMs, mergedBusy, onCommit, onReject, onAutoScroll, onDragStart, onDragEnd, viewportHeight };
 
   const heightPx = (durationMin / DAY_MINUTES) * gridHeight;
 
@@ -207,13 +211,16 @@ export function useSlotDrag({
 
   const panResponder = useMemo(() => PanResponder.create({
     onStartShouldSetPanResponder: () => true,
+    onStartShouldSetPanResponderCapture: () => true,
     onMoveShouldSetPanResponder: () => true,
+    onMoveShouldSetPanResponderCapture: () => true,
     onPanResponderTerminationRequest: () => false,
     onShouldBlockNativeResponder: () => true,
     onPanResponderGrant: () => {
       dragActive.value = true;
       haptic(ImpactFeedbackStyle.Medium);
       brickMeasured.current = false;
+      live.current.onDragStart?.();
       brickRef?.current?.measureInWindow?.((x, y, w, h) => {
         brickTopAtStart.value = y;
         brickBottomAtStart.value = y + h;
@@ -232,10 +239,17 @@ export function useSlotDrag({
         const brickBottom = brickBottomAtStart.value + (clampedY - scrollCompensation.value);
 
         let autoScrollDelta = 0;
-        if (brickTop < AUTO_SCROLL_MARGIN && clampedY > minTranslateY) {
-          autoScrollDelta = -Math.min(AUTO_SCROLL_SPEED, clampedY - minTranslateY);
-        } else if (brickBottom > vh - AUTO_SCROLL_MARGIN && clampedY < maxTranslateY) {
-          autoScrollDelta = Math.min(AUTO_SCROLL_SPEED, maxTranslateY - clampedY);
+        const brickCenter = (brickTop + brickBottom) / 2;
+        const viewportCenter = vh / 2;
+        const distance = brickCenter - viewportCenter;
+        const absDistance = Math.abs(distance);
+        if (absDistance > AUTO_SCROLL_THRESHOLD) {
+          // Scroll as long as the brick can still move in that direction.
+          if (distance < 0 && clampedY > minTranslateY) {
+            autoScrollDelta = -AUTO_SCROLL_MAX_SPEED;
+          } else if (distance > 0 && clampedY < maxTranslateY) {
+            autoScrollDelta = AUTO_SCROLL_MAX_SPEED;
+          }
         }
 
         if (autoScrollDelta !== 0) {
@@ -250,10 +264,12 @@ export function useSlotDrag({
     onPanResponderRelease: (_event, gestureState) => {
       if (!dragActive.value) return;
       dragActive.value = false;
+      live.current.onDragEnd?.();
       commit(gestureState.dy, gestureState.dx);
     },
     onPanResponderTerminate: () => {
       dragActive.value = false;
+      live.current.onDragEnd?.();
       cancel();
     },
   }), [
