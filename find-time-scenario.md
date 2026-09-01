@@ -45,22 +45,71 @@ docker exec -u www-data nc-findtime php occ user:setting bob settings email bob@
 docker exec -u www-data nc-findtime php occ user:setting admin settings email admin@10.0.2.2
 ```
 
-Créer un événement occupant pour **testuser** (14:00-15:00, heure locale Europe/Paris) :
+Créer un événement occupant pour **testuser** le 01/09 (14:00-15:00, heure locale Europe/Paris) :
 
 ```bash
-printf 'BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//Test//NONSGML v1.0//EN\r\nBEGIN:VEVENT\r\nUID:test-busy-event@test\r\nDTSTAMP:20260831T200000Z\r\nDTSTART:20260826T120000Z\r\nDTEND:20260826T130000Z\r\nSUMMARY:Testuser busy slot\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n' > /tmp/test-busy.ics
+printf 'BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//Test//NONSGML v1.0//EN\r\nBEGIN:VEVENT\r\nUID:test-busy-event@test\r\nDTSTAMP:20260831T200000Z\r\nDTSTART:20260901T120000Z\r\nDTEND:20260901T130000Z\r\nSUMMARY:Testuser busy slot\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n' > /tmp/test-busy.ics
 curl -u testuser:'FindTimeEmulatorTest2026!' \
   --upload-file /tmp/test-busy.ics \
   'http://127.0.0.1:8080/remote.php/dav/calendars/testuser/personal/test-busy.ics'
 ```
 
-Créer un événement occupant pour **bob** (15:00-16:00, heure locale Europe/Paris) :
+Créer un événement occupant pour **bob** le 01/09 (15:00-16:00, heure locale Europe/Paris) :
 
 ```bash
-printf 'BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//Test//NONSGML v1.0//EN\r\nBEGIN:VEVENT\r\nUID:bob-busy-event@test\r\nDTSTAMP:20260831T200000Z\r\nDTSTART:20260826T130000Z\r\nDTEND:20260826T140000Z\r\nSUMMARY:Bob busy slot\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n' > /tmp/bob-busy.ics
+printf 'BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//Test//NONSGML v1.0//EN\r\nBEGIN:VEVENT\r\nUID:bob-busy-event@test\r\nDTSTAMP:20260831T200000Z\r\nDTSTART:20260901T130000Z\r\nDTEND:20260901T140000Z\r\nSUMMARY:Bob busy slot\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n' > /tmp/bob-busy.ics
 curl -u bob:'BobEmulatorPass2026!' \
   --upload-file /tmp/bob-busy.ics \
   'http://127.0.0.1:8080/remote.php/dav/calendars/bob/personal/bob-busy.ics'
+```
+
+Définir les heures de travail (09:00-18:00, lun-ven) pour que les plages en dehors apparaissent hachurées (`BUSY-UNAVAILABLE`) :
+
+```bash
+for user in testuser bob; do
+  cat > /tmp/$user-availability.xml <<'XMLEOF'
+<?xml version="1.0"?>
+<D:propertyupdate xmlns:D="DAV:" xmlns:C="urn:ietf:params:xml:ns:caldav">
+  <D:set>
+    <D:prop>
+      <C:calendar-availability><![CDATA[BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//Test//NONSGML v1.0//EN
+BEGIN:VTIMEZONE
+TZID:Europe/Paris
+BEGIN:DAYLIGHT
+TZOFFSETFROM:+0100
+TZOFFSETTO:+0200
+TZNAME:CEST
+DTSTART:19700329T020000
+RRULE:FREQ=YEARLY;BYMONTH=3;BYDAY=-1SU
+END:DAYLIGHT
+BEGIN:STANDARD
+TZOFFSETFROM:+0200
+TZOFFSETTO:+0100
+TZNAME:CET
+DTSTART:19701025T030000
+RRULE:FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU
+END:STANDARD
+END:VTIMEZONE
+BEGIN:VAVAILABILITY
+BEGIN:AVAILABLE
+DTSTART;TZID=Europe/Paris:19700101T090000
+DTEND;TZID=Europe/Paris:19700101T180000
+UID:wh-$user
+RRULE:FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR
+END:AVAILABLE
+END:VAVAILABILITY
+END:VCALENDAR]]></C:calendar-availability>
+    </D:prop>
+  </D:set>
+</D:propertyupdate>
+XMLEOF
+  pass=$([ "$user" = "testuser" ] && echo 'FindTimeEmulatorTest2026!' || echo 'BobEmulatorPass2026!')
+  curl -u "$user:$pass" -X PROPPATCH -H 'Content-Type: text/xml; charset=utf-8' \
+    --data @/tmp/$user-availability.xml \
+    "http://127.0.0.1:8080/remote.php/dav/calendars/$user/inbox/"
+done
 ```
 
 Pour que l'émulateur Android accède au serveur hôte via `10.0.2.2:8080` :
