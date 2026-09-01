@@ -6,12 +6,16 @@ import dayjs from 'dayjs';
 import localizedFormat from 'dayjs/plugin/localizedFormat';
 import { Sheet, Stack, Typography, Spinner, Button, Toggle } from '@/ui/components';
 import { useFreeBusy, type FindTimeMode } from '@/features/event/hooks/useFreeBusy';
-import { AvailabilityTimeline } from '@/features/event/components/AvailabilityTimeline';
+import {
+  AvailabilityTimelineHeader,
+  AvailabilityTimelineBody,
+} from '@/features/event/components/AvailabilityTimeline';
+import { useSyncedHorizontalScroll } from '@/features/event/hooks/useSyncedHorizontalScroll';
 import type { Account, Attendee, SuggestedSlot } from '@/types';
 
-dayjs.extend(localizedFormat);
-
 const HOUR_RAIL_WIDTH = 56;
+
+dayjs.extend(localizedFormat);
 
 interface Props {
   visible: boolean;
@@ -41,6 +45,14 @@ export function FindTimeSheet({
   const { width: screenWidth } = useWindowDimensions();
   const [draftSlot, setDraftSlot] = useState<SuggestedSlot | null>(null);
   const [mode, setMode] = useState<FindTimeMode>('strict');
+
+  // When the sheet is reopened, discard any previously applied slot so the
+  // timeline starts from the event's current start/end.
+  useEffect(() => {
+    if (visible) {
+      setDraftSlot(null);
+    }
+  }, [visible]);
   const [requiredAttendees, setRequiredAttendees] = useState<string[]>(() =>
     attendees.map((a) => a.email.toLowerCase()),
   );
@@ -51,6 +63,9 @@ export function FindTimeSheet({
   const [contentHeight, setContentHeight] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const maxScrollY = Math.max(0, contentHeight - viewportHeight);
+
+  const { headerScrollRef, gridScrollRef, onHeaderScroll, onGridScroll, scrollBothTo } =
+    useSyncedHorizontalScroll();
 
   const attendeeKey = useMemo(
     () => attendees.map((a) => a.email.toLowerCase()).join(','),
@@ -88,7 +103,8 @@ export function FindTimeSheet({
   const attendeeColorMap = useMemo(() => {
     const map: Record<string, string> = {};
     for (const a of attendees) {
-      map[a.email.toLowerCase()] = availabilities.find((av) => av.email.toLowerCase() === a.email.toLowerCase())?.color ?? '';
+      map[a.email.toLowerCase()] =
+        availabilities.find((av) => av.email.toLowerCase() === a.email.toLowerCase())?.color ?? '';
     }
     return map;
   }, [attendees, availabilities]);
@@ -105,6 +121,28 @@ export function FindTimeSheet({
   const hourRowHeight = 40;
   const columnWidth = (screenWidth - HOUR_RAIL_WIDTH - 16) / 3;
 
+  // Use the window actually returned by useFreeBusy so the timeline never asks
+  // for busy data outside the already loaded range.
+  const days = useMemo(() => {
+    if (!searchStart || !searchEnd) return [];
+    const anchorDay = dayjs(searchStart).startOf('day');
+    const count = dayjs(searchEnd).diff(searchStart, 'day');
+    return Array.from({ length: Math.max(1, count) }, (_, index) =>
+      anchorDay.add(index, 'day').toDate(),
+    );
+  }, [searchStart, searchEnd]);
+
+  const initialColumnIndex = useMemo(() => {
+    const startDay = dayjs(currentStart).startOf('day');
+    return days.findIndex((d) => dayjs(d).startOf('day').isSame(startDay));
+  }, [days, currentStart]);
+
+  // Sync the day header and the grid horizontally, and scroll to the event's day.
+  useEffect(() => {
+    const offset = Math.max(0, (initialColumnIndex - 1) * columnWidth);
+    scrollBothTo(offset);
+  }, [initialColumnIndex, columnWidth, scrollBothTo]);
+
   // Scroll the sheet so the initial event brick is vertically centered.
   useEffect(() => {
     if (!visible || !sheetScrollRef.current || viewportHeight <= 0 || contentHeight <= 0) return;
@@ -119,16 +157,8 @@ export function FindTimeSheet({
     scrollY.current = targetY;
   }, [visible, currentStart, durationMs, viewportHeight, contentHeight, hourRowHeight, maxScrollY]);
 
-  // Use the window actually returned by useFreeBusy so the timeline never asks
-  // for busy data outside the already loaded range.
-  const days = useMemo(() => {
-    if (!searchStart || !searchEnd) return [];
-    const anchorDay = dayjs(searchStart).startOf('day');
-    const count = dayjs(searchEnd).diff(searchStart, 'day');
-    return Array.from({ length: Math.max(1, count) }, (_, index) =>
-      anchorDay.add(index, 'day').toDate(),
-    );
-  }, [searchStart, searchEnd]);
+  const hasData = !loading && !error && (mergedBusy.length > 0 || availabilities.length > 0);
+  const stickyHeaderIndices = hasData ? [0] : undefined;
 
   function handleClose() {
     onClose();
@@ -142,144 +172,204 @@ export function FindTimeSheet({
         contentContainerStyle={styles.scrollContent}
         scrollEnabled={!isDragging}
         scrollEventThrottle={16}
-        onScroll={(event) => { scrollY.current = event.nativeEvent.contentOffset.y; }}
+        stickyHeaderIndices={stickyHeaderIndices}
+        onScroll={(event) => {
+          scrollY.current = event.nativeEvent.contentOffset.y;
+        }}
         onLayout={(event) => setViewportHeight(event.nativeEvent.layout.height)}
         onContentSizeChange={(_, h) => setContentHeight(h)}
       >
-          {loading && (
-            <View style={styles.center}>
-              <Spinner size="large" color="primary" />
-              <Typography variant="body2" color="secondary" style={styles.marginTop}>
-                {t('event.findTimeLoading')}
+        {loading && (
+          <View style={styles.center}>
+            <Spinner size="large" color="primary" />
+            <Typography variant="body2" color="secondary" style={styles.marginTop}>
+              {t('event.findTimeLoading')}
+            </Typography>
+          </View>
+        )}
+
+        {!loading && error && (
+          <View style={styles.center}>
+            <Typography variant="body2" color="danger">
+              {t('event.findTimeError')}
+            </Typography>
+            <Typography variant="caption" color="secondary" style={styles.marginTop}>
+              {error.message}
+            </Typography>
+            <Button
+              variant="secondary"
+              title={t('common.cancel')}
+              onPress={refetch}
+              style={styles.marginTop}
+            />
+          </View>
+        )}
+
+        {!loading && !error && mergedBusy.length === 0 && availabilities.length === 0 && (
+          <View style={styles.center}>
+            <Typography variant="body2" color="secondary">
+              {t('event.findTimeNoSlots')}
+            </Typography>
+          </View>
+        )}
+
+        {hasData && mergedBusy.length > 0 && searchStart && searchEnd && (
+          <View style={[styles.stickyHeader, { backgroundColor: theme.colors.card }]}>
+            <Typography variant="body2" color="secondary" style={styles.sectionLabel}>
+              {t('event.findTimeTimeline')}
+            </Typography>
+            <Typography variant="caption" color="secondary" style={styles.timelineTip}>
+              {t('event.findTimeTimelineTip')}
+            </Typography>
+            <View style={styles.modeRow}>
+              <Button
+                size="small"
+                inline
+                variant={mode === 'strict' ? 'primary' : 'secondary'}
+                title={t('event.findTimeModeStrict')}
+                onPress={() => setMode('strict')}
+              />
+              <Button
+                size="small"
+                inline
+                variant={mode === 'permissive' ? 'primary' : 'secondary'}
+                title={t('event.findTimeModePermissive')}
+                onPress={() => setMode('permissive')}
+              />
+            </View>
+            <AvailabilityTimelineHeader
+              days={days}
+              initialStart={currentStart}
+              columnWidth={columnWidth}
+              headerScrollRef={headerScrollRef}
+              onHeaderScroll={onHeaderScroll}
+            />
+          </View>
+        )}
+
+        {hasData && mergedBusy.length > 0 && searchStart && searchEnd && (
+          <View>
+            <AvailabilityTimelineBody
+              mergedBusy={mergedBusy}
+              initialStart={currentStart}
+              durationMs={durationMs}
+              eventTitle={eventTitle ?? ''}
+              days={days}
+              columnWidth={columnWidth}
+              hourRowHeight={hourRowHeight}
+              initialColumnIndex={initialColumnIndex}
+              attendeeColors={attendeeColorMap}
+              attendeeNames={attendeeNameMap}
+              gridScrollRef={gridScrollRef}
+              onGridScroll={onGridScroll}
+              scrollRef={sheetScrollRef}
+              scrollY={scrollY}
+              viewportHeight={viewportHeight}
+              maxScrollY={maxScrollY}
+              onDragStart={() => setIsDragging(true)}
+              onDragEnd={() => setIsDragging(false)}
+              onApplySlot={(slot) => {
+                setDraftSlot(slot);
+                onApplySlot(slot);
+              }}
+            />
+
+            <View style={styles.attendeesSection}>
+              <Typography variant="body2" color="secondary" style={styles.sectionLabel}>
+                {t('event.findTimeAttendees')}
               </Typography>
-            </View>
-          )}
-
-          {!loading && error && (
-            <View style={styles.center}>
-              <Typography variant="body2" color="danger">{t('event.findTimeError')}</Typography>
-              <Typography variant="caption" color="secondary" style={styles.marginTop}>
-                {error.message}
-              </Typography>
-              <Button variant="secondary" title={t('common.cancel')} onPress={refetch} style={styles.marginTop} />
-            </View>
-          )}
-
-          {!loading && !error && mergedBusy.length === 0 && availabilities.length === 0 && (
-            <View style={styles.center}>
-              <Typography variant="body2" color="secondary">{t('event.findTimeNoSlots')}</Typography>
-            </View>
-          )}
-
-          {!loading && !error && (mergedBusy.length > 0 || availabilities.length > 0) && (
-            <Stack gap={16}>
-              {mergedBusy.length > 0 && searchStart && searchEnd && (
-                <View>
-                  <Typography variant="body2" color="secondary" style={styles.sectionLabel}>
-                    {t('event.findTimeTimeline')}
-                  </Typography>
-                  <Typography variant="caption" color="secondary" style={styles.timelineTip}>
-                    {t('event.findTimeTimelineTip')}
-                  </Typography>
-                  <View style={styles.modeRow}>
-                    <Button
-                      size="small"
-                      inline
-                      variant={mode === 'strict' ? 'primary' : 'secondary'}
-                      title={t('event.findTimeModeStrict')}
-                      onPress={() => setMode('strict')}
-                    />
-                    <Button
-                      size="small"
-                      inline
-                      variant={mode === 'permissive' ? 'primary' : 'secondary'}
-                      title={t('event.findTimeModePermissive')}
-                      onPress={() => setMode('permissive')}
-                    />
-                  </View>
-                  <AvailabilityTimeline
-                    mergedBusy={mergedBusy}
-                    searchStart={searchStart}
-                    searchEnd={searchEnd}
-                    initialStart={currentStart}
-                    durationMs={durationMs}
-                    eventTitle={eventTitle ?? ''}
-                    days={days}
-                    columnWidth={columnWidth}
-                    hourRowHeight={hourRowHeight}
-                    attendeeColors={attendeeColorMap}
-                    attendeeNames={attendeeNameMap}
-                    scrollRef={sheetScrollRef}
-                    scrollY={scrollY}
-                    viewportHeight={viewportHeight}
-                    maxScrollY={maxScrollY}
-                    onDragStart={() => setIsDragging(true)}
-                    onDragEnd={() => setIsDragging(false)}
-                    onApplySlot={(slot) => {
-                      setDraftSlot(slot);
-                      onApplySlot(slot);
-                    }}
-                  />
-                </View>
-              )}
-
-              <View>
-                <Typography variant="body2" color="secondary" style={styles.sectionLabel}>
-                  {t('event.findTimeAttendees')}
-                </Typography>
-                <Stack gap={8}>
-                  {availabilities.map((avail) => (
-                    <View
-                      key={avail.email}
-                      style={[styles.attendeeRow, { borderColor: theme.colors.border }]}
-                    >
-                      <View style={[styles.colorDot, { backgroundColor: avail.color }]} />
-                      <View style={styles.attendeeInfo}>
-                        <Typography variant="body2" color="primary">
-                          {avail.displayName ?? avail.email}
+              <Stack gap={8}>
+                {availabilities.map((avail) => (
+                  <View
+                    key={avail.email}
+                    style={[styles.attendeeRow, { borderColor: theme.colors.border }]}
+                  >
+                    <View style={[styles.colorDot, { backgroundColor: avail.color }]} />
+                    <View style={styles.attendeeInfo}>
+                      <Typography variant="body2" color="primary">
+                        {avail.displayName ?? avail.email}
+                      </Typography>
+                      {avail.displayName && (
+                        <Typography variant="caption" color="secondary">
+                          {avail.email}
                         </Typography>
-                        {avail.displayName && (
-                          <Typography variant="caption" color="secondary">
-                            {avail.email}
-                          </Typography>
-                        )}
-                      </View>
-                      <View style={styles.pushRight}>
-                        <Typography
-                          variant="caption"
-                          color={avail.available ? 'success' : 'secondary'}
-                        >
-                          {avail.available
-                            ? t('event.findTimeAvailable')
-                            : t('event.findTimeUnknown')}
-                        </Typography>
-                      </View>
-                      {mode === 'permissive' && (
-                        <View style={styles.toggleWrap}>
-                          <Toggle
-                            value={!!avail.required}
-                            onValueChange={() => toggleRequired(avail.email)}
-                          />
-                        </View>
-                      )}
-                      {avail.available && avail.slots.length > 0 && (
-                        <View style={styles.busyList}>
-                          {avail.slots
-                            .filter((s) => s.fbType !== 'FREE')
-                            .slice(0, 5)
-                            .map((s, j) => (
-                              <Typography key={j} variant="caption" color="secondary">
-                                {dayjs(s.start).format('LT')} – {dayjs(s.end).format('LT')}
-                              </Typography>
-                            ))}
-                        </View>
                       )}
                     </View>
-                  ))}
-                </Stack>
-              </View>
+                    <View style={styles.pushRight}>
+                      <Typography
+                        variant="caption"
+                        color={avail.available ? 'success' : 'secondary'}
+                      >
+                        {avail.available
+                          ? t('event.findTimeAvailable')
+                          : t('event.findTimeUnknown')}
+                      </Typography>
+                    </View>
+                    {mode === 'permissive' && (
+                      <View style={styles.toggleWrap}>
+                        <Toggle
+                          testID={`required-toggle-${avail.email}`}
+                          value={!!avail.required}
+                          onValueChange={() => toggleRequired(avail.email)}
+                        />
+                      </View>
+                    )}
+                    {avail.available && avail.slots.length > 0 && (
+                      <View style={styles.busyList}>
+                        {avail.slots
+                          .filter((s) => s.fbType !== 'FREE')
+                          .slice(0, 5)
+                          .map((s, j) => (
+                            <Typography key={j} variant="caption" color="secondary">
+                              {dayjs(s.start).format('LT')} – {dayjs(s.end).format('LT')}
+                            </Typography>
+                          ))}
+                      </View>
+                    )}
+                  </View>
+                ))}
+              </Stack>
+            </View>
+          </View>
+        )}
+
+        {hasData && mergedBusy.length === 0 && availabilities.length > 0 && (
+          <View style={styles.attendeesSection}>
+            <Typography variant="body2" color="secondary" style={styles.sectionLabel}>
+              {t('event.findTimeAttendees')}
+            </Typography>
+            <Stack gap={8}>
+              {availabilities.map((avail) => (
+                <View
+                  key={avail.email}
+                  style={[styles.attendeeRow, { borderColor: theme.colors.border }]}
+                >
+                  <View style={[styles.colorDot, { backgroundColor: avail.color }]} />
+                  <View style={styles.attendeeInfo}>
+                    <Typography variant="body2" color="primary">
+                      {avail.displayName ?? avail.email}
+                    </Typography>
+                    {avail.displayName && (
+                      <Typography variant="caption" color="secondary">
+                        {avail.email}
+                      </Typography>
+                    )}
+                  </View>
+                  <View style={styles.pushRight}>
+                    <Typography
+                      variant="caption"
+                      color={avail.available ? 'success' : 'secondary'}
+                    >
+                      {avail.available
+                        ? t('event.findTimeAvailable')
+                        : t('event.findTimeUnknown')}
+                    </Typography>
+                  </View>
+                </View>
+              ))}
             </Stack>
-          )}
+          </View>
+        )}
       </ScrollView>
     </Sheet>
   );
@@ -288,10 +378,17 @@ export function FindTimeSheet({
 const styles = StyleSheet.create({
   scroll: { maxHeight: 600 },
   scrollContent: { paddingHorizontal: 4, paddingBottom: 16 },
+  stickyHeader: {
+    paddingTop: 4,
+    paddingBottom: 4,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: 'rgba(0,0,0,0.1)',
+  },
   timelineTip: { marginBottom: 8, opacity: 0.7 },
   center: { alignItems: 'center', paddingVertical: 24 },
   marginTop: { marginTop: 8 },
   sectionLabel: { marginBottom: 8 },
+  attendeesSection: { marginTop: 16 },
   attendeeRow: {
     padding: 12,
     borderWidth: 1,
