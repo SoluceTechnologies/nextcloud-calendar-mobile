@@ -1,4 +1,4 @@
-import { buildIcs, buildAllDayIcs, shiftIcsDates } from '@/utils/ics';
+import { buildIcs, buildAllDayIcs, shiftIcsDates, injectExdate } from '@/utils/ics';
 import { parseRrule } from '@/features/calendar/utils/parseRrule';
 import type { Attendee } from '../../src/types';
 
@@ -271,5 +271,46 @@ describe('shiftIcsDates', () => {
     expect(out).toContain('DTSTART;VALUE=DATE:20260812');
     expect(out).toContain('DTEND;VALUE=DATE:20260813');
     expect(out).toContain('LOCATION:https://cloud.example.com/call/atapii4b');
+  });
+});
+
+describe('injectExdate', () => {
+  const master = `BEGIN:VEVENT\r
+UID:weekly-1\r
+DTSTART;TZID=Europe/Paris:20260805T140000\r
+DTEND;TZID=Europe/Paris:20260805T150000\r
+RRULE:FREQ=WEEKLY;BYDAY=WE\r
+SUMMARY:Weekly 14h\r
+END:VEVENT`;
+
+  const override = `BEGIN:VEVENT\r
+UID:weekly-1\r
+RECURRENCE-ID;TZID=Europe/Paris:20260902T140000\r
+DTSTART;TZID=Europe/Paris:20260902T160000\r
+DTEND;TZID=Europe/Paris:20260902T170000\r
+SUMMARY:Moved\r
+END:VEVENT`;
+
+  const wrap = (...bodies: string[]) =>
+    `BEGIN:VCALENDAR\r\nVERSION:2.0\r\n${bodies.join('\r\n')}\r\nEND:VCALENDAR`;
+
+  const slot = new Date('2026-08-26T12:00:00Z');
+
+  it('writes the EXDATE on the master even when an override comes first', () => {
+    const out = injectExdate(wrap(override, master), slot, 'Europe/Paris');
+    const blocks = out.match(/BEGIN:VEVENT[\s\S]*?END:VEVENT/g) ?? [];
+
+    expect(blocks).toHaveLength(2);
+    expect(blocks[0]).not.toContain('EXDATE');
+    expect(blocks[1]).toContain('EXDATE;TZID=Europe/Paris:20260826T140000');
+  });
+
+  it('writes a single EXDATE on the master when it comes first', () => {
+    const out = injectExdate(wrap(master, override), slot, 'Europe/Paris');
+    const blocks = out.match(/BEGIN:VEVENT[\s\S]*?END:VEVENT/g) ?? [];
+
+    expect(blocks[0]).toContain('EXDATE;TZID=Europe/Paris:20260826T140000');
+    expect(blocks[1]).not.toContain('EXDATE');
+    expect(out.match(/EXDATE/g)).toHaveLength(1);
   });
 });
