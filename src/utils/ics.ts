@@ -211,7 +211,12 @@ export function shiftIcsDates(
 
 export function injectExdate(masterIcs: string, occurrenceDtstart: Date, timezone: string): string {
   const exdateLine = `EXDATE;TZID=${timezone}:${localStamp(occurrenceDtstart, timezone)}`;
-  return masterIcs.replace(/(END:VEVENT)/, `${exdateLine}\r\n$1`);
+  let injected = false;
+  return masterIcs.replace(/BEGIN:VEVENT[\s\S]*?END:VEVENT/g, (block) => {
+    if (injected || /^RECURRENCE-ID[;:]/m.test(block)) return block;
+    injected = true;
+    return block.replace('END:VEVENT', `${exdateLine}\r\nEND:VEVENT`);
+  });
 }
 
 export function truncateRruleUntil(masterIcs: string, newUntil: Date): string {
