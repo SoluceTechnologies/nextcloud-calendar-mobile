@@ -75,9 +75,9 @@ Use in production at your own discretion, and pin to a specific commit or tag if
 | :---: | :---: | :---: |
 | <img src="/.github/assets/drawer.gif" alt="Calendars drawer" width="230" /> | <img src="/.github/assets/resize.gif" alt="Resize the calendar grid" width="230" /> | <img src="/.github/assets/settings.gif" alt="Settings" width="230" /> |
 
-| Pick widget calendar |
-| :---: |
-| <img src="/.github/assets/select-calendar-widget.gif" alt="Select the calendar shown in the widget" width="230" /> | | |
+| Find a time | Pick widget calendar |
+| :---: | :---: |
+| <img src="/.github/assets/find-time-flow.gif" alt="Find a time with attendee availability" width="230" /> | <img src="/.github/assets/select-calendar-widget.gif" alt="Select the calendar shown in the widget" width="230" /> |
 
 </div>
 
@@ -105,6 +105,7 @@ Create, view, and edit calendar events with support for:
 - All-day and timed events
 - Attendee lists with display names
 - Recurring event detection
+- **Find a time / Free-Busy** — check attendee availability via CalDAV and drag the event to a free slot
 
 ### Nextcloud Talk Integration
 Optionally attach a Nextcloud Talk room to any event at creation time, the Talk link is stored in the event and surfaced in the event detail view.

@@ -22,9 +22,9 @@ function Sheet({ visible, onClose, title, children }: SheetProps) {
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <AnimatedPressable animated={false} onPress={onClose} style={styles.backdrop}>
+      <View style={styles.backdrop}>
+        <AnimatedPressable animated={false} onPress={onClose} style={StyleSheet.absoluteFill} />
         <View
-          onStartShouldSetResponder={() => true}
           style={[
             styles.sheet,
             {
@@ -46,7 +46,7 @@ function Sheet({ visible, onClose, title, children }: SheetProps) {
           />
           {children}
         </View>
-      </AnimatedPressable>
+      </View>
     </Modal>
   );
 }

@@ -27,7 +27,14 @@ export async function loadAccounts(): Promise<Account[]> {
   const results = await Promise.all(
     ids.map(async (id) => {
       const raw = await SecureStore.getItemAsync(accountKey(id));
-      return raw ? (JSON.parse(raw) as Account) : null;
+      if (!raw) return null;
+      const account = JSON.parse(raw) as Partial<Account> & Omit<Account, 'davUserId'>;
+      // Migration: ensure davUserId is present (added after initial release)
+      if (!account.davUserId) {
+        account.davUserId = account.username;
+        await SecureStore.setItemAsync(accountKey(id), JSON.stringify(account));
+      }
+      return account as Account;
     })
   );
   return results.filter((a): a is Account => a !== null);

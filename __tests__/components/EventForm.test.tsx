@@ -183,9 +183,11 @@ describe('EventForm recurrence end condition', () => {
 describe('EventForm contact suggestions', () => {
   const account = {
     id: 'acc-1',
+    displayName: 'John',
     baseUrl: 'https://cloud.example.com',
     username: 'john',
     appPassword: 'xxxx',
+    davUserId: 'john',
   };
 
   beforeEach(async () => {
