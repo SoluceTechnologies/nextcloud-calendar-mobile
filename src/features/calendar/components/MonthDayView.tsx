@@ -9,6 +9,9 @@ import { useTranslation } from 'react-i18next';
 import { useTheme } from 'expo-router';
 import InfinitePager, { type InfinitePagerImperativeApi } from 'react-native-infinite-pager';
 import { useSettingsStore } from '@/stores/settingsStore';
+import { useAccountStore } from '@/stores/accountStore';
+import { useActiveAccount } from '@/hooks/useAccounts';
+import { isEventPending } from '@/utils/eventPending';
 import type { CalendarEvent } from '@/types';
 
 dayjs.extend(localizedFormat);
@@ -150,6 +153,8 @@ function MonthDayViewImpl({ date, events, weekStartsOn, jump, onSelectDate, onMo
   const theme = useTheme();
   const { t } = useTranslation();
   const language = useSettingsStore((s) => s.language);
+  const activeAccountId = useAccountStore((s) => s.activeAccountId);
+  const activeAccount = useActiveAccount(activeAccountId);
   const { height } = useWindowDimensions();
 
   const selected = useMemo(() => dayjs(date), [date]);
@@ -306,24 +311,36 @@ function MonthDayViewImpl({ date, events, weekStartsOn, jump, onSelectDate, onMo
           <FlatList
             data={dayEvents}
             keyExtractor={(e, i) => `${e.calendarId}-${e.uid}-${e.dtstart.getTime()}-${i}`}
-            renderItem={({ item }) => (
-              <TouchableOpacity
-                style={[styles.eventRow, { borderLeftColor: item.color, backgroundColor: theme.colors.surface }]}
-                onPress={() => onPressEvent(item)}
-              >
-                <View style={[styles.eventColorBar, { backgroundColor: item.color }]} />
-                <View style={styles.eventInfo}>
-                  <Text style={[styles.eventTitle, { color: theme.colors.text }]} numberOfLines={1}>
-                    {item.summary}
-                  </Text>
-                  <Text style={[styles.eventTime, { color: theme.colors.textSecondary }]}>
-                    {item.allDay
-                      ? t('calendar.allDay')
-                      : `${dayjs(item.dtstart).locale(language).format('LT')} – ${dayjs(item.dtend).locale(language).format('LT')}`}
-                  </Text>
-                </View>
-              </TouchableOpacity>
-            )}
+            renderItem={({ item }) => {
+              const pending = isEventPending(item, activeAccount);
+              return (
+                <TouchableOpacity
+                  style={[
+                    styles.eventRow,
+                    pending && styles.eventRowPending,
+                    { borderLeftColor: item.color, backgroundColor: theme.colors.surface },
+                  ]}
+                  onPress={() => onPressEvent(item)}
+                >
+                  <View style={[styles.eventColorBar, { backgroundColor: item.color }]} />
+                  <View style={styles.eventInfo}>
+                    <Text style={[styles.eventTitle, { color: theme.colors.text }]} numberOfLines={1}>
+                      {item.summary}
+                    </Text>
+                    <Text style={[styles.eventTime, { color: theme.colors.textSecondary }]}>
+                      {item.allDay
+                        ? t('calendar.allDay')
+                        : `${dayjs(item.dtstart).locale(language).format('LT')} – ${dayjs(item.dtend).locale(language).format('LT')}`}
+                    </Text>
+                  </View>
+                  {pending && (
+                    <View style={styles.pendingDot}>
+                      <View style={[styles.pendingDotInner, { backgroundColor: theme.colors.danger }]} />
+                    </View>
+                  )}
+                </TouchableOpacity>
+              );
+            }}
             contentContainerStyle={{ paddingBottom: 16 }}
           />
         )}
@@ -352,7 +369,15 @@ const styles = StyleSheet.create({
   dayListHeader: { fontSize: 13, fontWeight: '600', marginBottom: 10, textTransform: 'uppercase', letterSpacing: 0.5 },
   emptyText: { fontSize: 15, textAlign: 'center', marginTop: 32 },
   eventRow: { flexDirection: 'row', borderRadius: 8, marginBottom: 8, overflow: 'hidden' },
+  eventRowPending: {
+    borderStyle: 'dotted',
+    borderWidth: 2,
+    borderColor: 'rgba(0,0,0,0.15)',
+    opacity: 0.85,
+  },
   eventColorBar: { width: 4 },
+  pendingDot: { justifyContent: 'center', paddingRight: 10 },
+  pendingDotInner: { width: 10, height: 10, borderRadius: 5 },
   eventInfo: { flex: 1, padding: 10 },
   eventTitle: { fontSize: 15, fontWeight: '500' },
   eventTime: { fontSize: 12, marginTop: 2 },

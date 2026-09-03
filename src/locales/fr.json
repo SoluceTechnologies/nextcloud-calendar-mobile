@@ -91,6 +91,11 @@
     "descriptionPlaceholder": "Détails...",
     "attendees": "Participants",
     "attendeePlaceholder": "email@example.com",
+    "myParticipation": "Ma participation",
+    "participationAccepted": "Vous participez",
+    "participationTentative": "Vous participerez peut-être",
+    "participationDeclined": "Vous avez refusé",
+    "participationNeedsAction": "Réponse en attente",
     "add": "Ajouter",
     "saving": "Enregistrement…",
     "saveEvent": "Enregistrer l'événement",
@@ -309,6 +314,22 @@
       "today": "Aujourd'hui",
       "tomorrow": "Demain"
     }
+  },
+  "invitations": {
+    "title": "Invitations",
+    "noInvitations": "Aucune invitation en attente.",
+    "accept": "Accepter",
+    "decline": "Refuser",
+    "tentative": "Peut-être",
+    "accepted": "Acceptée",
+    "declined": "Refusée",
+    "organizer": "De",
+    "selectCalendar": "Ajouter à l'agenda",
+    "loading": "Chargement des invitations…",
+    "error": "Impossible de charger les invitations.",
+    "calendar": "Agenda",
+    "from": "De {{name}}",
+    "responseFailed": "Impossible de répondre à l'invitation."
   },
   "certTrust": {
     "title": "Certificat non approuvé",

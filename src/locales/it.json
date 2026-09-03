@@ -91,6 +91,11 @@
     "descriptionPlaceholder": "Dettagli...",
     "attendees": "Partecipanti",
     "attendeePlaceholder": "email@example.com",
+    "myParticipation": "My participation",
+    "participationAccepted": "You are going",
+    "participationTentative": "You might go",
+    "participationDeclined": "You declined",
+    "participationNeedsAction": "No response yet",
     "add": "Aggiungi",
     "saving": "Salvataggio…",
     "saveEvent": "Salva evento",
@@ -329,5 +334,21 @@
     "remedy": "Opzioni più sicure: raggiungere il server tramite una VPN come Tailscale o WireGuard, oppure configurare un certificato gratuito con DuckDNS e Let's Encrypt.",
     "connect": "Connetti comunque",
     "cancel": "Annulla"
+  },
+  "invitations": {
+    "title": "Invitations",
+    "noInvitations": "No pending invitations.",
+    "accept": "Accept",
+    "decline": "Decline",
+    "tentative": "Maybe",
+    "accepted": "Accepted",
+    "declined": "Declined",
+    "organizer": "From",
+    "selectCalendar": "Add to calendar",
+    "loading": "Loading invitations…",
+    "error": "Could not load invitations.",
+    "calendar": "Calendar",
+    "from": "From {{name}}",
+    "responseFailed": "Could not respond to the invitation."
   }
 }

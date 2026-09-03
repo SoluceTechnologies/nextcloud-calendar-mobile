@@ -29,6 +29,7 @@ import { eventToInput } from '@/features/calendar/utils/eventToInput';
 import { decideMoveEventScope } from '@/features/calendar/utils/moveEventScope';
 import { isCalMode, type CalMode } from '@/features/calendar/constants';
 import { CalendarUnavailable } from '@/features/calendar/components/CalendarUnavailable';
+import { useInvitations } from '@/features/invitations/hooks/useInvitations';
 import { useUpdateEvent } from '@/features/event/hooks/useMutateEvent';
 import { askRecurrenceScope } from '@/features/event/recurrenceScope';
 
@@ -60,10 +61,12 @@ export default function CalendarScreen() {
 
   const { hourRowHeight, cellHeight, commitZoom } = useZoom();
   const { activeAccount, calendars, allEvents, showFullOverlay, showSmallLoader } = useCalendarData(fetchDate);
+  const { data: invitations } = useInvitations(activeAccount);
+  const pendingInvitationsCount = invitations.length;
   const insets = useSafeAreaInsets();
   const drawer = useCalendarDrawer();
 
-  const calendarEvents = useMemo(() => toGridEvents(allEvents), [allEvents]);
+  const calendarEvents = useMemo(() => toGridEvents(allEvents, activeAccount), [allEvents, activeAccount]);
 
   const allDayEvents = useMemo(() => allEvents.filter((e) => e.allDay), [allEvents]);
   const nowHour = useMemo(() => Math.max(0, new Date().getHours() - 1), []);
@@ -144,6 +147,7 @@ export default function CalendarScreen() {
         headerTitle={headerTitle}
         isToday={isToday}
         viewMode={viewMode}
+        pendingInvitationsCount={pendingInvitationsCount}
         onOpenDrawer={drawer.openDrawer}
         onToday={nav.goToday}
         onSwitchMode={nav.switchMode}
@@ -213,12 +217,17 @@ export default function CalendarScreen() {
         calendars={calendars}
         hiddenCalendarIds={hiddenCalendarIds}
         notifDisabledCalendarIds={notifDisabledCalendarIds}
+        pendingInvitationsCount={pendingInvitationsCount}
         toggleCalendarVisibility={toggleCalendarVisibility}
         toggleCalendarNotifications={toggleCalendarNotifications}
         onClose={drawer.closeDrawer}
         onNavigateSettings={() => {
           drawer.closeDrawer();
           router.push('/(tabs)/settings');
+        }}
+        onNavigateInvitations={() => {
+          drawer.closeDrawer();
+          router.push('/invitations');
         }}
       />
     </ViewContainer>

@@ -55,7 +55,7 @@ function extractPropHref(xml: string, localName: string): string | undefined {
   return href ? decodeXmlEntities(href).trim() : undefined;
 }
 
-function splitResponses(xml: string): string[] {
+export function splitResponses(xml: string): string[] {
   const chunks: string[] = [];
   const re = /<d:response[^>]*>([\s\S]*?)<\/d:response>/g;
   let m: RegExpExecArray | null;
@@ -63,7 +63,7 @@ function splitResponses(xml: string): string[] {
   return chunks;
 }
 
-async function davFetch(
+export async function davFetch(
   url: string,
   account: Pick<Account, 'username' | 'appPassword'>,
   options: { method?: string; headers?: Record<string, string>; body?: string; maxRetries?: number }

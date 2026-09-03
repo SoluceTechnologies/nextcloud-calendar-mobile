@@ -92,7 +92,10 @@ function schedulingLines(name: string, email: string, attendees: Attendee[]): st
 function attendeeLines(attendees: Attendee[]): string[] {
   return attendees.map((att) => {
     const cn = att.displayName ? `;CN=${att.displayName}` : '';
-    return `ATTENDEE;CUTYPE=INDIVIDUAL;ROLE=REQ-PARTICIPANT;RSVP=TRUE;PARTSTAT=NEEDS-ACTION${cn}:mailto:${att.email}`;
+    const partstat = att.partstat ? att.partstat.toUpperCase() : 'NEEDS-ACTION';
+    const rsvp = partstat === 'NEEDS-ACTION' ? ';RSVP=TRUE' : ';RSVP=FALSE';
+    const role = att.role ? att.role.toUpperCase() : 'REQ-PARTICIPANT';
+    return `ATTENDEE;CUTYPE=INDIVIDUAL;ROLE=${role}${rsvp};PARTSTAT=${partstat}${cn}:mailto:${att.email}`;
   });
 }
 

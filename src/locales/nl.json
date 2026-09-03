@@ -91,6 +91,11 @@
     "descriptionPlaceholder": "Details...",
     "attendees": "Deelnemers",
     "attendeePlaceholder": "email@voorbeeld.com",
+    "myParticipation": "My participation",
+    "participationAccepted": "You are going",
+    "participationTentative": "You might go",
+    "participationDeclined": "You declined",
+    "participationNeedsAction": "No response yet",
     "add": "Toevoegen",
     "saving": "Opslaan…",
     "saveEvent": "Afspraak opslaan",
@@ -329,5 +334,21 @@
     "remedy": "Veiligere opties: de server bereiken via een VPN zoals Tailscale of WireGuard, of een gratis certificaat instellen met DuckDNS en Let's Encrypt.",
     "connect": "Toch verbinden",
     "cancel": "Annuleren"
+  },
+  "invitations": {
+    "title": "Invitations",
+    "noInvitations": "No pending invitations.",
+    "accept": "Accept",
+    "decline": "Decline",
+    "tentative": "Maybe",
+    "accepted": "Accepted",
+    "declined": "Declined",
+    "organizer": "From",
+    "selectCalendar": "Add to calendar",
+    "loading": "Loading invitations…",
+    "error": "Could not load invitations.",
+    "calendar": "Calendar",
+    "from": "From {{name}}",
+    "responseFailed": "Could not respond to the invitation."
   }
 }
