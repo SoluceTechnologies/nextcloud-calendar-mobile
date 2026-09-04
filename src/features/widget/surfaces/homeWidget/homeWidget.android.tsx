@@ -134,15 +134,9 @@ function AndroidWidget({ widgetName, snapshot }: { widgetName: string; snapshot:
 }
 
 export const widgetTaskHandler = async (props: WidgetTaskHandlerProps) => {
-  // Render immediately with the last cached snapshot so the widget is never blank.
   const cachedSnapshot = readAgendaSnapshot();
   props.renderWidget(<AndroidWidget widgetName={props.widgetInfo.widgetName} snapshot={cachedSnapshot} />);
 
-  // When Android triggers a periodic update (every `updatePeriodMillis`) or the
-  // widget is first placed on the home screen, refresh from the local
-  // WatermelonDB so the widget shows current events even when the app is not
-  // open.  We use `props.renderWidget` (not `requestWidgetUpdate`) to avoid an
-  // infinite update loop.
   if (props.widgetAction === 'WIDGET_ADDED' || props.widgetAction === 'WIDGET_UPDATE') {
     try {
       const timeline = await buildFreshTimeline();
