@@ -158,6 +158,15 @@ function gridEvent(over: Partial<CalendarEvent>): GridEvent {
 }
 
 describe('buildDayIndex', () => {
+  it('returns the same index instance for the same event set', () => {
+    const events = [gridEvent({})];
+    const a = buildDayIndex(events);
+    // Different GridEvent objects wrapping the same underlying event; the
+    // content-based cache should still return the same Map.
+    const b = buildDayIndex([{ ...events[0] }]);
+    expect(a).toBe(b);
+  });
+
   it('files a single-day event under its day', () => {
     const idx = buildDayIndex([gridEvent({})]);
     expect(idx.get('2026-08-07')).toHaveLength(1);
