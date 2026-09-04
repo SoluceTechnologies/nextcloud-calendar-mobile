@@ -1,4 +1,4 @@
-import { buildIcs, buildAllDayIcs, shiftIcsDates, injectExdate } from '@/utils/ics';
+import { buildIcs, buildAllDayIcs, shiftIcsDates, injectExdate, truncateRruleUntil } from '@/utils/ics';
 import { parseRrule } from '@/features/calendar/utils/parseRrule';
 import type { Attendee } from '../../src/types';
 
@@ -211,6 +211,26 @@ describe('rruleLine end conditions', () => {
   });
 });
 
+const VTIMEZONE_PARIS = [
+  'BEGIN:VTIMEZONE',
+  'TZID:Europe/Paris',
+  'BEGIN:DAYLIGHT',
+  'TZOFFSETFROM:+0100',
+  'TZOFFSETTO:+0200',
+  'TZNAME:CEST',
+  'DTSTART:19700329T020000',
+  'RRULE:FREQ=YEARLY;BYMONTH=3;BYDAY=-1SU',
+  'END:DAYLIGHT',
+  'BEGIN:STANDARD',
+  'TZOFFSETFROM:+0200',
+  'TZOFFSETTO:+0100',
+  'TZNAME:CET',
+  'DTSTART:19701025T030000',
+  'RRULE:FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU',
+  'END:STANDARD',
+  'END:VTIMEZONE',
+].join('\r\n');
+
 describe('shiftIcsDates', () => {
   const serverIcs = [
     'BEGIN:VCALENDAR',
@@ -272,6 +292,25 @@ describe('shiftIcsDates', () => {
     expect(out).toContain('DTEND;VALUE=DATE:20260813');
     expect(out).toContain('LOCATION:https://cloud.example.com/call/atapii4b');
   });
+
+  it('shifts the VEVENT, not the VTIMEZONE transition rules', () => {
+    const withTz = serverIcs.replace('BEGIN:VEVENT', `${VTIMEZONE_PARIS}\r\nBEGIN:VEVENT`);
+
+    const out = shiftIcsDates(
+      withTz,
+      new Date('2026-08-10T07:45:00Z'),
+      new Date('2026-08-10T08:45:00Z'),
+      'Europe/Paris',
+      false,
+      3,
+    );
+
+    expect(out).toContain('DTSTART;TZID=Europe/Paris:20260810T094500');
+    expect(out).toContain('DTEND;TZID=Europe/Paris:20260810T104500');
+    expect(out).toContain('DTSTART:19700329T020000');
+    expect(out).toContain('DTSTART:19701025T030000');
+    expect(out).not.toContain('20260810T120000');
+  });
 });
 
 describe('injectExdate', () => {
@@ -312,5 +351,29 @@ END:VEVENT`;
     expect(blocks[0]).toContain('EXDATE;TZID=Europe/Paris:20260826T140000');
     expect(blocks[1]).not.toContain('EXDATE');
     expect(out.match(/EXDATE/g)).toHaveLength(1);
+  });
+});
+
+describe('truncateRruleUntil', () => {
+  it('caps the VEVENT RRULE, not the VTIMEZONE transition rules', () => {
+    const ics = [
+      'BEGIN:VCALENDAR',
+      'VERSION:2.0',
+      VTIMEZONE_PARIS,
+      'BEGIN:VEVENT',
+      'UID:weekly-1',
+      'DTSTART;TZID=Europe/Paris:20260805T140000',
+      'DTEND;TZID=Europe/Paris:20260805T150000',
+      'RRULE:FREQ=WEEKLY;BYDAY=WE;COUNT=10',
+      'END:VEVENT',
+      'END:VCALENDAR',
+    ].join('\r\n');
+
+    const out = truncateRruleUntil(ics, new Date('2026-08-25T21:59:59Z'));
+
+    expect(out).toContain('RRULE:FREQ=WEEKLY;BYDAY=WE;UNTIL=20260825T215959Z');
+    expect(out).toContain('RRULE:FREQ=YEARLY;BYMONTH=3;BYDAY=-1SU\r\n');
+    expect(out).toContain('RRULE:FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU\r\n');
+    expect(out.match(/UNTIL=/g)).toHaveLength(1);
   });
 });
