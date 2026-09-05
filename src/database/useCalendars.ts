@@ -36,7 +36,10 @@ export function useCalendarsFromDb(accountId: string | null): CalendarMeta[] {
       .get<Calendar>('calendars')
       .query(Q.where('account_id', accountId))
       .observeWithColumns(CALENDAR_OBSERVED_COLUMNS)
-      .subscribe((rows) => setCalendars(rows.map(mapCalendarToMeta)));
+      .subscribe((rows) => {
+        const next = rows.map(mapCalendarToMeta);
+        setCalendars((prev) => (JSON.stringify(prev) === JSON.stringify(next) ? prev : next));
+      });
     return () => subscription.unsubscribe();
   }, [accountId, database]);
 

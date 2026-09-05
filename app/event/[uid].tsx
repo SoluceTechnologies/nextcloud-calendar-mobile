@@ -11,7 +11,6 @@ import { useLocalSearchParams, useNavigation, useRouter, useTheme } from 'expo-r
 import dayjs from 'dayjs';
 import localizedFormat from 'dayjs/plugin/localizedFormat';
 import { useTranslation } from 'react-i18next';
-import { syncEvents } from '@/database/sync';
 import { useEventByUid } from '@/database/useEventByUid';
 import { parseRrule } from '@/features/calendar/utils/parseRrule';
 import { formatRecurrenceRule } from '@/features/event/utils/recurrencePattern';
@@ -67,23 +66,11 @@ export default function EventDetailScreen() {
     navigation.reset({ index: 1, routes: [routes[0], routes[top]] } as Parameters<typeof navigation.reset>[0]);
   }, [navigation]);
 
-  const start = useMemo(() => dayjs().subtract(3, 'months').toDate(), []);
-  const end = useMemo(() => dayjs().add(3, 'months').toDate(), []);
-  const [synced, setSynced] = useState(false);
-  useEffect(() => {
-    if (!activeAccount || calendars.length === 0) return;
-    let active = true;
-    syncEvents(activeAccount, calendars, start, end)
-      .catch(() => undefined)
-      .finally(() => { if (active) setSynced(true); });
-    return () => { active = false; };
-  }, [activeAccount, calendars, start, end]);
-
   const calendar = calendars.find((c) => c.id === event?.calendarId);
   const deleteMutation = useDeleteEvent(activeAccount!);
 
   const canEdit = !calendar?.isReadOnly && !calendar?.isSubscribed && !event?.isTask;
-  const eventsLoading = !synced && event === undefined;
+  const eventsLoading = event === undefined;
 
   const [copied, setCopied] = useState(false);
   const [mapVisible, setMapVisible] = useState(false);
