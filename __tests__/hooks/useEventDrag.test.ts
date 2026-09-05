@@ -380,4 +380,48 @@ describe('useEventDrag', () => {
       expect(nextEnd).toEqual(new Date(2026, 7, 6, 10, 0));
     });
   });
+  describe('arming', () => {
+    afterEach(() => { jest.restoreAllMocks(); });
+
+    const arm = (result: { current: ReturnType<typeof useEventDrag> }) => {
+      const manager = { activate: jest.fn(), fail: jest.fn(), begin: jest.fn(), end: jest.fn() };
+      const h = result.current.gesture.handlers;
+      act(() => { h.onTouchesDown?.({} as never, manager as never); });
+      return { manager, move: () => act(() => { h.onTouchesMove?.({} as never, manager as never); }) };
+    };
+
+    it('does not arm the drag while the finger is still inside the long-press window', () => {
+      jest.spyOn(Date, 'now').mockReturnValue(1_000);
+      const { result } = setup([gridEvent('a', 9, 60)]);
+
+      const { manager, move } = arm(result);
+      (Date.now as jest.Mock).mockReturnValue(1_000 + 299);
+      move();
+
+      expect(manager.activate).not.toHaveBeenCalled();
+    });
+
+    // The regression this guards: activateAfterLongPress() made RNGH *fail* the
+    // pan on that early drift, so the drag never ran and the event's own
+    // TouchableOpacity opened the detail screen on lift instead.
+    it('arms the drag after the long-press window even though the finger already moved', () => {
+      jest.spyOn(Date, 'now').mockReturnValue(1_000);
+      const { result } = setup([gridEvent('a', 9, 60)]);
+
+      const { manager, move } = arm(result);
+      (Date.now as jest.Mock).mockReturnValue(1_000 + 120);
+      move();
+      expect(manager.activate).not.toHaveBeenCalled();
+
+      (Date.now as jest.Mock).mockReturnValue(1_000 + 320);
+      move();
+
+      expect(manager.activate).toHaveBeenCalledTimes(1);
+    });
+
+    it('never lets a second finger drag, so pinch-zoom keeps both of them', () => {
+      const { result } = setup([gridEvent('a', 9, 60)]);
+      expect(result.current.gesture.config.maxPointers).toBe(1);
+    });
+  });
 });

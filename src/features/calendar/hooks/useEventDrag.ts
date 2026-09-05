@@ -56,6 +56,7 @@ export function useEventDrag({
   const leftBase = useSharedValue(0);
   const modeFlag = useSharedValue(MODE_MOVE);
   const columnIndexSV = useSharedValue(0);
+  const touchDownAt = useSharedValue(0);
 
   const live = useRef({ dates, layouts, hourRowHeight, columnWidth, onMoveEvent, drag });
   live.current = { dates, layouts, hourRowHeight, columnWidth, onMoveEvent, drag };
@@ -76,9 +77,6 @@ export function useEventDrag({
     if (!hit) return;
 
     const full = hit.event._event;
-    // Non-editable events cannot be dragged: tasks (VTODO — Deck cards, Tasks
-    // app) would be corrupted by a VEVENT write-back, and read-only/subscribed
-    // calendars reject writes entirely.
     if (full.isTask || full.readOnly) return;
     if (
       hit.event.start.getTime() !== full.dtstart.getTime() ||
@@ -193,7 +191,14 @@ export function useEventDrag({
     const daysCount = dates.length;
 
     return Gesture.Pan()
-      .activateAfterLongPress(LONG_PRESS_MS)
+      .manualActivation(true)
+      .maxPointers(1)
+      .onTouchesDown(() => {
+        touchDownAt.value = Date.now();
+      })
+      .onTouchesMove((_, manager) => {
+        if (Date.now() - touchDownAt.value >= LONG_PRESS_MS) manager.activate();
+      })
       .onStart((e) => {
         scheduleOnRN(begin, e.x, e.y);
       })
@@ -233,6 +238,7 @@ export function useEventDrag({
   }, [
     begin, commit, cancel, hourRowHeight, columnWidth, dates.length,
     translateY, height, translateX, topBase, heightBase, leftBase, modeFlag,
+    touchDownAt,
   ]);
 
   return { gesture, drag, translateX, translateY, height };
