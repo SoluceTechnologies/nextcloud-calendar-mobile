@@ -271,7 +271,7 @@ export default function EventDetailScreen() {
                   title={event.location}
                   trailing={
                     <Stack direction="horizontal" gap={4} vAlign="center">
-                      {!isVirtual && (
+                      {coordinates && !isVirtual && (
                         <IconButton
                           variant="plain"
                           size={36}
