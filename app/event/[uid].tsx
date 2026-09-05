@@ -90,7 +90,7 @@ export default function EventDetailScreen() {
   const copyResetRef = useRef<ReturnType<typeof setTimeout>>(undefined);
   useEffect(() => () => clearTimeout(copyResetRef.current), []);
 
-  const { coordinates, isVirtual, loading } = useEventLocation(event?.location, event?.talkUrl);
+  const { coordinates, isVirtual } = useEventLocation(event?.location, event?.talkUrl);
 
   const handleCopyLocation = useCallback(async () => {
     if (!event?.location) return;
@@ -296,17 +296,6 @@ export default function EventDetailScreen() {
               )}
             </List>
 
-            {event.location && !isVirtual && loading && (
-              <View
-                style={[
-                  styles.mapPlaceholder,
-                  { backgroundColor: theme.colors.surface, borderRadius: theme.radius.md },
-                ]}
-              >
-                <Spinner size="large" />
-              </View>
-            )}
-
             {coordinates && !isVirtual && (
               <EventMapPreview
                 location={event.location!}
@@ -389,11 +378,4 @@ const styles = StyleSheet.create({
   colorBar: { height: 6 },
   content: { padding: 20 },
   footer: { borderTopWidth: StyleSheet.hairlineWidth },
-  mapPlaceholder: {
-    height: 200,
-    width: '100%',
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-  },
 });

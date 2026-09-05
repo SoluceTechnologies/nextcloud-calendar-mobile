@@ -84,6 +84,77 @@ export function clearGeocodeCache(): void {
   }
 }
 
+type NominatimResult = {
+  lat?: unknown;
+  lon?: unknown;
+  display_name?: unknown;
+  importance?: unknown;
+  address?: Record<string, unknown>;
+};
+
+const MIN_IMPORTANCE = 0.35;
+const MIN_TOKEN_COVERAGE = 0.6;
+const SAME_AREA_KM = 50;
+
+const PLACE_FIELDS = [
+  'city',
+  'town',
+  'village',
+  'municipality',
+  'county',
+  'state',
+  'region',
+  'suburb',
+  'city_district',
+  'postcode',
+  'country',
+];
+
+function tokenize(text: string): string[] {
+  return text
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter(Boolean);
+}
+
+function spreadKm(points: Array<{ lat: number; lon: number }>): number {
+  let max = 0;
+  for (let i = 0; i < points.length; i += 1) {
+    for (let j = i + 1; j < points.length; j += 1) {
+      const dLat = points[i].lat - points[j].lat;
+      const dLon = (points[i].lon - points[j].lon) * Math.cos((points[i].lat * Math.PI) / 180);
+      max = Math.max(max, Math.hypot(dLat, dLon) * 111);
+    }
+  }
+  return max;
+}
+
+export function isRealAddressMatch(
+  query: string,
+  top: NominatimResult,
+  points: Array<{ lat: number; lon: number }>,
+): boolean {
+  const queryTokens = tokenize(query);
+  if (queryTokens.length === 0) return false;
+
+  const matched = new Set(tokenize(String(top.display_name ?? '')));
+  const covered = queryTokens.filter((token) => matched.has(token)).length;
+  if (covered / queryTokens.length < MIN_TOKEN_COVERAGE) return false;
+
+  const importance = typeof top.importance === 'number' ? top.importance : 0;
+  if (importance >= MIN_IMPORTANCE) return true;
+
+  const address = top.address ?? {};
+  const areaTokens = new Set(
+    PLACE_FIELDS.flatMap((field) => tokenize(String(address[field] ?? ''))),
+  );
+  if (queryTokens.some((token) => areaTokens.has(token))) return true;
+
+  return spreadKm(points) <= SAME_AREA_KM;
+}
+
 export async function geocodeLocation(
   query: string,
   language?: string,
@@ -98,8 +169,8 @@ export async function geocodeLocation(
     `https://nominatim.openstreetmap.org/search?` +
     `format=jsonv2&` +
     `q=${encodeURIComponent(query)}&` +
-    `limit=1&` +
-    `addressdetails=0`;
+    `limit=5&` +
+    `addressdetails=1`;
 
   try {
     const res = await trustedFetch(url, {
@@ -123,13 +194,26 @@ export async function geocodeLocation(
       return null;
     }
 
-    const first = data[0] as Record<string, unknown>;
-    const lat = typeof first.lat === 'string' ? parseFloat(first.lat) : NaN;
-    const lon = typeof first.lon === 'string' ? parseFloat(first.lon) : NaN;
+    const candidates = (data as NominatimResult[]).map((entry) => ({
+      entry,
+      lat: typeof entry.lat === 'string' ? parseFloat(entry.lat) : NaN,
+      lon: typeof entry.lon === 'string' ? parseFloat(entry.lon) : NaN,
+    }));
+    const points = candidates.filter(
+      (c) => Number.isFinite(c.lat) && Number.isFinite(c.lon),
+    );
+
+    const first = candidates[0];
+    const { lat, lon } = first;
     const displayName =
-      typeof first.display_name === 'string' ? first.display_name : query;
+      typeof first.entry.display_name === 'string' ? first.entry.display_name : query;
 
     if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
+      writeCache(key, { result: null, ts: Date.now() });
+      return null;
+    }
+
+    if (!isRealAddressMatch(query, first.entry, points)) {
       writeCache(key, { result: null, ts: Date.now() });
       return null;
     }
