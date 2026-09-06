@@ -5,10 +5,10 @@ import { scheduleOnRN } from 'react-native-worklets';
 import { haptic, ImpactFeedbackStyle } from '@/utils/haptics';
 import { SNAP_MINUTES, resolveDraggedBounds, snapDeltaMinutes } from '../utils/dragMath';
 import { hitTestEvent, type DragMode } from '../utils/hitTest';
+import { LONG_PRESS_MS } from '../constants';
 import type { PositionedEvent } from '../utils/eventLayout';
 import type { GridEvent } from '../utils/toGridEvents';
 
-const LONG_PRESS_MS = 300;
 const DAY_MINUTES = 1440;
 
 const SETTLE_WATCHDOG_MS = 2500;
@@ -56,7 +56,6 @@ export function useEventDrag({
   const leftBase = useSharedValue(0);
   const modeFlag = useSharedValue(MODE_MOVE);
   const columnIndexSV = useSharedValue(0);
-  const touchDownAt = useSharedValue(0);
 
   const live = useRef({ dates, layouts, hourRowHeight, columnWidth, onMoveEvent, drag });
   live.current = { dates, layouts, hourRowHeight, columnWidth, onMoveEvent, drag };
@@ -191,14 +190,7 @@ export function useEventDrag({
     const daysCount = dates.length;
 
     return Gesture.Pan()
-      .manualActivation(true)
-      .maxPointers(1)
-      .onTouchesDown(() => {
-        touchDownAt.value = Date.now();
-      })
-      .onTouchesMove((_, manager) => {
-        if (Date.now() - touchDownAt.value >= LONG_PRESS_MS) manager.activate();
-      })
+      .activateAfterLongPress(LONG_PRESS_MS)
       .onStart((e) => {
         scheduleOnRN(begin, e.x, e.y);
       })
@@ -238,7 +230,6 @@ export function useEventDrag({
   }, [
     begin, commit, cancel, hourRowHeight, columnWidth, dates.length,
     translateY, height, translateX, topBase, heightBase, leftBase, modeFlag,
-    touchDownAt,
   ]);
 
   return { gesture, drag, translateX, translateY, height };
