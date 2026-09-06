@@ -86,6 +86,7 @@
     "end": "Fin",
     "location": "Lieu",
     "locationPlaceholder": "Salle ou adresse",
+    "openInMaps": "Ouvrir dans l'app cartes",
     "description": "Description",
     "descriptionPlaceholder": "Détails...",
     "attendees": "Participants",
@@ -110,6 +111,24 @@
     "dayTh": "Je",
     "dayFr": "Ve",
     "daySa": "Sa",
+    "repeatOn": "Répéter le",
+    "sameDayOfMonth": "Même jour du mois",
+    "sameDate": "Même date",
+    "onAWeekday": "Un jour de la semaine",
+    "onAWeekdayOfAMonth": "Un jour d'un mois",
+    "onAWeekNumber": "Une semaine de l'année",
+    "of": "de",
+    "week": "semaine",
+    "positionFirst": "Premier",
+    "positionSecond": "Deuxième",
+    "positionThird": "Troisième",
+    "positionFourth": "Quatrième",
+    "positionFifth": "Cinquième",
+    "positionLast": "Dernier",
+    "positionLabel": "Position",
+    "weekdayLabel": "Jour de la semaine",
+    "monthLabel": "Mois",
+    "weekNumberLabel": "Numéro de semaine",
     "ends": "Se termine",
     "endsNever": "Jamais",
     "endsAfter": "Après",
@@ -121,6 +140,10 @@
     "talkPublicLink": "Lien public",
     "talkAnyoneWithLink": "Toute personne ayant le lien peut rejoindre",
     "talkOnlyInvited": "Uniquement les participants invités",
+    "talkOpenTitle": "Ouvrir la salle Talk",
+    "openInTalk": "Ouvrir dans l'app Talk",
+    "openInBrowser": "Ouvrir dans le navigateur",
+    "talkAppNotInstalled": "L'application Nextcloud Talk n'est pas installée. Installez-la pour ouvrir les salons directement dans l'application, ou ouvrez-les dans le navigateur.",
     "loadingCalendars": "Chargement des agendas…",
     "newEvent": "Nouvel événement",
     "editEvent": "Modifier l'événement",
@@ -258,7 +281,15 @@
       "use": "Utiliser",
       "editOnNextcloud": "Éditer sur Nextcloud"
     },
-    "accountActive": "Actif"
+    "accountActive": "Actif",
+    "talk": {
+      "title": "Talk",
+      "openWith": "Ouvrir les liens Talk avec",
+      "openWithHint": "Choisissez comment s'ouvrent par défaut les liens d'appel des événements. Faites un appui long sur Rejoindre la salle Talk pour inverser.",
+      "openInApp": "Application Nextcloud Talk",
+      "openInBrowser": "Navigateur",
+      "askEachTime": "Demander à chaque fois"
+    }
   },
   "widget": {
     "liveRemaining": "il reste {{duration}}",
@@ -289,6 +320,14 @@
     "validFrom": "Valide à partir du",
     "validTo": "Valide jusqu'au",
     "trust": "Approuver et se connecter",
+    "cancel": "Annuler"
+  },
+  "cleartext": {
+    "title": "Connexion non chiffrée",
+    "body": "La connexion à {{host}} n'est pas chiffrée. Votre nom d'utilisateur et votre mot de passe d'application seraient transmis en clair sur le réseau.",
+    "warning": "Toute personne située entre ce téléphone et le serveur — opérateur du Wi-Fi, fournisseur d'accès, réseau intermédiaire — peut lire votre mot de passe et vos données de calendrier. Un mot de passe d'application Nextcloud donne accès à tout le compte, pas seulement au calendrier.",
+    "remedy": "Options plus sûres : joindre le serveur via un VPN comme Tailscale ou WireGuard, ou installer un certificat gratuit avec DuckDNS et Let's Encrypt.",
+    "connect": "Se connecter quand même",
     "cancel": "Annuler"
   }
 }

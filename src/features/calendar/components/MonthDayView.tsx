@@ -344,7 +344,7 @@ const styles = StyleSheet.create({
   monthPage: { flex: 1 },
   weekRow: { flex: 1, flexDirection: 'row' },
   dayCell: { flex: 1, alignItems: 'center', paddingTop: 2 },
-  dayCircle: { width: 28, height: 28, borderRadius: 14, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
+  dayCircle: { width: 32, height: 32, borderRadius: 16, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
   dayNumber: { fontSize: 14, textAlign: 'center' },
   dotsRow: { flexDirection: 'row', gap: 2, marginTop: 2 },
   dot: { width: 5, height: 5, borderRadius: 3 },

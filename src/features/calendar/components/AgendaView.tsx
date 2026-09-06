@@ -1,6 +1,6 @@
-import { memo, useRef, useEffect, useCallback, useMemo, forwardRef, useImperativeHandle } from 'react';
+import { memo, useRef, useCallback, useMemo, forwardRef, useImperativeHandle } from 'react';
 import {
-  View, Text, SectionList, TouchableOpacity, StyleSheet,
+  View, Text, SectionList, TouchableOpacity, StyleSheet, type ViewToken,
 } from 'react-native';
 import dayjs from 'dayjs';
 import localizedFormat from 'dayjs/plugin/localizedFormat';
@@ -119,7 +119,7 @@ export interface AgendaViewHandle {
 
 
 const AgendaViewImpl = forwardRef<AgendaViewHandle, Props>(function AgendaView(
-  { events, date, onPressEvent, onPressCell, onVisibleDateChange }, ref
+  { events, onPressEvent, onPressCell, onVisibleDateChange }, ref
 ) {
   const theme = useTheme();
   const listRef = useRef<SectionList<CalendarEvent, AgendaSection>>(null);
@@ -169,7 +169,7 @@ const AgendaViewImpl = forwardRef<AgendaViewHandle, Props>(function AgendaView(
   }));
 
   const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 50 });
-  const onViewableItemsChanged = useCallback(({ viewableItems }: any) => {
+  const onViewableItemsChanged = useCallback(({ viewableItems }: { viewableItems: ViewToken[] }) => {
     if (!onVisibleDateChange || viewableItems.length === 0) return;
     const first = viewableItems[0];
     const d: Date | undefined = first?.section?.date ?? first?.item?.dtstart;

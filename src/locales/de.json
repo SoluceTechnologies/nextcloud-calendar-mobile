@@ -86,6 +86,7 @@
     "end": "Ende",
     "location": "Ort",
     "locationPlaceholder": "Raum oder Adresse",
+    "openInMaps": "Open in Maps",
     "description": "Beschreibung",
     "descriptionPlaceholder": "Details...",
     "attendees": "Teilnehmer",
@@ -110,6 +111,24 @@
     "dayTh": "Do",
     "dayFr": "Fr",
     "daySa": "Sa",
+    "repeatOn": "Repeat on",
+    "sameDayOfMonth": "Same day of month",
+    "sameDate": "Same date",
+    "onAWeekday": "On a weekday",
+    "onAWeekdayOfAMonth": "On a weekday of a month",
+    "onAWeekNumber": "On a week number",
+    "of": "of",
+    "week": "week",
+    "positionFirst": "First",
+    "positionSecond": "Second",
+    "positionThird": "Third",
+    "positionFourth": "Fourth",
+    "positionFifth": "Fifth",
+    "positionLast": "Last",
+    "positionLabel": "Position",
+    "weekdayLabel": "Weekday",
+    "monthLabel": "Month",
+    "weekNumberLabel": "Week number",
     "ends": "Endet",
     "endsNever": "Nie",
     "endsAfter": "Nach",
@@ -121,6 +140,10 @@
     "talkPublicLink": "Öffentlicher Link",
     "talkAnyoneWithLink": "Jeder mit dem Link kann beitreten",
     "talkOnlyInvited": "Nur eingeladene Teilnehmer",
+    "talkOpenTitle": "Open Talk room",
+    "openInTalk": "Open in Talk app",
+    "openInBrowser": "Open in browser",
+    "talkAppNotInstalled": "Nextcloud Talk is not installed. Install it to open rooms directly in the app, or open in browser.",
     "loadingCalendars": "Kalender werden geladen…",
     "newEvent": "Neues Ereignis",
     "editEvent": "Ereignis bearbeiten",
@@ -258,7 +281,15 @@
       "use": "Verwenden",
       "editOnNextcloud": "In Nextcloud bearbeiten"
     },
-    "accountActive": "Aktiv"
+    "accountActive": "Aktiv",
+    "talk": {
+      "title": "Talk",
+      "openWith": "Open Talk links with",
+      "openWithHint": "Choose how event call links open by default. Long-press the Join Talk Room button to override.",
+      "openInApp": "Nextcloud Talk app",
+      "openInBrowser": "Browser",
+      "askEachTime": "Ask each time"
+    }
   },
   "widget": {
     "liveRemaining": "noch {{duration}}",
@@ -289,6 +320,14 @@
     "validFrom": "Gültig ab",
     "validTo": "Gültig bis",
     "trust": "Vertrauen und verbinden",
+    "cancel": "Abbrechen"
+  },
+  "cleartext": {
+    "title": "Unverschlüsselte Verbindung",
+    "body": "Die Verbindung zu {{host}} ist nicht verschlüsselt. Ihr Benutzername und Ihr App-Passwort würden im Klartext über das Netzwerk gesendet.",
+    "warning": "Jeder zwischen diesem Telefon und dem Server – WLAN-Betreiber, Internetanbieter, jedes Netz dazwischen – kann Ihr Passwort und Ihre Kalenderdaten mitlesen. Ein Nextcloud-App-Passwort gewährt Zugriff auf das gesamte Konto, nicht nur auf den Kalender.",
+    "remedy": "Sicherere Optionen: den Server über ein VPN wie Tailscale oder WireGuard erreichen oder ein kostenloses Zertifikat mit DuckDNS und Let's Encrypt einrichten.",
+    "connect": "Trotzdem verbinden",
     "cancel": "Abbrechen"
   }
 }

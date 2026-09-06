@@ -380,4 +380,10 @@ describe('useEventDrag', () => {
       expect(nextEnd).toEqual(new Date(2026, 7, 6, 10, 0));
     });
   });
+  it('arms on the stock long press so the scroll view and pager keep their touches', () => {
+    const { result } = setup([gridEvent('a', 9, 60)]);
+
+    expect(result.current.gesture.config.activateAfterLongPress).toBe(300);
+    expect(result.current.gesture.config.manualActivation).toBeUndefined();
+  });
 });

@@ -86,6 +86,7 @@
     "end": "Конец",
     "location": "Место",
     "locationPlaceholder": "Помещение или адрес",
+    "openInMaps": "Open in Maps",
     "description": "Описание",
     "descriptionPlaceholder": "Подробности...",
     "attendees": "Участники",
@@ -110,6 +111,24 @@
     "dayTh": "Чт",
     "dayFr": "Пт",
     "daySa": "Сб",
+    "repeatOn": "Repeat on",
+    "sameDayOfMonth": "Same day of month",
+    "sameDate": "Same date",
+    "onAWeekday": "On a weekday",
+    "onAWeekdayOfAMonth": "On a weekday of a month",
+    "onAWeekNumber": "On a week number",
+    "of": "of",
+    "week": "week",
+    "positionFirst": "First",
+    "positionSecond": "Second",
+    "positionThird": "Third",
+    "positionFourth": "Fourth",
+    "positionFifth": "Fifth",
+    "positionLast": "Last",
+    "positionLabel": "Position",
+    "weekdayLabel": "Weekday",
+    "monthLabel": "Month",
+    "weekNumberLabel": "Week number",
     "ends": "Заканчивается",
     "endsNever": "Никогда",
     "endsAfter": "После",
@@ -121,6 +140,10 @@
     "talkPublicLink": "Публичная ссылка",
     "talkAnyoneWithLink": "Любой, у кого есть ссылка, может присоединиться",
     "talkOnlyInvited": "Только приглашённые участники",
+    "talkOpenTitle": "Open Talk room",
+    "openInTalk": "Open in Talk app",
+    "openInBrowser": "Open in browser",
+    "talkAppNotInstalled": "Nextcloud Talk is not installed. Install it to open rooms directly in the app, or open in browser.",
     "loadingCalendars": "Загрузка календарей…",
     "newEvent": "Новое событие",
     "editEvent": "Редактировать событие",
@@ -258,7 +281,15 @@
       "use": "Выбрать",
       "editOnNextcloud": "Изменить в Nextcloud"
     },
-    "accountActive": "Активный"
+    "accountActive": "Активный",
+    "talk": {
+      "title": "Talk",
+      "openWith": "Open Talk links with",
+      "openWithHint": "Choose how event call links open by default. Long-press the Join Talk Room button to override.",
+      "openInApp": "Nextcloud Talk app",
+      "openInBrowser": "Browser",
+      "askEachTime": "Ask each time"
+    }
   },
   "widget": {
     "liveRemaining": "осталось {{duration}}",
@@ -289,6 +320,14 @@
     "validFrom": "Действителен с",
     "validTo": "Действителен до",
     "trust": "Доверять и подключиться",
+    "cancel": "Отмена"
+  },
+  "cleartext": {
+    "title": "Незашифрованное соединение",
+    "body": "Соединение с {{host}} не зашифровано. Ваше имя пользователя и пароль приложения будут переданы по сети в открытом виде.",
+    "warning": "Любой между этим телефоном и сервером — оператор Wi-Fi, интернет-провайдер, любая промежуточная сеть — может прочитать ваш пароль и данные календаря. Пароль приложения Nextcloud даёт доступ ко всей учётной записи, а не только к календарю.",
+    "remedy": "Более безопасные варианты: подключаться к серверу через VPN, например Tailscale или WireGuard, либо настроить бесплатный сертификат с DuckDNS и Let's Encrypt.",
+    "connect": "Всё равно подключиться",
     "cancel": "Отмена"
   }
 }

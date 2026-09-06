@@ -1,4 +1,4 @@
-import React, { useRef, useState, type ReactNode } from 'react';
+import { useRef, useState, type ReactNode } from 'react';
 import { View, Modal, Pressable, ScrollView, StyleSheet, useWindowDimensions } from 'react-native';
 import { ChevronUp, ChevronDown, Check } from 'lucide-react-native';
 import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
