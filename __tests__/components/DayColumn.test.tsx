@@ -70,13 +70,34 @@ describe('DayColumn', () => {
   it('reports the pressed event', () => {
     const onPressEvent = jest.fn();
     const event = gridEvent();
-    const { getByText } = render(
+    const { getByTestId } = render(
       <DayColumn date={date} positioned={positioned(event)} hourRowHeight={60} now={now} onPressSlot={jest.fn()} onPressEvent={onPressEvent} />
     );
 
-    fireEvent.press(getByText('Standup'));
+    const box = getByTestId('event-box-u1');
+    jest.spyOn(Date, 'now').mockReturnValue(1_000);
+    fireEvent(box, 'pressIn');
+    (Date.now as jest.Mock).mockReturnValue(1_120);
+    fireEvent.press(box);
 
     expect(onPressEvent).toHaveBeenCalledWith(event);
+    jest.restoreAllMocks();
+  });
+
+  it('does not report a press that lasted the whole long-press window', () => {
+    const onPressEvent = jest.fn();
+    const { getByTestId } = render(
+      <DayColumn date={date} positioned={positioned(gridEvent())} hourRowHeight={60} now={now} onPressSlot={jest.fn()} onPressEvent={onPressEvent} />
+    );
+
+    const box = getByTestId('event-box-u1');
+    jest.spyOn(Date, 'now').mockReturnValue(1_000);
+    fireEvent(box, 'pressIn');
+    (Date.now as jest.Mock).mockReturnValue(1_400);
+    fireEvent.press(box);
+
+    expect(onPressEvent).not.toHaveBeenCalled();
+    jest.restoreAllMocks();
   });
 
   it('shows the now indicator only on the day matching the now prop', () => {
