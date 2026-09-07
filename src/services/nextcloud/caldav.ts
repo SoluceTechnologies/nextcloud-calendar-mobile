@@ -66,13 +66,14 @@ function splitResponses(xml: string): string[] {
 async function davFetch(
   url: string,
   account: Pick<Account, 'username' | 'appPassword'>,
-  options: { method?: string; headers?: Record<string, string>; body?: string }
+  options: { method?: string; headers?: Record<string, string>; body?: string; maxRetries?: number }
 ): Promise<TrustedResponse> {
   return trustedFetch(url, {
     method: options.method,
     headers: { Authorization: basicAuth(account), ...(options.headers ?? {}) },
     body: options.body,
     timeoutMs: 20000,
+    maxRetries: options.maxRetries ?? 2,
   });
 }
 
@@ -86,6 +87,7 @@ export async function validateCredentials(params: {
     headers: { Depth: '0', 'Content-Type': 'application/xml' },
     body: '<?xml version="1.0" encoding="utf-8"?>' +
     '<d:propfind xmlns:d="DAV:"><d:prop><d:current-user-principal/></d:prop></d:propfind>',
+    maxRetries: 0,
   });
   if (res.status !== 207 && !res.ok) throw httpErrorFrom(res, 'validateCredentials');
 
@@ -93,7 +95,7 @@ export async function validateCredentials(params: {
 
   if (!principalPath) {
     const principalUrl = `${params.baseUrl}/remote.php/dav/principals/users/${encodeURIComponent(params.username)}/`;
-    const fallback = await davFetch(principalUrl, params, { method: 'PROPFIND', headers: { Depth: '0', 'Content-Type': 'application/xml' } });
+    const fallback = await davFetch(principalUrl, params, { method: 'PROPFIND', headers: { Depth: '0', 'Content-Type': 'application/xml' }, maxRetries: 0 });
     if (fallback.status !== 207 && !fallback.ok) throw httpErrorFrom(fallback, 'validateCredentials');
     return { davUserId: params.username };
   }
@@ -104,6 +106,7 @@ export async function validateCredentials(params: {
     headers: { Depth: '0', 'Content-Type': 'application/xml' },
     body: '<?xml version="1.0" encoding="utf-8"?>' +
     '<d:propfind xmlns:d="DAV:" xmlns:cal="urn:ietf:params:xml:ns:caldav"><d:prop><cal:calendar-home-set/></d:prop></d:propfind>',
+    maxRetries: 0,
   });
   if (homeRes.status !== 207 && !homeRes.ok) {
     return { davUserId: extractSlug(principalPath) || params.username };
@@ -116,7 +119,7 @@ export async function validateCredentials(params: {
 export interface SyncCollectionResult {
   changed: string[];
   deleted: string[];
-  newToken: string;
+  newToken: string | undefined;
   reset: boolean;
 }
 
@@ -139,7 +142,7 @@ export async function syncCollection(
   });
 
   if (res.status === 507 || res.status === 403 || res.status === 409) {
-    return { changed: [], deleted: [], newToken: '', reset: true };
+    return { changed: [], deleted: [], newToken: undefined, reset: true };
   }
   if (res.status !== 207) throw new Error(`syncCollection HTTP ${res.status}`);
 
@@ -156,7 +159,8 @@ export async function syncCollection(
   }
 
   const tokenMatch = xml.match(/<d:sync-token>([^<]*)<\/d:sync-token>/);
-  return { changed, deleted, newToken: tokenMatch?.[1]?.trim() ?? '', reset: false };
+  const newToken = tokenMatch?.[1]?.trim() || undefined;
+  return { changed, deleted, newToken, reset: false };
 }
 
 export async function fetchCalendars(account: Account): Promise<CalendarMeta[]> {
@@ -312,6 +316,23 @@ async function reportCalendarObjects(
   return parsed;
 }
 
+function stableSubscriptionUid(e: CalendarEvent): string {
+    const seed = [
+        e.calendarId, e.dtstart.getTime(), e.dtend.getTime(), e.allDay ? 'd' : 't',
+        e.recurrenceId?.getTime() ?? '', e.summary, e.location ?? '',
+    ].join('\u0000');
+
+    let lo = 0x811c9dc5;
+    let hi = 0x01000193;
+    for (let i = 0; i < seed.length; i++) {
+        const c = seed.charCodeAt(i);
+        lo = Math.imul(lo ^ c, 0x01000193);
+        hi = Math.imul(hi ^ c, 0x85ebca6b);
+    }
+    const hex = (n: number) => (n >>> 0).toString(16).padStart(8, '0');
+    return `sub-${hex(lo)}${hex(hi)}`;
+}
+
 export async function fetchEvents(
     account: Account,
     calendar: CalendarMeta,
@@ -328,7 +349,9 @@ export async function fetchEvents(
             { calendarId: calendar.id, accountId: account.id, color: calendar.color },
             start, end,
         );
-        return parsed.filter((e) => e.dtend > start && e.dtstart < end);
+        return parsed
+            .filter((e) => e.dtend > start && e.dtstart < end)
+            .map((e) => ({ ...e, uid: stableSubscriptionUid(e) }));
     }
 
     const vevents = await reportCalendarObjects(account, calendar, 'VEVENT', start, end, true);

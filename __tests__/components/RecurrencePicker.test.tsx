@@ -1,7 +1,11 @@
 import { useState } from 'react';
 import type { ReactElement } from 'react';
 import { render as rtlRender, fireEvent } from '@testing-library/react-native';
+import dayjs from 'dayjs';
+import isoWeek from 'dayjs/plugin/isoWeek';
 import { ThemeWrapper } from '../helpers/theme';
+
+dayjs.extend(isoWeek);
 
 const render = (ui: ReactElement, opts?: Parameters<typeof rtlRender>[1]) =>
   rtlRender(ui, { wrapper: ThemeWrapper, ...opts });
@@ -166,13 +170,18 @@ describe('RecurrencePicker frequency changes', () => {
     await i18n.changeLanguage('en');
   });
 
+  function selectFrequency(getByText: any, from: string, to: string) {
+    fireEvent.press(getByText(from));
+    fireEvent.press(getByText(to));
+  }
+
   it('keeps the end condition when the frequency changes', () => {
     const onChange = jest.fn();
     const { getByText } = render(
       <Harness initial={{ freq: 'WEEKLY', count: 4 }} onChange={onChange} />
     );
 
-    fireEvent.press(getByText('Monthly'));
+    selectFrequency(getByText, 'Weekly', 'Monthly');
 
     expect(last(onChange)).toMatchObject({ freq: 'MONTHLY', count: 4 });
   });
@@ -182,7 +191,7 @@ describe('RecurrencePicker frequency changes', () => {
     const until = new Date(2026, 6, 1, 23, 59, 59);
     const { getByText } = render(<Harness initial={{ freq: 'DAILY', until }} onChange={onChange} />);
 
-    fireEvent.press(getByText('Yearly'));
+    selectFrequency(getByText, 'Daily', 'Yearly');
 
     expect(last(onChange)).toMatchObject({ freq: 'YEARLY', until });
   });
@@ -193,7 +202,7 @@ describe('RecurrencePicker frequency changes', () => {
       <Harness initial={{ freq: 'WEEKLY', byDay: ['MO'] }} onChange={onChange} />
     );
 
-    fireEvent.press(getByText('Monthly'));
+    selectFrequency(getByText, 'Weekly', 'Monthly');
 
     expect(last(onChange)!.byDay).toBeUndefined();
   });
@@ -204,8 +213,117 @@ describe('RecurrencePicker frequency changes', () => {
       <Harness initial={{ freq: 'WEEKLY', count: 4 }} onChange={onChange} />
     );
 
-    fireEvent.press(getByText('None'));
+    selectFrequency(getByText, 'Weekly', 'None');
 
     expect(last(onChange)).toBeUndefined();
+  });
+});
+
+describe('RecurrencePicker advanced patterns', () => {
+  beforeEach(async () => {
+    await i18n.changeLanguage('en');
+  });
+
+  it('defaults weekly to the start day weekday', () => {
+    const onChange = jest.fn();
+    const { getByText } = render(<Harness onChange={onChange} />);
+
+    fireEvent.press(getByText('None'));
+    fireEvent.press(getByText('Weekly'));
+
+    expect(last(onChange)).toMatchObject({ freq: 'WEEKLY', byDay: ['MO'] });
+  });
+
+  it('switches monthly to a weekday-position rule', () => {
+    const onChange = jest.fn();
+    const { getByText } = render(<Harness onChange={onChange} />);
+
+    fireEvent.press(getByText('None'));
+    fireEvent.press(getByText('Monthly'));
+    fireEvent.press(getByText('Same day of month'));
+    fireEvent.press(getByText('On a weekday'));
+
+    const rule = last(onChange)!;
+    expect(rule.freq).toBe('MONTHLY');
+    expect(rule.byDay).toEqual(['1MO']);
+  });
+
+  it('switches yearly to a month-position rule', () => {
+    const onChange = jest.fn();
+    const { getByText } = render(<Harness onChange={onChange} />);
+
+    fireEvent.press(getByText('None'));
+    fireEvent.press(getByText('Yearly'));
+    fireEvent.press(getByText('Same date'));
+    fireEvent.press(getByText('On a weekday of a month'));
+
+    const rule = last(onChange)!;
+    expect(rule.freq).toBe('YEARLY');
+    expect(rule.byMonth).toEqual([6]);
+    expect(rule.byDay).toEqual(['1MO']);
+  });
+
+  it('switches yearly to a week-number rule', () => {
+    const onChange = jest.fn();
+    const { getByText } = render(<Harness onChange={onChange} />);
+
+    fireEvent.press(getByText('None'));
+    fireEvent.press(getByText('Yearly'));
+    fireEvent.press(getByText('Same date'));
+    fireEvent.press(getByText('On a week number'));
+
+    const rule = last(onChange)!;
+    expect(rule.freq).toBe('YEARLY');
+    expect(rule.byWeekNo).toEqual([dayjs(DTSTART).isoWeek()]);
+    expect(rule.byDay).toEqual(['MO']);
+  });
+
+  it('updates the position and weekday for a monthly pattern', () => {
+    const onChange = jest.fn();
+    const { getByText } = render(
+      <Harness initial={{ freq: 'MONTHLY', byDay: ['1MO'] }} onChange={onChange} />
+    );
+
+    fireEvent.press(getByText('First'));
+    fireEvent.press(getByText('Third'));
+
+    fireEvent.press(getByText('Mo'));
+    fireEvent.press(getByText('Sa'));
+
+    expect(last(onChange)!.byDay).toEqual(['3SA']);
+  });
+
+  it('updates the month for a yearly month-position rule', () => {
+    const onChange = jest.fn();
+    const { getByText } = render(
+      <Harness initial={{ freq: 'YEARLY', byMonth: [6], byDay: ['1MO'] }} onChange={onChange} />
+    );
+
+    fireEvent.press(getByText('June'));
+    fireEvent.press(getByText('July'));
+
+    expect(last(onChange)!.byMonth).toEqual([7]);
+  });
+
+  it('updates the week number for a yearly week-number rule', () => {
+    const onChange = jest.fn();
+    const { getByText, getByDisplayValue } = render(
+      <Harness initial={{ freq: 'YEARLY', byWeekNo: [1], byDay: ['MO'] }} onChange={onChange} />
+    );
+
+    fireEvent.changeText(getByDisplayValue('1'), '31');
+
+    expect(last(onChange)!.byWeekNo).toEqual([31]);
+  });
+
+  it('clamps week number between 1 and 53', () => {
+    const onChange = jest.fn();
+    const { getByDisplayValue } = render(
+      <Harness initial={{ freq: 'YEARLY', byWeekNo: [1], byDay: ['MO'] }} onChange={onChange} />
+    );
+
+    fireEvent.changeText(getByDisplayValue('1'), '99');
+
+    expect(last(onChange)!.byWeekNo).toEqual([53]);
   });
 });

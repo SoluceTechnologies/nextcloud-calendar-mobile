@@ -121,6 +121,16 @@ describe('syncCollection', () => {
     expect(body).toContain('<d:sync-token></d:sync-token>');
   });
 
+  it('returns undefined newToken when server sends an empty sync-token', async () => {
+    mockFetch.mockResolvedValue({
+      status: 207,
+      text: async () => `<d:multistatus xmlns:d="DAV:"><d:response><d:href>/p/a.ics</d:href><d:propstat><d:status>HTTP/1.1 200 OK</d:status></d:propstat></d:response><d:sync-token></d:sync-token></d:multistatus>`,
+    });
+    const res = await syncCollection(account, cal, 't0');
+    expect(res.newToken).toBeUndefined();
+    expect(res.reset).toBe(false);
+  });
+
   it('signals reset on 507 (invalid/expired token)', async () => {
     mockFetch.mockResolvedValue({ status: 507, text: async () => '' });
     const res = await syncCollection(account, cal, 'stale');
@@ -486,5 +496,75 @@ describe('Nextcloud installed in a subdirectory', () => {
     );
 
     expect(events[0].href).toBe('https://cloud.example.com/nextcloud/remote.php/dav/calendars/john/personal/a.ics');
+  });
+});
+
+describe('fetchEvents — subscribed feed with unstable UIDs', () => {
+  const subscribed: CalendarMeta = {
+    ...targetCalendar,
+    id: 'cal-abfuhr',
+    isSubscribed: true,
+    sourceUrl: 'https://feed.example.com/abfuhrkalender?format=ical',
+  };
+
+  const range = { s: new Date('2026-09-01T00:00:00Z'), e: new Date('2026-09-30T00:00:00Z') };
+
+  const feed = (uidPrefix: string) => [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'BEGIN:VEVENT',
+    `UID:${uidPrefix}a12`,
+    'DTSTART;VALUE=DATE:20260902',
+    'LOCATION:Ebertstr. 11',
+    'SUMMARY:Gelbe Tonne',
+    'END:VEVENT',
+    'BEGIN:VEVENT',
+    `UID:${uidPrefix}b4a`,
+    'DTSTART;VALUE=DATE:20260904',
+    'LOCATION:Ebertstr. 11',
+    'SUMMARY:Graue Tonne',
+    'END:VEVENT',
+    'END:VCALENDAR',
+  ].join('\r\n');
+
+  const fetchWith = async (uidPrefix: string) => {
+    mockFetch.mockResolvedValue({ ok: true, status: 200, text: async () => feed(uidPrefix) });
+    return fetchEvents(account, subscribed, range.s, range.e);
+  };
+
+  it('gives the same event the same uid across two fetches', async () => {
+    const first = await fetchWith('6a970d02d');
+    const second = await fetchWith('6a97138fe');
+
+    expect(first).toHaveLength(2);
+    expect(second).toHaveLength(2);
+    expect(second.map((e) => e.uid)).toEqual(first.map((e) => e.uid));
+  });
+
+  it('drops the feed uid rather than passing it through', async () => {
+    const [first] = await fetchWith('6a970d02d');
+    expect(first.uid).not.toBe('6a970d02da12');
+    expect(first.uid).toMatch(/^sub-[0-9a-f]{16}$/);
+  });
+
+  it('still separates two entries that fall on different days', async () => {
+    const events = await fetchWith('6a970d02d');
+    expect(new Set(events.map((e) => e.uid)).size).toBe(2);
+  });
+
+  it('separates two entries that differ only by title', async () => {
+    mockFetch.mockResolvedValue({
+      ok: true,
+      status: 200,
+      text: async () => [
+        'BEGIN:VCALENDAR', 'VERSION:2.0',
+        'BEGIN:VEVENT', 'UID:x1', 'DTSTART;VALUE=DATE:20260902', 'SUMMARY:Gelbe Tonne', 'END:VEVENT',
+        'BEGIN:VEVENT', 'UID:x2', 'DTSTART;VALUE=DATE:20260902', 'SUMMARY:Blaue Tonne', 'END:VEVENT',
+        'END:VCALENDAR',
+      ].join('\r\n'),
+    });
+    const events = await fetchEvents(account, subscribed, range.s, range.e);
+    expect(events).toHaveLength(2);
+    expect(new Set(events.map((e) => e.uid)).size).toBe(2);
   });
 });

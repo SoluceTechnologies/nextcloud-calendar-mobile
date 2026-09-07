@@ -5,14 +5,13 @@ import { useSettingsStore } from '@/stores/settingsStore';
 import { useAccountStore } from '@/stores/accountStore';
 import { useCalendarStore } from '@/stores/calendarStore';
 
-import { readUpcomingEvents } from '../core/readEvents';
 import { buildAgendaTimeline } from '../core/agendaSnapshot';
+import { AGENDA_DAYS, buildFreshTimeline } from '../core/buildTimeline';
+import { readUpcomingEvents } from '../core/readEvents';
 import { selectOngoingEvent, shouldClearLiveEvent } from '../core/liveEvent';
 import { readLiveEvent } from '../storage/widgetStore';
 import { homeWidget } from '../surfaces/homeWidget';
 import { liveActivity } from '../surfaces/liveActivity';
-
-export const AGENDA_DAYS = 7;
 
 let running = false;
 let pending = false;

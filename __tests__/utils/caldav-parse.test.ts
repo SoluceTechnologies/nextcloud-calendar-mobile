@@ -476,7 +476,6 @@ END:VCALENDAR`;
 describe('parseIcsObjects VTODO (Deck cards / tasks)', () => {
   const calMeta = { calendarId: 'deck-1', accountId: 'acc-1', color: '#ff0000' };
 
-  // Nextcloud Deck exposes each board card as a VTODO with a DUE date.
   const deckCardTimed = `BEGIN:VCALENDAR
 VERSION:2.0
 PRODID:-//Nextcloud deck//EN
@@ -592,5 +591,117 @@ END:VCALENDAR`;
   it('skips a VTODO without any date (cannot place on agenda)', () => {
     const events = parseIcsObjects([{ ics: deckCardNoDate, href: '/deck/nd.ics' }], calMeta);
     expect(events).toHaveLength(0);
+  });
+});
+
+describe('a deleted occurrence stays deleted', () => {
+  const calMeta2 = { calendarId: 'cal-1', accountId: 'acc-1', color: '#0082c9' };
+  const rangeStart = new Date('2026-08-01T00:00:00Z');
+  const rangeEnd = new Date('2026-10-01T00:00:00Z');
+
+  const orphanedFork = `BEGIN:VCALENDAR
+VERSION:2.0
+BEGIN:VEVENT
+UID:weekly-1
+DTSTAMP:20260801T090000Z
+DTSTART;TZID=Europe/Paris:20260805T140000
+DTEND;TZID=Europe/Paris:20260805T150000
+RRULE:FREQ=WEEKLY;BYDAY=WE
+EXDATE;TZID=Europe/Paris:20260826T140000
+SUMMARY:Weekly 14h
+END:VEVENT
+BEGIN:VEVENT
+UID:weekly-1
+DTSTAMP:20260801T090000Z
+RECURRENCE-ID;TZID=Europe/Paris:20260826T140000
+DTSTART;TZID=Europe/Paris:20260826T160000
+DTEND;TZID=Europe/Paris:20260826T170000
+SUMMARY:Weekly 14h (moved)
+END:VEVENT
+END:VCALENDAR`;
+
+  it('drops an EXDATE-ed instance that still carries a RECURRENCE-ID override', () => {
+    const events = parseIcsObjects(
+      [{ ics: orphanedFork, href: '/c/weekly-1.ics' }],
+      calMeta2,
+      rangeStart,
+      rangeEnd,
+    );
+    expect(events.map((e) => e.summary)).not.toContain('Weekly 14h (moved)');
+    expect(
+      events.some((e) => e.recurrenceId?.toISOString() === '2026-08-26T12:00:00.000Z'),
+    ).toBe(false);
+  });
+
+  it('keeps an override whose instance is not excluded', () => {
+    const noExdate = orphanedFork.replace('EXDATE;TZID=Europe/Paris:20260826T140000\n', '');
+    const events = parseIcsObjects(
+      [{ ics: noExdate, href: '/c/weekly-1.ics' }],
+      calMeta2,
+      rangeStart,
+      rangeEnd,
+    );
+    expect(events.map((e) => e.summary)).toContain('Weekly 14h (moved)');
+  });
+
+  it('honours an EXDATE written in UTC against a zoned series', () => {
+    const utcExdate = orphanedFork
+      .replace('EXDATE;TZID=Europe/Paris:20260826T140000', 'EXDATE:20260826T120000Z');
+    const events = parseIcsObjects(
+      [{ ics: utcExdate, href: '/c/weekly-1.ics' }],
+      calMeta2,
+      rangeStart,
+      rangeEnd,
+    );
+    expect(events.map((e) => e.summary)).not.toContain('Weekly 14h (moved)');
+  });
+});
+
+// ical.js falls back to floating wall-clock comparison when the resource carries no
+// VTIMEZONE for the DTSTART TZID, so an EXDATE stated in any other zone excluded
+// nothing and the occurrence the server had removed came back at every sync.
+describe('EXDATE matching does not depend on VTIMEZONE being present', () => {
+  const calMeta3 = { calendarId: 'cal-1', accountId: 'acc-1', color: '#0082c9' };
+  const rangeStart = new Date('2026-08-01T00:00:00Z');
+  const rangeEnd = new Date('2026-10-01T00:00:00Z');
+  const deletedSlot = '2026-08-26T12:00:00.000Z';
+
+  // Weekly Wed 14:00 Europe/Paris, no VTIMEZONE — the shape the app itself writes.
+  const withExdate = (exdateLine: string) => `BEGIN:VCALENDAR
+VERSION:2.0
+BEGIN:VEVENT
+UID:weekly-tz
+DTSTAMP:20260801T090000Z
+DTSTART;TZID=Europe/Paris:20260805T140000
+DTEND;TZID=Europe/Paris:20260805T150000
+RRULE:FREQ=WEEKLY;BYDAY=WE
+${exdateLine}
+SUMMARY:Weekly 14h
+END:VEVENT
+END:VCALENDAR`;
+
+  const occurrences = (exdateLine: string) =>
+    parseIcsObjects(
+      [{ ics: withExdate(exdateLine), href: '/c/weekly-tz.ics' }],
+      calMeta3,
+      rangeStart,
+      rangeEnd,
+    ).map((e) => e.dtstart.toISOString());
+
+  it.each([
+    ['same zone as DTSTART', 'EXDATE;TZID=Europe/Paris:20260826T140000'],
+    ['UTC with Z suffix', 'EXDATE:20260826T120000Z'],
+    ['TZID=UTC', 'EXDATE;TZID=UTC:20260826T120000'],
+    ['a third zone', 'EXDATE;TZID=America/New_York:20260826T080000'],
+  ])('excludes the instance when EXDATE is written in %s', (_label, exdateLine) => {
+    const got = occurrences(exdateLine);
+    expect(got).not.toContain(deletedSlot);
+    expect(got).toContain('2026-08-19T12:00:00.000Z');
+    expect(got).toContain('2026-09-02T12:00:00.000Z');
+  });
+
+  it('keeps every occurrence when there is no EXDATE at all', () => {
+    const got = occurrences('X-NOTHING:1');
+    expect(got).toContain(deletedSlot);
   });
 });

@@ -50,6 +50,28 @@ jest.mock('@/services/shared/nativeTlsTrust', () => {
   };
 });
 
+jest.mock('react-native-webview', () => {
+  const React = require('react');
+  const { View } = require('react-native');
+  return {
+    __esModule: true,
+    default: React.forwardRef(function WebView(props, ref) {
+      React.useImperativeHandle(ref, () => ({
+        postMessage: () => {},
+        reload: () => {},
+      }));
+      React.useEffect(() => {
+        if (props.onMessage) {
+          props.onMessage({
+            nativeEvent: { data: JSON.stringify({ type: 'ready' }) },
+          });
+        }
+      }, [props.onMessage]);
+      return React.createElement(View, { testID: 'web-view', ...props });
+    }),
+  };
+});
+
 jest.mock('react-native-reanimated', () => {
   const { View, ScrollView } = require('react-native');
   return {

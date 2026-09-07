@@ -292,7 +292,8 @@ export function useUpdateEvent(account: Account, calendars: CalendarMeta[]) {
                 const masterIcs = await fetchEventIcs(account, event.href);
                 sequence = extractSequence(masterIcs) + 1;
                 preserved = extractExtraVeventLines(masterIcs);
-              } catch {
+              } catch (error) {
+                console.warn('[useUpdateEvent] failed to fetch master ics for sequence/extra lines:', error);
               }
             }
             await updateEvent(account, event.href, buildIcsForInput(uid, masterInput, location, description, timezone, sequence, preserved));

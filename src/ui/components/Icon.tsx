@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo, type ReactElement } from 'react';
 import { View, ViewProps } from 'react-native';
 import { useTheme } from 'expo-router';
 
@@ -9,17 +9,23 @@ interface IconProps extends ViewProps {
   opacity?: number;
 }
 
+interface IconChildProps {
+  color?: string;
+  size?: number;
+}
+
 function injectProps(children: React.ReactNode, color: string, size: number): React.ReactNode {
-  const inject = (child: React.ReactElement<any>) => {
+  const inject = (child: ReactElement<unknown>) => {
+    const props = child.props as IconChildProps;
     const next: Record<string, unknown> = {};
-    if (child.props.color === undefined) next.color = color;
-    if (child.props.size === undefined) next.size = size;
+    if (props.color === undefined) next.color = color;
+    if (props.size === undefined) next.size = size;
     return Object.keys(next).length ? React.cloneElement(child, next) : child;
   };
 
-  if (React.isValidElement(children)) return inject(children as React.ReactElement<any>);
+  if (React.isValidElement(children)) return inject(children);
   return React.Children.map(children, (child) =>
-    React.isValidElement(child) ? inject(child as React.ReactElement<any>) : child
+    React.isValidElement(child) ? inject(child) : child
   );
 }
 
@@ -50,4 +56,4 @@ function Icon({ children, color, size = 24, opacity, style, ...rest }: IconProps
   );
 }
 
-export default React.memo(Icon);
+export default memo(Icon);

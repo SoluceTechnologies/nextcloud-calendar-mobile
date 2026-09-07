@@ -1,4 +1,3 @@
-import React from 'react';
 import { Appearance } from 'react-native';
 import { HStack, Link, RoundedRectangle, Text, VStack } from '@expo/ui/swift-ui';
 import { containerBackground, font, foregroundStyle, frame, padding } from '@expo/ui/swift-ui/modifiers';

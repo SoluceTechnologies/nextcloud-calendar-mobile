@@ -5,10 +5,10 @@ import { scheduleOnRN } from 'react-native-worklets';
 import { haptic, ImpactFeedbackStyle } from '@/utils/haptics';
 import { SNAP_MINUTES, resolveDraggedBounds, snapDeltaMinutes } from '../utils/dragMath';
 import { hitTestEvent, type DragMode } from '../utils/hitTest';
+import { LONG_PRESS_MS } from '../constants';
 import type { PositionedEvent } from '../utils/eventLayout';
 import type { GridEvent } from '../utils/toGridEvents';
 
-const LONG_PRESS_MS = 300;
 const DAY_MINUTES = 1440;
 
 const SETTLE_WATCHDOG_MS = 2500;
@@ -76,9 +76,6 @@ export function useEventDrag({
     if (!hit) return;
 
     const full = hit.event._event;
-    // Non-editable events cannot be dragged: tasks (VTODO — Deck cards, Tasks
-    // app) would be corrupted by a VEVENT write-back, and read-only/subscribed
-    // calendars reject writes entirely.
     if (full.isTask || full.readOnly) return;
     if (
       hit.event.start.getTime() !== full.dtstart.getTime() ||

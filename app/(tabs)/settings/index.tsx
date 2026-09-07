@@ -3,7 +3,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import {
-  Accessibility, Bell, CalendarDays, ChevronRight, Info, LayoutGrid, Palette, UserRound,
+  Accessibility, Bell, CalendarDays, ChevronRight, Info, LayoutGrid, Palette, UserRound, Video,
 } from 'lucide-react-native';
 
 import { useAccountStore } from '@/stores/accountStore';
@@ -74,6 +74,11 @@ export default function SettingsScreen() {
                 title={t('settings.accessibility.title')}
                 icon={<Accessibility />}
                 onPress={() => router.push('/(tabs)/settings/accessibility')}
+              />
+              <SettingsLink
+                title={t('settings.talk.title')}
+                icon={<Video />}
+                onPress={() => router.push('/(tabs)/settings/talk')}
               />
             </List>
           </Stack>

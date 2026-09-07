@@ -86,4 +86,67 @@ describe('parseRrule', () => {
   it('refuses a duplicate key rather than taking the last value', () => {
     expect(parseRrule('RRULE:FREQ=WEEKLY;FREQ=DAILY')).toBeUndefined();
   });
+
+  describe('advanced recurrence rules', () => {
+    it('reads monthly positional BYDAY (3rd Saturday)', () => {
+      expect(parseRrule('RRULE:FREQ=MONTHLY;BYDAY=3SA')).toEqual({
+        freq: 'MONTHLY',
+        byDay: ['3SA'],
+      });
+    });
+
+    it('reads monthly last weekday BYDAY', () => {
+      expect(parseRrule('RRULE:FREQ=MONTHLY;BYDAY=-1SU')).toEqual({
+        freq: 'MONTHLY',
+        byDay: ['-1SU'],
+      });
+    });
+
+    it('reads yearly positional BYDAY within a month (3rd Saturday in July)', () => {
+      expect(parseRrule('RRULE:FREQ=YEARLY;BYMONTH=7;BYDAY=3SA')).toEqual({
+        freq: 'YEARLY',
+        byMonth: [7],
+        byDay: ['3SA'],
+      });
+    });
+
+    it('reads yearly BYWEEKNO rule (Sunday of ISO week 31)', () => {
+      expect(parseRrule('RRULE:FREQ=YEARLY;BYWEEKNO=31;BYDAY=SU')).toEqual({
+        freq: 'YEARLY',
+        byWeekNo: [31],
+        byDay: ['SU'],
+      });
+    });
+
+    it('strips positional BYDAY for weekly rules', () => {
+      expect(parseRrule('RRULE:FREQ=WEEKLY;BYDAY=1MO,WE')).toEqual({
+        freq: 'WEEKLY',
+        byDay: ['MO', 'WE'],
+      });
+    });
+
+    it('rejects out-of-range positions for monthly', () => {
+      expect(parseRrule('RRULE:FREQ=MONTHLY;BYDAY=10SA')).toBeUndefined();
+      expect(parseRrule('RRULE:FREQ=MONTHLY;BYDAY=0SA')).toBeUndefined();
+    });
+
+    it('rejects BYWEEKNO with monthly frequency', () => {
+      expect(parseRrule('RRULE:FREQ=MONTHLY;BYWEEKNO=2;BYDAY=MO')).toBeUndefined();
+    });
+
+    it('rejects positional BYDAY with BYWEEKNO', () => {
+      expect(parseRrule('RRULE:FREQ=YEARLY;BYWEEKNO=31;BYDAY=1SU')).toBeUndefined();
+    });
+
+    it('rejects BYMONTH combined with BYWEEKNO', () => {
+      expect(parseRrule('RRULE:FREQ=YEARLY;BYMONTH=7;BYWEEKNO=31;BYDAY=SU')).toBeUndefined();
+    });
+
+    it('normalises the plus sign in positional BYDAY', () => {
+      expect(parseRrule('RRULE:FREQ=MONTHLY;BYDAY=+3SA')).toEqual({
+        freq: 'MONTHLY',
+        byDay: ['3SA'],
+      });
+    });
+  });
 });

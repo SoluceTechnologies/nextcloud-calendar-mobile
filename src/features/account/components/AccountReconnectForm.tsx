@@ -8,9 +8,11 @@ import { exchangeOneTimeToken } from '@/services/nextcloud/nextcloud';
 import { describeMutationError, HttpError } from '@/services/shared/errors';
 import { useReconnectAccount } from '../hooks/useMutateAccount';
 import { useCertTrust } from '../hooks/useCertTrust';
+import { useCleartextConsent } from '../hooks/useCleartextConsent';
 import { AccountFieldError, type FieldErrors } from '../utils/account';
 import { QrLoginScanner, type NcLoginData } from './QrLoginScanner';
 import { CertTrustSheet } from './CertTrustSheet';
+import { CleartextConsentSheet } from './CleartextConsentSheet';
 import type { Account } from '@/types';
 
 interface Props {
@@ -32,6 +34,7 @@ export function AccountReconnectForm({ account, style }: Props) {
   const [exchanging, setExchanging] = useState(false);
 
   const certTrust = useCertTrust();
+  const cleartextConsent = useCleartextConsent();
   const [lastReconnect, setLastReconnect] = useState<{ password: string; username?: string } | null>(null);
 
   async function submit(password: string, username?: string) {
@@ -40,11 +43,14 @@ export function AccountReconnectForm({ account, style }: Props) {
     setDone(false);
     setLastReconnect({ password, username });
     try {
-      const ok = await certTrust.run(async () => {
-        await reconnect.mutateAsync({ appPassword: password, username });
-        return true;
-      });
-      // Untrusted certificate: the trust sheet is now shown; wait for the user.
+      const ok = await cleartextConsent.run(async () =>
+        certTrust.run(async () => {
+          await reconnect.mutateAsync({ appPassword: password, username });
+          return true;
+        }),
+      );
+      // Untrusted certificate or unconsented cleartext: a sheet is now shown;
+      // wait for the user.
       if (!ok) return;
       setAppPassword('');
       setDone(true);
@@ -62,6 +68,11 @@ export function AccountReconnectForm({ account, style }: Props) {
 
   function handleTrustCert() {
     certTrust.confirm();
+    if (lastReconnect) submit(lastReconnect.password, lastReconnect.username);
+  }
+
+  function handleConsentCleartext() {
+    cleartextConsent.confirm();
     if (lastReconnect) submit(lastReconnect.password, lastReconnect.username);
   }
 
@@ -153,6 +164,12 @@ export function AccountReconnectForm({ account, style }: Props) {
         error={certTrust.pending}
         onTrust={handleTrustCert}
         onCancel={certTrust.dismiss}
+      />
+
+      <CleartextConsentSheet
+        error={cleartextConsent.pending}
+        onConfirm={handleConsentCleartext}
+        onCancel={cleartextConsent.dismiss}
       />
     </Stack>
   );

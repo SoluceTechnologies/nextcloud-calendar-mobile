@@ -14,6 +14,7 @@ jest.mock('../../src/utils/i18n', () => ({
   default: { changeLanguage: (l: string) => mockChangeLanguage(l) },
   isSupported: (c: string) => SUPPORTED.includes(c),
   getInitialLanguage: () => 'en',
+  getInitialWeekStartsOn: () => 0,
   SUPPORTED,
   LANGUAGES: SUPPORTED.map((code) => ({ code, label: code, region: code.toUpperCase() })),
 }));

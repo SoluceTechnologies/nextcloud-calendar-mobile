@@ -6580,10 +6580,17 @@ __metadata:
   languageName: node
   linkType: hard
 
-"ical.js@npm:^2.2.1":
+"ical.js@npm:2.2.1":
   version: 2.2.1
   resolution: "ical.js@npm:2.2.1"
   checksum: 10c0/f08e896d613fe7dc737ca2cc5254b5413586c6f2d4c90568cdf077eff757051f8443d3b8705548e3dd7c3771e26aa3fdf7a2534b763242a9cf90a4150efefd85
+  languageName: node
+  linkType: hard
+
+"ical.js@patch:ical.js@npm%3A2.2.1#~/.yarn/patches/ical.js-npm-2.2.1-bffc8d4f45.patch":
+  version: 2.2.1
+  resolution: "ical.js@patch:ical.js@npm%3A2.2.1#~/.yarn/patches/ical.js-npm-2.2.1-bffc8d4f45.patch::version=2.2.1&hash=8ab582"
+  checksum: 10c0/77f3f96f11d4697ca8051eeb8582210663fba93419a904c876ee9f6504b6fc48dba3658c52eaad7ec10530ec6cf05c4b10fd34be5fc9bdd1f4ab5177f592d973
   languageName: node
   linkType: hard
 
@@ -6693,7 +6700,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"invariant@npm:^2.2.4":
+"invariant@npm:2.2.4, invariant@npm:^2.2.4":
   version: 2.2.4
   resolution: "invariant@npm:2.2.4"
   dependencies:
@@ -8574,7 +8581,7 @@ __metadata:
     expo-web-browser: "npm:~57.0.1"
     expo-widgets: "npm:~57.0.6"
     i18next: "npm:^26.3.1"
-    ical.js: "npm:^2.2.1"
+    ical.js: "patch:ical.js@npm%3A2.2.1#~/.yarn/patches/ical.js-npm-2.2.1-bffc8d4f45.patch"
     jest: "npm:^29.7.0"
     jest-expo: "npm:~57.0.2"
     lucide-react-native: "npm:^1.25.0"
@@ -8593,6 +8600,7 @@ __metadata:
     react-native-safe-area-context: "npm:~5.7.0"
     react-native-screens: "npm:~4.26.0"
     react-native-svg: "npm:15.15.4"
+    react-native-webview: "npm:15.0.0"
     react-native-worklets: "npm:0.10.0"
     react-native-worklets-core: "npm:^1.6.3"
     react-test-renderer: "npm:19.2.3"
@@ -9599,6 +9607,19 @@ __metadata:
     react: "*"
     react-native: "*"
   checksum: 10c0/1fb8e3ac9d45a4db74731a006cd32f883051844f361974dff49e1a4142aa7c1a0d87e0b04fff06a1932ca53940bcfb94e45e01a845eb451d4659fbf07092629e
+  languageName: node
+  linkType: hard
+
+"react-native-webview@npm:15.0.0":
+  version: 15.0.0
+  resolution: "react-native-webview@npm:15.0.0"
+  dependencies:
+    escape-string-regexp: "npm:^4.0.0"
+    invariant: "npm:2.2.4"
+  peerDependencies:
+    react: "*"
+    react-native: "*"
+  checksum: 10c0/bb499f29c0cb88e65a40797606006742fde5b5384a3c640d68a8bf35b25de32e53b475fc33e6bb11220e301dd262306f3001e50aa4c973d36a7cb1a0ed517f4e
   languageName: node
   linkType: hard
 

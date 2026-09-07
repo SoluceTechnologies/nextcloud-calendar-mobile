@@ -86,6 +86,7 @@
     "end": "Fim",
     "location": "Localização",
     "locationPlaceholder": "Sala ou morada",
+    "openInMaps": "Open in Maps",
     "description": "Descrição",
     "descriptionPlaceholder": "Detalhes...",
     "attendees": "Participantes",
@@ -110,6 +111,24 @@
     "dayTh": "Qui",
     "dayFr": "Sex",
     "daySa": "Sáb",
+    "repeatOn": "Repeat on",
+    "sameDayOfMonth": "Same day of month",
+    "sameDate": "Same date",
+    "onAWeekday": "On a weekday",
+    "onAWeekdayOfAMonth": "On a weekday of a month",
+    "onAWeekNumber": "On a week number",
+    "of": "of",
+    "week": "week",
+    "positionFirst": "First",
+    "positionSecond": "Second",
+    "positionThird": "Third",
+    "positionFourth": "Fourth",
+    "positionFifth": "Fifth",
+    "positionLast": "Last",
+    "positionLabel": "Position",
+    "weekdayLabel": "Weekday",
+    "monthLabel": "Month",
+    "weekNumberLabel": "Week number",
     "ends": "Termina",
     "endsNever": "Nunca",
     "endsAfter": "Após",
@@ -121,6 +140,10 @@
     "talkPublicLink": "Ligação pública",
     "talkAnyoneWithLink": "Qualquer pessoa com a ligação pode participar",
     "talkOnlyInvited": "Apenas participantes convidados",
+    "talkOpenTitle": "Open Talk room",
+    "openInTalk": "Open in Talk app",
+    "openInBrowser": "Open in browser",
+    "talkAppNotInstalled": "Nextcloud Talk is not installed. Install it to open rooms directly in the app, or open in browser.",
     "loadingCalendars": "A carregar calendários…",
     "newEvent": "Novo evento",
     "editEvent": "Editar evento",
@@ -258,7 +281,15 @@
       "use": "Usar",
       "editOnNextcloud": "Editar no Nextcloud"
     },
-    "accountActive": "Ativa"
+    "accountActive": "Ativa",
+    "talk": {
+      "title": "Talk",
+      "openWith": "Open Talk links with",
+      "openWithHint": "Choose how event call links open by default. Long-press the Join Talk Room button to override.",
+      "openInApp": "Nextcloud Talk app",
+      "openInBrowser": "Browser",
+      "askEachTime": "Ask each time"
+    }
   },
   "widget": {
     "liveRemaining": "faltam {{duration}}",
@@ -289,6 +320,14 @@
     "validFrom": "Válido desde",
     "validTo": "Válido até",
     "trust": "Confiar e ligar",
+    "cancel": "Cancelar"
+  },
+  "cleartext": {
+    "title": "Ligação não encriptada",
+    "body": "A ligação a {{host}} não está encriptada. O seu nome de utilizador e a palavra-passe da aplicação seriam enviados em texto simples pela rede.",
+    "warning": "Qualquer pessoa entre este telemóvel e o servidor — o operador do Wi-Fi, o seu fornecedor de internet, qualquer rede pelo meio — pode ler a sua palavra-passe e os dados do calendário. Uma palavra-passe de aplicação do Nextcloud dá acesso a toda a conta, não apenas ao calendário.",
+    "remedy": "Opções mais seguras: aceder ao servidor através de uma VPN como Tailscale ou WireGuard, ou configurar um certificado gratuito com DuckDNS e Let's Encrypt.",
+    "connect": "Ligar mesmo assim",
     "cancel": "Cancelar"
   }
 }

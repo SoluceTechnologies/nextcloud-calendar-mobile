@@ -11,20 +11,21 @@ import Event from './models/Event';
 export function useEventByUid(
   accountId: string | null,
   uid: string | undefined,
-): CalendarEvent | undefined {
+): CalendarEvent | null | undefined {
   const database = useDatabase();
-  const [event, setEvent] = useState<CalendarEvent | undefined>(undefined);
+  const [event, setEvent] = useState<CalendarEvent | null | undefined>(undefined);
 
   useEffect(() => {
     if (!accountId || !uid) {
-      setEvent(undefined);
+      setEvent(null);
       return;
     }
+    setEvent(undefined);
     const subscription = database
       .get<Event>('events')
       .query(Q.where('account_id', accountId), Q.where('uid', uid))
       .observeWithColumns(EVENT_OBSERVED_COLUMNS)
-      .subscribe((rows) => setEvent(rows[0] ? mapEventToShared(rows[0]) : undefined));
+      .subscribe((rows) => setEvent(rows[0] ? mapEventToShared(rows[0]) : null));
     return () => subscription.unsubscribe();
   }, [accountId, uid, database]);
 

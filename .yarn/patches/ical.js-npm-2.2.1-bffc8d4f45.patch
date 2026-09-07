@@ -1,0 +1,39 @@
+diff --git a/dist/ical.es5.cjs b/dist/ical.es5.cjs
+index 9179303f198c7e5b95bb5eb4108433b5755cf0d1..51a9ad9d3d5d99c0c369bec98a9631820ea1e5f5 100644
+--- a/dist/ical.es5.cjs
++++ b/dist/ical.es5.cjs
+@@ -5385,7 +5385,7 @@
+               var _day6 = _step0.value;
+               var _tt2 = Time.fromDayOfYear(_day6, aYear);
+               var _weekno = _tt2.weekNumber(this.rule.wkst);
+-              if (this.by_data.BYWEEKNO.indexOf(_weekno)) {
++              if (this.by_data.BYWEEKNO.indexOf(_weekno) >= 0) {
+                 this.days.push(_day6);
+               }
+             }
+diff --git a/dist/ical.js b/dist/ical.js
+index be2228f64159a784e9c4550cf121c3deb62d608d..91a02dafa0fdb3c411e8d834347cc42e85f4c6b4 100644
+--- a/dist/ical.js
++++ b/dist/ical.js
+@@ -5327,7 +5327,7 @@ class RecurIterator {
+         let tt = Time.fromDayOfYear(day, aYear);
+         let weekno = tt.weekNumber(this.rule.wkst);
+ 
+-        if (this.by_data.BYWEEKNO.indexOf(weekno)) {
++        if (this.by_data.BYWEEKNO.indexOf(weekno) >= 0) {
+           this.days.push(day);
+         }
+       }
+diff --git a/lib/ical/recur_iterator.js b/lib/ical/recur_iterator.js
+index 3cb85c14beb656ce01983c32d704037b9021cd97..dbe6c1ec9460fe9e645b887c2560b4fe945d4aa6 100644
+--- a/lib/ical/recur_iterator.js
++++ b/lib/ical/recur_iterator.js
+@@ -1247,7 +1247,7 @@ class RecurIterator {
+         let tt = Time.fromDayOfYear(day, aYear);
+         let weekno = tt.weekNumber(this.rule.wkst);
+ 
+-        if (this.by_data.BYWEEKNO.indexOf(weekno)) {
++        if (this.by_data.BYWEEKNO.indexOf(weekno) >= 0) {
+           this.days.push(day);
+         }
+       }

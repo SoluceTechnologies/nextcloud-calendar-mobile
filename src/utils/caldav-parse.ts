@@ -63,10 +63,6 @@ type OverridableFields = Pick<
   'summary' | 'description' | 'location' | 'talkUrl' | 'attendees' | 'organizerEmail' | 'alarmMinutes'
 >;
 
-// An exception VEVENT replaces one instance of a series and may restate any of
-// its own details — a renamed meeting, a new room, a different guest list. Only
-// the properties it actually carries are returned, so whatever it leaves out
-// keeps the master's value instead of blanking out.
 function exceptionFields(vevent: ICAL.Component): Partial<OverridableFields> {
   const fields: Partial<OverridableFields> = {};
 
@@ -122,6 +118,20 @@ function resolveInstant(t: ICAL.Time, tzid: string | undefined, isEnd = false): 
     return zonedWallTimeToUtc(t.year, t.month, t.day, t.hour, t.minute, t.second, tzid);
   }
   return t.toJSDate();
+}
+
+function excludedInstants(vevent: ICAL.Component, fallbackTzid: string | undefined): Set<number> {
+  const excluded = new Set<number>();
+  for (const prop of vevent.getAllProperties('exdate')) {
+    const raw = prop.getParameter('tzid');
+    const propTzid = typeof raw === 'string' && isValidTimeZone(raw) ? raw : undefined;
+    for (const value of prop.getValues()) {
+      if (!(value instanceof ICAL.Time)) continue;
+      const zone = value.zone === ICAL.Timezone.utcTimezone ? undefined : propTzid ?? fallbackTzid;
+      excluded.add(resolveInstant(value, zone).getTime());
+    }
+  }
+  return excluded;
 }
 
 function repairIcsFolding(ics: string): string {
@@ -282,6 +292,7 @@ export function parseIcsItem(
 
         const overrides: ICAL.Event[] = Object.values(icalEvent.exceptions ?? {});
         const overrideIds = new Set(overrides.map((ex) => ex.recurrenceId.toString()));
+        const excluded = excludedInstants(vevent, tzid);
         const canPrefilter = icalEvent.rangeExceptions.length === 0;
 
         const inRange = (start: Date, end: Date) =>
@@ -316,6 +327,8 @@ export function parseIcsItem(
 
           if (slotStart.getTime() >= rangeEndMs) break;
 
+          if (excluded.has(slotStart.getTime())) continue;
+
           if (isOverridden(nextTime, overrideIds)) continue;
 
           if (canPrefilter && slotStart.getTime() + durationMs <= rangeStartMs) continue;
@@ -326,6 +339,7 @@ export function parseIcsItem(
 
         for (const ex of overrides) {
           if (emitted >= MAX_OCCURRENCES) break;
+          if (excluded.has(resolveInstant(ex.recurrenceId, tzid).getTime())) continue;
           if (pushOccurrence(ex.recurrenceId, ex, ex.startDate, ex.endDate)) emitted++;
         }
       } else {
