@@ -5,7 +5,8 @@ import type { CalendarEvent } from '@/types';
 import { getDatabaseInstance } from './DatabaseProvider';
 import { mapEventToShared } from './mappers/event';
 import Event from './models/Event';
-import { eventKey, markLocalWrite, prepareCreateEvent, seriesBaseUid, writeEvent } from './sync';
+import { markLocalWrite } from './localWriteEpoch';
+import { eventKey, prepareCreateEvent, seriesBaseUid, writeEvent } from './sync';
 import { safeWrite } from './utils/safeTransaction';
 
 const events = () => getDatabaseInstance().get<Event>('events');

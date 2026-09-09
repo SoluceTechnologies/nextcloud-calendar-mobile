@@ -1,6 +1,8 @@
-import { syncCalendarDelta, syncEvents, markLocalWrite } from '../../src/database/sync';
+import { syncCalendarDelta, syncEvents } from '../../src/database/sync';
+import { markLocalWrite } from '../../src/database/localWriteEpoch';
 import { syncCollection, fetchEventsByHrefs, fetchEventsForCalendars } from '../../src/services/nextcloud/caldav';
 import { getDatabaseInstance } from '../../src/database/DatabaseProvider';
+import { storage } from '../../src/storage';
 import type { Account, CalendarMeta, CalendarEvent } from '../../src/types';
 
 jest.mock('../../src/services/nextcloud/caldav');
@@ -84,7 +86,10 @@ function makeDb(opts: { calendarRow?: any; eventRows?: any[] }) {
 const noTokenRow = () => ({ syncToken: undefined, expandedCenter: undefined, prepareUpdate: jest.fn(() => ({ _op: 'upd' })) });
 const tokenRow = () => ({ syncToken: 'tok', expandedCenter: Date.now(), prepareUpdate: jest.fn(() => ({ _op: 'upd' })) });
 
-beforeEach(() => jest.clearAllMocks());
+beforeEach(() => {
+  jest.clearAllMocks();
+  storage.clearAll();
+});
 
 describe('syncCalendarDelta — non-destructive guards', () => {
   it('does NOT wipe when a full sync enumerates hrefs but parses zero events', async () => {
