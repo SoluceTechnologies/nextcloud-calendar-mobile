@@ -4,6 +4,9 @@ import { useFocusEffect } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 
 import { useSettingsStore } from '@/stores/settingsStore';
+import { useAccountStore } from '@/stores/accountStore';
+import { useActiveAccount } from '@/hooks/useAccounts';
+import { registerPushNotifications, unregisterPushNotifications } from '@/services/push/pushRegistration';
 import { refreshWidgets } from '@/features/widget';
 import { liveActivity } from '@/features/widget/surfaces/liveActivity';
 import {
@@ -19,10 +22,15 @@ export function NotificationSettings() {
   const { t } = useTranslation();
   const enabled = useSettingsStore((s) => s.liveActivityEnabled);
   const setEnabled = useSettingsStore((s) => s.setLiveActivityEnabled);
+  const pushEnabled = useSettingsStore((s) => s.pushNotifications);
+  const setPushEnabled = useSettingsStore((s) => s.setPushNotifications);
   const timedAlert = useSettingsStore((s) => s.timedAlert);
   const allDayAlert = useSettingsStore((s) => s.allDayAlert);
   const setTimedAlert = useSettingsStore((s) => s.setTimedAlert);
   const setAllDayAlert = useSettingsStore((s) => s.setAllDayAlert);
+
+  const activeAccountId = useAccountStore((s) => s.activeAccountId);
+  const account = useActiveAccount(activeAccountId);
 
   const [granted, setGranted] = useState(true);
 
@@ -49,6 +57,30 @@ export function NotificationSettings() {
     set();
     if (value !== null) await requestAlertPermission();
     await scheduleEventAlerts();
+  }
+
+  async function handlePushEnable(next: boolean) {
+    setPushEnabled(next);
+
+    if (!next || !account) {
+      if (account) {
+        try {
+          await unregisterPushNotifications(account);
+        } catch (err) {
+          console.warn('[NotificationSettings] unregister failed:', err);
+        }
+      }
+      return;
+    }
+
+    const ok = await requestAlertPermission();
+    if (!ok) return;
+
+    try {
+      await registerPushNotifications(account);
+    } catch (err) {
+      console.warn('[NotificationSettings] register failed:', err);
+    }
   }
 
   const timedOptions: SelectOption<TimedAlert>[] = TIMED_ALERTS.map((value) => ({
@@ -85,6 +117,18 @@ export function NotificationSettings() {
           />
         </>
       )}
+
+      <Divider />
+
+      <Stack direction="horizontal" vAlign="center" gap={12}>
+        <Stack gap={2} style={{ flex: 1 }}>
+          <Typography variant="body1">{t('settings.notifications.push')}</Typography>
+          <Typography variant="caption" color="secondary">
+            {t('settings.notifications.pushHint')}
+          </Typography>
+        </Stack>
+        <Toggle value={pushEnabled} onValueChange={handlePushEnable} />
+      </Stack>
 
       <Divider />
 

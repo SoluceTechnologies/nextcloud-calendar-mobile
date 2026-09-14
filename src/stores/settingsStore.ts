@@ -16,6 +16,7 @@ interface SettingsState {
   allDayAlert: AllDayAlert;
   hapticsEnabled: boolean;
   reduceMotion: boolean;
+  pushNotifications: boolean;
   talkOpenMode: TalkOpenMode;
   setThemePreference: (pref: ThemePreference) => void;
   setLanguage: (lang: AppLanguage) => void;
@@ -25,6 +26,7 @@ interface SettingsState {
   setAllDayAlert: (v: AllDayAlert) => void;
   setHapticsEnabled: (v: boolean) => void;
   setReduceMotion: (v: boolean) => void;
+  setPushNotifications: (v: boolean) => void;
   setTalkOpenMode: (v: TalkOpenMode) => void;
 }
 
@@ -39,6 +41,7 @@ export const useSettingsStore = create<SettingsState>()(
       allDayAlert: null,
       hapticsEnabled: true,
       reduceMotion: false,
+      pushNotifications: false,
       talkOpenMode: 'app',
       setTimedAlert: (v) => set({ timedAlert: v }),
       setAllDayAlert: (v) => set({ allDayAlert: v }),
@@ -48,6 +51,7 @@ export const useSettingsStore = create<SettingsState>()(
       setLiveActivityEnabled: (v) => set({ liveActivityEnabled: v }),
       setHapticsEnabled: (v) => set({ hapticsEnabled: v }),
       setReduceMotion: (v) => set({ reduceMotion: v }),
+      setPushNotifications: (v) => set({ pushNotifications: v }),
       setTalkOpenMode: (v) => set({ talkOpenMode: v }),
     }),
     {
@@ -68,6 +72,7 @@ export const useSettingsStore = create<SettingsState>()(
         allDayAlert: state.allDayAlert,
         hapticsEnabled: state.hapticsEnabled,
         reduceMotion: state.reduceMotion,
+        pushNotifications: state.pushNotifications,
         talkOpenMode: state.talkOpenMode,
       }),
     }

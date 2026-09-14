@@ -37,6 +37,10 @@ yarn-error.*
 # local env files
 .env*.local
 
+# Firebase / APNs credentials (must be added manually by the CI / developer)
+google-services.json
+GoogleService-Info.plist
+
 # typescript
 *.tsbuildinfo
 

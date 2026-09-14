@@ -16,12 +16,23 @@ const HORIZON_DAYS = 30;
 const MAX_SCHEDULED = 60;
 
 Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowBanner: true,
-    shouldShowList: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-  }),
+  handleNotification: async (notification) => {
+    // Badge notifications: show in tray (for launcher badge) but no banner/sound
+    if (notification.request.content.data?._badge) {
+      return {
+        shouldShowBanner: false,
+        shouldShowList: true,
+        shouldPlaySound: false,
+        shouldSetBadge: false,
+      };
+    }
+    return {
+      shouldShowBanner: true,
+      shouldShowList: true,
+      shouldPlaySound: true,
+      shouldSetBadge: false,
+    };
+  },
 });
 
 let running: Promise<void> | null = null;
