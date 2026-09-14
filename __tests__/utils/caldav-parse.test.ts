@@ -677,6 +677,70 @@ END:VCALENDAR`;
     const events = parseIcsObjects([{ ics: deckCardNoDate, href: '/deck/nd.ics' }], calMeta);
     expect(events).toHaveLength(0);
   });
+
+  it('marks a VTODO completed when STATUS:COMPLETED', () => {
+    const ics = `BEGIN:VCALENDAR
+BEGIN:VTODO
+UID:task-status
+SUMMARY:Done via status
+DUE:20260815T090000Z
+STATUS:COMPLETED
+END:VTODO
+END:VCALENDAR`;
+    const [e] = parseIcsObjects([{ ics, href: '/cal/t1.ics' }], calMeta);
+    expect(e.isTask).toBe(true);
+    expect(e.taskStatus).toBe('COMPLETED');
+    expect(e.taskCompleted).toBe(true);
+  });
+
+  it('marks a VTODO completed when only COMPLETED is present', () => {
+    const ics = `BEGIN:VCALENDAR
+BEGIN:VTODO
+UID:task-completed-prop
+SUMMARY:Done via timestamp
+DUE:20260815T090000Z
+COMPLETED:20260814T170000Z
+END:VTODO
+END:VCALENDAR`;
+    const [e] = parseIcsObjects([{ ics, href: '/cal/t2.ics' }], calMeta);
+    expect(e.taskCompletedAt?.toISOString()).toBe('2026-08-14T17:00:00.000Z');
+    expect(e.taskCompleted).toBe(true);
+  });
+
+  it('marks a VTODO completed when PERCENT-COMPLETE is 100', () => {
+    const ics = `BEGIN:VCALENDAR
+BEGIN:VTODO
+UID:task-percent
+SUMMARY:Done via percent
+DUE:20260815T090000Z
+PERCENT-COMPLETE:100
+END:VTODO
+END:VCALENDAR`;
+    const [e] = parseIcsObjects([{ ics, href: '/cal/t3.ics' }], calMeta);
+    expect(e.taskPercent).toBe(100);
+    expect(e.taskCompleted).toBe(true);
+  });
+
+  it('treats STATUS:CANCELLED as completed for display', () => {
+    const ics = `BEGIN:VCALENDAR
+BEGIN:VTODO
+UID:task-cancelled
+SUMMARY:Cancelled task
+DUE:20260815T090000Z
+STATUS:CANCELLED
+END:VTODO
+END:VCALENDAR`;
+    const [e] = parseIcsObjects([{ ics, href: '/cal/t4.ics' }], calMeta);
+    expect(e.taskStatus).toBe('CANCELLED');
+    expect(e.taskCompleted).toBe(true);
+  });
+
+  it('keeps an open VTODO uncompleted (STATUS:NEEDS-ACTION, partial percent)', () => {
+    const [e] = parseIcsObjects([{ ics: deckCardTimed, href: '/deck/42.ics' }], calMeta);
+    expect(e.taskStatus).toBe('NEEDS-ACTION');
+    expect(e.taskCompletedAt).toBeUndefined();
+    expect(e.taskCompleted).toBe(false);
+  });
 });
 
 describe('a deleted occurrence stays deleted', () => {
