@@ -1,11 +1,12 @@
 import { memo, useRef, useCallback, useMemo, forwardRef, useImperativeHandle } from 'react';
 import {
-  View, Text, SectionList, TouchableOpacity, StyleSheet, type ViewToken,
+  View, Text, SectionList, Pressable, TouchableOpacity, StyleSheet, type ViewToken,
 } from 'react-native';
 import dayjs from 'dayjs';
 import localizedFormat from 'dayjs/plugin/localizedFormat';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from 'expo-router';
+import { Square, SquareCheck } from 'lucide-react-native';
 import type { Theme } from '@/theme';
 import type { CalendarEvent } from '@/types';
 
@@ -16,6 +17,7 @@ interface Props {
   date: Date;
   onPressEvent: (event: CalendarEvent) => void;
   onPressCell: (date: Date) => void;
+  onToggleTask?: (event: CalendarEvent) => void;
   onVisibleDateChange?: (date: Date) => void;
 }
 
@@ -67,9 +69,10 @@ interface EventRowProps {
   event: CalendarEvent;
   theme: Theme;
   onPress: (e: CalendarEvent) => void;
+  onToggleTask?: (e: CalendarEvent) => void;
 }
 
-const EventRow = memo(({ event, theme, onPress }: EventRowProps) => {
+const EventRow = memo(({ event, theme, onPress, onToggleTask }: EventRowProps) => {
   const { t } = useTranslation();
   const duration = event.allDay
     ? null
@@ -90,8 +93,33 @@ const EventRow = memo(({ event, theme, onPress }: EventRowProps) => {
       activeOpacity={0.75}
     >
       <View style={[styles.colorBar, { backgroundColor: event.color }]} />
-      <View style={styles.eventContent}>
-        <Text style={[styles.eventTitle, { color: theme.colors.text }]} numberOfLines={2}>
+      {event.isTask && (
+        <Pressable
+          testID={`task-checkbox-${event.uid}`}
+          onPress={() => onToggleTask?.(event)}
+          disabled={!onToggleTask || event.readOnly}
+          hitSlop={8}
+          style={styles.taskCheckbox}
+          accessibilityRole="checkbox"
+          accessibilityState={{ checked: !!event.taskCompleted }}
+          accessibilityLabel={
+            event.taskCompleted ? t('task.markNotCompleted') : t('task.markCompleted')
+          }
+        >
+          {event.taskCompleted
+            ? <SquareCheck size={20} color={event.color} />
+            : <Square size={20} color={theme.colors.textTertiary} />}
+        </Pressable>
+      )}
+      <View style={[styles.eventContent, event.taskCompleted && styles.eventContentDone]}>
+        <Text
+          style={[
+            styles.eventTitle,
+            { color: theme.colors.text },
+            event.taskCompleted && styles.doneText,
+          ]}
+          numberOfLines={2}
+        >
           {event.summary || t('calendar.noTitle')}
         </Text>
         <View style={styles.eventMeta}>
@@ -119,7 +147,7 @@ export interface AgendaViewHandle {
 
 
 const AgendaViewImpl = forwardRef<AgendaViewHandle, Props>(function AgendaView(
-  { events, onPressEvent, onPressCell, onVisibleDateChange }, ref
+  { events, onPressEvent, onPressCell, onToggleTask, onVisibleDateChange }, ref
 ) {
   const theme = useTheme();
   const listRef = useRef<SectionList<CalendarEvent, AgendaSection>>(null);
@@ -186,8 +214,8 @@ const AgendaViewImpl = forwardRef<AgendaViewHandle, Props>(function AgendaView(
   ), [theme, onPressCell]);
 
   const renderItem = useCallback(({ item }: { item: CalendarEvent }) => (
-    <EventRow event={item} theme={theme} onPress={onPressEvent} />
-  ), [theme, onPressEvent]);
+    <EventRow event={item} theme={theme} onPress={onPressEvent} onToggleTask={onToggleTask} />
+  ), [theme, onPressEvent, onToggleTask]);
 
   const keyExtractor = useCallback((item: CalendarEvent, index: number) => `${item.uid}-${index}`, []);
 
@@ -246,8 +274,11 @@ const styles = StyleSheet.create({
     minHeight: EVENT_ROW_HEIGHT - 6,
   },
   colorBar: { width: 4 },
+  taskCheckbox: { justifyContent: 'center', paddingHorizontal: 8 },
   eventContent: { flex: 1, padding: 10, justifyContent: 'center' },
+  eventContentDone: { opacity: 0.55 },
   eventTitle: { fontSize: 14, fontWeight: '600', marginBottom: 3 },
+  doneText: { textDecorationLine: 'line-through' },
   eventMeta: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 4 },
   eventTime: { fontSize: 12, fontWeight: '500' },
   eventDuration: { fontSize: 11 },

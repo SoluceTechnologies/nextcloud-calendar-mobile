@@ -30,6 +30,7 @@ import { decideMoveEventScope } from '@/features/calendar/utils/moveEventScope';
 import { isCalMode, type CalMode } from '@/features/calendar/constants';
 import { CalendarUnavailable } from '@/features/calendar/components/CalendarUnavailable';
 import { useUpdateEvent } from '@/features/event/hooks/useMutateEvent';
+import { useToggleTask } from '@/features/event/hooks/useMutateTask';
 import { askRecurrenceScope } from '@/features/event/recurrenceScope';
 
 dayjs.extend(isoWeek);
@@ -45,6 +46,8 @@ export default function CalendarScreen() {
   const toggleCalendarVisibility = useCalendarStore((s) => s.toggleCalendarVisibility);
   const notifDisabledCalendarIds = useCalendarStore((s) => s.notifDisabledCalendarIds);
   const toggleCalendarNotifications = useCalendarStore((s) => s.toggleCalendarNotifications);
+  const showCompletedTasks = useCalendarStore((s) => s.showCompletedTasks);
+  const toggleShowCompletedTasks = useCalendarStore((s) => s.toggleShowCompletedTasks);
 
   const nav = useCalendarNavigation();
   const { viewMode, date, fetchDate, agendaVisibleDate } = nav;
@@ -87,6 +90,16 @@ export default function CalendarScreen() {
 
   const updateMutation = useUpdateEvent(activeAccount!, calendars);
   const { mutateAsync } = updateMutation;
+  const toggleTaskMutation = useToggleTask(activeAccount!);
+  const { mutateAsync: toggleTask } = toggleTaskMutation;
+
+  const handleToggleTask = useCallback(
+    (event: CalendarEvent) => {
+      if (!activeAccount || !event.isTask || event.readOnly) return;
+      void toggleTask(event);
+    },
+    [activeAccount, toggleTask]
+  );
 
   const recurrenceScopeStrings = useMemo(
     () => ({
@@ -162,6 +175,7 @@ export default function CalendarScreen() {
             onMonthChange={nav.onPageChange}
             onPressEvent={handlePressEventFromMonth}
             onPressCell={handlePressCell}
+            onToggleTask={handleToggleTask}
           />
         </ViewLayer>
 
@@ -172,6 +186,7 @@ export default function CalendarScreen() {
             date={date}
             onPressEvent={handlePressEventFromMonth}
             onPressCell={handlePressCell}
+            onToggleTask={handleToggleTask}
             onVisibleDateChange={nav.setAgendaVisibleDate}
           />
         </ViewLayer>
@@ -195,6 +210,7 @@ export default function CalendarScreen() {
             onPressEvent={handlePressGridEvent}
             onPressAllDayEvent={handlePressEventFromMonth}
             onMoveEvent={handleMoveEvent}
+            onToggleTask={handleToggleTask}
           />
         </ViewLayer>
       </View>
@@ -214,8 +230,10 @@ export default function CalendarScreen() {
         calendars={calendars}
         hiddenCalendarIds={hiddenCalendarIds}
         notifDisabledCalendarIds={notifDisabledCalendarIds}
+        showCompletedTasks={showCompletedTasks}
         toggleCalendarVisibility={toggleCalendarVisibility}
         toggleCalendarNotifications={toggleCalendarNotifications}
+        onToggleShowCompletedTasks={toggleShowCompletedTasks}
         onClose={drawer.closeDrawer}
         onNavigateSettings={() => {
           drawer.closeDrawer();

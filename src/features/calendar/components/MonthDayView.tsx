@@ -1,12 +1,13 @@
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
-  View, Text, TouchableOpacity, FlatList, StyleSheet,
+  View, Text, Pressable, TouchableOpacity, FlatList, StyleSheet,
   useWindowDimensions,
 } from 'react-native';
 import dayjs from 'dayjs';
 import localizedFormat from 'dayjs/plugin/localizedFormat';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from 'expo-router';
+import { Square, SquareCheck } from 'lucide-react-native';
 import InfinitePager, { type InfinitePagerImperativeApi } from 'react-native-infinite-pager';
 import { useSettingsStore } from '@/stores/settingsStore';
 import type { CalendarEvent } from '@/types';
@@ -26,6 +27,7 @@ interface Props {
   onMonthChange: (d: Date) => void;
   onPressEvent: (e: CalendarEvent) => void;
   onPressCell: (d: Date) => void;
+  onToggleTask?: (e: CalendarEvent) => void;
 }
 
 export function buildMonthGrid(year: number, month: number, weekStartsOn: 0 | 1): (dayjs.Dayjs | null)[][] {
@@ -146,7 +148,7 @@ const MonthGrid = memo(function MonthGrid({
   );
 });
 
-function MonthDayViewImpl({ date, events, weekStartsOn, jump, onSelectDate, onMonthChange, onPressEvent, onPressCell }: Props) {
+function MonthDayViewImpl({ date, events, weekStartsOn, jump, onSelectDate, onMonthChange, onPressEvent, onPressCell, onToggleTask }: Props) {
   const theme = useTheme();
   const { t } = useTranslation();
   const language = useSettingsStore((s) => s.language);
@@ -312,8 +314,33 @@ function MonthDayViewImpl({ date, events, weekStartsOn, jump, onSelectDate, onMo
                 onPress={() => onPressEvent(item)}
               >
                 <View style={[styles.eventColorBar, { backgroundColor: item.color }]} />
-                <View style={styles.eventInfo}>
-                  <Text style={[styles.eventTitle, { color: theme.colors.text }]} numberOfLines={1}>
+                {item.isTask && (
+                  <Pressable
+                    testID={`task-checkbox-${item.uid}`}
+                    onPress={() => onToggleTask?.(item)}
+                    disabled={!onToggleTask || item.readOnly}
+                    hitSlop={8}
+                    style={styles.taskCheckbox}
+                    accessibilityRole="checkbox"
+                    accessibilityState={{ checked: !!item.taskCompleted }}
+                    accessibilityLabel={
+                      item.taskCompleted ? t('task.markNotCompleted') : t('task.markCompleted')
+                    }
+                  >
+                    {item.taskCompleted
+                      ? <SquareCheck size={20} color={item.color} />
+                      : <Square size={20} color={theme.colors.textTertiary} />}
+                  </Pressable>
+                )}
+                <View style={[styles.eventInfo, item.taskCompleted && styles.eventInfoDone]}>
+                  <Text
+                    style={[
+                      styles.eventTitle,
+                      { color: theme.colors.text },
+                      item.taskCompleted && styles.doneText,
+                    ]}
+                    numberOfLines={1}
+                  >
                     {item.summary}
                   </Text>
                   <Text style={[styles.eventTime, { color: theme.colors.textSecondary }]}>
@@ -353,7 +380,10 @@ const styles = StyleSheet.create({
   emptyText: { fontSize: 15, textAlign: 'center', marginTop: 32 },
   eventRow: { flexDirection: 'row', borderRadius: 8, marginBottom: 8, overflow: 'hidden' },
   eventColorBar: { width: 4 },
+  taskCheckbox: { justifyContent: 'center', paddingHorizontal: 8 },
   eventInfo: { flex: 1, padding: 10 },
+  eventInfoDone: { opacity: 0.55 },
   eventTitle: { fontSize: 15, fontWeight: '500' },
+  doneText: { textDecorationLine: 'line-through' },
   eventTime: { fontSize: 12, marginTop: 2 },
 });

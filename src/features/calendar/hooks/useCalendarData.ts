@@ -13,6 +13,7 @@ import { monthRange, monthRangeAt } from '../utils/range';
 export function useCalendarData(date: Date) {
   const activeAccountId = useAccountStore((s) => s.activeAccountId);
   const hiddenCalendarIds = useCalendarStore((s) => s.hiddenCalendarIds);
+  const showCompletedTasks = useCalendarStore((s) => s.showCompletedTasks);
   const activeAccount = useActiveAccount(activeAccountId);
 
   const { data: calendars = [], isFetching: calsFetching } = useCalendars(activeAccount);
@@ -64,11 +65,15 @@ export function useCalendarData(date: Date) {
       calendars.filter((c) => c.isReadOnly || c.isSubscribed).map((c) => c.id),
     );
     return normalizeEvents(
-      dbEvents.filter((e) => !hiddenCalendarIds.includes(e.calendarId)),
+      dbEvents.filter(
+        (e) =>
+          !hiddenCalendarIds.includes(e.calendarId) &&
+          (showCompletedTasks || !e.isTask || !e.taskCompleted),
+      ),
     ).map((e) =>
       nonEditableCalendarIds.has(e.calendarId) ? { ...e, readOnly: true } : e,
     );
-  }, [dbEvents, hiddenCalendarIds, calendars]);
+  }, [dbEvents, hiddenCalendarIds, showCompletedTasks, calendars]);
 
   const hadEventsRef = useRef(false);
   useEffect(() => {

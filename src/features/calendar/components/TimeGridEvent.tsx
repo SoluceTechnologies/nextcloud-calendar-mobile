@@ -1,7 +1,9 @@
 import { memo, useRef } from 'react';
-import { TouchableOpacity, View, StyleSheet, type ViewStyle } from 'react-native';
+import { Pressable, TouchableOpacity, View, StyleSheet, type ViewStyle } from 'react-native';
 import dayjs from 'dayjs';
+import { Square, SquareCheck } from 'lucide-react-native';
 import { Typography } from '@/ui/components';
+import type { CalendarEvent } from '@/types';
 import type { GridEvent } from '../utils/toGridEvents';
 import { contrastFor } from '../utils/eventInk';
 import { LONG_PRESS_MS } from '../constants';
@@ -16,9 +18,10 @@ interface Props {
   hourRowHeight: number;
   dimmed?: boolean;
   onPress: (event: GridEvent) => void;
+  onToggleTask?: (e: CalendarEvent) => void;
 }
 
-function TimeGridEventImpl({ event, top, height, leftPct, widthPct, zIndex, hourRowHeight, dimmed, onPress }: Props) {
+function TimeGridEventImpl({ event, top, height, leftPct, widthPct, zIndex, hourRowHeight, dimmed, onPress, onToggleTask }: Props) {
   const scale = Math.min(Math.max((hourRowHeight - 30) / 170, 0), 1);
   const titleSize = Math.round(11 + scale * 4);
   const timeSize = Math.round(9 + scale * 2);
@@ -26,6 +29,8 @@ function TimeGridEventImpl({ event, top, height, leftPct, widthPct, zIndex, hour
   const color = event.color;
   const ink = contrastFor(color);
   const durationMin = dayjs(event.end).diff(event.start, 'minute');
+  const isTask = !!event._event.isTask;
+  const taskDone = !!event._event.taskCompleted;
 
   // A finger that rested here for the long-press window was grabbing the event,
   // not tapping it, so it must not navigate on lift. The drag gesture cannot be
@@ -43,7 +48,7 @@ function TimeGridEventImpl({ event, top, height, leftPct, widthPct, zIndex, hour
     zIndex,
     left: `${leftPct}%` as ViewStyle['left'],
     width: `${widthPct}%` as ViewStyle['width'],
-    opacity: dimmed ? 0.35 : 1,
+    opacity: dimmed ? 0.35 : taskDone ? 0.55 : 1,
   };
 
   return (
@@ -74,20 +79,39 @@ function TimeGridEventImpl({ event, top, height, leftPct, widthPct, zIndex, hour
           },
         ]}
       >
-        {durationMin < 30 ? (
-          <Typography variant="body2" weight="600" color={ink.text} style={{ fontSize: titleSize, lineHeight: Math.round(titleSize * 1.25) }} numberOfLines={1}>
-            {event.title}
-          </Typography>
-        ) : (
-          <>
-            <Typography variant="body2" weight="600" color={ink.text} style={{ fontSize: titleSize, lineHeight: Math.round(titleSize * 1.25) }} numberOfLines={2}>
-              {event.title}
-            </Typography>
-            <Typography color={ink.subtext} weight="400" style={{ fontSize: timeSize, lineHeight: Math.round(timeSize * 1.25) }} numberOfLines={1}>
-              {dayjs(event.start).format('H:mm')}–{dayjs(event.end).format('H:mm')}
-            </Typography>
-          </>
-        )}
+        <View style={styles.cardRow}>
+          {isTask && (
+            <Pressable
+              testID={`task-checkbox-${event._event.uid}`}
+              onPress={() => onToggleTask?.(event._event)}
+              disabled={!onToggleTask || event._event.readOnly}
+              hitSlop={6}
+              style={styles.taskCheckbox}
+              accessibilityRole="checkbox"
+              accessibilityState={{ checked: taskDone }}
+            >
+              {taskDone
+                ? <SquareCheck size={Math.max(13, titleSize + 1)} color={ink.text} />
+                : <Square size={Math.max(13, titleSize + 1)} color={ink.text} />}
+            </Pressable>
+          )}
+          <View style={styles.cardText}>
+            {durationMin < 30 ? (
+              <Typography variant="body2" weight="600" color={ink.text} style={[{ fontSize: titleSize, lineHeight: Math.round(titleSize * 1.25) }, taskDone && styles.doneText]} numberOfLines={1}>
+                {event.title}
+              </Typography>
+            ) : (
+              <>
+                <Typography variant="body2" weight="600" color={ink.text} style={[{ fontSize: titleSize, lineHeight: Math.round(titleSize * 1.25) }, taskDone && styles.doneText]} numberOfLines={2}>
+                  {event.title}
+                </Typography>
+                <Typography color={ink.subtext} weight="400" style={{ fontSize: timeSize, lineHeight: Math.round(timeSize * 1.25) }} numberOfLines={1}>
+                  {dayjs(event.start).format('H:mm')}–{dayjs(event.end).format('H:mm')}
+                </Typography>
+              </>
+            )}
+          </View>
+        </View>
       </View>
     </TouchableOpacity>
   );
@@ -101,4 +125,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     overflow: 'hidden',
   },
+  cardRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 3 },
+  cardText: { flex: 1 },
+  taskCheckbox: { paddingTop: 1 },
+  doneText: { textDecorationLine: 'line-through' },
 });
