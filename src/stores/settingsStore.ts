@@ -1,8 +1,9 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { legacyBackedStorage } from '@/stores/legacyStorage';
-import { getInitialLanguage, type AppLanguage } from '@/utils/i18n';
+import { getInitialLanguage, getInitialWeekStartsOn, type AppLanguage } from '@/utils/i18n';
 import type { AllDayAlert, TimedAlert } from '@/features/notifications/alerts';
+import type { TalkOpenMode } from '@/types';
 
 export type ThemePreference = 'system' | 'light' | 'dark';
 
@@ -16,6 +17,7 @@ interface SettingsState {
   hapticsEnabled: boolean;
   reduceMotion: boolean;
   pushNotifications: boolean;
+  talkOpenMode: TalkOpenMode;
   setThemePreference: (pref: ThemePreference) => void;
   setLanguage: (lang: AppLanguage) => void;
   setWeekStartsOn: (v: 0 | 1) => void;
@@ -25,6 +27,7 @@ interface SettingsState {
   setHapticsEnabled: (v: boolean) => void;
   setReduceMotion: (v: boolean) => void;
   setPushNotifications: (v: boolean) => void;
+  setTalkOpenMode: (v: TalkOpenMode) => void;
 }
 
 export const useSettingsStore = create<SettingsState>()(
@@ -32,13 +35,14 @@ export const useSettingsStore = create<SettingsState>()(
     (set) => ({
       themePreference: 'system',
       language: getInitialLanguage(),
-      weekStartsOn: 0,
+      weekStartsOn: getInitialWeekStartsOn(),
       liveActivityEnabled: true,
       timedAlert: null,
       allDayAlert: null,
       hapticsEnabled: true,
       reduceMotion: false,
       pushNotifications: false,
+      talkOpenMode: 'app',
       setTimedAlert: (v) => set({ timedAlert: v }),
       setAllDayAlert: (v) => set({ allDayAlert: v }),
       setThemePreference: (pref) => set({ themePreference: pref }),
@@ -48,6 +52,7 @@ export const useSettingsStore = create<SettingsState>()(
       setHapticsEnabled: (v) => set({ hapticsEnabled: v }),
       setReduceMotion: (v) => set({ reduceMotion: v }),
       setPushNotifications: (v) => set({ pushNotifications: v }),
+      setTalkOpenMode: (v) => set({ talkOpenMode: v }),
     }),
     {
       name: 'settings-store',
@@ -68,6 +73,7 @@ export const useSettingsStore = create<SettingsState>()(
         hapticsEnabled: state.hapticsEnabled,
         reduceMotion: state.reduceMotion,
         pushNotifications: state.pushNotifications,
+        talkOpenMode: state.talkOpenMode,
       }),
     }
   )

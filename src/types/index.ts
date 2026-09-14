@@ -20,9 +20,6 @@ export type CalendarMeta = {
   isSubscribed?: boolean;
   isReadOnly?: boolean;
   sourceUrl?: string;
-  // False when the calendar cannot hold VEVENTs (its supported-calendar-
-  // component-set lacks VEVENT), e.g. Deck boards / Tasks lists, which only
-  // accept VTODOs. Such calendars are excluded from the create-event picker.
   supportsEvents?: boolean;
 };
 
@@ -41,11 +38,15 @@ export type RecurrenceRule = {
   count?: number;
   until?: Date;
   byDay?: string[];
+  byMonth?: number[];
+  byWeekNo?: number[];
 };
 
 export type RecurrenceEditScope = 'this' | 'thisAndFollowing' | 'all';
 
 export type TalkRoomType = 'public' | 'private';
+
+export type TalkOpenMode = 'app' | 'browser' | 'ask';
 
 export type InvitationStatus = 'needs-action' | 'accepted' | 'declined' | 'tentative';
 

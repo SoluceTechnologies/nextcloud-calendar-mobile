@@ -2,7 +2,17 @@ import type { RecurrenceFreq, RecurrenceRule } from '@/types';
 
 const FREQS: RecurrenceFreq[] = ['DAILY', 'WEEKLY', 'MONTHLY', 'YEARLY'];
 
-const SUPPORTED = new Set(['FREQ', 'INTERVAL', 'BYDAY', 'COUNT', 'UNTIL']);
+const SUPPORTED = new Set([
+  'FREQ',
+  'INTERVAL',
+  'BYDAY',
+  'COUNT',
+  'UNTIL',
+  'BYMONTH',
+  'BYWEEKNO',
+]);
+
+const BYDAY_RE = /^(?:([+-]?[1-9]\d?))?(MO|TU|WE|TH|FR|SA|SU)$/;
 
 function parseUntil(raw: string): Date | undefined {
   const m = /^(\d{4})(\d{2})(\d{2})(?:T(\d{2})(\d{2})(\d{2})Z)?$/.exec(raw);
@@ -18,6 +28,83 @@ function parsePositiveInt(raw: string): number | undefined {
   if (!/^\d+$/.test(raw)) return undefined;
   const n = Number(raw);
   return n > 0 ? n : undefined;
+}
+
+function parseMonthList(raw: string | undefined): number[] | undefined {
+  if (raw === undefined) return undefined;
+  const values = raw.split(',').map((v) => v.trim()).filter(Boolean);
+  if (values.length === 0) return undefined;
+
+  const out: number[] = [];
+  for (const v of values) {
+    const n = parsePositiveInt(v);
+    if (n === undefined || n > 12) return undefined;
+    out.push(n);
+  }
+  return out;
+}
+
+function parseWeekNoList(raw: string | undefined): number[] | undefined {
+  if (raw === undefined) return undefined;
+  const values = raw.split(',').map((v) => v.trim()).filter(Boolean);
+  if (values.length === 0) return undefined;
+
+  const out: number[] = [];
+  for (const v of values) {
+    const n = parsePositiveInt(v);
+    if (n === undefined || n > 53) return undefined;
+    out.push(n);
+  }
+  return out;
+}
+
+function parseByDayList(
+  raw: string,
+  freq: RecurrenceFreq,
+  hasByMonth: boolean,
+  hasByWeekNo: boolean,
+): string[] | undefined {
+  const entries = raw.split(',').map((d) => d.trim().toUpperCase()).filter(Boolean);
+  if (entries.length === 0) return undefined;
+
+  const out: string[] = [];
+  for (const entry of entries) {
+    const m = BYDAY_RE.exec(entry);
+    if (!m) return undefined;
+
+    const positionStr = m[1];
+    const day = m[2];
+
+    if (!positionStr) {
+      out.push(day);
+      continue;
+    }
+
+    const position = Number(positionStr);
+
+    if (freq === 'WEEKLY' || freq === 'DAILY') {
+      out.push(day);
+      continue;
+    }
+
+    if (freq === 'MONTHLY') {
+      if (position < -5 || position > 5 || position === 0) return undefined;
+      out.push(`${position}${day}`);
+      continue;
+    }
+
+    if (hasByMonth) {
+      if (position < -5 || position > 5 || position === 0) return undefined;
+    } else if (hasByWeekNo) {
+      return undefined;
+    } else {
+      if (position < -53 || position > 53 || position === 0) return undefined;
+    }
+
+    out.push(`${position}${day}`);
+  }
+
+  return out;
 }
 
 export function parseRrule(raw: string | undefined): RecurrenceRule | undefined {
@@ -40,6 +127,15 @@ export function parseRrule(raw: string | undefined): RecurrenceRule | undefined 
   const freq = parts.get('FREQ')?.toUpperCase() as RecurrenceFreq | undefined;
   if (!freq || !FREQS.includes(freq)) return undefined;
 
+  if (parts.has('COUNT') && parts.has('UNTIL')) return undefined;
+
+  const byMonth = parseMonthList(parts.get('BYMONTH'));
+  const byWeekNo = parseWeekNoList(parts.get('BYWEEKNO'));
+
+  if (byMonth && freq !== 'YEARLY') return undefined;
+  if (byWeekNo && freq !== 'YEARLY') return undefined;
+  if (byMonth && byWeekNo) return undefined;
+
   const rule: RecurrenceRule = { freq };
 
   const rawInterval = parts.get('INTERVAL');
@@ -49,15 +145,15 @@ export function parseRrule(raw: string | undefined): RecurrenceRule | undefined 
     if (interval > 1) rule.interval = interval;
   }
 
+  if (byMonth) rule.byMonth = byMonth;
+  if (byWeekNo) rule.byWeekNo = byWeekNo;
+
   const rawByDay = parts.get('BYDAY');
   if (rawByDay !== undefined) {
-    const byDay = rawByDay.split(',').map((d) => d.trim().toUpperCase()).filter(Boolean);
-    if (byDay.length === 0) return undefined;
-    if (byDay.some((d) => !/^(MO|TU|WE|TH|FR|SA|SU)$/.test(d))) return undefined;
-    rule.byDay = byDay;
+    const byDay = parseByDayList(rawByDay, freq, !!byMonth, !!byWeekNo);
+    if (byDay === undefined) return undefined;
+    if (byDay.length > 0) rule.byDay = byDay;
   }
-
-  if (parts.has('COUNT') && parts.has('UNTIL')) return undefined;
 
   const rawCount = parts.get('COUNT');
   if (rawCount !== undefined) {

@@ -22,19 +22,11 @@ export async function ClearDatabaseForAccount(accountId: string) {
 
   await safeWrite(db, async () => {
     for (const table of tablesWithAccount) {
-      try {
-        const collection = db.get(table);
-        const records = await collection
-          .query(Q.where('account_id', accountId))
-          .fetch();
-
-        if (records.length > 0) {
-          await Promise.all(records.map((record) => record.markAsDeleted()));
-          await Promise.all(records.map((record) => record.destroyPermanently()));
-        }
-      } catch (err) {
-        console.error(String(err));
-      }
+      const records = await db
+        .get(table)
+        .query(Q.where('account_id', accountId))
+        .fetch();
+      await Promise.all(records.map((record) => record.destroyPermanently()));
     }
   }, 10000, 'ClearDatabaseForAccount');
 }

@@ -9,6 +9,7 @@
 
 A mobile calendar client for Nextcloud, built with React Native & Expo.
 
+[![Plumber Score](https://score.getplumber.io/github.com/SoluceTechnologies/nextcloud-calendar-mobile.svg)](https://score.getplumber.io/github.com/SoluceTechnologies/nextcloud-calendar-mobile)
 [![React Native](https://img.shields.io/badge/React%20Native-0.86-61DAFB?logo=react&logoColor=white)](https://reactnative.dev)
 [![Expo](https://img.shields.io/badge/Expo-57-000020?logo=expo&logoColor=white)](https://expo.dev)
 [![TypeScript](https://img.shields.io/badge/TypeScript-Strict-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org)

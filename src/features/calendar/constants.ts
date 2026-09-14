@@ -10,6 +10,8 @@ export const VIEW_LABELS: Record<ViewMode, string> = {
   month: 'Month', week: 'Week', '3days': '3D', day: 'Day', schedule: 'Agenda',
 };
 
+export const LONG_PRESS_MS = 300;
+
 export const DRAWER_MAX_WIDTH = 320;
 export const DRAWER_WIDTH_RATIO = 0.86;
 

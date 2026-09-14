@@ -1,10 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
 import { StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import dayjs from 'dayjs';
 import { useTranslation } from 'react-i18next';
-import { syncEvents } from '@/database/sync';
 import { useEventByUid } from '@/database/useEventByUid';
 import { useCalendars } from '@/hooks/useCalendars';
 import { useAccounts } from '@/hooks/useAccounts';
@@ -30,18 +27,7 @@ export default function EditEventScreen() {
 
   const event = useEventByUid(activeAccountId, uid);
 
-  const start = useMemo(() => dayjs().subtract(3, 'months').toDate(), []);
-  const end = useMemo(() => dayjs().add(3, 'months').toDate(), []);
-  const [synced, setSynced] = useState(false);
-  useEffect(() => {
-    if (!activeAccount || calendars.length === 0) return;
-    let active = true;
-    syncEvents(activeAccount, calendars, start, end)
-      .catch(() => undefined)
-      .finally(() => { if (active) setSynced(true); });
-    return () => { active = false; };
-  }, [activeAccount, calendars, start, end]);
-  const eventsLoading = !synced && event === undefined;
+  const eventsLoading = event === undefined;
 
   const scope: RecurrenceEditScope =
     scopeParam === 'this' ? 'this'
