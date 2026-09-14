@@ -50,7 +50,7 @@ export function shiftedMasterInput(
   };
 }
 
-function useAction<V>(run: (value: V) => Promise<void>): {
+export function useAction<V>(run: (value: V) => Promise<void>): {
   mutate: (value: V) => void;
   mutateAsync: (value: V) => Promise<void>;
   isPending: boolean;

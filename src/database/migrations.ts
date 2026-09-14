@@ -7,7 +7,12 @@ export const migrations = schemaMigrations({
       steps: [
         addColumns({
           table: 'events',
-          columns: [{ name: 'alarms', type: 'string', isOptional: true }],
+          columns: [
+            { name: 'alarms', type: 'string', isOptional: true },
+            { name: 'task_status', type: 'string', isOptional: true },
+            { name: 'task_completed_at', type: 'number', isOptional: true },
+            { name: 'task_percent', type: 'number', isOptional: true },
+          ],
         }),
         unsafeExecuteSql(
           `UPDATE events SET alarms = '[' || alarm_minutes || ']' WHERE alarm_minutes IS NOT NULL;`,
