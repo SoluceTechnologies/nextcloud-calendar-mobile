@@ -38,6 +38,9 @@ function applyPatch(row: Event, patch: Partial<CalendarEvent>): void {
     row.alarms = serializeAlarms(patch.alarms);
     row.alarmMinutes = patch.alarms?.[0] ?? undefined;
   }
+  if ('taskStatus' in patch) row.taskStatus = patch.taskStatus ?? undefined;
+  if ('taskCompletedAt' in patch) row.taskCompletedAt = patch.taskCompletedAt?.getTime() ?? undefined;
+  if ('taskPercent' in patch) row.taskPercent = patch.taskPercent ?? undefined;
 }
 
 export async function insertEvents(list: CalendarEvent[]): Promise<void> {
