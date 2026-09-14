@@ -1,12 +1,13 @@
 import { memo, useRef, useCallback, useMemo, useLayoutEffect, forwardRef, useImperativeHandle } from 'react';
 import {
-  View, Text, FlatList, TouchableOpacity, StyleSheet, type ViewToken,
+  View, Text, FlatList, Pressable, TouchableOpacity, StyleSheet, type ViewToken,
   type NativeScrollEvent, type NativeSyntheticEvent,
 } from 'react-native';
 import dayjs from 'dayjs';
 import localizedFormat from 'dayjs/plugin/localizedFormat';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from 'expo-router';
+import { Square, SquareCheck } from 'lucide-react-native';
 import type { Theme } from '@/theme';
 import type { CalendarEvent } from '@/types';
 import { useTimeFormat } from '@/hooks/useTimeFormat';
@@ -21,6 +22,7 @@ interface Props {
   date: Date;
   onPressEvent: (event: CalendarEvent) => void;
   onPressCell: (date: Date) => void;
+  onToggleTask?: (event: CalendarEvent) => void;
   onVisibleDateChange?: (date: Date) => void;
 }
 
@@ -66,9 +68,10 @@ interface EventRowProps {
   event: CalendarEvent;
   theme: Theme;
   onPress: (e: CalendarEvent) => void;
+  onToggleTask?: (e: CalendarEvent) => void;
 }
 
-const EventRow = memo(({ event, theme, onPress }: EventRowProps) => {
+const EventRow = memo(({ event, theme, onPress, onToggleTask }: EventRowProps) => {
   const { t } = useTranslation();
   const { formatTime } = useTimeFormat();
   const duration = event.allDay
@@ -90,8 +93,33 @@ const EventRow = memo(({ event, theme, onPress }: EventRowProps) => {
       activeOpacity={0.75}
     >
       <View style={[styles.colorBar, { backgroundColor: event.color }]} />
-      <View style={styles.eventContent}>
-        <Text style={[styles.eventTitle, { color: theme.colors.text }]} numberOfLines={1}>
+      {event.isTask && (
+        <Pressable
+          testID={`task-checkbox-${event.uid}`}
+          onPress={() => onToggleTask?.(event)}
+          disabled={!onToggleTask || event.readOnly}
+          hitSlop={8}
+          style={styles.taskCheckbox}
+          accessibilityRole="checkbox"
+          accessibilityState={{ checked: !!event.taskCompleted }}
+          accessibilityLabel={
+            event.taskCompleted ? t('task.markNotCompleted') : t('task.markCompleted')
+          }
+        >
+          {event.taskCompleted
+            ? <SquareCheck size={20} color={event.color} />
+            : <Square size={20} color={theme.colors.textTertiary} />}
+        </Pressable>
+      )}
+      <View style={[styles.eventContent, event.taskCompleted && styles.eventContentDone]}>
+        <Text
+          style={[
+            styles.eventTitle,
+            { color: theme.colors.text },
+            event.taskCompleted && styles.doneText,
+          ]}
+          numberOfLines={2}
+        >
           {event.summary || t('calendar.noTitle')}
         </Text>
         <View style={styles.eventMeta}>
@@ -122,7 +150,7 @@ type Row =
   | { type: 'item'; key: string; date: Date; event: CalendarEvent };
 
 const AgendaViewImpl = forwardRef<AgendaViewHandle, Props>(function AgendaView(
-  { events, onPressEvent, onPressCell, onVisibleDateChange }, ref
+  { events, onPressEvent, onPressCell, onToggleTask, onVisibleDateChange }, ref
 ) {
   const theme = useTheme();
   const listRef = useRef<FlatList<Row>>(null);
@@ -212,8 +240,8 @@ const AgendaViewImpl = forwardRef<AgendaViewHandle, Props>(function AgendaView(
   const renderRow = useCallback(({ item }: { item: Row }) => (
     item.type === 'header'
       ? <DayHeader sectionDate={item.date} hasEvents={item.hasEvents} theme={theme} onPress={onPressCell} />
-      : <EventRow event={item.event} theme={theme} onPress={onPressEvent} />
-  ), [theme, onPressCell, onPressEvent]);
+      : <EventRow event={item.event} theme={theme} onPress={onPressEvent} onToggleTask={onToggleTask} />
+  ), [theme, onPressCell, onPressEvent, onToggleTask]);
 
   const keyExtractor = useCallback((item: Row) => (
     item.type === 'header' ? `h-${item.key}` : agendaRowKey(item.key, item.event)
@@ -288,9 +316,12 @@ const styles = StyleSheet.create({
     height: EVENT_ROW_HEIGHT - 6,
   },
   colorBar: { width: 4 },
+  taskCheckbox: { justifyContent: 'center', paddingHorizontal: 8 },
   eventContent: { flex: 1, padding: 10, justifyContent: 'center' },
+  eventContentDone: { opacity: 0.55 },
   eventTitle: { fontSize: 14, fontWeight: '600', marginBottom: 3 },
-  eventMeta: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  doneText: { textDecorationLine: 'line-through' },
+  eventMeta: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 4 },
   eventTime: { fontSize: 12, fontWeight: '500' },
   eventDuration: { fontSize: 11 },
   eventLocation: { fontSize: 11, flex: 1 },

@@ -73,7 +73,15 @@
     "noTitle": "(Kein Titel)",
     "drawerNoCalendars": "Kein Kalender",
     "calendarNotifications": "Benachrichtigungen für {{name}}",
-    "calendarVisibility": "{{name}} anzeigen"
+    "calendarVisibility": "{{name}} anzeigen",
+    "showCompletedTasks": "Erledigte Aufgaben anzeigen"
+  },
+  "task": {
+    "pending": "Aufgabe",
+    "completed": "Erledigt",
+    "completedWithDate": "Erledigt {{date}}",
+    "markCompleted": "Als erledigt markieren",
+    "markNotCompleted": "Als nicht erledigt markieren"
   },
   "event": {
     "titleLabel": "Titel *",

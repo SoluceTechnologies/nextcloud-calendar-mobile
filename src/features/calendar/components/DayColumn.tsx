@@ -3,6 +3,7 @@ import { View, Pressable, StyleSheet, type GestureResponderEvent } from 'react-n
 import { useTheme } from 'expo-router';
 import dayjs from 'dayjs';
 import { eventPositionStyle, nowTopPct } from '../utils/grid';
+import type { CalendarEvent } from '@/types';
 import type { GridEvent } from '../utils/toGridEvents';
 import type { PositionedEvent } from '../utils/eventLayout';
 import { TimeGridEvent } from './TimeGridEvent';
@@ -14,10 +15,11 @@ interface Props {
   now: Date;
   onPressSlot: (d: Date) => void;
   onPressEvent: (e: GridEvent) => void;
+  onToggleTask?: (e: CalendarEvent) => void;
   dimmedUid?: string;
 }
 
-function DayColumnImpl({ date, positioned, hourRowHeight, now, onPressSlot, onPressEvent, dimmedUid }: Props) {
+function DayColumnImpl({ date, positioned, hourRowHeight, now, onPressSlot, onPressEvent, onToggleTask, dimmedUid }: Props) {
   const { colors } = useTheme();
   const isToday = dayjs(now).isSame(date, 'day');
 
@@ -53,6 +55,7 @@ function DayColumnImpl({ date, positioned, hourRowHeight, now, onPressSlot, onPr
             hourRowHeight={hourRowHeight}
             dimmed={dimmedUid === event._event.uid}
             onPress={onPressEvent}
+            onToggleTask={onToggleTask}
           />
         );
       })}
