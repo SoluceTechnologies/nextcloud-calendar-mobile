@@ -73,7 +73,15 @@
     "noTitle": "(Geen titel)",
     "drawerNoCalendars": "Geen agenda",
     "calendarNotifications": "Meldingen van {{name}}",
-    "calendarVisibility": "{{name}} tonen"
+    "calendarVisibility": "{{name}} tonen",
+    "showCompletedTasks": "Voltooide taken weergeven"
+  },
+  "task": {
+    "pending": "Taak",
+    "completed": "Voltooid",
+    "completedWithDate": "Voltooid op {{date}}",
+    "markCompleted": "Markeren als voltooid",
+    "markNotCompleted": "Markeren als niet voltooid"
   },
   "event": {
     "titleLabel": "Titel *",

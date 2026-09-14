@@ -73,7 +73,15 @@
     "noTitle": "(Senza titolo)",
     "drawerNoCalendars": "Nessun calendario",
     "calendarNotifications": "Notifiche di {{name}}",
-    "calendarVisibility": "Mostra {{name}}"
+    "calendarVisibility": "Mostra {{name}}",
+    "showCompletedTasks": "Mostra attività completate"
+  },
+  "task": {
+    "pending": "Attività",
+    "completed": "Completata",
+    "completedWithDate": "Completata il {{date}}",
+    "markCompleted": "Segna come completata",
+    "markNotCompleted": "Segna come non completata"
   },
   "event": {
     "titleLabel": "Titolo *",
