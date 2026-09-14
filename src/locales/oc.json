@@ -127,7 +127,7 @@
     "positionLabel": "Posicion",
     "weekdayLabel": "Jorn de la setmana",
     "monthLabel": "Mes",
-    "weekNumberLabel": "Numèro de setmana",    
+    "weekNumberLabel": "Numèro de setmana",
     "ends": "S'acaba",
     "endsNever": "Jamai",
     "endsAfter": "Après",
@@ -163,7 +163,7 @@
     "errorCreateFailed": "La creacion de l'eveniment a pas capitat",
     "errorUpdateFailed": "La mesa a jorn de l'eveniment a pas capitat",
     "errorDeleteFailed": "La supression de l'eveniment a pas capitat",
-    "alert": "Alèrta"
+    "alerts": "Alèrtas"
   },
   "settings": {
     "title": "Paramètres",
@@ -242,11 +242,33 @@
         "1": "1 jorn abans (9:00)",
         "2": "2 jorns abans (9:00)",
         "7": "1 setmana abans (9:00)",
-        "sameDay": "Lo jorn meteis (9:00)"
+        "sameDay": "Lo jorn meteis (9:00)",
+        "custom": "{{value}} jorns abans (9h00)"
       },
       "useDefault": "Per defaut",
-      "timedHint": "Rapèl per defaut pels eveniments sens remembre pròpri. Los eveniments qu'an ja un rapèl lo consèrvan.",
-      "allDayHint": "Rapèl per defaut pels eveniments del jorn entièr sens rapèl pròpri, activat a 9:00 lo jorn causit."
+      "timedHint": "Rapèls per defaut aplicats als eveniments novèls e a celes que’n an pas.",
+      "allDayHint": "Rapèls per defaut dels eveniments de tota la jornada, a 9h00 lo jorn causit.",
+      "addCustom": "Personalizat…",
+      "customTitle": "Rapèl personalizat",
+      "customAmount": "Valor",
+      "addReminder": "Apondre un rapèl",
+      "units": {
+        "minutes": "minutas",
+        "hours": "oras",
+        "days": "jorns"
+      },
+      "custom": {
+        "before": {
+          "minutes": "{{value}} minutas abans",
+          "hours": "{{value}} oras abans",
+          "days": "{{value}} jorns abans"
+        },
+        "after": {
+          "minutes": "{{value}} minutas aprèp lo començament",
+          "hours": "{{value}} oras aprèp lo començament",
+          "days": "{{value}} jorns aprèp lo començament"
+        }
+      }
     },
     "account": {
       "title": "Compte",

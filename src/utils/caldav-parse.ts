@@ -2,7 +2,7 @@ import ICAL from 'ical.js';
 import type { CalendarEvent, Attendee } from '@/types';
 import { yieldToUI } from '@/utils/scheduling';
 import { isValidTimeZone, zonedWallTimeToUtc } from '@/utils/timezone';
-import { triggerToMinutes } from '@/features/notifications/alerts';
+import { NO_ALARM_PROP, triggerToMinutes } from '@/features/notifications/alerts';
 
 interface ParseCalMeta {
   calendarId: string;
@@ -16,9 +16,8 @@ const MAX_OCCURRENCES = 1000;
 
 const DEFAULT_TODO_DURATION_MS = 15 * 60 * 1000;
 
-function firstAlarmMinutes(vevent: ICAL.Component): number | undefined {
-  const alarm = vevent.getFirstSubcomponent('valarm');
-  const trigger = alarm?.getFirstProperty('trigger');
+function alarmTriggerMinutes(vevent: ICAL.Component, alarm: ICAL.Component): number | undefined {
+  const trigger = alarm.getFirstProperty('trigger');
   if (!trigger) return undefined;
 
   const value = trigger.getFirstValue();
@@ -36,6 +35,24 @@ function firstAlarmMinutes(vevent: ICAL.Component): number | undefined {
 
   const minutes = triggerToMinutes(trigger.toICALString().replace(/^TRIGGER[^:]*:/i, ''));
   return minutes ?? undefined;
+}
+
+// Minutes before dtstart for every VALARM on the component, deduplicated and
+// sorted by lead time (largest first). Returns undefined when the component
+// carries no alarm at all ("use the defaults"), [] when it explicitly carries
+// the no-reminder marker, and the list of offsets otherwise.
+export function alarmMinutesList(vevent: ICAL.Component): number[] | undefined {
+  if (vevent.getFirstProperty(NO_ALARM_PROP.toLowerCase())) return [];
+
+  const alarms = vevent.getAllSubcomponents('valarm');
+  if (alarms.length === 0) return undefined;
+
+  const minutes = alarms
+    .map((alarm) => alarmTriggerMinutes(vevent, alarm))
+    .filter((m): m is number => m !== undefined);
+  if (minutes.length === 0) return undefined;
+
+  return [...new Set(minutes)].sort((a, b) => b - a);
 }
 
 function readAttendees(props: ICAL.Property[]): Attendee[] {
@@ -60,7 +77,7 @@ function organizerEmailOf(vevent: ICAL.Component): string | undefined {
 
 type OverridableFields = Pick<
   CalendarEvent,
-  'summary' | 'description' | 'location' | 'talkUrl' | 'attendees' | 'organizerEmail' | 'alarmMinutes'
+  'summary' | 'description' | 'location' | 'talkUrl' | 'attendees' | 'organizerEmail' | 'alarms'
 >;
 
 function exceptionFields(vevent: ICAL.Component): Partial<OverridableFields> {
@@ -83,8 +100,8 @@ function exceptionFields(vevent: ICAL.Component): Partial<OverridableFields> {
 
   if (vevent.getFirstProperty('organizer')) fields.organizerEmail = organizerEmailOf(vevent);
 
-  const alarmMinutes = firstAlarmMinutes(vevent);
-  if (alarmMinutes !== undefined) fields.alarmMinutes = alarmMinutes;
+  const alarms = alarmMinutesList(vevent);
+  if (alarms !== undefined) fields.alarms = alarms;
 
   return fields;
 }
@@ -213,7 +230,7 @@ function parseVtodo(
     color: meta.color,
     attendees: [],
     isRecurring: false,
-    alarmMinutes: firstAlarmMinutes(vtodo),
+    alarms: alarmMinutesList(vtodo),
     isTask: true,
   };
 }
@@ -258,7 +275,7 @@ export function parseIcsItem(
 
       const organizerEmail = organizerEmailOf(vevent);
 
-      const alarmMinutes = firstAlarmMinutes(vevent);
+      const alarms = alarmMinutesList(vevent);
 
       const rruleProp = vevent.getFirstProperty('rrule');
       const isRecurring = !!rruleProp;
@@ -281,7 +298,7 @@ export function parseIcsItem(
         talkUrl,
         isRecurring,
         rrule: rruleStr,
-        alarmMinutes,
+        alarms,
       };
 
       if (isRecurring && (rangeStart || rangeEnd)) {
@@ -390,6 +407,7 @@ export function extractSequence(ics: string): number {
 const WRITER_MANAGED_PROPS = new Set([
   'uid', 'dtstamp', 'sequence', 'dtstart', 'dtend', 'summary', 'description',
   'location', 'rrule', 'organizer', 'attendee', 'recurrence-id', 'last-modified', 'prodid',
+  NO_ALARM_PROP.toLowerCase(),
 ]);
 
 export function extractExtraVeventLines(ics: string): string[] {

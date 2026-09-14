@@ -168,7 +168,7 @@
     "errorCreateFailed": "Aanmaken van afspraak mislukt",
     "errorUpdateFailed": "Bijwerken van afspraak mislukt",
     "errorDeleteFailed": "Verwijderen van afspraak mislukt",
-    "alert": "Melding"
+    "alerts": "Herinneringen"
   },
   "settings": {
     "title": "Instellingen",
@@ -247,11 +247,33 @@
         "1": "1 dag ervoor (9:00)",
         "2": "2 dagen ervoor (9:00)",
         "7": "1 week ervoor (9:00)",
-        "sameDay": "Op de dag zelf (9:00)"
+        "sameDay": "Op de dag zelf (9:00)",
+        "custom": "{{value}} dagen ervoor (9:00)"
       },
       "useDefault": "Standaard",
-      "timedHint": "Standaardmelding voor afspraken zonder eigen melding. Afspraken met een eigen melding behouden die.",
-      "allDayHint": "Standaardmelding voor hele-dag-afspraken zonder eigen melding, om 9:00 op de gekozen dag."
+      "timedHint": "Standaardherinneringen voor nieuwe afspraken en afspraken zonder eigen herinnering.",
+      "allDayHint": "Standaardherinneringen voor dagelijkse afspraken, om 9:00 op de gekozen dag.",
+      "addCustom": "Aangepast…",
+      "customTitle": "Aangepaste herinnering",
+      "customAmount": "Waarde",
+      "addReminder": "Herinnering toevoegen",
+      "units": {
+        "minutes": "minuten",
+        "hours": "uur",
+        "days": "dagen"
+      },
+      "custom": {
+        "before": {
+          "minutes": "{{value}} minuten ervoor",
+          "hours": "{{value}} uur ervoor",
+          "days": "{{value}} dagen ervoor"
+        },
+        "after": {
+          "minutes": "{{value}} minuten na het begin",
+          "hours": "{{value}} uur na het begin",
+          "days": "{{value}} dagen na het begin"
+        }
+      }
     },
     "account": {
       "title": "Account",

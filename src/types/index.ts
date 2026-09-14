@@ -64,7 +64,9 @@ export type CalendarEvent = {
   isRecurring: boolean;
   rrule?: string;
   recurrenceId?: Date;
-  alarmMinutes?: number;
+  // Minutes before dtstart for each reminder (negative = after start).
+  // undefined = no explicit alarms (defaults apply), [] = explicit "no reminder".
+  alarms?: number[];
   isTask?: boolean;
   readOnly?: boolean;
 };
@@ -83,7 +85,7 @@ export type CreateEventInput = {
   organizerEmail: string;
   organizerName: string;
   rrule?: RecurrenceRule;
-  alarmMinutes?: number;
+  alarms?: number[];
 };
 
 export type CalendarAppStatus = 'unknown' | 'available' | 'unconfigured';

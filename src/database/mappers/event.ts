@@ -13,6 +13,20 @@ function parseAttendees(raw?: string): Attendee[] {
   }
 }
 
+function parseAlarms(raw?: string, legacyMinutes?: number): number[] | undefined {
+  if (raw != null) {
+    try {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        return parsed.filter((m): m is number => typeof m === 'number' && Number.isFinite(m));
+      }
+    } catch {
+      // fall through to the legacy scalar column
+    }
+  }
+  return legacyMinutes != null ? [legacyMinutes] : undefined;
+}
+
 export function mapEventToShared(event: Event): CalendarEvent {
   return {
     uid: event.uid,
@@ -32,7 +46,7 @@ export function mapEventToShared(event: Event): CalendarEvent {
     isRecurring: !!event.isRecurring,
     rrule: event.rrule ?? undefined,
     recurrenceId: event.recurrenceId != null ? new Date(event.recurrenceId) : undefined,
-    alarmMinutes: event.alarmMinutes ?? undefined,
+    alarms: parseAlarms(event.alarms ?? undefined, event.alarmMinutes ?? undefined),
     isTask: !!event.isTask,
   };
 }

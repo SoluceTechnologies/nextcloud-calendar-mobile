@@ -1,5 +1,5 @@
 import type {Attendee, RecurrenceRule} from '@/types';
-import {minutesToTrigger} from '@/features/notifications/alerts';
+import {minutesToTrigger, NO_ALARM_PROP} from '@/features/notifications/alerts';
 
 const PRODID = '-//Nextcloud Calendar Mobile//EN';
 
@@ -73,15 +73,18 @@ function textLines(summary: string, description: string, location: string): stri
     ];
 }
 
-function alarmLines(alarmMinutes?: number): string[] {
-    if (alarmMinutes === undefined) return [];
-    return [
-        'BEGIN:VALARM',
-        `TRIGGER:${minutesToTrigger(alarmMinutes)}`,
-        'ACTION:DISPLAY',
-        'DESCRIPTION:Reminder',
-        'END:VALARM',
-    ];
+function alarmLines(alarms?: number[]): string[] {
+    if (alarms === undefined) return [];
+    if (alarms.length === 0) return [`${NO_ALARM_PROP}:TRUE`];
+    return [...new Set(alarms)]
+        .sort((a, b) => b - a)
+        .flatMap((minutes) => [
+            'BEGIN:VALARM',
+            `TRIGGER:${minutesToTrigger(minutes)}`,
+            'ACTION:DISPLAY',
+            'DESCRIPTION:Reminder',
+            'END:VALARM',
+        ]);
 }
 
 function schedulingLines(name: string, email: string, attendees: Attendee[]): string[] {
@@ -124,7 +127,7 @@ export interface BuildIcsParams extends ExtraLines {
     attendees: Attendee[];
     timezone: string;
     rrule?: RecurrenceRule;
-    alarmMinutes?: number;
+    alarms?: number[];
     sequence?: number;
 }
 
@@ -141,7 +144,7 @@ export function buildIcs(params: BuildIcsParams): string {
         attendees,
         timezone,
         rrule,
-        alarmMinutes,
+        alarms,
         sequence = 0,
         extraLines = []
     } = params;
@@ -156,7 +159,7 @@ export function buildIcs(params: BuildIcsParams): string {
         ...(rrule ? [rruleLine(rrule)] : []),
         ...schedulingLines(organizerName, organizerEmail, attendees),
         ...extraLines,
-        ...alarmLines(alarmMinutes),
+        ...alarmLines(alarms),
     ]);
 }
 
@@ -174,7 +177,7 @@ export function buildAllDayIcs(params: BuildAllDayIcsParams): string {
         organizerName,
         attendees,
         rrule,
-        alarmMinutes,
+        alarms,
         sequence = 0,
         extraLines = []
     } = params;
@@ -190,7 +193,7 @@ export function buildAllDayIcs(params: BuildAllDayIcsParams): string {
         ...(rrule ? [rruleLine(rrule, true)] : []),
         ...schedulingLines(organizerName, organizerEmail, attendees),
         ...extraLines,
-        ...alarmLines(alarmMinutes),
+        ...alarmLines(alarms),
     ]);
 }
 
@@ -207,7 +210,7 @@ export function buildExceptionIcs(params: BuildIcsParams & { recurrenceId: Date 
         attendees,
         timezone,
         recurrenceId,
-        alarmMinutes,
+        alarms,
         sequence = 0,
         extraLines = []
     } = params;
@@ -222,7 +225,7 @@ export function buildExceptionIcs(params: BuildIcsParams & { recurrenceId: Date 
         ...textLines(summary, description, location),
         ...schedulingLines(organizerName, organizerEmail, attendees),
         ...extraLines,
-        ...alarmLines(alarmMinutes),
+        ...alarmLines(alarms),
     ]);
 }
 

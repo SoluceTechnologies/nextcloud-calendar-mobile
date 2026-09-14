@@ -168,7 +168,7 @@
     "errorCreateFailed": "Ereignis konnte nicht erstellt werden",
     "errorUpdateFailed": "Ereignis konnte nicht aktualisiert werden",
     "errorDeleteFailed": "Ereignis konnte nicht gelöscht werden",
-    "alert": "Erinnerung"
+    "alerts": "Erinnerungen"
   },
   "settings": {
     "title": "Einstellungen",
@@ -247,11 +247,33 @@
         "1": "1 Tag vorher (9:00)",
         "2": "2 Tage vorher (9:00)",
         "7": "1 Woche vorher (9:00)",
-        "sameDay": "Am selben Tag (9:00)"
+        "sameDay": "Am selben Tag (9:00)",
+        "custom": "{{value}} Tage vorher (9:00)"
       },
       "useDefault": "Standard",
-      "timedHint": "Standarderinnerung für Termine ohne eigene Erinnerung. Termine mit eigener Erinnerung behalten sie.",
-      "allDayHint": "Standarderinnerung für ganztägige Termine ohne eigene, ausgelöst um 9:00 am gewählten Tag."
+      "timedHint": "Standard-Erinnerungen für neue Termine und für Termine ohne eigene Erinnerung.",
+      "allDayHint": "Standard-Erinnerungen für ganztägige Termine, um 9:00 Uhr am gewählten Tag.",
+      "addCustom": "Benutzerdefiniert…",
+      "customTitle": "Benutzerdefinierte Erinnerung",
+      "customAmount": "Wert",
+      "addReminder": "Erinnerung hinzufügen",
+      "units": {
+        "minutes": "Minuten",
+        "hours": "Stunden",
+        "days": "Tage"
+      },
+      "custom": {
+        "before": {
+          "minutes": "{{value}} Minuten vorher",
+          "hours": "{{value}} Stunden vorher",
+          "days": "{{value}} Tage vorher"
+        },
+        "after": {
+          "minutes": "{{value}} Minuten nach Beginn",
+          "hours": "{{value}} Stunden nach Beginn",
+          "days": "{{value}} Tage nach Beginn"
+        }
+      }
     },
     "account": {
       "title": "Konto",

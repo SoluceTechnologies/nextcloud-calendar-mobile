@@ -8,6 +8,7 @@ import { useTheme } from 'expo-router';
 import { TalkToggle } from './TalkToggle';
 import { AttendeesField } from './AttendeesField';
 import { requestAlertPermission } from '@/features/notifications/scheduleAlerts';
+import { useSettingsStore } from '@/stores/settingsStore';
 import { AlertPicker } from './AlertPicker';
 import { RecurrencePicker } from './RecurrencePicker';
 import { Stack, Typography, TextField, DateField, Button, Chip, Toggle } from '@/ui/components';
@@ -25,7 +26,7 @@ interface InitialValues {
   location?: string;
   attendees?: Attendee[];
   rrule?: RecurrenceRule;
-  alarmMinutes?: number;
+  alarms?: number[];
 }
 
 interface Props {
@@ -74,7 +75,7 @@ export function EventForm({
   const [talkRoomType, setTalkRoomType] = useState<TalkRoomType>('private');
   const [attendees, setAttendees] = useState<Attendee[]>(initialValues?.attendees ?? []);
   const [rrule, setRrule] = useState<RecurrenceRule | undefined>(initialValues?.rrule);
-  const [alarmMinutes, setAlarmMinutes] = useState<number | undefined>(initialValues?.alarmMinutes);
+  const [alarms, setAlarms] = useState<number[] | undefined>(initialValues?.alarms);
   const [titleError, setTitleError] = useState<string | null>(null);
   const [calendarError, setCalendarError] = useState<string | null>(null);
   const [endError, setEndError] = useState<string | null>(null);
@@ -181,12 +182,18 @@ export function EventForm({
     } else if (dtend <= dtstart) {
       setEndError(t('event.errorEndAfterStart')); return;
     }
-    if (alarmMinutes !== undefined) void requestAlertPermission();
+    // Only prompt for notification permission when alarms will actually be
+    // scheduled: an explicit list, or "Default" with defaults configured.
+    const { timedAlerts, allDayAlerts } = useSettingsStore.getState();
+    const willAlert = alarms === undefined
+      ? (allDay ? allDayAlerts : timedAlerts).length > 0
+      : alarms.length > 0;
+    if (willAlert) void requestAlertPermission();
 
     onSubmit({
       summary: summary.trim(), calendarId, dtstart, dtend, allDay,
       description, location, attendees, withTalkRoom, talkRoomType,
-      organizerEmail, organizerName, rrule, alarmMinutes,
+      organizerEmail, organizerName, rrule, alarms,
     });
   }
 
@@ -327,7 +334,7 @@ export function EventForm({
             <RecurrencePicker value={rrule} onChange={setRrule} dtstart={dtstart} allDay={allDay} />
           </View>
           <View style={twoColDates ? styles.grow : undefined}>
-            <AlertPicker value={alarmMinutes} onChange={setAlarmMinutes} />
+            <AlertPicker value={alarms} onChange={setAlarms} />
           </View>
         </Stack>
 

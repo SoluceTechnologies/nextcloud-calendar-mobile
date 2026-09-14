@@ -43,6 +43,13 @@ function writeCalendar(row: Calendar, c: CalendarMeta, accountId: string): void 
   row.supportsEvents = c.supportsEvents ?? true;
 }
 
+// Canonical storage form for an alarms list: deduped, sorted by lead time
+// (largest first), JSON-encoded. undefined stays undefined (no explicit alarms).
+export function serializeAlarms(alarms?: number[]): string | undefined {
+  if (alarms === undefined) return undefined;
+  return JSON.stringify([...new Set(alarms)].sort((a, b) => b - a));
+}
+
 export function writeEvent(row: Event, ev: CalendarEvent): void {
   row.accountId = ev.accountId;
   row.calendarId = ev.calendarId;
@@ -61,7 +68,8 @@ export function writeEvent(row: Event, ev: CalendarEvent): void {
   row.isRecurring = ev.isRecurring;
   row.rrule = ev.rrule ?? undefined;
   row.recurrenceId = ev.recurrenceId?.getTime() ?? undefined;
-  row.alarmMinutes = ev.alarmMinutes ?? undefined;
+  row.alarms = serializeAlarms(ev.alarms);
+  row.alarmMinutes = ev.alarms?.[0] ?? undefined;
   row.isTask = ev.isTask ?? false;
 }
 
@@ -93,6 +101,7 @@ function eventUnchanged(row: Event, ev: CalendarEvent): boolean {
     (row.rrule ?? undefined) === (ev.rrule ?? undefined) &&
     (row.recurrenceId ?? undefined) === (ev.recurrenceId?.getTime() ?? undefined) &&
     !!row.isTask === !!ev.isTask &&
+    (row.alarms ?? undefined) === serializeAlarms(ev.alarms) &&
     (row.attendees ?? '[]') === JSON.stringify(ev.attendees ?? [])
   );
 }

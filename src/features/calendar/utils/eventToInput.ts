@@ -17,6 +17,6 @@ export function eventToInput(event: CalendarEvent, account: Account): CreateEven
     organizerEmail,
     organizerName,
     rrule: parseRrule(event.rrule),
-    alarmMinutes: event.alarmMinutes,
+    alarms: event.alarms,
   };
 }

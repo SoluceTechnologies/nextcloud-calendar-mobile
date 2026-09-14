@@ -9,6 +9,8 @@ import { describeMutationError } from '@/services/shared/errors';
 import { buildIcs, buildAllDayIcs, buildExceptionIcs, injectExdate, truncateRruleUntil, shiftIcsDates } from '@/utils/ics';
 import { parseIcsObjects, extractDtstartTzid, extractSequence, extractDtstartDtend, extractExtraVeventLines } from '@/utils/caldav-parse';
 import { isValidTimeZone } from '@/utils/timezone';
+import { allDayAlarmMinutes } from '@/features/notifications/alerts';
+import { useSettingsStore } from '@/stores/settingsStore';
 import i18n from '@/utils/i18n';
 import {
   insertEvents,
@@ -79,6 +81,17 @@ function resolveCalendar(calendars: CalendarMeta[], calendarId: string): Calenda
   return calendars.find((c) => c.id === calendarId) ?? calendars[0];
 }
 
+// "Default" (alarms === undefined) is materialized into real VALARMs at write
+// time, like the Nextcloud web editor does, so other clients see the same
+// reminders. Empty defaults stay undefined (no VALARM, no marker); an explicit
+// empty list writes the no-reminder marker.
+function resolveAlarms(input: CreateEventInput): number[] | undefined {
+  if (input.alarms !== undefined) return input.alarms;
+  const { timedAlerts, allDayAlerts } = useSettingsStore.getState();
+  const defaults = input.allDay ? allDayAlerts.map(allDayAlarmMinutes) : timedAlerts;
+  return defaults.length ? defaults : undefined;
+}
+
 function buildIcsForInput(
   uid: string,
   input: CreateEventInput,
@@ -88,19 +101,20 @@ function buildIcsForInput(
   sequence = 0,
   extraLines: string[] = [],
 ): string {
+  const alarms = resolveAlarms(input);
   return input.allDay
     ? buildAllDayIcs({
         uid, summary: input.summary, description, location,
         dtstart: input.dtstart, dtend: input.dtend,
         organizerEmail: input.organizerEmail, organizerName: input.organizerName,
-        attendees: input.attendees, rrule: input.rrule, alarmMinutes: input.alarmMinutes,
+        attendees: input.attendees, rrule: input.rrule, alarms,
         sequence, extraLines,
       })
     : buildIcs({
         uid, summary: input.summary, description, location,
         dtstart: input.dtstart, dtend: input.dtend,
         organizerEmail: input.organizerEmail, organizerName: input.organizerName,
-        attendees: input.attendees, timezone, rrule: input.rrule, alarmMinutes: input.alarmMinutes,
+        attendees: input.attendees, timezone, rrule: input.rrule, alarms,
         sequence, extraLines,
       });
 }
@@ -162,7 +176,7 @@ function eventFromInput(
     talkUrl: TALK_URL_PATTERN.test(location) ? location : undefined,
     isRecurring: !!input.rrule,
     rrule: undefined,
-    alarmMinutes: input.alarmMinutes,
+    alarms: resolveAlarms(input),
   };
 }
 
@@ -232,7 +246,7 @@ export function useUpdateEvent(account: Account, calendars: CalendarMeta[]) {
         description: input.description ?? event.description,
         location: input.location ?? event.location,
         attendees: input.attendees,
-        alarmMinutes: input.alarmMinutes,
+        alarms: resolveAlarms(input),
       };
 
       if (shiftsWholeSeries) {
@@ -315,6 +329,7 @@ export function useUpdateEvent(account: Account, calendars: CalendarMeta[]) {
             dtstart: input.dtstart, dtend: input.dtend,
             organizerEmail: scheduled.organizerEmail, organizerName: input.organizerName,
             attendees: input.attendees, timezone, recurrenceId: slot,
+            alarms: resolveAlarms(input),
             sequence: extractSequence(masterIcs) + 1,
             extraLines: extractExtraVeventLines(masterIcs),
           });
