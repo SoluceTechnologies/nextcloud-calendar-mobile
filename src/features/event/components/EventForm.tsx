@@ -1,4 +1,4 @@
-import { forwardRef, useImperativeHandle, useRef, useState } from 'react';
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import { View, StyleSheet, ScrollView, Platform, KeyboardAvoidingView, Keyboard, useWindowDimensions, LayoutChangeEvent } from 'react-native';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import dayjs from 'dayjs';
@@ -7,7 +7,8 @@ import { useTranslation } from 'react-i18next';
 import { useTheme } from 'expo-router';
 import { TalkToggle } from './TalkToggle';
 import { AttendeesField } from './AttendeesField';
-import { FindTimeSheet } from './FindTimeSheet';
+import { FindTimeSuggestSheet } from './FindTimeSuggestSheet';
+import { useFindTimeStore } from '@/features/event/stores/findTimeStore';
 import { requestAlertPermission } from '@/features/notifications/scheduleAlerts';
 import { useSettingsStore } from '@/stores/settingsStore';
 import { isWritableCalendar } from '@/utils/calendars';
@@ -99,6 +100,16 @@ export const EventForm = forwardRef<EventFormHandle, Props>(function EventForm({
 
   const [androidStep, setAndroidStep] = useState<AndroidPickerStep>(null);
   const [findTimeVisible, setFindTimeVisible] = useState(false);
+
+  // Slot picked on the full-screen find-time route comes back through the store.
+  const findTimeResult = useFindTimeStore((s) => s.result);
+  useEffect(() => {
+    if (!findTimeResult) return;
+    setDtstart(findTimeResult.start);
+    setDtend(findTimeResult.end);
+    setEndError(null);
+    useFindTimeStore.getState().clearResult();
+  }, [findTimeResult]);
 
   const scrollRef = useRef<ScrollView>(null);
   const inputOffsets = useRef<Record<string, number>>({});
@@ -406,7 +417,7 @@ export const EventForm = forwardRef<EventFormHandle, Props>(function EventForm({
         )}
 
         {account && (
-          <FindTimeSheet
+          <FindTimeSuggestSheet
             visible={findTimeVisible}
             onClose={() => setFindTimeVisible(false)}
             account={account}
