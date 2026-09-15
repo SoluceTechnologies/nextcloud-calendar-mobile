@@ -1,12 +1,16 @@
 import { renderHook, act } from '@testing-library/react-native';
 import { useCalendarNavigation } from '../../src/features/calendar/hooks/useCalendarNavigation';
+import { useCalendarStore } from '@/stores/calendarStore';
 
 jest.mock('@react-native-async-storage/async-storage', () =>
   require('@react-native-async-storage/async-storage/jest/async-storage-mock')
 );
 
 describe('useCalendarNavigation', () => {
-  beforeEach(() => { jest.useFakeTimers(); });
+  beforeEach(() => {
+    jest.useFakeTimers();
+    act(() => { useCalendarStore.setState({ viewMode: 'week' }); });
+  });
   afterEach(() => { jest.useRealTimers(); });
 
   it('page change updates date immediately but debounces fetchDate to the last value', () => {
@@ -79,6 +83,28 @@ describe('useCalendarNavigation', () => {
 
     expect(result.current.viewMode).toBe('day');
     expect(result.current.anchorDate).toEqual(swiped);
+  });
+
+  it('in schedule mode, agenda scrolling debounces fetchDate to the visible date', () => {
+    act(() => { useCalendarStore.setState({ viewMode: 'schedule' }); });
+    const { result } = renderHook(() => useCalendarNavigation());
+    const past = new Date('2026-01-15T00:00:00Z');
+
+    act(() => { result.current.setAgendaVisibleDate(past); });
+    expect(result.current.fetchDate).not.toEqual(past);
+
+    act(() => { jest.advanceTimersByTime(300); });
+    expect(result.current.fetchDate).toEqual(past);
+  });
+
+  it('outside schedule mode, the agenda visible date does not move fetchDate', () => {
+    const { result } = renderHook(() => useCalendarNavigation());
+    const before = result.current.fetchDate;
+
+    act(() => { result.current.setAgendaVisibleDate(new Date('2026-01-15T00:00:00Z')); });
+    act(() => { jest.advanceTimersByTime(300); });
+
+    expect(result.current.fetchDate).toBe(before);
   });
 
   it('goToday returns the date to now and publishes it as a jump', () => {
