@@ -107,7 +107,7 @@ Create, view, and edit calendar events with support for:
 - Attendee lists with display names
 - Recurring event detection
 - Multiple reminders per event, configurable defaults, and custom offsets
-- **Find a time / Free-Busy** — check attendee availability via CalDAV and drag the event to a free slot
+- **Find a time / Free-Busy** — check attendee availability via CalDAV, pick from suggested slots or explore a per-attendee timeline
 
 ### Nextcloud Talk Integration
 Optionally attach a Nextcloud Talk room to any event at creation time, the Talk link is stored in the event and surfaced in the event detail view.

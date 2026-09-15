@@ -146,67 +146,56 @@ adb reverse tcp:8081 tcp:8081
 - L'appel free-busy est envoyé au serveur
 - **Capture** : `04-find-time-loading.png` — spinner "Checking availability…"
 
-### Étape 5 — Vérifier la timeline de disponibilité multi-participants
-- Le sheet affiche la timeline du jour
+### Étape 5 — Vérifier la liste de suggestions
+- Le sheet affiche la liste des créneaux suggérés
 - Vérifier :
-  - testuser et bob apparaissent avec une pastille de couleur différente dans la liste
-  - la plage 14:00-15:00 affiche la couleur de testuser
-  - la plage 15:00-16:00 affiche la couleur de bob
-  - les deux plages sont fusionnées de 14:00 à 16:00 avec les deux pastilles
-  - la brique de l'événement apparaît à l'heure choisie
-  - en défilant vers la liste des participants, les boutons de mode et les en-têtes de jours restent visibles en haut du sheet
-- **Capture** : `05-find-time-timeline.png`
+  - chaque ligne indique le jour, la plage horaire et le statut (« Everyone free » ou les noms des participants occupés)
+  - le créneau correspondant à l'heure actuelle de l'événement est marqué « Current »
+  - les chips participants en bas affichent testuser et bob avec une pastille de couleur
+- **Capture** : `05-find-time-suggestions.png`
 
-### Étape 5b — Test du mode "Certains peuvent être occupés"
-- Tap sur **Some may be busy** au-dessus de la timeline
-- Désactiver le toggle **Required** pour `bob`
-- Vérifier :
-  - la plage 15:00-16:00 n'est plus traitée comme occupée
-  - la brique peut être posée de 15:00 à 16:00 (elle reste verte/bleu)
-- Réactiver le mode **All free** et vérifier que la brique redevient rouge de 14:00 à 16:00
+### Étape 5b — Test du mode permissif
+- Désactiver le toggle **Everyone must be free**
+- Tap sur le chip de `bob` pour le passer en optionnel
+- Vérifier que de nouveaux créneaux apparaissent, y compris sur la plage 15:00-16:00 de bob
+- Réactiver **Everyone must be free**
 - **Capture** : `05b-permissive-mode.png`
 
-### Étape 6 — Déplacer l'événement (snap visuel)
-- Saisir la poignée de la brique et la glisser vers une plage libre
+### Étape 6 — Appliquer une suggestion (fast path)
+- Tap sur un créneau suggéré (ex. 16:00-17:00)
+- Vérifier que le sheet se ferme et que les champs **Start** / **End** du formulaire sont mis à jour
+- **Capture** : `06-slot-applied.png`
+
+### Étape 7 — Ouvrir l'explorateur plein écran
+- Rouvrir **Find a time**, puis tap sur **Explore timeline**
 - Vérifier :
-  - la brique reste sous le doigt
-  - elle devient verte/bleu sur les créneaux libres
-  - elle devient rouge sur les créneaux occupés
-- **Capture** : `06-slot-selected.png`
+  - la ligne « Everyone » en haut montre les créneaux occupés fusionnés de 14:00 à 16:00
+  - une ligne par participant : la plage 14:00-15:00 sur la ligne de testuser, 15:00-16:00 sur celle de bob
+  - la brique de l'événement apparaît à l'heure actuelle sur la ligne « Everyone »
+- **Capture** : `07-find-time-lanes.png`
 
-### Étape 7 — Appliquer le créneau
-- Relâcher la brique sur une plage libre (ex. 13:00-14:00 ou 16:00-17:00)
-- Vérifier que les champs **Start** / **End** du formulaire sont mis à jour
-- **Capture** : `07-slot-applied.png`
+### Étape 8 — Placement par tap + sélecteur de jour
+- Tap sur une zone libre de la ligne « Everyone » → la sélection se déplace, bordure verte
+- Tap sur une zone occupée → la sélection se déplace, bordure rouge, bouton **Apply** désactivé
+- Tap sur un autre jour dans le DayStrip → les lanes se re-rendent pour ce jour
+- **Capture** : `08-tap-placement.png`
 
-### Étape 8 — Test participant externe (disponibilité inconnue)
+### Étape 9 — Zoom + Apply
+- Utiliser les boutons **+**/**−** pour changer l'échelle horaire
+- Revenir sur une zone libre, tap sur **Apply selected slot**
+- Vérifier le retour au formulaire avec Start/End mis à jour
+- **Capture** : `09-apply-lanes.png`
+
+### Étape 10 — Test participant externe (disponibilité inconnue)
 - Ajouter un participant externe, ex. `external@gmail.com`
 - Rouvrir **Find a time**
-- Vérifier que `external@gmail.com` est affiché comme **Unknown**
-- **Capture** : `08-external-unknown.png`
+- Vérifier que `external@gmail.com` est affiché comme **Unknown** et sa lane est grisée dans l'explorateur
+- **Capture** : `10-external-unknown.png`
 
-### Étape 9 — Sauvegarder l'événement
+### Étape 11 — Sauvegarder l'événement
 - Tap sur **Save Event**
 - Retour au calendrier, l'événement apparaît à sa nouvelle position
-- **Capture** : `09-event-saved.png`
-
-### Étape 10 — Drag avec auto-scroll
-- Créer un événement long (par ex. 2 ou 3 heures) à 15:00
-- Ajouter `testuser` et `bob`
-- Ouvrir **Find a time**
-- Saisir la poignée de la brique et glisser vers le haut ou le bas, au-delà du bord de l'écran
-- Vérifier :
-  - le `ScrollView` défile automatiquement dès que la brique approche du bord
-  - le contrôle du drag n'est pas perdu
-  - le défilement s'arrête quand la brique revient dans la zone centrale
-- **Capture** : `10-drag-auto-scroll.png`
-
-### Étape 11 — Snapping sur un créneau libre
-- Relâcher la brique sur une zone verte
-- Vérifier :
-  - la brique se snap à un multiple de 15 minutes
-  - l'heure de début est mise à jour dans le formulaire
-- **Capture** : `11-snapped-slot.png`
+- **Capture** : `11-event-saved.png`
 
 ## GIF final
 

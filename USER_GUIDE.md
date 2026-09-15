@@ -46,49 +46,37 @@ Tap a day in month view to jump to that day. Pinch or drag the time grid to chan
 
 ## Find a time / Free-Busy
 
-Use **Find a time** when an event has at least one attendee to see when everyone is available and pick a new slot visually.
+Use **Find a time** when an event has at least one attendee to see when everyone is available and pick a new slot.
 
 ### Opening Find a time
 
 1. Create or edit an event.
 2. Add one or more attendees.
 3. Tap the **Find a time** button below the attendee field.
-4. The app queries the Nextcloud CalDAV scheduling outbox and opens the availability timeline.
+4. The app queries the Nextcloud CalDAV scheduling outbox and shows a list of suggested times.
 
-### Timeline
+### Suggested times
 
-The timeline shows a 15-day window centered on the current event date.
+The sheet lists the first free slots in a 15-day window around the event date.
 
-- **Day columns** — swipe horizontally to see adjacent days.
-- **Sticky header** — the day columns, the mode buttons (`All free` / `Some may be busy`) and the timeline title stay fixed at the top of the sheet while you scroll down to the attendee list.
-- **Hour rail** — 00:00 to 24:00 on the left.
-- **Busy blocks** — red blocks are `BUSY`, dashed grey blocks are `BUSY-UNAVAILABLE` (outside working hours).
-- **Attendee colors** — each participant is assigned a unique color. Colored dots inside a busy block show who is unavailable during that period.
-- **Free zones** — green highlighted areas where the selected attendees are free.
-- **Attendee list** — below the timeline, showing `Available` or `Unknown` for each participant. Each row displays the participant's color dot.
+- Each row shows the day, the time range, and who is free — `Everyone free`, or the names of the attendees who are busy on that slot.
+- The slot matching the current event time is marked **Current**.
+- Tap a suggestion to apply it to the event immediately and close the sheet.
+- The **Everyone must be free** toggle controls whether suggestions must suit all attendees (on) or only the required ones (off). When off, tap an attendee chip to mark them required or optional.
 
-### Draggable event brick
+### Timeline explorer
 
-The coloured brick represents the event, sized to its duration.
+Tap **Explore timeline** at the bottom of the sheet to open a full-screen view.
 
-- **Drag the handle** on the right edge of the brick to move it to another time or day.
-- The brick border turns **green** over free slots and **red** over busy slots.
-- Drag near the top or bottom edge of the sheet to auto-scroll to earlier or later hours.
-- **Long-press any green zone** to snap the brick to that time instantly.
-- Release on a free slot to update the event start/end times.
+- **Day strip** — pick a day in the 15-day window.
+- **Everyone lane** — the top row merges every attendee's busy periods. Tap a free area to place the event there; the selection border is green when the slot is free for everyone and red when it conflicts.
+- **Attendee lanes** — one row per participant with their own busy periods. Greyed rows mean availability could not be fetched (see *External attendees*).
+- **Zoom** — the `+`/`−` buttons change the time scale.
+- Tap **Apply selected slot** to copy the chosen slot back into the event form.
 
 ### External attendees
 
 If the server cannot resolve an attendee (for example an external email not on the same Nextcloud instance), that participant is shown as **Unknown**. Unknown availability is treated as free, so double-check externally if needed.
-
-### Required attendees and mode toggle
-
-Two modes are available above the timeline:
-
-- **All free** (default) — the event brick turns red if any attendee is busy and can only be placed where everyone is free.
-- **Some may be busy** — switch to this mode to mark individual attendees as **optional**. The brick then ignores optional attendees' busy periods and can be placed in slots where only required attendees are free.
-
-In the attendee list, tap the toggle next to a participant to mark them required or optional when the permissive mode is active.
 
 ---
 

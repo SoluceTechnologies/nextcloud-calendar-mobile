@@ -77,10 +77,12 @@ export function useFreeBusy({
     return new Set(requiredAttendees.map((e) => e.toLowerCase()));
   }, [mode, requiredAttendees, attendees]);
 
+  const attendeeKey = attendees.map((a) => a.email).join(',');
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
   const [rawAvailabilities, setRawAvailabilities] = useState<AttendeeAvailability[]>([]);
-  const [searchRange, setSearchRange] = useState<{ start: Date | null; end: Date | null }>({ start: null, end: null });
+  const [searchRange, setSearchRange] = useState<{ start: Date | null; end: Date | null; key: string }>({ start: null, end: null, key: '' });
   const activeRef = useRef(0);
 
   // Enrich raw data with required flag and a deterministic color for each attendee.
@@ -100,10 +102,13 @@ export function useFreeBusy({
     return mergeBusySlots(effective);
   }, [availabilities, mode]);
 
-  // Suggestions are computed locally from the filtered busy slots and the current event window.
+  // Suggestions are computed locally from the filtered busy slots. The search
+  // window is padded with past days for the timeline, but suggestions only make
+  // sense from now on — otherwise the first maxSuggestions hits are all past.
   const suggestions = useMemo(() => {
-    if (!searchRange.start || !searchRange.end || mergedBusy.length === 0) return [];
-    return suggestSlots(durationMs, searchRange.start, searchRange.end, mergedBusy);
+    if (!searchRange.start || !searchRange.end) return [];
+    const from = new Date(Math.max(searchRange.start.getTime(), Date.now()));
+    return suggestSlots(durationMs, from, searchRange.end, mergedBusy);
   }, [durationMs, searchRange, mergedBusy]);
 
   const doFetch = useCallback(
@@ -112,7 +117,7 @@ export function useFreeBusy({
         if (activeRef.current === nonce) {
           setLoading(false);
           setRawAvailabilities([]);
-          setSearchRange({ start: null, end: null });
+          setSearchRange({ start: null, end: null, key: '' });
           setError(null);
         }
         return;
@@ -125,7 +130,7 @@ export function useFreeBusy({
         if (activeRef.current !== nonce) return;
 
         setRawAvailabilities(results);
-        setSearchRange({ start: neededWindow.start, end: neededWindow.end });
+        setSearchRange({ start: neededWindow.start, end: neededWindow.end, key: attendeeKey });
         setError(null);
       } catch (e) {
         if (activeRef.current !== nonce) return;
@@ -134,7 +139,7 @@ export function useFreeBusy({
         if (activeRef.current === nonce) setLoading(false);
       }
     },
-    [account, organizer, attendees, neededWindow],
+    [account, organizer, attendees, neededWindow, attendeeKey],
   );
 
   const doFetchRef = useRef(doFetch);
@@ -152,16 +157,16 @@ export function useFreeBusy({
     debounce.call(nonce);
   }, [debounce]);
 
-  const attendeeKey = attendees.map((a) => a.email).join(',');
-
   useEffect(() => {
     if (!enabled || !account || !organizer || attendees.length === 0) {
       setLoading(false);
       return;
     }
 
-    // Reuse existing data if the current start still falls within the already loaded window.
+    // Reuse existing data only if it was loaded for the same attendee list and
+    // the current start still falls within the already loaded window.
     if (
+      searchRange.key === attendeeKey &&
       searchRange.start &&
       searchRange.end &&
       isWithinRange(start, searchRange.start, searchRange.end)
