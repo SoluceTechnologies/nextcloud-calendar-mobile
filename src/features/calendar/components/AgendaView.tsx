@@ -130,7 +130,7 @@ export interface AgendaViewHandle {
 // exposes scrollToIndex and scrollToOffset that actually work.
 type Row =
   | { type: 'header'; key: string; date: Date; hasEvents: boolean }
-  | { type: 'item'; key: string; event: CalendarEvent };
+  | { type: 'item'; key: string; date: Date; event: CalendarEvent };
 
 const AgendaViewImpl = forwardRef<AgendaViewHandle, Props>(function AgendaView(
   { events, onPressEvent, onPressCell, onVisibleDateChange }, ref
@@ -168,7 +168,7 @@ const AgendaViewImpl = forwardRef<AgendaViewHandle, Props>(function AgendaView(
     for (const s of sections) {
       sticky.push(out.length);
       out.push({ type: 'header', key: s.key, date: s.date, hasEvents: s.data.length > 0 });
-      for (const e of s.data) out.push({ type: 'item', key: s.key, event: e });
+      for (const e of s.data) out.push({ type: 'item', key: s.key, date: s.date, event: e });
     }
     return { rows: out, stickyIndices: sticky };
   }, [sections]);
@@ -275,7 +275,10 @@ const AgendaViewImpl = forwardRef<AgendaViewHandle, Props>(function AgendaView(
     const row = first?.item as Row | undefined;
     if (!row) return;
     const key = row.key;
-    const d: Date = row.type === 'header' ? row.date : row.event.dtstart;
+    // Item rows report the day of the section they sit in, not event.dtstart:
+    // a multi-day event expanded into a later section would otherwise push a
+    // stale start date to onVisibleDateChange and unload the visible range.
+    const d: Date = row.date;
     firstVisibleKeyRef.current = key;
     if (!positioned && key === todayKey) setPositioned(true);
     const snap = snapRef.current;
@@ -303,8 +306,10 @@ const AgendaViewImpl = forwardRef<AgendaViewHandle, Props>(function AgendaView(
       : <EventRow event={item.event} theme={theme} onPress={onPressEvent} />
   ), [theme, onPressCell, onPressEvent]);
 
-  const keyExtractor = useCallback((item: Row, index: number) => (
-    item.type === 'header' ? `h-${item.key}` : `i-${item.key}-${item.event.uid}-${index}`
+  // Keys stay stable across past-growth prepends: one row per event per day,
+  // so no index is needed (an index would remount every item on prepend).
+  const keyExtractor = useCallback((item: Row) => (
+    item.type === 'header' ? `h-${item.key}` : `i-${item.key}-${item.event.uid}`
   ), []);
 
   return (
