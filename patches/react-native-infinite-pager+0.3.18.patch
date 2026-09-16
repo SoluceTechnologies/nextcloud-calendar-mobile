@@ -1,8 +1,8 @@
 diff --git a/node_modules/react-native-infinite-pager/src/index.tsx b/node_modules/react-native-infinite-pager/src/index.tsx
-index e0bfa4a..680f876 100644
+index e0bfa4a..c1effa7 100644
 --- a/node_modules/react-native-infinite-pager/src/index.tsx
 +++ b/node_modules/react-native-infinite-pager/src/index.tsx
-@@ -520,9 +520,20 @@ function InfinitePager(
+@@ -520,9 +520,24 @@ function InfinitePager(
          <Animated.View
            style={[wrapperStyle, style]}
            onLayout={({ nativeEvent: { layout } }) => {
@@ -15,7 +15,11 @@ index e0bfa4a..680f876 100644
 +            const nextSize = vertical ? layout.height : layout.width;
 +            const prevSize = pageSize.value;
 +            if (!gesturesDisabled && prevSize > 0 && prevSize !== nextSize) {
-+              translate.value = (translate.value / prevSize) * nextSize;
++              const scale = nextSize / prevSize;
++              translate.value *= scale;
++              // The gesture baseline is captured in old-scale pixels at
++              // onStart; rescale it too or a resize mid-drag jumps.
++              startTranslate.value *= scale;
 +            }
              pageWidth.value = layout.width;
              pageHeight.value = layout.height;

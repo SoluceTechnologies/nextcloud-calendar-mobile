@@ -27,6 +27,12 @@ describe('isMultiWindow', () => {
     expect(isMultiWindow({ width: 1920, height: 540 }, screen)).toBe(false);
     expect(isMultiWindow({ width: 390, height: 760 }, { width: 390, height: 844 })).toBe(false);
   });
+
+  it('applies an 8px tolerance before counting as multi-window', () => {
+    // Up to 8px of shrinkage per axis is treated as insets/rounding.
+    expect(isMultiWindow({ width: 1912, height: 1072 }, screen)).toBe(false);
+    expect(isMultiWindow({ width: 1911, height: 1071 }, screen)).toBe(true);
+  });
 });
 
 describe('shouldLockPortrait', () => {
