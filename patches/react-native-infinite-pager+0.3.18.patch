@@ -1,0 +1,26 @@
+diff --git a/node_modules/react-native-infinite-pager/src/index.tsx b/node_modules/react-native-infinite-pager/src/index.tsx
+index e0bfa4a..680f876 100644
+--- a/node_modules/react-native-infinite-pager/src/index.tsx
++++ b/node_modules/react-native-infinite-pager/src/index.tsx
+@@ -520,9 +520,20 @@ function InfinitePager(
+         <Animated.View
+           style={[wrapperStyle, style]}
+           onLayout={({ nativeEvent: { layout } }) => {
++            // `translate` is stored in pixels and is only re-derived by
++            // setPage/the pan gesture. When the page size changes (window
++            // resize: DeX freeform, split-screen, foldables) rescale it so
++            // `pageAnim` keeps the same value and pages stay aligned instead
++            // of shifting off-axis. Skipped for gesture-disabled pagers so
++            // only the driving pager rescales a shared `syncNode`.
++            const nextSize = vertical ? layout.height : layout.width;
++            const prevSize = pageSize.value;
++            if (!gesturesDisabled && prevSize > 0 && prevSize !== nextSize) {
++              translate.value = (translate.value / prevSize) * nextSize;
++            }
+             pageWidth.value = layout.width;
+             pageHeight.value = layout.height;
+-            onLayoutResolve(vertical ? layout.height : layout.width);
++            onLayoutResolve(nextSize);
+           }}
+         >
+           {pageIndices.map((pageIndex) => {
