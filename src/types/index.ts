@@ -94,3 +94,29 @@ export type ServerCapabilities = {
 };
 
 export type ViewMode = 'month' | 'week' | '3days' | 'day' | 'schedule';
+
+export type FreeBusyType = 'BUSY' | 'BUSY-UNAVAILABLE' | 'BUSY-TENTATIVE' | 'FREE';
+
+export type BusySlot = {
+  start: Date;
+  end: Date;
+  fbType: FreeBusyType;
+  /** Emails of the attendees whose schedules occupy this slot. */
+  attendees?: string[];
+};
+
+export type AttendeeAvailability = {
+  email: string;
+  displayName?: string;
+  slots: BusySlot[];
+  available: boolean;
+  /** Deterministic color assigned to this attendee for the timeline. */
+  color: string;
+  /** Whether this attendee is treated as required in permissive mode. */
+  required?: boolean;
+};
+
+export type SuggestedSlot = {
+  start: Date;
+  end: Date;
+};
