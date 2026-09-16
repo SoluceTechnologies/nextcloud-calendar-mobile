@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ScrollView, StyleSheet } from 'react-native';
+import { Alert, ScrollView, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
@@ -16,6 +16,7 @@ import {
   eventToFormValues,
   extractOrganizerName,
 } from '@/features/event/utils/icsImport';
+import { eventExists } from '@/database/eventWrites';
 import { goBackOrHome } from '@/utils/navigationGuard';
 import { EventForm } from '@/features/event/components/EventForm';
 import {
@@ -67,7 +68,7 @@ export function IcsImportScreen({ uri }: Props) {
 
   const createMutation = useCreateEvent(activeAccount!, calendars);
 
-  const handleSubmit = useCallback(
+  const runImport = useCallback(
     async (input: CreateEventInput) => {
       try {
         await createMutation.mutateAsync(input);
@@ -85,6 +86,29 @@ export function IcsImportScreen({ uri }: Props) {
       }
     },
     [createMutation, events, router, savedUids],
+  );
+
+  const handleSubmit = useCallback(
+    async (input: CreateEventInput) => {
+      const uid = input.uid;
+      if (
+        uid &&
+        activeAccount &&
+        (await eventExists(activeAccount.id, input.calendarId, uid))
+      ) {
+        Alert.alert(t('import.duplicateTitle'), t('import.duplicateMessage'), [
+          { text: t('common.cancel'), style: 'cancel' },
+          {
+            text: t('import.overwrite'),
+            style: 'destructive',
+            onPress: () => void runImport(input),
+          },
+        ]);
+        return;
+      }
+      await runImport(input);
+    },
+    [activeAccount, runImport, t],
   );
 
   if (!activeAccount) {
@@ -120,7 +144,7 @@ export function IcsImportScreen({ uri }: Props) {
         <SafeAreaView style={styles.flex}>
           <ScreenHeader title={t('import.title')} onBack={() => router.back()} />
           <Stack padding={20} gap={16} vAlign="center" hAlign="center">
-            <Typography variant="body1" color="danger">{error}</Typography>
+            <Typography variant="body1" color="danger">{t(`import.${error}`)}</Typography>
             <Button variant="primary" title={t('import.retry')} onPress={reload} />
           </Stack>
         </SafeAreaView>

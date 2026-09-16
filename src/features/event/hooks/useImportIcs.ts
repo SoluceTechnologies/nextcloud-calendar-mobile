@@ -1,16 +1,17 @@
 import { useCallback, useEffect, useState } from 'react';
 
 import {
-  IcsImportError,
   parseIcsToEvents,
   readIcsUri,
   sanitizeIcs,
 } from '@/features/event/utils/icsImport';
 import type { CalendarEvent } from '@/types';
 
+export type IcsImportErrorKey = 'fileError' | 'parseError';
+
 export interface UseImportIcsResult {
   loading: boolean;
-  error: string | null;
+  error: IcsImportErrorKey | null;
   events: CalendarEvent[];
   originalIcs: string;
   reload: () => void;
@@ -18,7 +19,7 @@ export interface UseImportIcsResult {
 
 export function useImportIcs(uri: string | undefined): UseImportIcsResult {
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<IcsImportErrorKey | null>(null);
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [originalIcs, setOriginalIcs] = useState('');
 
@@ -32,17 +33,22 @@ export function useImportIcs(uri: string | undefined): UseImportIcsResult {
     setLoading(true);
     setError(null);
 
+    let sanitized: string;
     try {
-      const raw = await readIcsUri(uri);
-      const sanitized = sanitizeIcs(raw);
-      setOriginalIcs(sanitized);
-      const parsed = parseIcsToEvents(sanitized);
-      setEvents(parsed);
-    } catch (err) {
-      setError(err instanceof IcsImportError ? err.message : 'Unknown import error');
-    } finally {
+      sanitized = sanitizeIcs(await readIcsUri(uri));
+    } catch {
+      setError('fileError');
       setLoading(false);
+      return;
     }
+
+    try {
+      setEvents(parseIcsToEvents(sanitized));
+      setOriginalIcs(sanitized);
+    } catch {
+      setError('parseError');
+    }
+    setLoading(false);
   }, [uri]);
 
   useEffect(() => {

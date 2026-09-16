@@ -90,6 +90,22 @@ describe('eventToFormValues', () => {
     expect(form.summary).toBe('Team Meeting');
     expect(form.rrule).toBeUndefined();
   });
+
+  it('keeps the raw RRULE line when parseRrule cannot represent it', () => {
+    const byMonthDayIcs = `BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VEVENT\r\nUID:monthly-uid\r\nSUMMARY:Monthly\r\nDTSTART:20260615T100000Z\r\nDTEND:20260615T110000Z\r\nRRULE:FREQ=MONTHLY;BYMONTHDAY=15\r\nEND:VEVENT\r\nEND:VCALENDAR`;
+    const [event] = parseIcsToEvents(byMonthDayIcs);
+    const form = eventToFormValues(event, byMonthDayIcs);
+    expect(form.rrule).toBeUndefined();
+    expect(form.extraLines).toContain('RRULE:FREQ=MONTHLY;BYMONTHDAY=15');
+  });
+
+  it('parses a supported RRULE instead of duplicating it in extraLines', () => {
+    const weeklyIcs = `BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VEVENT\r\nUID:weekly-uid\r\nSUMMARY:Weekly\r\nDTSTART:20260601T100000Z\r\nDTEND:20260601T110000Z\r\nRRULE:FREQ=WEEKLY;BYDAY=MO\r\nEND:VEVENT\r\nEND:VCALENDAR`;
+    const [event] = parseIcsToEvents(weeklyIcs);
+    const form = eventToFormValues(event, weeklyIcs);
+    expect(form.rrule).toEqual({ freq: 'WEEKLY', byDay: ['MO'] });
+    expect(form.extraLines.some((l) => /^RRULE:/i.test(l))).toBe(false);
+  });
 });
 
 describe('readIcsUri', () => {
