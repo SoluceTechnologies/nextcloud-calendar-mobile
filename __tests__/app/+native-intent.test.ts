@@ -29,12 +29,12 @@ describe('redirectSystemPath', () => {
     expect(result).toBe('nextcloud-calendar://settings');
   });
 
-  it('passes through unrelated file types unchanged', () => {
+  it('drops unrelated file types instead of routing to a file path', () => {
     const result = redirectSystemPath({
       path: 'file:///storage/document.pdf',
       initial: true,
     });
-    expect(result).toBe('file:///storage/document.pdf');
+    expect(result).toBe('/');
   });
 
   it('falls back to root on empty input', () => {

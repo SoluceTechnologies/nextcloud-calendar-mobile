@@ -180,7 +180,10 @@
     "retry": "Retry",
     "back": "Back",
     "errorNoAccount": "Please set up a Nextcloud account first.",
-    "untitledEvent": "(No title)"
+    "untitledEvent": "(No title)",
+    "duplicateTitle": "Event already exists",
+    "duplicateMessage": "An event with this identifier already exists in the selected calendar. Importing will overwrite it.",
+    "overwrite": "Overwrite"
   },
   "settings": {
     "title": "Ajustes",

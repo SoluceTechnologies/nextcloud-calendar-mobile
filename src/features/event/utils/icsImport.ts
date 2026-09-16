@@ -85,18 +85,23 @@ export function eventToFormValues(
   event: CalendarEvent,
   originalIcs: string,
 ): InitialValues & { uid: string; extraLines: string[] } {
+  const rrule = parseRrule(event.rrule);
+  const extraLines = extractExtraVeventLines(originalIcs, event.uid);
+  // event.rrule is the raw "RRULE:…" line. When parseRrule cannot represent it
+  // (BYMONTHDAY, BYSETPOS, WKST…), keep it verbatim so the import stays
+  // recurring instead of silently dropping the rule.
+  if (event.rrule && !rrule) extraLines.unshift(event.rrule);
   return {
     summary: event.summary,
-    calendarId: event.calendarId,
     allDay: event.allDay,
     dtstart: event.dtstart,
     dtend: event.dtend,
     description: event.description,
     location: event.location,
     attendees: [...event.attendees],
-    rrule: parseRrule(event.rrule),
+    rrule,
     alarms: event.alarms,
     uid: event.uid,
-    extraLines: extractExtraVeventLines(originalIcs, event.uid),
+    extraLines,
   };
 }

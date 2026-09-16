@@ -47,7 +47,7 @@ const config: ExpoConfig = {
                     LSHandlerRank: 'Alternate',
                     LSItemContentTypes: [
                         'com.apple.ical.ics',
-                        'public.data',
+                        'com.soluce.nextcloud-calendar.ics',
                     ],
                 },
             ],

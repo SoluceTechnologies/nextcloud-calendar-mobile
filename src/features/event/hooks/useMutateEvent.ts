@@ -98,20 +98,25 @@ function buildIcsForInput(
   extraLines: string[] = [],
 ): string {
   const alarms = resolveAlarms(input);
+  // A preserved raw RRULE (import path) must not survive next to a rule the
+  // user explicitly set in the form — VEVENT allows a single RRULE.
+  const extras = input.rrule
+    ? extraLines.filter((line) => !/^RRULE:/i.test(line))
+    : extraLines;
   return input.allDay
     ? buildAllDayIcs({
         uid, summary: input.summary, description, location,
         dtstart: input.dtstart, dtend: input.dtend,
         organizerEmail: input.organizerEmail, organizerName: input.organizerName,
         attendees: input.attendees, rrule: input.rrule, alarms,
-        sequence, extraLines,
+        sequence, extraLines: extras,
       })
     : buildIcs({
         uid, summary: input.summary, description, location,
         dtstart: input.dtstart, dtend: input.dtend,
         organizerEmail: input.organizerEmail, organizerName: input.organizerName,
         attendees: input.attendees, timezone, rrule: input.rrule, alarms,
-        sequence, extraLines,
+        sequence, extraLines: extras,
       });
 }
 
