@@ -191,7 +191,8 @@
     "findTimeTapHint": "Нажмите на верхнюю строку, чтобы разместить событие",
     "findTimeZoomIn": "Увеличить",
     "findTimeZoomOut": "Уменьшить",
-    "findTimeNoRequest": "Откройте этот экран из формы события."
+    "findTimeNoRequest": "Откройте этот экран из формы события.",
+    "findTimeWorkingHoursOnly": "Только рабочие часы"
   },
   "settings": {
     "title": "Настройки",

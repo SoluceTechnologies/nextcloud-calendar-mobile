@@ -186,7 +186,8 @@
     "findTimeTapHint": "Tocatz la linha de dessús per plaçar l’eveniment",
     "findTimeZoomIn": "Zoom avant",
     "findTimeZoomOut": "Zoom arrière",
-    "findTimeNoRequest": "Dobrissètz aquesta vista dempuèi lo formulari d’eveniment."
+    "findTimeNoRequest": "Dobrissètz aquesta vista dempuèi lo formulari d’eveniment.",
+    "findTimeWorkingHoursOnly": "Oras de trabalh sonque"
   },
   "settings": {
     "title": "Paramètres",

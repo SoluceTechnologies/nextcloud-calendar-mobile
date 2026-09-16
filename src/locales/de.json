@@ -191,7 +191,8 @@
     "findTimeTapHint": "Tippe auf die obere Zeile, um das Ereignis zu platzieren",
     "findTimeZoomIn": "Vergrößern",
     "findTimeZoomOut": "Verkleinern",
-    "findTimeNoRequest": "Öffne diese Ansicht aus dem Ereignisformular."
+    "findTimeNoRequest": "Öffne diese Ansicht aus dem Ereignisformular.",
+    "findTimeWorkingHoursOnly": "Nur Arbeitszeiten"
   },
   "settings": {
     "title": "Einstellungen",

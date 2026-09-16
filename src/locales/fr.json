@@ -191,7 +191,8 @@
     "findTimeTapHint": "Touchez la ligne du haut pour placer l’événement",
     "findTimeZoomIn": "Zoom avant",
     "findTimeZoomOut": "Zoom arrière",
-    "findTimeNoRequest": "Ouvrez cet écran depuis le formulaire d’événement."
+    "findTimeNoRequest": "Ouvrez cet écran depuis le formulaire d’événement.",
+    "findTimeWorkingHoursOnly": "Heures de travail uniquement"
   },
   "settings": {
     "title": "Paramètres",

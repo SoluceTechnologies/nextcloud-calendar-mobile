@@ -191,7 +191,8 @@
     "findTimeTapHint": "Tik op de bovenste rij om de gebeurtenis te plaatsen",
     "findTimeZoomIn": "Inzoomen",
     "findTimeZoomOut": "Uitzoomen",
-    "findTimeNoRequest": "Open deze weergave vanuit het gebeurtenisformulier."
+    "findTimeNoRequest": "Open deze weergave vanuit het gebeurtenisformulier.",
+    "findTimeWorkingHoursOnly": "Alleen werktijden"
   },
   "settings": {
     "title": "Instellingen",

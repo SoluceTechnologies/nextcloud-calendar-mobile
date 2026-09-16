@@ -1,9 +1,11 @@
 import {
   DAY_MINUTES,
+  DEFAULT_WORKING_RANGE,
   blocksForDay,
   hourMarks,
   minutesSinceMidnight,
   slotFromLaneTap,
+  workingRangeForDay,
 } from '@/features/event/utils/laneLayout';
 import type { BusySlot } from '@/types';
 
@@ -48,6 +50,21 @@ describe('blocksForDay', () => {
     );
     expect(blocks).toHaveLength(0);
   });
+
+  it('clamps blocks to the given minute range', () => {
+    const d = new Date('2026-09-15T00:00:00');
+    const blocks = blocksForDay(
+      [
+        busy('2026-09-15T08:00:00', '2026-09-15T10:00:00'),
+        busy('2026-09-15T19:00:00', '2026-09-15T20:00:00'),
+      ],
+      d,
+      { startMin: 540, endMin: 1080 },
+    );
+    expect(blocks).toHaveLength(1);
+    expect(blocks[0].startMin).toBe(540);
+    expect(blocks[0].endMin).toBe(600);
+  });
 });
 
 describe('slotFromLaneTap', () => {
@@ -85,6 +102,14 @@ describe('slotFromLaneTap', () => {
   it('returns null for a non-positive zoom', () => {
     expect(slotFromLaneTap(100, 0, day, durationMs)).toBeNull();
   });
+
+  it('offsets the tapped position by the visible range start', () => {
+    const d = new Date('2026-09-15T00:00:00');
+    // Range starts at 9:00 (540), tap at x=0 → 9:00
+    const slot = slotFromLaneTap(0, 1, d, durationMs, 540);
+    expect(slot!.start.getHours()).toBe(9);
+    expect(slot!.start.getMinutes()).toBe(0);
+  });
 });
 
 describe('minutesSinceMidnight', () => {
@@ -105,5 +130,57 @@ describe('hourMarks', () => {
 
   it('uses a 6h step when zoomed out', () => {
     expect(hourMarks(0.5)).toEqual([0, 360, 720, 1080]);
+  });
+
+  it('only marks hours inside the given range', () => {
+    // 9:00–18:00 at 1px/min → 3h step → 9, 12, 15, 18
+    expect(hourMarks(1, { startMin: 540, endMin: 1080 })).toEqual([540, 720, 900, 1080]);
+  });
+});
+
+describe('workingRangeForDay', () => {
+  const d = new Date('2026-09-15T00:00:00');
+
+  function wh(morningEnd: string, eveningStart: string): BusySlot[] {
+    // Outside-working-hours as the server encodes them: [00:00–morningEnd] and
+    // [eveningStart–24:00] BUSY-UNAVAILABLE around a working window.
+    return [
+      busy('2026-09-15T00:00:00', `2026-09-15T${morningEnd}:00`, 'BUSY-UNAVAILABLE'),
+      busy(`2026-09-15T${eveningStart}:00`, '2026-09-16T00:00:00', 'BUSY-UNAVAILABLE'),
+    ];
+  }
+
+  it('returns the common window across attendees', () => {
+    // testuser 9–18, bob 8–19 → intersection 9–18
+    const range = workingRangeForDay(
+      [{ slots: wh('09:00', '18:00') }, { slots: wh('08:00', '19:00') }],
+      d,
+    );
+    expect(range).toEqual({ startMin: 540, endMin: 1080 });
+  });
+
+  it('ignores attendees without working hours', () => {
+    const range = workingRangeForDay(
+      [{ slots: wh('09:00', '18:00') }, { slots: [] }],
+      d,
+    );
+    expect(range).toEqual({ startMin: 540, endMin: 1080 });
+  });
+
+  it('falls back to the default range when nobody declares working hours', () => {
+    expect(workingRangeForDay([{ slots: [] }], d)).toEqual(DEFAULT_WORKING_RANGE);
+    expect(workingRangeForDay([], d)).toEqual(DEFAULT_WORKING_RANGE);
+  });
+
+  it('falls back to the union when windows are disjoint', () => {
+    // Alice works mornings, Bob afternoons → union 8–18
+    const range = workingRangeForDay(
+      [
+        { slots: wh('08:00', '12:00') },
+        { slots: wh('14:00', '18:00') },
+      ],
+      d,
+    );
+    expect(range).toEqual({ startMin: 480, endMin: 1080 });
   });
 });

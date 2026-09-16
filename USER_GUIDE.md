@@ -71,6 +71,7 @@ Tap **Explore timeline** at the bottom of the sheet to open a full-screen view.
 - **Day strip** — pick a day in the 15-day window.
 - **Everyone lane** — the top row merges every attendee's busy periods. Tap a free area to place the event there; the selection border is green when the slot is free for everyone and red when it conflicts.
 - **Attendee lanes** — one row per participant with their own busy periods. Greyed rows mean availability could not be fetched (see *External attendees*).
+- **Working hours only** — on by default, the lanes only cover the common working-hours window declared by the attendees (their out-of-office time is reported by the server as *unavailable*). Turn it off to display the full 24 hours.
 - **Zoom** — the `+`/`−` buttons change the time scale.
 - Tap **Apply selected slot** to copy the chosen slot back into the event form.
 
