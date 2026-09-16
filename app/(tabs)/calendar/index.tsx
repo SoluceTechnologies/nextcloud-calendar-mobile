@@ -186,6 +186,7 @@ export default function CalendarScreen() {
             hourRowHeight={hourRowHeight}
             cellHeight={cellHeight}
             weekStartsOn={deferredWeekStartsOn}
+            active={deferredIsCalendarMode}
             jump={nav.jump}
             commitZoom={commitZoom}
             initialScrollHour={nowHour}

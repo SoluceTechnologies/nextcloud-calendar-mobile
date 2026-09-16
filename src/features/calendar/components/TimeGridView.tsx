@@ -42,6 +42,7 @@ interface Props {
   hourRowHeight: number;
   cellHeight: SharedValue<number>;
   weekStartsOn: 0 | 1;
+  active: boolean;
   jump: { nonce: number; target: Date };
   commitZoom: (h: number) => void;
   initialScrollHour: number;
@@ -54,9 +55,10 @@ interface Props {
 
 function TimeGridViewImpl({
   mode, anchorDate, activeDate, events, allDayEvents, hourRowHeight, cellHeight, weekStartsOn,
-  jump, commitZoom, initialScrollHour, onPageChange, onPressSlot, onPressEvent,
+  active, jump, commitZoom, initialScrollHour, onPageChange, onPressSlot, onPressEvent,
   onPressAllDayEvent, onMoveEvent,
 }: Props) {
+  const activeRef = useRef(active); activeRef.current = active;
   const { colors } = useTheme();
   const pagerRef = useRef<InfinitePagerImperativeApi>(null);
 
@@ -171,10 +173,6 @@ function TimeGridViewImpl({
     syncNode.value = 0;
     setSettledIndex(0);
     setPagerKey((k) => k + 1);
-    // syncNode is deliberately not a dependency: it is a mutable container, not
-    // a value, and the project's Reanimated test mock hands back a fresh object
-    // on every render — listing it would re-run this effect every render and
-    // bump the key forever.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [localAnchor, mode]);
 
@@ -186,6 +184,7 @@ function TimeGridViewImpl({
       firstJump.current = false;
       return;
     }
+    if (!activeRef.current) return;
     const { localAnchor: a, mode: m, weekStartsOn: w } = jumpInputs.current;
     const target = pageIndexForDate(a, jump.target, m, w);
     const from = settledIndexRef.current;
