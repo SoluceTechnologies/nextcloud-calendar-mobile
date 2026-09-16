@@ -2,7 +2,7 @@ import ICAL from 'ical.js';
 import type { CalendarEvent, Attendee } from '@/types';
 import { yieldToUI } from '@/utils/scheduling';
 import { isValidTimeZone, zonedWallTimeToUtc } from '@/utils/timezone';
-import { triggerToMinutes } from '@/features/notifications/alerts';
+import { NO_ALARM_PROP, triggerToMinutes } from '@/features/notifications/alerts';
 
 interface ParseCalMeta {
   calendarId: string;
@@ -16,9 +16,8 @@ const MAX_OCCURRENCES = 1000;
 
 const DEFAULT_TODO_DURATION_MS = 15 * 60 * 1000;
 
-function firstAlarmMinutes(vevent: ICAL.Component): number | undefined {
-  const alarm = vevent.getFirstSubcomponent('valarm');
-  const trigger = alarm?.getFirstProperty('trigger');
+function alarmTriggerMinutes(vevent: ICAL.Component, alarm: ICAL.Component): number | undefined {
+  const trigger = alarm.getFirstProperty('trigger');
   if (!trigger) return undefined;
 
   const value = trigger.getFirstValue();
@@ -36,6 +35,20 @@ function firstAlarmMinutes(vevent: ICAL.Component): number | undefined {
 
   const minutes = triggerToMinutes(trigger.toICALString().replace(/^TRIGGER[^:]*:/i, ''));
   return minutes ?? undefined;
+}
+
+export function alarmMinutesList(vevent: ICAL.Component): number[] | undefined {
+  if (vevent.getFirstProperty(NO_ALARM_PROP.toLowerCase())) return [];
+
+  const alarms = vevent.getAllSubcomponents('valarm');
+  if (alarms.length === 0) return undefined;
+
+  const minutes = alarms
+    .map((alarm) => alarmTriggerMinutes(vevent, alarm))
+    .filter((m): m is number => m !== undefined);
+  if (minutes.length === 0) return undefined;
+
+  return [...new Set(minutes)].sort((a, b) => b - a);
 }
 
 function readAttendees(props: ICAL.Property[]): Attendee[] {
@@ -60,13 +73,9 @@ function organizerEmailOf(vevent: ICAL.Component): string | undefined {
 
 type OverridableFields = Pick<
   CalendarEvent,
-  'summary' | 'description' | 'location' | 'talkUrl' | 'attendees' | 'organizerEmail' | 'alarmMinutes'
+  'summary' | 'description' | 'location' | 'talkUrl' | 'attendees' | 'organizerEmail' | 'alarms'
 >;
 
-// An exception VEVENT replaces one instance of a series and may restate any of
-// its own details — a renamed meeting, a new room, a different guest list. Only
-// the properties it actually carries are returned, so whatever it leaves out
-// keeps the master's value instead of blanking out.
 function exceptionFields(vevent: ICAL.Component): Partial<OverridableFields> {
   const fields: Partial<OverridableFields> = {};
 
@@ -87,8 +96,8 @@ function exceptionFields(vevent: ICAL.Component): Partial<OverridableFields> {
 
   if (vevent.getFirstProperty('organizer')) fields.organizerEmail = organizerEmailOf(vevent);
 
-  const alarmMinutes = firstAlarmMinutes(vevent);
-  if (alarmMinutes !== undefined) fields.alarmMinutes = alarmMinutes;
+  const alarms = alarmMinutesList(vevent);
+  if (alarms !== undefined) fields.alarms = alarms;
 
   return fields;
 }
@@ -122,6 +131,20 @@ function resolveInstant(t: ICAL.Time, tzid: string | undefined, isEnd = false): 
     return zonedWallTimeToUtc(t.year, t.month, t.day, t.hour, t.minute, t.second, tzid);
   }
   return t.toJSDate();
+}
+
+function excludedInstants(vevent: ICAL.Component, fallbackTzid: string | undefined): Set<number> {
+  const excluded = new Set<number>();
+  for (const prop of vevent.getAllProperties('exdate')) {
+    const raw = prop.getParameter('tzid');
+    const propTzid = typeof raw === 'string' && isValidTimeZone(raw) ? raw : undefined;
+    for (const value of prop.getValues()) {
+      if (!(value instanceof ICAL.Time)) continue;
+      const zone = value.zone === ICAL.Timezone.utcTimezone ? undefined : propTzid ?? fallbackTzid;
+      excluded.add(resolveInstant(value, zone).getTime());
+    }
+  }
+  return excluded;
 }
 
 function repairIcsFolding(ics: string): string {
@@ -203,7 +226,7 @@ function parseVtodo(
     color: meta.color,
     attendees: [],
     isRecurring: false,
-    alarmMinutes: firstAlarmMinutes(vtodo),
+    alarms: alarmMinutesList(vtodo),
     isTask: true,
   };
 }
@@ -231,9 +254,6 @@ export function parseIcsItem(
     for (const vevent of vevents) {
       if (vevent.getFirstPropertyValue('recurrence-id')) continue;
 
-      // A subscription feed is one .ics holding many UIDs. Left to itself ical.js
-      // relates every RECURRENCE-ID sibling in the file to this master, so an
-      // override would hijack any other series that happens to share its slot.
       const uid = vevent.getFirstPropertyValue('uid');
       const exceptions = vevents.filter(
         (v) => v.getFirstPropertyValue('recurrence-id') && v.getFirstPropertyValue('uid') === uid,
@@ -248,7 +268,7 @@ export function parseIcsItem(
 
       const organizerEmail = organizerEmailOf(vevent);
 
-      const alarmMinutes = firstAlarmMinutes(vevent);
+      const alarms = alarmMinutesList(vevent);
 
       const rruleProp = vevent.getFirstProperty('rrule');
       const isRecurring = !!rruleProp;
@@ -271,7 +291,7 @@ export function parseIcsItem(
         talkUrl,
         isRecurring,
         rrule: rruleStr,
-        alarmMinutes,
+        alarms,
       };
 
       if (isRecurring && (rangeStart || rangeEnd)) {
@@ -282,6 +302,7 @@ export function parseIcsItem(
 
         const overrides: ICAL.Event[] = Object.values(icalEvent.exceptions ?? {});
         const overrideIds = new Set(overrides.map((ex) => ex.recurrenceId.toString()));
+        const excluded = excludedInstants(vevent, tzid);
         const canPrefilter = icalEvent.rangeExceptions.length === 0;
 
         const inRange = (start: Date, end: Date) =>
@@ -316,6 +337,8 @@ export function parseIcsItem(
 
           if (slotStart.getTime() >= rangeEndMs) break;
 
+          if (excluded.has(slotStart.getTime())) continue;
+
           if (isOverridden(nextTime, overrideIds)) continue;
 
           if (canPrefilter && slotStart.getTime() + durationMs <= rangeStartMs) continue;
@@ -326,6 +349,7 @@ export function parseIcsItem(
 
         for (const ex of overrides) {
           if (emitted >= MAX_OCCURRENCES) break;
+          if (excluded.has(resolveInstant(ex.recurrenceId, tzid).getTime())) continue;
           if (pushOccurrence(ex.recurrenceId, ex, ex.startDate, ex.endDate)) emitted++;
         }
       } else {
@@ -376,6 +400,7 @@ export function extractSequence(ics: string): number {
 const WRITER_MANAGED_PROPS = new Set([
   'uid', 'dtstamp', 'sequence', 'dtstart', 'dtend', 'summary', 'description',
   'location', 'rrule', 'organizer', 'attendee', 'recurrence-id', 'last-modified', 'prodid',
+  NO_ALARM_PROP.toLowerCase(),
 ]);
 
 export function extractExtraVeventLines(ics: string, targetUid?: string): string[] {

@@ -86,6 +86,7 @@
     "end": "Einde",
     "location": "Locatie",
     "locationPlaceholder": "Ruimte of adres",
+    "openInMaps": "Open in Maps",
     "description": "Omschrijving",
     "descriptionPlaceholder": "Details...",
     "attendees": "Deelnemers",
@@ -110,6 +111,24 @@
     "dayTh": "Do",
     "dayFr": "Vr",
     "daySa": "Za",
+    "repeatOn": "Repeat on",
+    "sameDayOfMonth": "Same day of month",
+    "sameDate": "Same date",
+    "onAWeekday": "On a weekday",
+    "onAWeekdayOfAMonth": "On a weekday of a month",
+    "onAWeekNumber": "On a week number",
+    "of": "of",
+    "week": "week",
+    "positionFirst": "First",
+    "positionSecond": "Second",
+    "positionThird": "Third",
+    "positionFourth": "Fourth",
+    "positionFifth": "Fifth",
+    "positionLast": "Last",
+    "positionLabel": "Position",
+    "weekdayLabel": "Weekday",
+    "monthLabel": "Month",
+    "weekNumberLabel": "Week number",
     "ends": "Eindigt",
     "endsNever": "Nooit",
     "endsAfter": "Na",
@@ -121,6 +140,10 @@
     "talkPublicLink": "Openbare link",
     "talkAnyoneWithLink": "Iedereen met de link kan deelnemen",
     "talkOnlyInvited": "Alleen genodigde deelnemers",
+    "talkOpenTitle": "Open Talk room",
+    "openInTalk": "Open in Talk app",
+    "openInBrowser": "Open in browser",
+    "talkAppNotInstalled": "Nextcloud Talk is not installed. Install it to open rooms directly in the app, or open in browser.",
     "loadingCalendars": "Agenda's laden…",
     "newEvent": "Nieuwe afspraak",
     "editEvent": "Afspraak bewerken",
@@ -145,7 +168,7 @@
     "errorCreateFailed": "Aanmaken van afspraak mislukt",
     "errorUpdateFailed": "Bijwerken van afspraak mislukt",
     "errorDeleteFailed": "Verwijderen van afspraak mislukt",
-    "alert": "Melding"
+    "alerts": "Herinneringen"
   },
   "settings": {
     "title": "Instellingen",
@@ -224,11 +247,33 @@
         "1": "1 dag ervoor (9:00)",
         "2": "2 dagen ervoor (9:00)",
         "7": "1 week ervoor (9:00)",
-        "sameDay": "Op de dag zelf (9:00)"
+        "sameDay": "Op de dag zelf (9:00)",
+        "custom": "{{value}} dagen ervoor (9:00)"
       },
       "useDefault": "Standaard",
-      "timedHint": "Standaardmelding voor afspraken zonder eigen melding. Afspraken met een eigen melding behouden die.",
-      "allDayHint": "Standaardmelding voor hele-dag-afspraken zonder eigen melding, om 9:00 op de gekozen dag."
+      "timedHint": "Standaardherinneringen voor nieuwe afspraken en afspraken zonder eigen herinnering.",
+      "allDayHint": "Standaardherinneringen voor dagelijkse afspraken, om 9:00 op de gekozen dag.",
+      "addCustom": "Aangepast…",
+      "customTitle": "Aangepaste herinnering",
+      "customAmount": "Waarde",
+      "addReminder": "Herinnering toevoegen",
+      "units": {
+        "minutes": "minuten",
+        "hours": "uur",
+        "days": "dagen"
+      },
+      "custom": {
+        "before": {
+          "minutes": "{{value}} minuten ervoor",
+          "hours": "{{value}} uur ervoor",
+          "days": "{{value}} dagen ervoor"
+        },
+        "after": {
+          "minutes": "{{value}} minuten na het begin",
+          "hours": "{{value}} uur na het begin",
+          "days": "{{value}} dagen na het begin"
+        }
+      }
     },
     "account": {
       "title": "Account",
@@ -258,7 +303,15 @@
       "use": "Gebruiken",
       "editOnNextcloud": "Bewerken in Nextcloud"
     },
-    "accountActive": "Actief"
+    "accountActive": "Actief",
+    "talk": {
+      "title": "Talk",
+      "openWith": "Open Talk links with",
+      "openWithHint": "Choose how event call links open by default. Long-press the Join Talk Room button to override.",
+      "openInApp": "Nextcloud Talk app",
+      "openInBrowser": "Browser",
+      "askEachTime": "Ask each time"
+    }
   },
   "widget": {
     "liveRemaining": "nog {{duration}}",

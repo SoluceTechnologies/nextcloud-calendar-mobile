@@ -13,7 +13,7 @@ const base: CalendarEvent = {
   attendees: [{ email: 'a@example.org', displayName: 'A' }],
   organizerEmail: 'me@example.org',
   isRecurring: false,
-  alarmMinutes: 10,
+  alarms: [10],
 };
 
 const account: Account = {
@@ -37,7 +37,7 @@ describe('eventToInput', () => {
     expect(input.description).toBe('Daily sync');
     expect(input.location).toBe('Room 2');
     expect(input.attendees).toEqual(base.attendees);
-    expect(input.alarmMinutes).toBe(10);
+    expect(input.alarms).toEqual([10]);
   });
 
   it('never asks for a new Talk room', () => {
@@ -68,7 +68,7 @@ describe('eventToInput', () => {
       description: undefined,
       location: undefined,
       organizerEmail: undefined,
-      alarmMinutes: undefined,
+      alarms: undefined,
     };
     const input = eventToInput(bare, account);
     expect(input.description).toBeUndefined();

@@ -6,9 +6,10 @@ import { useCalendarStore } from '@/stores/calendarStore';
 import { EVENT_OBSERVED_COLUMNS } from '@/database/observedColumns';
 
 import { observeAgendaEventsQuery } from '../core/readEvents';
+import { AGENDA_DAYS } from '../core/buildTimeline';
 import { liveActivity } from '../surfaces/liveActivity';
 import { registerWidgetBackgroundSync, unregisterWidgetBackgroundSync } from '../sync/backgroundSync';
-import { AGENDA_DAYS, syncWidget } from '../sync/syncWidget';
+import { syncWidget } from '../sync/syncWidget';
 
 const REFRESH_MS = 60_000;
 

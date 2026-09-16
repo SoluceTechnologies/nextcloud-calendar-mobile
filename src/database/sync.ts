@@ -43,6 +43,11 @@ function writeCalendar(row: Calendar, c: CalendarMeta, accountId: string): void 
   row.supportsEvents = c.supportsEvents ?? true;
 }
 
+export function serializeAlarms(alarms?: number[]): string | undefined {
+  if (alarms === undefined) return undefined;
+  return JSON.stringify([...new Set(alarms)].sort((a, b) => b - a));
+}
+
 export function writeEvent(row: Event, ev: CalendarEvent): void {
   row.accountId = ev.accountId;
   row.calendarId = ev.calendarId;
@@ -61,7 +66,8 @@ export function writeEvent(row: Event, ev: CalendarEvent): void {
   row.isRecurring = ev.isRecurring;
   row.rrule = ev.rrule ?? undefined;
   row.recurrenceId = ev.recurrenceId?.getTime() ?? undefined;
-  row.alarmMinutes = ev.alarmMinutes ?? undefined;
+  row.alarms = serializeAlarms(ev.alarms);
+  row.alarmMinutes = ev.alarms?.[0] ?? undefined;
   row.isTask = ev.isTask ?? false;
 }
 
@@ -93,6 +99,7 @@ function eventUnchanged(row: Event, ev: CalendarEvent): boolean {
     (row.rrule ?? undefined) === (ev.rrule ?? undefined) &&
     (row.recurrenceId ?? undefined) === (ev.recurrenceId?.getTime() ?? undefined) &&
     !!row.isTask === !!ev.isTask &&
+    (row.alarms ?? undefined) === serializeAlarms(ev.alarms) &&
     (row.attendees ?? '[]') === JSON.stringify(ev.attendees ?? [])
   );
 }
@@ -180,12 +187,26 @@ export async function syncEvents(
 
     if (localWriteEpoch() !== epoch) return;
 
+    const windowKeys = new Set(windowRows.map(rowKey));
+    const strayUids = remote
+      .filter((ev) => !windowKeys.has(eventKey(ev.accountId, ev.calendarId, ev.uid)))
+      .map((ev) => ev.uid);
+    const strayRows = strayUids.length
+      ? await events
+          .query(Q.where('account_id', account.id), Q.where('uid', Q.oneOf(strayUids)))
+          .fetch()
+      : [];
+
+    if (localWriteEpoch() !== epoch) return;
+
+    const inWindow = new Set(windowRows.map((r) => r.id));
     const byKey = new Map<string, Event>();
     const ops = [];
-    for (const r of windowRows) {
+    for (const r of [...windowRows, ...strayRows]) {
       const k = rowKey(r);
-      if (byKey.has(k)) ops.push(r.prepareMarkAsDeleted());
-      else byKey.set(k, r);
+      const kept = byKey.get(k);
+      if (!kept) byKey.set(k, r);
+      else if (kept.id !== r.id) ops.push(r.prepareMarkAsDeleted());
     }
 
     const seen = new Set<string>();
@@ -206,6 +227,7 @@ export async function syncEvents(
       const knownIds = new Set(calendars.map((c) => c.id));
       for (const [k, r] of byKey) {
         if (seen.has(k)) continue;
+        if (!inWindow.has(r.id)) continue;
         if (syncedIds.has(r.calendarId) || !knownIds.has(r.calendarId)) {
           ops.push(r.prepareMarkAsDeleted());
         }

@@ -1,9 +1,10 @@
-import { memo } from 'react';
+import { memo, useRef } from 'react';
 import { TouchableOpacity, View, StyleSheet, type ViewStyle } from 'react-native';
 import dayjs from 'dayjs';
 import { Typography } from '@/ui/components';
 import type { GridEvent } from '../utils/toGridEvents';
 import { contrastFor } from '../utils/eventInk';
+import { LONG_PRESS_MS } from '../constants';
 
 interface Props {
   event: GridEvent;
@@ -26,6 +27,14 @@ function TimeGridEventImpl({ event, top, height, leftPct, widthPct, zIndex, hour
   const ink = contrastFor(color);
   const durationMin = dayjs(event.end).diff(event.start, 'minute');
 
+  // A finger that rested here for the long-press window was grabbing the event,
+  // not tapping it, so it must not navigate on lift. The drag gesture cannot be
+  // relied on to have swallowed that touch: RNGH fails an activateAfterLongPress
+  // pan as soon as the finger drifts past the touch slop before the timer fires,
+  // and a failed pan never cancels this Touchable underneath it. Without the
+  // guard, the common "press, wobble, drag" opens the detail screen instead.
+  const pressedAt = useRef(0);
+
   const positionStyle: ViewStyle = {
     position: 'absolute',
     top: top as ViewStyle['top'],
@@ -38,7 +47,14 @@ function TimeGridEventImpl({ event, top, height, leftPct, widthPct, zIndex, hour
   };
 
   return (
-    <TouchableOpacity testID={`event-box-${event._event.uid}`} onPress={() => onPress(event)} style={positionStyle}>
+    <TouchableOpacity
+      testID={`event-box-${event._event.uid}`}
+      onPressIn={() => { pressedAt.current = Date.now(); }}
+      onPress={() => {
+        if (Date.now() - pressedAt.current < LONG_PRESS_MS) onPress(event);
+      }}
+      style={positionStyle}
+    >
       {/* The background/border box, inset from the touch target's right edge by
           marginRight so neighbouring events keep a visible 3px gap — width-based
           sizing (unlike the old right-anchored box) paints to the touch target's

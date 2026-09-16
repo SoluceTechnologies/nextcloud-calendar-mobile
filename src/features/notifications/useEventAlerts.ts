@@ -11,8 +11,8 @@ import { scheduleEventAlerts } from './scheduleAlerts';
 
 export function useEventAlerts(): void {
   const activeAccountId = useAccountStore((s) => s.activeAccountId);
-  const timedAlert = useSettingsStore((s) => s.timedAlert);
-  const allDayAlert = useSettingsStore((s) => s.allDayAlert);
+  const timedAlerts = useSettingsStore((s) => s.timedAlerts);
+  const allDayAlerts = useSettingsStore((s) => s.allDayAlerts);
   const notifDisabledCalendarIds = useCalendarStore((s) => s.notifDisabledCalendarIds);
 
   useEffect(() => {
@@ -35,5 +35,5 @@ export function useEventAlerts(): void {
       sub.unsubscribe();
       appSub.remove();
     };
-  }, [activeAccountId, timedAlert, allDayAlert, notifDisabledCalendarIds]);
+  }, [activeAccountId, timedAlerts, allDayAlerts, notifDisabledCalendarIds]);
 }

@@ -30,7 +30,8 @@ describe('saveAccount', () => {
     await saveAccount(account);
     expect(mockSecureStore.setItemAsync).toHaveBeenCalledWith(
       'account_acc-1',
-      JSON.stringify(account)
+      JSON.stringify(account),
+      { keychainAccessible: SecureStore.AFTER_FIRST_UNLOCK }
     );
     const ids = JSON.parse(storage.getString('account_ids') ?? '[]');
     expect(ids).toContain('acc-1');

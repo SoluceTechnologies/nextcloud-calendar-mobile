@@ -1,8 +1,8 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { legacyBackedStorage } from '@/stores/legacyStorage';
-import { getInitialLanguage, type AppLanguage } from '@/utils/i18n';
-import type { AllDayAlert, TimedAlert } from '@/features/notifications/alerts';
+import { getInitialLanguage, getInitialWeekStartsOn, type AppLanguage } from '@/utils/i18n';
+import type { TalkOpenMode } from '@/types';
 
 export type ThemePreference = 'system' | 'light' | 'dark';
 
@@ -11,18 +11,20 @@ interface SettingsState {
   language: AppLanguage;
   weekStartsOn: 0 | 1;
   liveActivityEnabled: boolean;
-  timedAlert: TimedAlert;
-  allDayAlert: AllDayAlert;
+  timedAlerts: number[];
+  allDayAlerts: number[];
   hapticsEnabled: boolean;
   reduceMotion: boolean;
+  talkOpenMode: TalkOpenMode;
   setThemePreference: (pref: ThemePreference) => void;
   setLanguage: (lang: AppLanguage) => void;
   setWeekStartsOn: (v: 0 | 1) => void;
   setLiveActivityEnabled: (v: boolean) => void;
-  setTimedAlert: (v: TimedAlert) => void;
-  setAllDayAlert: (v: AllDayAlert) => void;
+  setTimedAlerts: (v: number[]) => void;
+  setAllDayAlerts: (v: number[]) => void;
   setHapticsEnabled: (v: boolean) => void;
   setReduceMotion: (v: boolean) => void;
+  setTalkOpenMode: (v: TalkOpenMode) => void;
 }
 
 export const useSettingsStore = create<SettingsState>()(
@@ -30,26 +32,41 @@ export const useSettingsStore = create<SettingsState>()(
     (set) => ({
       themePreference: 'system',
       language: getInitialLanguage(),
-      weekStartsOn: 0,
+      weekStartsOn: getInitialWeekStartsOn(),
       liveActivityEnabled: true,
-      timedAlert: null,
-      allDayAlert: null,
+      timedAlerts: [],
+      allDayAlerts: [],
       hapticsEnabled: true,
       reduceMotion: false,
-      setTimedAlert: (v) => set({ timedAlert: v }),
-      setAllDayAlert: (v) => set({ allDayAlert: v }),
+      talkOpenMode: 'app',
+      setTimedAlerts: (v) => set({ timedAlerts: v }),
+      setAllDayAlerts: (v) => set({ allDayAlerts: v }),
       setThemePreference: (pref) => set({ themePreference: pref }),
       setLanguage: (lang) => set({ language: lang }),
       setWeekStartsOn: (v) => set({ weekStartsOn: v }),
       setLiveActivityEnabled: (v) => set({ liveActivityEnabled: v }),
       setHapticsEnabled: (v) => set({ hapticsEnabled: v }),
       setReduceMotion: (v) => set({ reduceMotion: v }),
+      setTalkOpenMode: (v) => set({ talkOpenMode: v }),
     }),
     {
       name: 'settings-store',
-      version: 1,
+      version: 2,
       migrate: (persisted) => {
-        return persisted as Partial<SettingsState> | undefined;
+        const state = persisted as (Partial<SettingsState> & {
+          timedAlert?: number | null;
+          allDayAlert?: number | null;
+        }) | undefined;
+        if (!state) return state;
+        if (!Array.isArray(state.timedAlerts)) {
+          state.timedAlerts = state.timedAlert != null ? [state.timedAlert] : [];
+        }
+        if (!Array.isArray(state.allDayAlerts)) {
+          state.allDayAlerts = state.allDayAlert != null ? [state.allDayAlert] : [];
+        }
+        delete state.timedAlert;
+        delete state.allDayAlert;
+        return state;
       },
       storage: createJSONStorage(() =>
         legacyBackedStorage(['themePreference', 'language', 'weekStartsOn'])
@@ -59,10 +76,11 @@ export const useSettingsStore = create<SettingsState>()(
         language: state.language,
         weekStartsOn: state.weekStartsOn,
         liveActivityEnabled: state.liveActivityEnabled,
-        timedAlert: state.timedAlert,
-        allDayAlert: state.allDayAlert,
+        timedAlerts: state.timedAlerts,
+        allDayAlerts: state.allDayAlerts,
         hapticsEnabled: state.hapticsEnabled,
         reduceMotion: state.reduceMotion,
+        talkOpenMode: state.talkOpenMode,
       }),
     }
   )

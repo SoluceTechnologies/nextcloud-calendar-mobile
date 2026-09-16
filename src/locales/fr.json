@@ -86,6 +86,7 @@
     "end": "Fin",
     "location": "Lieu",
     "locationPlaceholder": "Salle ou adresse",
+    "openInMaps": "Ouvrir dans l'app cartes",
     "description": "Description",
     "descriptionPlaceholder": "Détails...",
     "attendees": "Participants",
@@ -110,6 +111,24 @@
     "dayTh": "Je",
     "dayFr": "Ve",
     "daySa": "Sa",
+    "repeatOn": "Répéter le",
+    "sameDayOfMonth": "Même jour du mois",
+    "sameDate": "Même date",
+    "onAWeekday": "Un jour de la semaine",
+    "onAWeekdayOfAMonth": "Un jour d'un mois",
+    "onAWeekNumber": "Une semaine de l'année",
+    "of": "de",
+    "week": "semaine",
+    "positionFirst": "Premier",
+    "positionSecond": "Deuxième",
+    "positionThird": "Troisième",
+    "positionFourth": "Quatrième",
+    "positionFifth": "Cinquième",
+    "positionLast": "Dernier",
+    "positionLabel": "Position",
+    "weekdayLabel": "Jour de la semaine",
+    "monthLabel": "Mois",
+    "weekNumberLabel": "Numéro de semaine",
     "ends": "Se termine",
     "endsNever": "Jamais",
     "endsAfter": "Après",
@@ -121,6 +140,10 @@
     "talkPublicLink": "Lien public",
     "talkAnyoneWithLink": "Toute personne ayant le lien peut rejoindre",
     "talkOnlyInvited": "Uniquement les participants invités",
+    "talkOpenTitle": "Ouvrir la salle Talk",
+    "openInTalk": "Ouvrir dans l'app Talk",
+    "openInBrowser": "Ouvrir dans le navigateur",
+    "talkAppNotInstalled": "L'application Nextcloud Talk n'est pas installée. Installez-la pour ouvrir les salons directement dans l'application, ou ouvrez-les dans le navigateur.",
     "loadingCalendars": "Chargement des agendas…",
     "newEvent": "Nouvel événement",
     "editEvent": "Modifier l'événement",
@@ -145,7 +168,7 @@
     "errorCreateFailed": "Échec de la création de l'événement",
     "errorUpdateFailed": "Échec de la mise à jour de l'événement",
     "errorDeleteFailed": "Échec de la suppression de l'événement",
-    "alert": "Alerte"
+    "alerts": "Alertes"
   },
   "import": {
     "title": "Importer un événement",
@@ -236,11 +259,33 @@
         "1": "1 jour avant (9h00)",
         "2": "2 jours avant (9h00)",
         "7": "1 semaine avant (9h00)",
-        "sameDay": "Le jour même (9h00)"
+        "sameDay": "Le jour même (9h00)",
+        "custom": "{{value}} jours avant (9h00)"
       },
       "useDefault": "Par défaut",
-      "timedHint": "Rappel par défaut pour les événements sans rappel propre. Ceux qui en ont un gardent le leur.",
-      "allDayHint": "Rappel par défaut des événements journée entière sans rappel propre, déclenché à 9h00 le jour choisi."
+      "timedHint": "Rappels par défaut appliqués aux nouveaux événements et à ceux qui n’en ont pas.",
+      "allDayHint": "Rappels par défaut des événements sur toute la journée, déclenchés à 9h00 le jour choisi.",
+      "addCustom": "Personnalisé…",
+      "customTitle": "Rappel personnalisé",
+      "customAmount": "Valeur",
+      "addReminder": "Ajouter un rappel",
+      "units": {
+        "minutes": "minutes",
+        "hours": "heures",
+        "days": "jours"
+      },
+      "custom": {
+        "before": {
+          "minutes": "{{value}} minutes avant",
+          "hours": "{{value}} heures avant",
+          "days": "{{value}} jours avant"
+        },
+        "after": {
+          "minutes": "{{value}} minutes après le début",
+          "hours": "{{value}} heures après le début",
+          "days": "{{value}} jours après le début"
+        }
+      }
     },
     "account": {
       "title": "Compte",
@@ -270,7 +315,15 @@
       "use": "Utiliser",
       "editOnNextcloud": "Éditer sur Nextcloud"
     },
-    "accountActive": "Actif"
+    "accountActive": "Actif",
+    "talk": {
+      "title": "Talk",
+      "openWith": "Ouvrir les liens Talk avec",
+      "openWithHint": "Choisissez comment s'ouvrent par défaut les liens d'appel des événements. Faites un appui long sur Rejoindre la salle Talk pour inverser.",
+      "openInApp": "Application Nextcloud Talk",
+      "openInBrowser": "Navigateur",
+      "askEachTime": "Demander à chaque fois"
+    }
   },
   "widget": {
     "liveRemaining": "il reste {{duration}}",

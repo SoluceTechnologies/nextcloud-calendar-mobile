@@ -56,6 +56,7 @@ export default function NewEventScreen() {
           organizerName={organizerName}
           onSubmit={handleSubmit}
           loading={createMutation.isPending}
+          account={activeAccount}
         />
       </SafeAreaView>
     </ViewContainer>

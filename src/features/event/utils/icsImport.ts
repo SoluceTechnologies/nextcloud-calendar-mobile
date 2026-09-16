@@ -95,7 +95,7 @@ export function eventToFormValues(
     location: event.location,
     attendees: [...event.attendees],
     rrule: parseRrule(event.rrule),
-    alarmMinutes: event.alarmMinutes,
+    alarms: event.alarms,
     uid: event.uid,
     extraLines: extractExtraVeventLines(originalIcs, event.uid),
   };

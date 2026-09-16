@@ -1,5 +1,6 @@
-import { buildIcs, buildAllDayIcs, shiftIcsDates } from '@/utils/ics';
+import { buildIcs, buildAllDayIcs, shiftIcsDates, injectExdate, truncateRruleUntil } from '@/utils/ics';
 import { parseRrule } from '@/features/calendar/utils/parseRrule';
+import { parseIcsObjects, extractExtraVeventLines } from '@/utils/caldav-parse';
 import type { Attendee } from '../../src/types';
 
 const base = {
@@ -194,7 +195,42 @@ describe('rruleLine end conditions', () => {
     const ics = buildIcs({ ...base, rrule: { freq: 'WEEKLY', byDay: ['MO', 'WE'], count: 4 } });
     expect(ics).toContain('RRULE:FREQ=WEEKLY;BYDAY=MO,WE;COUNT=4\r\n');
   });
+
+  it('writes monthly positional BYDAY', () => {
+    const ics = buildIcs({ ...base, rrule: { freq: 'MONTHLY', byDay: ['3SA'] } });
+    expect(ics).toContain('RRULE:FREQ=MONTHLY;BYDAY=3SA\r\n');
+  });
+
+  it('writes yearly BYMONTH and positional BYDAY', () => {
+    const ics = buildIcs({ ...base, rrule: { freq: 'YEARLY', byMonth: [7], byDay: ['3SA'] } });
+    expect(ics).toContain('RRULE:FREQ=YEARLY;BYMONTH=7;BYDAY=3SA\r\n');
+  });
+
+  it('writes yearly BYWEEKNO and BYDAY', () => {
+    const ics = buildIcs({ ...base, rrule: { freq: 'YEARLY', byWeekNo: [31], byDay: ['SU'] } });
+    expect(ics).toContain('RRULE:FREQ=YEARLY;BYWEEKNO=31;BYDAY=SU\r\n');
+  });
 });
+
+const VTIMEZONE_PARIS = [
+  'BEGIN:VTIMEZONE',
+  'TZID:Europe/Paris',
+  'BEGIN:DAYLIGHT',
+  'TZOFFSETFROM:+0100',
+  'TZOFFSETTO:+0200',
+  'TZNAME:CEST',
+  'DTSTART:19700329T020000',
+  'RRULE:FREQ=YEARLY;BYMONTH=3;BYDAY=-1SU',
+  'END:DAYLIGHT',
+  'BEGIN:STANDARD',
+  'TZOFFSETFROM:+0200',
+  'TZOFFSETTO:+0100',
+  'TZNAME:CET',
+  'DTSTART:19701025T030000',
+  'RRULE:FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU',
+  'END:STANDARD',
+  'END:VTIMEZONE',
+].join('\r\n');
 
 describe('shiftIcsDates', () => {
   const serverIcs = [
@@ -256,5 +292,140 @@ describe('shiftIcsDates', () => {
     expect(out).toContain('DTSTART;VALUE=DATE:20260812');
     expect(out).toContain('DTEND;VALUE=DATE:20260813');
     expect(out).toContain('LOCATION:https://cloud.example.com/call/atapii4b');
+  });
+
+  it('shifts the VEVENT, not the VTIMEZONE transition rules', () => {
+    const withTz = serverIcs.replace('BEGIN:VEVENT', `${VTIMEZONE_PARIS}\r\nBEGIN:VEVENT`);
+
+    const out = shiftIcsDates(
+      withTz,
+      new Date('2026-08-10T07:45:00Z'),
+      new Date('2026-08-10T08:45:00Z'),
+      'Europe/Paris',
+      false,
+      3,
+    );
+
+    expect(out).toContain('DTSTART;TZID=Europe/Paris:20260810T094500');
+    expect(out).toContain('DTEND;TZID=Europe/Paris:20260810T104500');
+    expect(out).toContain('DTSTART:19700329T020000');
+    expect(out).toContain('DTSTART:19701025T030000');
+    expect(out).not.toContain('20260810T120000');
+  });
+});
+
+describe('injectExdate', () => {
+  const master = `BEGIN:VEVENT\r
+UID:weekly-1\r
+DTSTART;TZID=Europe/Paris:20260805T140000\r
+DTEND;TZID=Europe/Paris:20260805T150000\r
+RRULE:FREQ=WEEKLY;BYDAY=WE\r
+SUMMARY:Weekly 14h\r
+END:VEVENT`;
+
+  const override = `BEGIN:VEVENT\r
+UID:weekly-1\r
+RECURRENCE-ID;TZID=Europe/Paris:20260902T140000\r
+DTSTART;TZID=Europe/Paris:20260902T160000\r
+DTEND;TZID=Europe/Paris:20260902T170000\r
+SUMMARY:Moved\r
+END:VEVENT`;
+
+  const wrap = (...bodies: string[]) =>
+    `BEGIN:VCALENDAR\r\nVERSION:2.0\r\n${bodies.join('\r\n')}\r\nEND:VCALENDAR`;
+
+  const slot = new Date('2026-08-26T12:00:00Z');
+
+  it('writes the EXDATE on the master even when an override comes first', () => {
+    const out = injectExdate(wrap(override, master), slot, 'Europe/Paris');
+    const blocks = out.match(/BEGIN:VEVENT[\s\S]*?END:VEVENT/g) ?? [];
+
+    expect(blocks).toHaveLength(2);
+    expect(blocks[0]).not.toContain('EXDATE');
+    expect(blocks[1]).toContain('EXDATE;TZID=Europe/Paris:20260826T140000');
+  });
+
+  it('writes a single EXDATE on the master when it comes first', () => {
+    const out = injectExdate(wrap(master, override), slot, 'Europe/Paris');
+    const blocks = out.match(/BEGIN:VEVENT[\s\S]*?END:VEVENT/g) ?? [];
+
+    expect(blocks[0]).toContain('EXDATE;TZID=Europe/Paris:20260826T140000');
+    expect(blocks[1]).not.toContain('EXDATE');
+    expect(out.match(/EXDATE/g)).toHaveLength(1);
+  });
+});
+
+describe('truncateRruleUntil', () => {
+  it('caps the VEVENT RRULE, not the VTIMEZONE transition rules', () => {
+    const ics = [
+      'BEGIN:VCALENDAR',
+      'VERSION:2.0',
+      VTIMEZONE_PARIS,
+      'BEGIN:VEVENT',
+      'UID:weekly-1',
+      'DTSTART;TZID=Europe/Paris:20260805T140000',
+      'DTEND;TZID=Europe/Paris:20260805T150000',
+      'RRULE:FREQ=WEEKLY;BYDAY=WE;COUNT=10',
+      'END:VEVENT',
+      'END:VCALENDAR',
+    ].join('\r\n');
+
+    const out = truncateRruleUntil(ics, new Date('2026-08-25T21:59:59Z'));
+
+    expect(out).toContain('RRULE:FREQ=WEEKLY;BYDAY=WE;UNTIL=20260825T215959Z');
+    expect(out).toContain('RRULE:FREQ=YEARLY;BYMONTH=3;BYDAY=-1SU\r\n');
+    expect(out).toContain('RRULE:FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU\r\n');
+    expect(out.match(/UNTIL=/g)).toHaveLength(1);
+  });
+});
+
+describe('VALARM generation', () => {
+  it('writes one VALARM block per alarm offset', () => {
+    const ics = buildIcs({ ...base, alarms: [60, 0] });
+    expect(ics.match(/BEGIN:VALARM/g)).toHaveLength(2);
+    expect(ics).toContain('TRIGGER:-PT1H\r\n');
+    expect(ics).toContain('TRIGGER:PT0S\r\n');
+  });
+
+  it('deduplicates and sorts offsets by lead time', () => {
+    const ics = buildIcs({ ...base, alarms: [15, 60, 15] });
+    expect(ics.match(/BEGIN:VALARM/g)).toHaveLength(2);
+    expect(ics.indexOf('TRIGGER:-PT1H')).toBeLessThan(ics.indexOf('TRIGGER:-PT15M'));
+  });
+
+  it('writes the no-reminder marker for an explicit empty list', () => {
+    const ics = buildIcs({ ...base, alarms: [] });
+    expect(ics).toContain('X-NCM-ALARM-NONE:TRUE\r\n');
+    expect(ics).not.toContain('VALARM');
+  });
+
+  it('writes no VALARM and no marker when alarms is undefined', () => {
+    const ics = buildIcs(base);
+    expect(ics).not.toContain('VALARM');
+    expect(ics).not.toContain('X-NCM-ALARM-NONE');
+  });
+
+  it('round-trips multiple alarms through the CalDAV parser', () => {
+    const ics = buildIcs({ ...base, alarms: [1440, 60, 0] });
+    const [event] = parseIcsObjects(
+      [{ ics, href: '/cal/a.ics' }],
+      { calendarId: 'c1', accountId: 'a1', color: '#000' },
+    );
+    expect(event.alarms).toEqual([1440, 60, 0]);
+  });
+
+  it('round-trips the no-reminder marker as an explicit empty list', () => {
+    const ics = buildIcs({ ...base, alarms: [] });
+    const [event] = parseIcsObjects(
+      [{ ics, href: '/cal/a.ics' }],
+      { calendarId: 'c1', accountId: 'a1', color: '#000' },
+    );
+    expect(event.alarms).toEqual([]);
+  });
+
+  it('keeps the marker out of preserved extra lines on rewrite', () => {
+    const ics = buildIcs({ ...base, alarms: [] });
+    const extras = extractExtraVeventLines(ics);
+    expect(extras.join('\n')).not.toContain('X-NCM-ALARM-NONE');
   });
 });

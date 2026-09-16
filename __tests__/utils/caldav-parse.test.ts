@@ -433,7 +433,7 @@ describe('extractDtstartDtend', () => {
   });
 });
 
-describe('VALARM parsing — alarmMinutes', () => {
+describe('VALARM parsing — alarms', () => {
   const calMeta = { calendarId: 'cal-1', accountId: 'acc-1', color: '#0082c9' };
 
   const withAlarm = (trigger: string) => `BEGIN:VCALENDAR
@@ -451,32 +451,116 @@ END:VEVENT
 END:VCALENDAR`;
 
   const minutesFor = (trigger: string) =>
-    parseIcsObjects([{ ics: withAlarm(trigger), href: '/cal/a.ics' }], calMeta)[0].alarmMinutes;
+    parseIcsObjects([{ ics: withAlarm(trigger), href: '/cal/a.ics' }], calMeta)[0].alarms;
 
   it('parses a relative "before" trigger to positive minutes', () => {
-    expect(minutesFor('TRIGGER:-PT15M')).toBe(15);
-    expect(minutesFor('TRIGGER:-P1D')).toBe(1440);
+    expect(minutesFor('TRIGGER:-PT15M')).toEqual([15]);
+    expect(minutesFor('TRIGGER:-P1D')).toEqual([1440]);
   });
 
   it('parses a relative "after start" trigger to negative minutes', () => {
-    expect(minutesFor('TRIGGER:PT9H')).toBe(-540);
+    expect(minutesFor('TRIGGER:PT9H')).toEqual([-540]);
   });
 
   it('parses an absolute DATE-TIME trigger relative to the event start', () => {
-    expect(minutesFor('TRIGGER;VALUE=DATE-TIME:20260115T094500Z')).toBe(15);
-    expect(minutesFor('TRIGGER;VALUE=DATE-TIME:20260115T120000Z')).toBe(-120);
+    expect(minutesFor('TRIGGER;VALUE=DATE-TIME:20260115T094500Z')).toEqual([15]);
+    expect(minutesFor('TRIGGER;VALUE=DATE-TIME:20260115T120000Z')).toEqual([-120]);
   });
 
   it('reports no alarm when the event carries no VALARM', () => {
     const [event] = parseIcsObjects([{ ics: sampleIcs, href: '/cal/event.ics' }], calMeta);
-    expect(event.alarmMinutes).toBeUndefined();
+    expect(event.alarms).toBeUndefined();
+  });
+
+  it('parses several VALARMs, deduplicated and sorted by lead time', () => {
+    const ics = `BEGIN:VCALENDAR
+VERSION:2.0
+BEGIN:VEVENT
+UID:alarm-multi
+SUMMARY:Multi
+DTSTART:20260115T100000Z
+DTEND:20260115T110000Z
+BEGIN:VALARM
+ACTION:DISPLAY
+TRIGGER:-PT15M
+END:VALARM
+BEGIN:VALARM
+ACTION:DISPLAY
+TRIGGER:-PT1H
+END:VALARM
+BEGIN:VALARM
+ACTION:DISPLAY
+TRIGGER:-PT15M
+END:VALARM
+BEGIN:VALARM
+ACTION:DISPLAY
+TRIGGER:PT0S
+END:VALARM
+END:VEVENT
+END:VCALENDAR`;
+    const [event] = parseIcsObjects([{ ics, href: '/cal/a.ics' }], calMeta);
+    expect(event.alarms).toEqual([60, 15, 0]);
+  });
+
+  it('skips VALARMs without a usable trigger', () => {
+    const ics = `BEGIN:VCALENDAR
+VERSION:2.0
+BEGIN:VEVENT
+UID:alarm-bad
+SUMMARY:Bad
+DTSTART:20260115T100000Z
+DTEND:20260115T110000Z
+BEGIN:VALARM
+ACTION:DISPLAY
+END:VALARM
+BEGIN:VALARM
+ACTION:DISPLAY
+TRIGGER:-PT30M
+END:VALARM
+END:VEVENT
+END:VCALENDAR`;
+    const [event] = parseIcsObjects([{ ics, href: '/cal/a.ics' }], calMeta);
+    expect(event.alarms).toEqual([30]);
+  });
+
+  it('maps the no-reminder marker to an explicit empty list', () => {
+    const ics = `BEGIN:VCALENDAR
+VERSION:2.0
+BEGIN:VEVENT
+UID:alarm-none
+SUMMARY:None
+DTSTART:20260115T100000Z
+DTEND:20260115T110000Z
+X-NCM-ALARM-NONE:TRUE
+END:VEVENT
+END:VCALENDAR`;
+    const [event] = parseIcsObjects([{ ics, href: '/cal/a.ics' }], calMeta);
+    expect(event.alarms).toEqual([]);
+  });
+
+  it('lets the marker win over stray VALARMs', () => {
+    const ics = `BEGIN:VCALENDAR
+VERSION:2.0
+BEGIN:VEVENT
+UID:alarm-none-2
+SUMMARY:None wins
+DTSTART:20260115T100000Z
+DTEND:20260115T110000Z
+X-NCM-ALARM-NONE:TRUE
+BEGIN:VALARM
+ACTION:DISPLAY
+TRIGGER:-PT15M
+END:VALARM
+END:VEVENT
+END:VCALENDAR`;
+    const [event] = parseIcsObjects([{ ics, href: '/cal/a.ics' }], calMeta);
+    expect(event.alarms).toEqual([]);
   });
 });
 
 describe('parseIcsObjects VTODO (Deck cards / tasks)', () => {
   const calMeta = { calendarId: 'deck-1', accountId: 'acc-1', color: '#ff0000' };
 
-  // Nextcloud Deck exposes each board card as a VTODO with a DUE date.
   const deckCardTimed = `BEGIN:VCALENDAR
 VERSION:2.0
 PRODID:-//Nextcloud deck//EN
@@ -592,5 +676,117 @@ END:VCALENDAR`;
   it('skips a VTODO without any date (cannot place on agenda)', () => {
     const events = parseIcsObjects([{ ics: deckCardNoDate, href: '/deck/nd.ics' }], calMeta);
     expect(events).toHaveLength(0);
+  });
+});
+
+describe('a deleted occurrence stays deleted', () => {
+  const calMeta2 = { calendarId: 'cal-1', accountId: 'acc-1', color: '#0082c9' };
+  const rangeStart = new Date('2026-08-01T00:00:00Z');
+  const rangeEnd = new Date('2026-10-01T00:00:00Z');
+
+  const orphanedFork = `BEGIN:VCALENDAR
+VERSION:2.0
+BEGIN:VEVENT
+UID:weekly-1
+DTSTAMP:20260801T090000Z
+DTSTART;TZID=Europe/Paris:20260805T140000
+DTEND;TZID=Europe/Paris:20260805T150000
+RRULE:FREQ=WEEKLY;BYDAY=WE
+EXDATE;TZID=Europe/Paris:20260826T140000
+SUMMARY:Weekly 14h
+END:VEVENT
+BEGIN:VEVENT
+UID:weekly-1
+DTSTAMP:20260801T090000Z
+RECURRENCE-ID;TZID=Europe/Paris:20260826T140000
+DTSTART;TZID=Europe/Paris:20260826T160000
+DTEND;TZID=Europe/Paris:20260826T170000
+SUMMARY:Weekly 14h (moved)
+END:VEVENT
+END:VCALENDAR`;
+
+  it('drops an EXDATE-ed instance that still carries a RECURRENCE-ID override', () => {
+    const events = parseIcsObjects(
+      [{ ics: orphanedFork, href: '/c/weekly-1.ics' }],
+      calMeta2,
+      rangeStart,
+      rangeEnd,
+    );
+    expect(events.map((e) => e.summary)).not.toContain('Weekly 14h (moved)');
+    expect(
+      events.some((e) => e.recurrenceId?.toISOString() === '2026-08-26T12:00:00.000Z'),
+    ).toBe(false);
+  });
+
+  it('keeps an override whose instance is not excluded', () => {
+    const noExdate = orphanedFork.replace('EXDATE;TZID=Europe/Paris:20260826T140000\n', '');
+    const events = parseIcsObjects(
+      [{ ics: noExdate, href: '/c/weekly-1.ics' }],
+      calMeta2,
+      rangeStart,
+      rangeEnd,
+    );
+    expect(events.map((e) => e.summary)).toContain('Weekly 14h (moved)');
+  });
+
+  it('honours an EXDATE written in UTC against a zoned series', () => {
+    const utcExdate = orphanedFork
+      .replace('EXDATE;TZID=Europe/Paris:20260826T140000', 'EXDATE:20260826T120000Z');
+    const events = parseIcsObjects(
+      [{ ics: utcExdate, href: '/c/weekly-1.ics' }],
+      calMeta2,
+      rangeStart,
+      rangeEnd,
+    );
+    expect(events.map((e) => e.summary)).not.toContain('Weekly 14h (moved)');
+  });
+});
+
+// ical.js falls back to floating wall-clock comparison when the resource carries no
+// VTIMEZONE for the DTSTART TZID, so an EXDATE stated in any other zone excluded
+// nothing and the occurrence the server had removed came back at every sync.
+describe('EXDATE matching does not depend on VTIMEZONE being present', () => {
+  const calMeta3 = { calendarId: 'cal-1', accountId: 'acc-1', color: '#0082c9' };
+  const rangeStart = new Date('2026-08-01T00:00:00Z');
+  const rangeEnd = new Date('2026-10-01T00:00:00Z');
+  const deletedSlot = '2026-08-26T12:00:00.000Z';
+
+  // Weekly Wed 14:00 Europe/Paris, no VTIMEZONE — the shape the app itself writes.
+  const withExdate = (exdateLine: string) => `BEGIN:VCALENDAR
+VERSION:2.0
+BEGIN:VEVENT
+UID:weekly-tz
+DTSTAMP:20260801T090000Z
+DTSTART;TZID=Europe/Paris:20260805T140000
+DTEND;TZID=Europe/Paris:20260805T150000
+RRULE:FREQ=WEEKLY;BYDAY=WE
+${exdateLine}
+SUMMARY:Weekly 14h
+END:VEVENT
+END:VCALENDAR`;
+
+  const occurrences = (exdateLine: string) =>
+    parseIcsObjects(
+      [{ ics: withExdate(exdateLine), href: '/c/weekly-tz.ics' }],
+      calMeta3,
+      rangeStart,
+      rangeEnd,
+    ).map((e) => e.dtstart.toISOString());
+
+  it.each([
+    ['same zone as DTSTART', 'EXDATE;TZID=Europe/Paris:20260826T140000'],
+    ['UTC with Z suffix', 'EXDATE:20260826T120000Z'],
+    ['TZID=UTC', 'EXDATE;TZID=UTC:20260826T120000'],
+    ['a third zone', 'EXDATE;TZID=America/New_York:20260826T080000'],
+  ])('excludes the instance when EXDATE is written in %s', (_label, exdateLine) => {
+    const got = occurrences(exdateLine);
+    expect(got).not.toContain(deletedSlot);
+    expect(got).toContain('2026-08-19T12:00:00.000Z');
+    expect(got).toContain('2026-09-02T12:00:00.000Z');
+  });
+
+  it('keeps every occurrence when there is no EXDATE at all', () => {
+    const got = occurrences('X-NOTHING:1');
+    expect(got).toContain(deletedSlot);
   });
 });
