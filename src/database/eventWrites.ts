@@ -40,6 +40,21 @@ function applyPatch(row: Event, patch: Partial<CalendarEvent>): void {
   }
 }
 
+export async function eventExists(
+  accountId: string,
+  calendarId: string,
+  uid: string,
+): Promise<boolean> {
+  const count = await events()
+    .query(
+      Q.where('account_id', accountId),
+      Q.where('calendar_id', calendarId),
+      Q.where('uid', uid),
+    )
+    .fetchCount();
+  return count > 0;
+}
+
 export async function insertEvents(list: CalendarEvent[]): Promise<void> {
   if (list.length === 0) return;
   const db = getDatabaseInstance();

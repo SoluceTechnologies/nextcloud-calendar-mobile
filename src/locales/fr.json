@@ -180,7 +180,10 @@
     "retry": "Réessayer",
     "back": "Retour",
     "errorNoAccount": "Veuillez d'abord configurer un compte Nextcloud.",
-    "untitledEvent": "(Sans titre)"
+    "untitledEvent": "(Sans titre)",
+    "duplicateTitle": "Événement déjà existant",
+    "duplicateMessage": "Un événement avec cet identifiant existe déjà dans le calendrier sélectionné. L'import l'écrasera.",
+    "overwrite": "Écraser"
   },
   "settings": {
     "title": "Paramètres",
