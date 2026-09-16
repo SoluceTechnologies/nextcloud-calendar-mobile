@@ -168,7 +168,7 @@
     "errorCreateFailed": "No se pudo crear el evento",
     "errorUpdateFailed": "No se pudo actualizar el evento",
     "errorDeleteFailed": "No se pudo eliminar el evento",
-    "alert": "Alerta"
+    "alerts": "Avisos"
   },
   "settings": {
     "title": "Ajustes",
@@ -247,11 +247,33 @@
         "1": "1 día antes (9:00)",
         "2": "2 días antes (9:00)",
         "7": "1 semana antes (9:00)",
-        "sameDay": "El mismo día (9:00)"
+        "sameDay": "El mismo día (9:00)",
+        "custom": "{{value}} días antes (9:00)"
       },
       "useDefault": "Predeterminado",
-      "timedHint": "Recordatorio predeterminado para eventos sin uno propio. Los que ya tienen recordatorio conservan el suyo.",
-      "allDayHint": "Recordatorio predeterminado para eventos de todo el día sin uno propio, a las 9:00 del día elegido."
+      "timedHint": "Recordatorios predeterminados para los eventos nuevos y los que no tienen propio.",
+      "allDayHint": "Recordatorios predeterminados para eventos de todo el día, a las 9:00 del día elegido.",
+      "addCustom": "Personalizado…",
+      "customTitle": "Recordatorio personalizado",
+      "customAmount": "Valor",
+      "addReminder": "Añadir recordatorio",
+      "units": {
+        "minutes": "minutos",
+        "hours": "horas",
+        "days": "días"
+      },
+      "custom": {
+        "before": {
+          "minutes": "{{value}} minutos antes",
+          "hours": "{{value}} horas antes",
+          "days": "{{value}} días antes"
+        },
+        "after": {
+          "minutes": "{{value}} minutos después del inicio",
+          "hours": "{{value}} horas después del inicio",
+          "days": "{{value}} días después del inicio"
+        }
+      }
     },
     "account": {
       "title": "Cuenta",

@@ -168,7 +168,7 @@
     "errorCreateFailed": "Failed to create event",
     "errorUpdateFailed": "Failed to update event",
     "errorDeleteFailed": "Failed to delete event",
-    "alert": "Alert"
+    "alerts": "Alerts"
   },
   "settings": {
     "title": "Settings",
@@ -247,11 +247,33 @@
         "1": "1 day before (9:00)",
         "2": "2 days before (9:00)",
         "7": "1 week before (9:00)",
-        "sameDay": "On the day (9:00)"
+        "sameDay": "On the day (9:00)",
+        "custom": "{{value}} days before (9:00)"
       },
       "useDefault": "Default",
-      "timedHint": "Default reminder for events without one of their own. Events that already have a reminder keep it.",
-      "allDayHint": "Default reminder for all-day events without one of their own, fired at 9:00 on the chosen day."
+      "timedHint": "Default reminders applied to new events and to events without one of their own.",
+      "allDayHint": "Default reminders for all-day events, fired at 9:00 on the chosen day.",
+      "addCustom": "Custom…",
+      "customTitle": "Custom reminder",
+      "customAmount": "Amount",
+      "addReminder": "Add reminder",
+      "units": {
+        "minutes": "minutes",
+        "hours": "hours",
+        "days": "days"
+      },
+      "custom": {
+        "before": {
+          "minutes": "{{value}} minutes before",
+          "hours": "{{value}} hours before",
+          "days": "{{value}} days before"
+        },
+        "after": {
+          "minutes": "{{value}} minutes after the start",
+          "hours": "{{value}} hours after the start",
+          "days": "{{value}} days after the start"
+        }
+      }
     },
     "account": {
       "title": "Account",

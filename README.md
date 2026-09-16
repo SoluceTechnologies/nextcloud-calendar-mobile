@@ -106,6 +106,7 @@ Create, view, and edit calendar events with support for:
 - All-day and timed events
 - Attendee lists with display names
 - Recurring event detection
+- Multiple reminders per event, configurable defaults, and custom offsets
 
 ### Nextcloud Talk Integration
 Optionally attach a Nextcloud Talk room to any event at creation time, the Talk link is stored in the event and surfaced in the event detail view.

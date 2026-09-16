@@ -168,7 +168,7 @@
     "errorCreateFailed": "Échec de la création de l'événement",
     "errorUpdateFailed": "Échec de la mise à jour de l'événement",
     "errorDeleteFailed": "Échec de la suppression de l'événement",
-    "alert": "Alerte"
+    "alerts": "Alertes"
   },
   "settings": {
     "title": "Paramètres",
@@ -247,11 +247,33 @@
         "1": "1 jour avant (9h00)",
         "2": "2 jours avant (9h00)",
         "7": "1 semaine avant (9h00)",
-        "sameDay": "Le jour même (9h00)"
+        "sameDay": "Le jour même (9h00)",
+        "custom": "{{value}} jours avant (9h00)"
       },
       "useDefault": "Par défaut",
-      "timedHint": "Rappel par défaut pour les événements sans rappel propre. Ceux qui en ont un gardent le leur.",
-      "allDayHint": "Rappel par défaut des événements journée entière sans rappel propre, déclenché à 9h00 le jour choisi."
+      "timedHint": "Rappels par défaut appliqués aux nouveaux événements et à ceux qui n’en ont pas.",
+      "allDayHint": "Rappels par défaut des événements sur toute la journée, déclenchés à 9h00 le jour choisi.",
+      "addCustom": "Personnalisé…",
+      "customTitle": "Rappel personnalisé",
+      "customAmount": "Valeur",
+      "addReminder": "Ajouter un rappel",
+      "units": {
+        "minutes": "minutes",
+        "hours": "heures",
+        "days": "jours"
+      },
+      "custom": {
+        "before": {
+          "minutes": "{{value}} minutes avant",
+          "hours": "{{value}} heures avant",
+          "days": "{{value}} jours avant"
+        },
+        "after": {
+          "minutes": "{{value}} minutes après le début",
+          "hours": "{{value}} heures après le début",
+          "days": "{{value}} jours après le début"
+        }
+      }
     },
     "account": {
       "title": "Compte",

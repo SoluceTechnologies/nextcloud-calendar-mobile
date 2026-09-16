@@ -433,7 +433,7 @@ describe('extractDtstartDtend', () => {
   });
 });
 
-describe('VALARM parsing — alarmMinutes', () => {
+describe('VALARM parsing — alarms', () => {
   const calMeta = { calendarId: 'cal-1', accountId: 'acc-1', color: '#0082c9' };
 
   const withAlarm = (trigger: string) => `BEGIN:VCALENDAR
@@ -451,25 +451,110 @@ END:VEVENT
 END:VCALENDAR`;
 
   const minutesFor = (trigger: string) =>
-    parseIcsObjects([{ ics: withAlarm(trigger), href: '/cal/a.ics' }], calMeta)[0].alarmMinutes;
+    parseIcsObjects([{ ics: withAlarm(trigger), href: '/cal/a.ics' }], calMeta)[0].alarms;
 
   it('parses a relative "before" trigger to positive minutes', () => {
-    expect(minutesFor('TRIGGER:-PT15M')).toBe(15);
-    expect(minutesFor('TRIGGER:-P1D')).toBe(1440);
+    expect(minutesFor('TRIGGER:-PT15M')).toEqual([15]);
+    expect(minutesFor('TRIGGER:-P1D')).toEqual([1440]);
   });
 
   it('parses a relative "after start" trigger to negative minutes', () => {
-    expect(minutesFor('TRIGGER:PT9H')).toBe(-540);
+    expect(minutesFor('TRIGGER:PT9H')).toEqual([-540]);
   });
 
   it('parses an absolute DATE-TIME trigger relative to the event start', () => {
-    expect(minutesFor('TRIGGER;VALUE=DATE-TIME:20260115T094500Z')).toBe(15);
-    expect(minutesFor('TRIGGER;VALUE=DATE-TIME:20260115T120000Z')).toBe(-120);
+    expect(minutesFor('TRIGGER;VALUE=DATE-TIME:20260115T094500Z')).toEqual([15]);
+    expect(minutesFor('TRIGGER;VALUE=DATE-TIME:20260115T120000Z')).toEqual([-120]);
   });
 
   it('reports no alarm when the event carries no VALARM', () => {
     const [event] = parseIcsObjects([{ ics: sampleIcs, href: '/cal/event.ics' }], calMeta);
-    expect(event.alarmMinutes).toBeUndefined();
+    expect(event.alarms).toBeUndefined();
+  });
+
+  it('parses several VALARMs, deduplicated and sorted by lead time', () => {
+    const ics = `BEGIN:VCALENDAR
+VERSION:2.0
+BEGIN:VEVENT
+UID:alarm-multi
+SUMMARY:Multi
+DTSTART:20260115T100000Z
+DTEND:20260115T110000Z
+BEGIN:VALARM
+ACTION:DISPLAY
+TRIGGER:-PT15M
+END:VALARM
+BEGIN:VALARM
+ACTION:DISPLAY
+TRIGGER:-PT1H
+END:VALARM
+BEGIN:VALARM
+ACTION:DISPLAY
+TRIGGER:-PT15M
+END:VALARM
+BEGIN:VALARM
+ACTION:DISPLAY
+TRIGGER:PT0S
+END:VALARM
+END:VEVENT
+END:VCALENDAR`;
+    const [event] = parseIcsObjects([{ ics, href: '/cal/a.ics' }], calMeta);
+    expect(event.alarms).toEqual([60, 15, 0]);
+  });
+
+  it('skips VALARMs without a usable trigger', () => {
+    const ics = `BEGIN:VCALENDAR
+VERSION:2.0
+BEGIN:VEVENT
+UID:alarm-bad
+SUMMARY:Bad
+DTSTART:20260115T100000Z
+DTEND:20260115T110000Z
+BEGIN:VALARM
+ACTION:DISPLAY
+END:VALARM
+BEGIN:VALARM
+ACTION:DISPLAY
+TRIGGER:-PT30M
+END:VALARM
+END:VEVENT
+END:VCALENDAR`;
+    const [event] = parseIcsObjects([{ ics, href: '/cal/a.ics' }], calMeta);
+    expect(event.alarms).toEqual([30]);
+  });
+
+  it('maps the no-reminder marker to an explicit empty list', () => {
+    const ics = `BEGIN:VCALENDAR
+VERSION:2.0
+BEGIN:VEVENT
+UID:alarm-none
+SUMMARY:None
+DTSTART:20260115T100000Z
+DTEND:20260115T110000Z
+X-NCM-ALARM-NONE:TRUE
+END:VEVENT
+END:VCALENDAR`;
+    const [event] = parseIcsObjects([{ ics, href: '/cal/a.ics' }], calMeta);
+    expect(event.alarms).toEqual([]);
+  });
+
+  it('lets the marker win over stray VALARMs', () => {
+    const ics = `BEGIN:VCALENDAR
+VERSION:2.0
+BEGIN:VEVENT
+UID:alarm-none-2
+SUMMARY:None wins
+DTSTART:20260115T100000Z
+DTEND:20260115T110000Z
+X-NCM-ALARM-NONE:TRUE
+BEGIN:VALARM
+ACTION:DISPLAY
+TRIGGER:-PT15M
+END:VALARM
+END:VEVENT
+END:VCALENDAR`;
+    const [event] = parseIcsObjects([{ ics, href: '/cal/a.ics' }], calMeta);
+    expect(event.alarms).toEqual([]);
   });
 });
 

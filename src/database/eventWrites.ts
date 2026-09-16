@@ -5,7 +5,7 @@ import type { CalendarEvent } from '@/types';
 import { getDatabaseInstance } from './DatabaseProvider';
 import { mapEventToShared } from './mappers/event';
 import Event from './models/Event';
-import { eventKey, markLocalWrite, prepareCreateEvent, seriesBaseUid, writeEvent } from './sync';
+import { eventKey, markLocalWrite, prepareCreateEvent, seriesBaseUid, serializeAlarms, writeEvent } from './sync';
 import { safeWrite } from './utils/safeTransaction';
 
 const events = () => getDatabaseInstance().get<Event>('events');
@@ -34,7 +34,10 @@ function applyPatch(row: Event, patch: Partial<CalendarEvent>): void {
   if (patch.calendarId !== undefined) row.calendarId = patch.calendarId;
   if (patch.color !== undefined) row.color = patch.color;
   if (patch.href !== undefined) row.href = patch.href;
-  if ('alarmMinutes' in patch) row.alarmMinutes = patch.alarmMinutes ?? undefined;
+  if ('alarms' in patch) {
+    row.alarms = serializeAlarms(patch.alarms);
+    row.alarmMinutes = patch.alarms?.[0] ?? undefined;
+  }
 }
 
 export async function insertEvents(list: CalendarEvent[]): Promise<void> {
