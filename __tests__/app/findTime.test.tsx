@@ -130,7 +130,43 @@ describe('FindTimeScreen', () => {
     const { getByTestId } = render(<FindTimeScreen />, { wrapper });
     await waitFor(() => expect(getByTestId('lane-merged')).toBeTruthy());
 
-    // pxPerMinute = 1 → tap at x=960 → 16:00
+    // Working-hours mode is on by default; Jane has no BUSY-UNAVAILABLE
+    // slots → fallback range 06:00–22:00. pxPerMinute = 1 → tap at x=600
+    // → 06:00 + 600 min = 16:00.
+    fireEvent.press(getByTestId('lane-merged'), { nativeEvent: { locationX: 600 } });
+
+    const expectedStart = new Date(eventStart);
+    expectedStart.setHours(16, 0, 0, 0);
+    const expectedLabel = dayjs(expectedStart).format('LT');
+
+    await waitFor(() => {
+      const selection = getByTestId('find-time-selection');
+      const text = (selection.props.children as (string | undefined)[]).join('');
+      expect(text).toContain(expectedLabel);
+    });
+  });
+
+  it('shows the full 24h range when the working-hours toggle is off', async () => {
+    seedRequest();
+    mockedUseFreeBusy.mockReturnValue({
+      loading: false,
+      error: null,
+      availabilities: [
+        { email: 'jane@example.com', displayName: 'Jane', slots: busySlots, available: true, color: '#E53935' },
+      ],
+      suggestions: [],
+      mergedBusy: busySlots,
+      searchStart,
+      searchEnd,
+      refetch: jest.fn(),
+    });
+
+    const { getByTestId } = render(<FindTimeScreen />, { wrapper });
+    await waitFor(() => expect(getByTestId('find-time-working-hours')).toBeTruthy());
+
+    fireEvent(getByTestId('find-time-working-hours'), 'onValueChange', false);
+
+    // 24h range → tap at x=960 → 16:00
     fireEvent.press(getByTestId('lane-merged'), { nativeEvent: { locationX: 960 } });
 
     const expectedStart = new Date(eventStart);

@@ -191,7 +191,8 @@
     "findTimeTapHint": "Toca la fila superior para colocar el evento",
     "findTimeZoomIn": "Acercar",
     "findTimeZoomOut": "Alejar",
-    "findTimeNoRequest": "Abre esta vista desde el formulario del evento."
+    "findTimeNoRequest": "Abre esta vista desde el formulario del evento.",
+    "findTimeWorkingHoursOnly": "Solo horario laboral"
   },
   "settings": {
     "title": "Ajustes",

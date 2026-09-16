@@ -14,7 +14,8 @@ import { useFindTimeStore, type FindTimeRequest } from '@/features/event/stores/
 import { AttendeeLane } from '@/features/event/components/AttendeeLane';
 import { DayStrip } from '@/features/event/components/DayStrip';
 import {
-  DAY_MINUTES, blocksForDay, hourMarks, minutesSinceMidnight, slotFromLaneTap,
+  FULL_DAY_RANGE, blocksForDay, hourMarks, minutesSinceMidnight, slotFromLaneTap,
+  workingRangeForDay,
 } from '@/features/event/utils/laneLayout';
 import { isSlotFree } from '@/utils/freeBusy';
 import type { SuggestedSlot } from '@/types';
@@ -57,6 +58,7 @@ function FindTimeView({ request }: { request: FindTimeRequest }) {
   const setResult = useFindTimeStore((s) => s.setResult);
 
   const [mode, setMode] = useState<FindTimeMode>(request.mode);
+  const [workingOnly, setWorkingOnly] = useState(true);
   const [zoomIndex, setZoomIndex] = useState(1);
   const pxPerMinute = ZOOM_LEVELS[zoomIndex];
 
@@ -86,37 +88,52 @@ function FindTimeView({ request }: { request: FindTimeRequest }) {
     return Array.from({ length: count }, (_, i) => dayjs(searchStart).add(i, 'day').toDate());
   }, [searchStart, searchEnd]);
 
+  // Working-hours window for the selected day, derived from the attendees
+  // taken into account by the current mode (same filter as mergedBusy).
+  const range = useMemo(() => {
+    if (!workingOnly) return FULL_DAY_RANGE;
+    const effective = mode === 'strict'
+      ? availabilities
+      : availabilities.filter((a) => a.required);
+    return workingRangeForDay(effective, selectedDay);
+  }, [workingOnly, mode, availabilities, selectedDay]);
+
   const mergedBlocks = useMemo(
-    () => blocksForDay(mergedBusy, selectedDay),
-    [mergedBusy, selectedDay],
+    () => blocksForDay(mergedBusy, selectedDay, range),
+    [mergedBusy, selectedDay, range],
   );
   const attendeeBlocks = useMemo(
-    () => availabilities.map((a) => blocksForDay(a.slots, selectedDay)),
-    [availabilities, selectedDay],
+    () => availabilities.map((a) => blocksForDay(a.slots, selectedDay, range)),
+    [availabilities, selectedDay, range],
   );
 
   const draftOnSelectedDay = dayjs(draft.start).isSame(dayjs(selectedDay), 'day');
   const draftFree = isSlotFree(draft, mergedBusy);
-  const selection = draftOnSelectedDay
-    ? {
-        startMin: minutesSinceMidnight(draft.start),
-        endMin: Math.min(DAY_MINUTES, minutesSinceMidnight(draft.start) + durationMs / 60_000),
-        free: draftFree,
-      }
-    : null;
+  const selStart = minutesSinceMidnight(draft.start);
+  const selEnd = selStart + durationMs / 60_000;
+  const selection =
+    draftOnSelectedDay && selEnd > range.startMin && selStart < range.endMin
+      ? {
+          startMin: Math.max(selStart, range.startMin),
+          endMin: Math.min(selEnd, range.endMin),
+          free: draftFree,
+        }
+      : null;
 
   const hasData = !loading && !error && availabilities.length > 0;
 
-  const laneWidth = DAY_MINUTES * pxPerMinute;
+  const laneWidth = (range.endMin - range.startMin) * pxPerMinute;
   const laneScrollRef = useRef<ScrollView>(null);
-  const marks = hourMarks(pxPerMinute);
+  const marks = hourMarks(pxPerMinute, range);
 
-  // Keep the draft (or 8:00 when the draft is on another day) in view.
+  // Keep the draft (or the range start when the draft is on another day) in view.
   const scrollLanesToFocus = useCallback(() => {
-    const focusMin = draftOnSelectedDay ? minutesSinceMidnight(draft.start) : 8 * 60;
-    const offset = Math.max(0, focusMin * pxPerMinute - 60);
+    const focusMin = draftOnSelectedDay
+      ? minutesSinceMidnight(draft.start)
+      : range.startMin + 120;
+    const offset = Math.max(0, (focusMin - range.startMin) * pxPerMinute - 60);
     laneScrollRef.current?.scrollTo({ x: offset, animated: false });
-  }, [draftOnSelectedDay, draft.start, pxPerMinute]);
+  }, [draftOnSelectedDay, draft.start, pxPerMinute, range.startMin]);
 
   useEffect(() => {
     const raf = requestAnimationFrame(scrollLanesToFocus);
@@ -124,7 +141,7 @@ function FindTimeView({ request }: { request: FindTimeRequest }) {
   }, [scrollLanesToFocus, selectedDay, hasData]);
 
   function handleLaneTap(offsetX: number) {
-    const slot = slotFromLaneTap(offsetX, pxPerMinute, selectedDay, durationMs);
+    const slot = slotFromLaneTap(offsetX, pxPerMinute, selectedDay, durationMs, range.startMin);
     if (slot) setDraft(slot);
   }
 
@@ -167,6 +184,17 @@ function FindTimeView({ request }: { request: FindTimeRequest }) {
             <ZoomIn size={18} color={theme.colors.text} />
           </IconButton>
         </View>
+      </View>
+
+      <View style={styles.workingRow}>
+        <Typography variant="body2" color="secondary" style={styles.flex}>
+          {t('event.findTimeWorkingHoursOnly')}
+        </Typography>
+        <Toggle
+          testID="find-time-working-hours"
+          value={workingOnly}
+          onValueChange={setWorkingOnly}
+        />
       </View>
 
       {loading && (
@@ -241,7 +269,7 @@ function FindTimeView({ request }: { request: FindTimeRequest }) {
                         key={m}
                         variant="caption"
                         color="secondary"
-                        style={[styles.axisLabel, { left: m * pxPerMinute }]}
+                        style={[styles.axisLabel, { left: (m - range.startMin) * pxPerMinute }]}
                       >
                         {`${Math.floor(m / 60)}:00`}
                       </Typography>
@@ -253,6 +281,7 @@ function FindTimeView({ request }: { request: FindTimeRequest }) {
                     blocks={mergedBlocks}
                     pxPerMinute={pxPerMinute}
                     height={MERGED_LANE_HEIGHT}
+                    range={range}
                     selection={selection}
                     onTap={handleLaneTap}
                   />
@@ -263,6 +292,7 @@ function FindTimeView({ request }: { request: FindTimeRequest }) {
                       blocks={attendeeBlocks[i]}
                       pxPerMinute={pxPerMinute}
                       height={LANE_HEIGHT}
+                      range={range}
                       unknown={!a.available}
                     />
                   ))}
@@ -313,6 +343,14 @@ const styles = StyleSheet.create({
   zoomRow: {
     flexDirection: 'row',
     gap: 4,
+  },
+  workingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+    paddingHorizontal: 16,
+    paddingBottom: 4,
   },
   lanesContent: {
     paddingBottom: 12,

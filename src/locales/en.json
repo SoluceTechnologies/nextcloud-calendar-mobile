@@ -191,7 +191,8 @@
     "findTimeTapHint": "Tap the top lane to place the event",
     "findTimeZoomIn": "Zoom in",
     "findTimeZoomOut": "Zoom out",
-    "findTimeNoRequest": "Open this view from the event form."
+    "findTimeNoRequest": "Open this view from the event form.",
+    "findTimeWorkingHoursOnly": "Working hours only"
   },
   "settings": {
     "title": "Settings",

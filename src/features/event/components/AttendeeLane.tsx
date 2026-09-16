@@ -1,7 +1,7 @@
 import { memo } from 'react';
 import { Pressable, StyleSheet, View, type GestureResponderEvent } from 'react-native';
 import { useTheme } from 'expo-router';
-import { DAY_MINUTES, type LaneBlock } from '@/features/event/utils/laneLayout';
+import { FULL_DAY_RANGE, type LaneBlock, type MinuteRange } from '@/features/event/utils/laneLayout';
 
 const FREE_BORDER = '#4caf50';
 const UNAVAILABLE_FILL = '#9e9e9e';
@@ -16,6 +16,8 @@ interface AttendeeLaneProps {
   blocks: LaneBlock[];
   pxPerMinute: number;
   height: number;
+  /** Visible minute window; blocks/selection are positioned relative to it. */
+  range?: MinuteRange;
   /** Draft/selected event position rendered on top of the lane. */
   selection?: LaneSelection | null;
   /** When set, tapping the lane reports the x offset in px. */
@@ -41,13 +43,15 @@ function AttendeeLaneImpl({
   blocks,
   pxPerMinute,
   height,
+  range = FULL_DAY_RANGE,
   selection,
   onTap,
   unknown = false,
   testID,
 }: AttendeeLaneProps) {
   const theme = useTheme();
-  const width = DAY_MINUTES * pxPerMinute;
+  const rangeStart = range.startMin;
+  const width = (range.endMin - range.startMin) * pxPerMinute;
 
   const content = (
     <View
@@ -68,7 +72,7 @@ function AttendeeLaneImpl({
           style={[
             styles.block,
             {
-              left: block.startMin * pxPerMinute,
+              left: (block.startMin - rangeStart) * pxPerMinute,
               width: Math.max(1, (block.endMin - block.startMin) * pxPerMinute),
               backgroundColor: blockColor(block.fbType, theme.colors.danger),
             },
@@ -81,7 +85,7 @@ function AttendeeLaneImpl({
           style={[
             styles.selection,
             {
-              left: selection.startMin * pxPerMinute,
+              left: (selection.startMin - rangeStart) * pxPerMinute,
               width: Math.max(4, (selection.endMin - selection.startMin) * pxPerMinute),
               backgroundColor: `${theme.colors.primary}40`,
               borderColor: selection.free ? FREE_BORDER : theme.colors.danger,

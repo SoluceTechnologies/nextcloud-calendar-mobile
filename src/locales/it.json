@@ -191,7 +191,8 @@
     "findTimeTapHint": "Tocca la riga in alto per posizionare l’evento",
     "findTimeZoomIn": "Ingrandisci",
     "findTimeZoomOut": "Riduci",
-    "findTimeNoRequest": "Apri questa vista dal modulo dell’evento."
+    "findTimeNoRequest": "Apri questa vista dal modulo dell’evento.",
+    "findTimeWorkingHoursOnly": "Solo orario lavorativo"
   },
   "settings": {
     "title": "Impostazioni",
