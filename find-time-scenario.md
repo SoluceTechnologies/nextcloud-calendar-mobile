@@ -180,7 +180,9 @@ adb reverse tcp:8081 tcp:8081
 - Tap sur un autre jour dans le DayStrip → les lanes se re-rendent pour ce jour
 - **Capture** : `08-tap-placement.png`
 
-### Étape 9 — Zoom + Apply
+### Étape 9 — Heures de travail + Zoom + Apply
+- Le toggle **Heures de travail uniquement** est actif par défaut : les lanes ne couvrent que la fenêtre 9:00-18:00 (horaires déclarés par testuser et bob)
+- Désactiver le toggle → les lanes s'élargissent à 24 h
 - Utiliser les boutons **+**/**−** pour changer l'échelle horaire
 - Revenir sur une zone libre, tap sur **Apply selected slot**
 - Vérifier le retour au formulaire avec Start/End mis à jour
