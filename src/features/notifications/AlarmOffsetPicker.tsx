@@ -103,8 +103,8 @@ export function AlarmOffsetPicker({ values, onChange, allDay = false, leading }:
     );
   }
 
-  const customValues = values.filter((v) => !presets.includes(v)).sort((a, b) => b - a);
-  const pills = [...presets, ...customValues].sort((a, b) => b - a);
+  const customValues = values.filter((v) => !presets.includes(v)).sort((a, b) => a - b);
+  const pills = [...presets, ...customValues].sort((a, b) => a - b);
 
   return (
     <View>
