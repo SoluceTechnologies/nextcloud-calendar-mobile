@@ -182,8 +182,6 @@ export function EventForm({
     } else if (dtend <= dtstart) {
       setEndError(t('event.errorEndAfterStart')); return;
     }
-    // Only prompt for notification permission when alarms will actually be
-    // scheduled: an explicit list, or "Default" with defaults configured.
     const { timedAlerts, allDayAlerts } = useSettingsStore.getState();
     const willAlert = alarms === undefined
       ? (allDay ? allDayAlerts : timedAlerts).length > 0

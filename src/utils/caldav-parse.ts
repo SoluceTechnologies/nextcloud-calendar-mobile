@@ -37,10 +37,6 @@ function alarmTriggerMinutes(vevent: ICAL.Component, alarm: ICAL.Component): num
   return minutes ?? undefined;
 }
 
-// Minutes before dtstart for every VALARM on the component, deduplicated and
-// sorted by lead time (largest first). Returns undefined when the component
-// carries no alarm at all ("use the defaults"), [] when it explicitly carries
-// the no-reminder marker, and the list of offsets otherwise.
 export function alarmMinutesList(vevent: ICAL.Component): number[] | undefined {
   if (vevent.getFirstProperty(NO_ALARM_PROP.toLowerCase())) return [];
 
@@ -258,9 +254,6 @@ export function parseIcsItem(
     for (const vevent of vevents) {
       if (vevent.getFirstPropertyValue('recurrence-id')) continue;
 
-      // A subscription feed is one .ics holding many UIDs. Left to itself ical.js
-      // relates every RECURRENCE-ID sibling in the file to this master, so an
-      // override would hijack any other series that happens to share its slot.
       const uid = vevent.getFirstPropertyValue('uid');
       const exceptions = vevents.filter(
         (v) => v.getFirstPropertyValue('recurrence-id') && v.getFirstPropertyValue('uid') === uid,

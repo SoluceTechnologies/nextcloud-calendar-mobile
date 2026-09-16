@@ -43,8 +43,6 @@ function writeCalendar(row: Calendar, c: CalendarMeta, accountId: string): void 
   row.supportsEvents = c.supportsEvents ?? true;
 }
 
-// Canonical storage form for an alarms list: deduped, sorted by lead time
-// (largest first), JSON-encoded. undefined stays undefined (no explicit alarms).
 export function serializeAlarms(alarms?: number[]): string | undefined {
   if (alarms === undefined) return undefined;
   return JSON.stringify([...new Set(alarms)].sort((a, b) => b - a));

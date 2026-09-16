@@ -1,9 +1,6 @@
 import type { CalendarEvent } from '@/types';
 import i18n from '@/utils/i18n';
 
-// VEVENT property written instead of any VALARM when the user explicitly picks
-// "no reminder" for an event. Without it, a synced event with no VALARM is
-// indistinguishable from "use the defaults" (see CalendarEvent.alarms).
 export const NO_ALARM_PROP = 'X-NCM-ALARM-NONE';
 
 export type TimedAlert = 0 | 5 | 10 | 15 | 30 | 60 | 120 | 1440 | 2880 | 10080 | null;
@@ -21,7 +18,6 @@ export function timedAlertLabelKey(value: TimedAlert): string {
   return `settings.alerts.before.${value}`;
 }
 
-// Label for any minute offset, including values outside TIMED_ALERTS presets.
 export function alertMinutesLabel(minutes: number): string {
   if (minutes === 0) return i18n.t('settings.alerts.atTime');
   const abs = Math.abs(minutes);
@@ -35,9 +31,6 @@ export function alertMinutesLabel(minutes: number): string {
   return i18n.t(`settings.alerts.custom.${direction}.minutes`, { value: abs });
 }
 
-// An all-day default of `days` means "at ALL_DAY_HOUR on day D-days". Relative
-// to the event's midnight start that is days*1440 - ALL_DAY_HOUR*60 minutes
-// before (e.g. 1 day -> TRIGGER:-PT15H, matching Nextcloud's convention).
 export function allDayAlarmMinutes(days: number): number {
   return days * 1440 - ALL_DAY_HOUR * 60;
 }

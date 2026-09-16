@@ -198,8 +198,6 @@ export default function EventDetailScreen() {
     if (event.alarms === undefined || event.alarms.length === 0) return null;
     const labels = event.alarms.map((m) => {
       if (event.allDay) {
-        // All-day alarms are stored as minutes before the midnight start; a
-        // materialized "n days before at 9:00" lands on n*1440 - ALL_DAY_HOUR*60.
         const days = (m + ALL_DAY_HOUR * 60) / 1440;
         if (Number.isInteger(days)) {
           return (ALL_DAY_ALERTS as (number | null)[]).includes(days)

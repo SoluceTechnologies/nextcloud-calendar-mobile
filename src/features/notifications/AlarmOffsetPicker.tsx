@@ -71,9 +71,7 @@ function CustomAlarmDialog({ visible, allDay, onClose, onAdd }: CustomDialogProp
 interface Props {
   values: number[];
   onChange: (values: number[]) => void;
-  /** Day-based presets/labels for all-day events, minute offsets otherwise. */
   allDay?: boolean;
-  /** Extra pills rendered before the offset pills (e.g. "Default" / "None"). */
   leading?: ReactNode;
 }
 
@@ -105,8 +103,6 @@ export function AlarmOffsetPicker({ values, onChange, allDay = false, leading }:
     );
   }
 
-  // Custom values already selected but outside the preset list get their own
-  // pill so they can be reviewed and removed.
   const customValues = values.filter((v) => !presets.includes(v)).sort((a, b) => b - a);
   const pills = [...presets, ...customValues].sort((a, b) => b - a);
 

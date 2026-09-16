@@ -11,8 +11,6 @@ interface SettingsState {
   language: AppLanguage;
   weekStartsOn: 0 | 1;
   liveActivityEnabled: boolean;
-  // Default reminder offsets: minutes before start for timed events, days
-  // before (at ALL_DAY_HOUR) for all-day events. Empty = no default.
   timedAlerts: number[];
   allDayAlerts: number[];
   hapticsEnabled: boolean;

@@ -81,10 +81,6 @@ function resolveCalendar(calendars: CalendarMeta[], calendarId: string): Calenda
   return calendars.find((c) => c.id === calendarId) ?? calendars[0];
 }
 
-// "Default" (alarms === undefined) is materialized into real VALARMs at write
-// time, like the Nextcloud web editor does, so other clients see the same
-// reminders. Empty defaults stay undefined (no VALARM, no marker); an explicit
-// empty list writes the no-reminder marker.
 function resolveAlarms(input: CreateEventInput): number[] | undefined {
   if (input.alarms !== undefined) return input.alarms;
   const { timedAlerts, allDayAlerts } = useSettingsStore.getState();
@@ -271,10 +267,6 @@ export function useUpdateEvent(account: Account, calendars: CalendarMeta[]) {
 
         if (!event.isRecurring || scope === 'all') {
           if (datesOnly) {
-            // Drag & drop only moves the event in time. Patch DTSTART/DTEND on
-            // the authoritative server copy so description, location, attendees
-            // and any other property are kept — never rebuilt from the local
-            // event, which the grid may hold only partially.
             const masterIcs = await fetchEventIcs(account, event.href);
             const tz = extractDtstartTzid(masterIcs) ?? timezone;
             const sequence = extractSequence(masterIcs) + 1;
