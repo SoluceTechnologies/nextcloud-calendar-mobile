@@ -42,6 +42,12 @@ export function useCalendarNavigation() {
 
   useEffect(() => { if (viewMode === 'schedule') setAgendaVisibleDate(date); }, [date, viewMode]);
 
+  // Agenda scrolling moves the fetch window so past/future months get synced.
+  useEffect(() => {
+    if (viewMode !== 'schedule') return;
+    fetchDebounce.call(agendaVisibleDate);
+  }, [viewMode, agendaVisibleDate, fetchDebounce]);
+
   const switchMode = useCallback((target: ViewMode) => {
     const focus = viewModeRef.current === 'schedule'
       ? agendaVisibleDateRef.current
