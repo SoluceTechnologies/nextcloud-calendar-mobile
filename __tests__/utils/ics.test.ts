@@ -1,5 +1,6 @@
 import { buildIcs, buildAllDayIcs, shiftIcsDates, injectExdate, truncateRruleUntil } from '@/utils/ics';
 import { parseRrule } from '@/features/calendar/utils/parseRrule';
+import { parseIcsObjects, extractExtraVeventLines } from '@/utils/caldav-parse';
 import type { Attendee } from '../../src/types';
 
 const base = {
@@ -375,5 +376,56 @@ describe('truncateRruleUntil', () => {
     expect(out).toContain('RRULE:FREQ=YEARLY;BYMONTH=3;BYDAY=-1SU\r\n');
     expect(out).toContain('RRULE:FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU\r\n');
     expect(out.match(/UNTIL=/g)).toHaveLength(1);
+  });
+});
+
+describe('VALARM generation', () => {
+  it('writes one VALARM block per alarm offset', () => {
+    const ics = buildIcs({ ...base, alarms: [60, 0] });
+    expect(ics.match(/BEGIN:VALARM/g)).toHaveLength(2);
+    expect(ics).toContain('TRIGGER:-PT1H\r\n');
+    expect(ics).toContain('TRIGGER:PT0S\r\n');
+  });
+
+  it('deduplicates and sorts offsets by lead time', () => {
+    const ics = buildIcs({ ...base, alarms: [15, 60, 15] });
+    expect(ics.match(/BEGIN:VALARM/g)).toHaveLength(2);
+    expect(ics.indexOf('TRIGGER:-PT1H')).toBeLessThan(ics.indexOf('TRIGGER:-PT15M'));
+  });
+
+  it('writes the no-reminder marker for an explicit empty list', () => {
+    const ics = buildIcs({ ...base, alarms: [] });
+    expect(ics).toContain('X-NCM-ALARM-NONE:TRUE\r\n');
+    expect(ics).not.toContain('VALARM');
+  });
+
+  it('writes no VALARM and no marker when alarms is undefined', () => {
+    const ics = buildIcs(base);
+    expect(ics).not.toContain('VALARM');
+    expect(ics).not.toContain('X-NCM-ALARM-NONE');
+  });
+
+  it('round-trips multiple alarms through the CalDAV parser', () => {
+    const ics = buildIcs({ ...base, alarms: [1440, 60, 0] });
+    const [event] = parseIcsObjects(
+      [{ ics, href: '/cal/a.ics' }],
+      { calendarId: 'c1', accountId: 'a1', color: '#000' },
+    );
+    expect(event.alarms).toEqual([1440, 60, 0]);
+  });
+
+  it('round-trips the no-reminder marker as an explicit empty list', () => {
+    const ics = buildIcs({ ...base, alarms: [] });
+    const [event] = parseIcsObjects(
+      [{ ics, href: '/cal/a.ics' }],
+      { calendarId: 'c1', accountId: 'a1', color: '#000' },
+    );
+    expect(event.alarms).toEqual([]);
+  });
+
+  it('keeps the marker out of preserved extra lines on rewrite', () => {
+    const ics = buildIcs({ ...base, alarms: [] });
+    const extras = extractExtraVeventLines(ics);
+    expect(extras.join('\n')).not.toContain('X-NCM-ALARM-NONE');
   });
 });

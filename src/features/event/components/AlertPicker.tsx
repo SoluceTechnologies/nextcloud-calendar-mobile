@@ -1,47 +1,48 @@
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useTheme } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 
-import { TIMED_ALERTS, timedAlertLabelKey } from '@/features/notifications/alerts';
+import { AlarmOffsetPicker } from '@/features/notifications/AlarmOffsetPicker';
 
 interface Props {
-  value: number | undefined;
-  onChange: (value: number | undefined) => void;
+  /** undefined = "Default", [] = "None", otherwise explicit minute offsets. */
+  value: number[] | undefined;
+  onChange: (value: number[] | undefined) => void;
 }
 
 export function AlertPicker({ value, onChange }: Props) {
   const theme = useTheme();
   const { t } = useTranslation();
 
-  const OFFSETS: { label: string; value: number | undefined }[] = [
-    { label: t('settings.alerts.useDefault'), value: undefined },
-    ...TIMED_ALERTS
-      .filter((v): v is Exclude<typeof v, null> => v !== null)
-      .map((minutes) => ({ label: t(timedAlertLabelKey(minutes)), value: minutes as number | undefined })),
+  const isDefault = value === undefined;
+  const isNone = value?.length === 0;
+
+  const exclusives: { label: string; active: boolean; select: () => void }[] = [
+    { label: t('settings.alerts.useDefault'), active: isDefault, select: () => onChange(undefined) },
+    { label: t('settings.alerts.none'), active: isNone, select: () => onChange([]) },
   ];
 
   return (
     <View style={styles.container}>
-      <Text style={[styles.sectionLabel, { color: theme.colors.textSecondary }]}>{t('event.alert')}</Text>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.pillRow}>
-        {OFFSETS.map(({ label, value: minutes }) => {
-          const active = value === minutes;
-          return (
-            <TouchableOpacity
-              key={label}
-              style={[
-                styles.pill,
-                { backgroundColor: active ? theme.colors.primary : theme.colors.chip },
-              ]}
-              onPress={() => onChange(minutes)}
-            >
-              <Text style={[styles.pillText, { color: active ? '#fff' : theme.colors.textSecondary }]}>
-                {label}
-              </Text>
-            </TouchableOpacity>
-          );
-        })}
-      </ScrollView>
+      <Text style={[styles.sectionLabel, { color: theme.colors.textSecondary }]}>{t('event.alerts')}</Text>
+      <AlarmOffsetPicker
+        values={value ?? []}
+        onChange={(next) => onChange(next)}
+        leading={exclusives.map(({ label, active, select }) => (
+          <TouchableOpacity
+            key={label}
+            style={[
+              styles.pill,
+              { backgroundColor: active ? theme.colors.primary : theme.colors.chip },
+            ]}
+            onPress={select}
+          >
+            <Text style={[styles.pillText, { color: active ? '#fff' : theme.colors.textSecondary }]}>
+              {label}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      />
     </View>
   );
 }
@@ -49,7 +50,6 @@ export function AlertPicker({ value, onChange }: Props) {
 const styles = StyleSheet.create({
   container: { marginTop: 16 },
   sectionLabel: { fontSize: 13, fontWeight: '600', marginBottom: 8 },
-  pillRow: { flexDirection: 'row', gap: 8 },
   pill: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 16 },
   pillText: { fontSize: 14 },
 });

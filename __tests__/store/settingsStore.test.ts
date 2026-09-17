@@ -38,3 +38,28 @@ describe('settingsStore', () => {
     expect(useSettingsStore.getState().themePreference).toBe('dark');
   });
 });
+
+describe('alert defaults', () => {
+  it('defaults to no reminder lists', () => {
+    expect(useSettingsStore.getState().timedAlerts).toEqual([]);
+    expect(useSettingsStore.getState().allDayAlerts).toEqual([]);
+  });
+
+  it('setTimedAlerts stores several offsets', () => {
+    useSettingsStore.getState().setTimedAlerts([60, 0]);
+    expect(useSettingsStore.getState().timedAlerts).toEqual([60, 0]);
+  });
+
+  it('setAllDayAlerts stores several day offsets', () => {
+    useSettingsStore.getState().setAllDayAlerts([1, 7]);
+    expect(useSettingsStore.getState().allDayAlerts).toEqual([1, 7]);
+  });
+
+  it('migrates v1 scalar defaults into lists', () => {
+    const options = useSettingsStore.persist.getOptions() as { migrate?: (s: unknown, v: number) => any };
+    const migrated = options.migrate?.({ timedAlert: 15, allDayAlert: null }, 1);
+    expect(migrated.timedAlerts).toEqual([15]);
+    expect(migrated.allDayAlerts).toEqual([]);
+    expect(migrated.timedAlert).toBeUndefined();
+  });
+});

@@ -168,7 +168,7 @@
     "errorCreateFailed": "Creazione dell'evento non riuscita",
     "errorUpdateFailed": "Aggiornamento dell'evento non riuscito",
     "errorDeleteFailed": "Eliminazione dell'evento non riuscita",
-    "alert": "Avviso"
+    "alerts": "Avvisi"
   },
   "settings": {
     "title": "Impostazioni",
@@ -247,11 +247,33 @@
         "1": "1 giorno prima (9:00)",
         "2": "2 giorni prima (9:00)",
         "7": "1 settimana prima (9:00)",
-        "sameDay": "Il giorno stesso (9:00)"
+        "sameDay": "Il giorno stesso (9:00)",
+        "custom": "{{value}} giorni prima (9:00)"
       },
       "useDefault": "Predefinito",
-      "timedHint": "Promemoria predefinito per gli eventi senza uno proprio. Quelli che ne hanno già uno lo mantengono.",
-      "allDayHint": "Promemoria predefinito per gli eventi di un giorno intero senza uno proprio, alle 9:00 del giorno scelto."
+      "timedHint": "Promemoria predefiniti per i nuovi eventi e per quelli senza promemoria propri.",
+      "allDayHint": "Promemoria predefiniti per gli eventi di tutto il giorno, alle 9:00 del giorno scelto.",
+      "addCustom": "Personalizzato…",
+      "customTitle": "Promemoria personalizzato",
+      "customAmount": "Valore",
+      "addReminder": "Aggiungi promemoria",
+      "units": {
+        "minutes": "minuti",
+        "hours": "ore",
+        "days": "giorni"
+      },
+      "custom": {
+        "before": {
+          "minutes": "{{value}} minuti prima",
+          "hours": "{{value}} ore prima",
+          "days": "{{value}} giorni prima"
+        },
+        "after": {
+          "minutes": "{{value}} minuti dopo l’inizio",
+          "hours": "{{value}} ore dopo l’inizio",
+          "days": "{{value}} giorni dopo l’inizio"
+        }
+      }
     },
     "account": {
       "title": "Account",

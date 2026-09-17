@@ -7,7 +7,7 @@ import { useCalendarStore } from '@/stores/calendarStore';
 import i18n from '@/utils/i18n';
 
 import { alertBody } from './alertContent';
-import { alertTime } from './alerts';
+import { alertTimes } from './alerts';
 
 const CHANNEL_ID = 'event-alerts';
 const HORIZON_DAYS = 30;
@@ -50,7 +50,7 @@ export async function scheduleEventAlerts(now: Date = new Date()): Promise<void>
     try {
       await Notifications.cancelAllScheduledNotificationsAsync();
 
-      const { timedAlert, allDayAlert } = useSettingsStore.getState();
+      const { timedAlerts, allDayAlerts } = useSettingsStore.getState();
       if (!(await hasAlertPermission())) return;
 
       await ensureChannel();
@@ -60,8 +60,7 @@ export async function scheduleEventAlerts(now: Date = new Date()): Promise<void>
         .filter((event) => !notifDisabled.includes(event.calendarId));
 
       const due = events
-        .map((event) => ({ event, at: alertTime(event, timedAlert, allDayAlert) }))
-        .filter((x): x is { event: (typeof events)[number]; at: Date } => x.at !== null)
+        .flatMap((event) => alertTimes(event, timedAlerts, allDayAlerts).map((at) => ({ event, at })))
         .filter((x) => x.at.getTime() > now.getTime())
         .sort((a, b) => a.at.getTime() - b.at.getTime())
         .slice(0, MAX_SCHEDULED);

@@ -76,7 +76,7 @@ export default function EditEventScreen() {
     description: event.description ?? '',
     location: event.location ?? '',
     attendees: event.attendees,
-    alarmMinutes: event.alarmMinutes,
+    alarms: event.alarms,
     rrule: parseRrule(event.rrule),
   };
 

@@ -39,11 +39,11 @@ function DayColumnImpl({ date, positioned, hourRowHeight, now, onPressSlot, onPr
     <View testID="day-column" style={columnStyle}>
       <Pressable testID="day-column-surface" style={StyleSheet.absoluteFill} onPress={handlePress} />
 
-      {positioned.map(({ event, leftPct, widthPct, zIndex }) => {
+      {positioned.map(({ event, leftPct, widthPct, zIndex }, i) => {
         const { top, height } = eventPositionStyle(event.start, event.end);
         return (
           <TimeGridEvent
-            key={`${event._event.uid}-${event.start.getTime()}`}
+            key={`${event._event.uid}-${event.start.getTime()}-${i}`}
             event={event}
             top={top}
             height={height}
