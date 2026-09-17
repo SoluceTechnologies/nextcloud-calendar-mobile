@@ -1,10 +1,11 @@
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
-import { Bell, BellOff } from 'lucide-react-native';
+import { Bell, BellOff, Cake } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from 'expo-router';
 
 import { IconButton, Item, Toggle, Typography } from '@/ui/components';
+import { BIRTHDAY_CALENDAR_SLUG } from '@/services/nextcloud/caldav';
 import type { CalendarMeta } from '@/types';
 
 interface Props {
@@ -27,9 +28,17 @@ function CalendarDrawerRowImpl({
       ? colors.primary
       : colors.textSecondary;
 
+  const isBirthday = calendar.slug === BIRTHDAY_CALENDAR_SLUG;
+
   return (
     <Item
-      leading={<View style={[styles.dot, { backgroundColor: calendar.color }]} />}
+      leading={
+        isBirthday ? (
+          <Cake size={16} color={calendar.color} style={styles.cake} />
+        ) : (
+          <View style={[styles.dot, { backgroundColor: calendar.color }]} />
+        )
+      }
       title={
         <Typography variant="body1" numberOfLines={1} style={!visible && styles.muted}>
           {calendar.displayName}
@@ -63,6 +72,7 @@ function CalendarDrawerRowImpl({
 
 const styles = StyleSheet.create({
   dot: { width: 12, height: 12, borderRadius: 6, flexShrink: 0 },
+  cake: { flexShrink: 0 },
   muted: { opacity: 0.5 },
   controls: { flexDirection: 'row', alignItems: 'center', gap: 2 },
 });
