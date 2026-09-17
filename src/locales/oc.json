@@ -75,6 +75,13 @@
     "calendarNotifications": "Notificacions per {{name}}",
     "calendarVisibility": "Afichar {{name}}"
   },
+  "search": {
+    "title": "Recèrca",
+    "placeholder": "Recercar d'eveniments",
+    "hint": "Recercar per títol, descripcion, luòc o participant.",
+    "noResults": "Cap d'eveniment correspondent",
+    "clear": "Escafar la recèrca"
+  },
   "event": {
     "titleLabel": "Títol *",
     "titlePlaceholder": "Títol de l'eveniment",

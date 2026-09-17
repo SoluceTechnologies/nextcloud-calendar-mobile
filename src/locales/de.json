@@ -75,6 +75,13 @@
     "calendarNotifications": "Benachrichtigungen für {{name}}",
     "calendarVisibility": "{{name}} anzeigen"
   },
+  "search": {
+    "title": "Suche",
+    "placeholder": "Termine suchen",
+    "hint": "Nach Titel, Beschreibung, Ort oder Teilnehmer suchen.",
+    "noResults": "Keine passenden Termine",
+    "clear": "Suche löschen"
+  },
   "event": {
     "titleLabel": "Titel *",
     "titlePlaceholder": "Ereignistitel",
