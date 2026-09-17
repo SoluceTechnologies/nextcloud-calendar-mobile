@@ -30,3 +30,23 @@ export function useEventsForRange(accountId: string, start: Date, end: Date, ref
 
   return events;
 }
+
+export function useAllEvents(accountId: string | null) {
+  const database = useDatabase();
+  const [events, setEvents] = useState<CalendarEvent[]>([]);
+
+  useEffect(() => {
+    if (!accountId) {
+      setEvents([]);
+      return;
+    }
+    const subscription = database
+      .get<Event>('events')
+      .query(Q.where('account_id', accountId))
+      .observeWithColumns(EVENT_OBSERVED_COLUMNS)
+      .subscribe((rows) => setEvents(rows.map(mapEventToShared)));
+    return () => subscription.unsubscribe();
+  }, [accountId, database]);
+
+  return events;
+}
