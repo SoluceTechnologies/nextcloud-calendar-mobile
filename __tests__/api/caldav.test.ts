@@ -177,6 +177,46 @@ describe('fetchEvents', () => {
     const events = await fetchEvents(account, targetCalendar, range.s, range.e);
     expect(events.map((e) => e.uid)).toEqual(['ev-1']);
   });
+
+  it('queries the contact_birthdays collection without a time-range', async () => {
+    const birthdayCal: CalendarMeta = {
+      ...targetCalendar,
+      id: 'cal-bdays',
+      url: 'https://cloud.example.com/remote.php/dav/calendars/john/contact_birthdays/',
+      slug: 'contact_birthdays',
+      isReadOnly: true,
+    };
+    const bdayIcs =
+      'BEGIN:VCALENDAR\r\nBEGIN:VEVENT\r\nUID:bday-1\r\nSUMMARY:🎂 Leon Green (2000)\r\n' +
+      'DTSTART;VALUE=DATE:20000815\r\nDTEND;VALUE=DATE:20000816\r\nRRULE:FREQ=YEARLY\r\n' +
+      'TRANSP:TRANSPARENT\r\nEND:VEVENT\r\nEND:VCALENDAR';
+
+    mockFetch.mockImplementation((_url: string, opts: any) => {
+      const body = opts.body as string;
+      if (body.includes('name="VTODO"')) return Promise.resolve({ status: 400, text: async () => '' });
+      return Promise.resolve({ status: 207, text: async () => multistatus(respFor(bdayIcs, '/cal/bday.ics')) });
+    });
+
+    const events = await fetchEvents(account, birthdayCal, range.s, range.e);
+
+    const veventCall = mockFetch.mock.calls.find((c) =>
+      (c[1].body as string).includes('name="VEVENT"'));
+    expect(veventCall[1].body).not.toContain('time-range');
+    // yearly recurrence is expanded client-side into the requested window
+    expect(events.length).toBe(1);
+    expect(events[0].uid).toMatch(/^bday-1_occ_/);
+    expect(events[0].allDay).toBe(true);
+  });
+
+  it('keeps the time-range filter for regular calendars', async () => {
+    mockFetch.mockResolvedValue({ status: 207, text: async () => multistatus('') });
+
+    await fetchEvents(account, targetCalendar, range.s, range.e);
+
+    const veventCall = mockFetch.mock.calls.find((c) =>
+      (c[1].body as string).includes('name="VEVENT"'));
+    expect(veventCall[1].body).toContain('time-range');
+  });
 });
 
 describe('fetchEventsByHrefs', () => {
@@ -341,6 +381,57 @@ describe('fetchCalendars', () => {
     const [cal] = await fetchCalendars(account);
 
     expect(cal.supportsEvents).toBe(false);
+  });
+
+  const privilegeXml = (privileges: string) => `<?xml version="1.0"?>
+<d:multistatus xmlns:d="DAV:" xmlns:cs="http://calendarserver.org/ns/" xmlns:c="urn:ietf:params:xml:ns:caldav" xmlns:cal="urn:ietf:params:xml:ns:caldav">
+  <d:response>
+    <d:href>/remote.php/dav/calendars/john/contact_birthdays/</d:href>
+    <d:propstat>
+      <d:prop>
+        <d:resourcetype><d:collection/><c:calendar/></d:resourcetype>
+        <d:displayname>Contact birthdays</d:displayname>
+        <d:current-user-privilege-set>${privileges}</d:current-user-privilege-set>
+        <cs:getctag>2</cs:getctag>
+      </d:prop>
+      <d:status>HTTP/1.1 200 OK</d:status>
+    </d:propstat>
+  </d:response>
+</d:multistatus>`;
+
+  it('marks a read-only generated calendar (write-properties only) as read-only', async () => {
+    mockFetch.mockResolvedValue({
+      status: 207,
+      text: async () =>
+        privilegeXml(
+          '<d:privilege><d:write-properties/></d:privilege>' +
+            '<d:privilege><d:read/></d:privilege>' +
+            '<d:privilege><d:read-acl/></d:privilege>' +
+            '<d:privilege><cal:read-free-busy/></d:privilege>',
+        ),
+    });
+
+    const [cal] = await fetchCalendars(account);
+
+    expect(cal.isReadOnly).toBe(true);
+  });
+
+  it('does not mark a writable calendar as read-only', async () => {
+    mockFetch.mockResolvedValue({
+      status: 207,
+      text: async () =>
+        privilegeXml(
+          '<d:privilege><d:write/></d:privilege>' +
+            '<d:privilege><d:write-properties/></d:privilege>' +
+            '<d:privilege><d:write-content/></d:privilege>' +
+            '<d:privilege><d:bind/></d:privilege>' +
+            '<d:privilege><d:read/></d:privilege>',
+        ),
+    });
+
+    const [cal] = await fetchCalendars(account);
+
+    expect(cal.isReadOnly).toBe(false);
   });
 });
 
