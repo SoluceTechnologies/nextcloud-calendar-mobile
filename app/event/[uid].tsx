@@ -20,6 +20,8 @@ import { useDeleteEvent } from '@/features/event/hooks/useMutateEvent';
 import { useEventLocation } from '@/features/map/hooks/useEventLocation';
 import { EventMapPreview, EventMapSheet } from '@/features/map/components';
 import { openMaps } from '@/features/map/utils/mapLinks';
+import { useUpdateAttendeeStatus } from '@/features/invitations/hooks/useUpdateAttendeeStatus';
+import { isCurrentUserAttendee, getAttendeePartstat } from '@/utils/attendees';
 import { useAccountStore } from '@/stores/accountStore';
 import { useSettingsStore } from '@/stores/settingsStore';
 import {
@@ -27,7 +29,7 @@ import {
   SectionHeader, Avatar, Spinner, ScreenHeader,
   IconButton,
 } from '@/ui/components';
-import type { RecurrenceEditScope } from '@/types';
+import type { InvitationResponse, RecurrenceEditScope } from '@/types';
 import { openTalkRoom, promptTalkRoomOpen } from '@/features/event/utils/openTalkRoom';
 import { askRecurrenceScope, type RecurrenceScopeStrings } from '@/features/event/recurrenceScope';
 import { decideMoveEventScope } from '@/features/calendar/utils/moveEventScope';
@@ -69,8 +71,11 @@ export default function EventDetailScreen() {
 
   const calendar = calendars.find((c) => c.id === event?.calendarId);
   const deleteMutation = useDeleteEvent(activeAccount!);
+  const respondMutation = useUpdateAttendeeStatus(activeAccount);
 
   const canEdit = !calendar?.isReadOnly && !calendar?.isSubscribed && !event?.isTask;
+  const isAttendee = !!event && activeAccount !== null && isCurrentUserAttendee(event, activeAccount);
+  const myPartstat = event && activeAccount ? getAttendeePartstat(event, activeAccount) : undefined;
   const eventsLoading = event === undefined;
 
   const [copied, setCopied] = useState(false);
@@ -155,6 +160,14 @@ export default function EventDetailScreen() {
     if (!rule) return null;
     return formatRecurrenceRule(rule, event.dtstart, t, i18n.language);
   }, [event?.rrule, event?.dtstart, t, i18n.language]);
+
+  const handleRespond = useCallback(async (response: InvitationResponse) => {
+    if (!event) return;
+    await respondMutation.mutateAsync(event, response);
+    if (response === 'declined') {
+      goBackOrHome(router);
+    }
+  }, [event, respondMutation, router]);
 
   const isLoading = eventsLoading;
 
@@ -340,6 +353,52 @@ export default function EventDetailScreen() {
                       />
                     ))}
                 </List>
+              </Stack>
+            )}
+
+            {isAttendee && !calendar?.isReadOnly && (
+              <Stack gap={8}>
+                <SectionHeader title={t('event.myParticipation')} />
+                <Stack card padding={16} gap={12}>
+                  <Typography variant="body2" color="secondary">
+                    {myPartstat === 'accepted'
+                      ? t('event.participationAccepted')
+                      : myPartstat === 'tentative'
+                        ? t('event.participationTentative')
+                        : myPartstat === 'declined'
+                          ? t('event.participationDeclined')
+                          : t('event.participationNeedsAction')}
+                  </Typography>
+                  <Stack direction="horizontal" hAlign="end" gap={8}>
+                    <Button
+                      variant={myPartstat === 'declined' ? 'primary' : 'secondary'}
+                      size="small"
+                      inline
+                      title={t('invitations.decline')}
+                      loading={respondMutation.isPending}
+                      disabled={respondMutation.isPending}
+                      onPress={() => handleRespond('declined')}
+                    />
+                    <Button
+                      variant={myPartstat === 'tentative' ? 'primary' : 'secondary'}
+                      size="small"
+                      inline
+                      title={t('invitations.tentative')}
+                      loading={respondMutation.isPending}
+                      disabled={respondMutation.isPending}
+                      onPress={() => handleRespond('tentative')}
+                    />
+                    <Button
+                      variant={myPartstat === 'accepted' ? 'primary' : 'secondary'}
+                      size="small"
+                      inline
+                      title={t('invitations.accept')}
+                      loading={respondMutation.isPending}
+                      disabled={respondMutation.isPending}
+                      onPress={() => handleRespond('accepted')}
+                    />
+                  </Stack>
+                </Stack>
               </Stack>
             )}
 
