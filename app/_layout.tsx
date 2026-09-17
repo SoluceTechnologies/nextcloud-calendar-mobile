@@ -16,8 +16,6 @@ import { useEventAlerts } from '@/features/notifications/useEventAlerts';
 import { useContactCache } from '@/hooks/useContactCache';
 import { shouldLockPortrait } from '@/utils/device';
 
-// `useWindowDimensions` tracks the app window only; detecting a freeform
-// window also needs the physical display size, subscribed to separately.
 function useScreenDimensions(): ScaledSize {
   const [screen, setScreen] = useState(() => Dimensions.get('screen'));
   useEffect(() => {
@@ -29,9 +27,6 @@ function useScreenDimensions(): ScaledSize {
   return screen;
 }
 
-// Recomputed on every window resize: an app opened on the phone and later
-// docked to Samsung DeX (or split-screen) must drop the portrait lock,
-// otherwise the freeform window stays pinned to a phone aspect ratio.
 function useOrientationLock() {
   const { width, height } = useWindowDimensions();
   const screen = useScreenDimensions();
