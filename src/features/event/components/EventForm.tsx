@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { View, StyleSheet, ScrollView, Platform, KeyboardAvoidingView, useWindowDimensions, LayoutChangeEvent } from 'react-native';
+import { View, StyleSheet, ScrollView, Platform, KeyboardAvoidingView, Keyboard, useWindowDimensions, LayoutChangeEvent } from 'react-native';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import dayjs from 'dayjs';
 import localizedFormat from 'dayjs/plugin/localizedFormat';
@@ -171,6 +171,7 @@ export function EventForm({
   }
 
   function handleSubmit() {
+    Keyboard.dismiss();
     setTitleError(null);
     setCalendarError(null);
     if (!summary.trim()) { setTitleError(t('event.errorTitleRequired')); return; }

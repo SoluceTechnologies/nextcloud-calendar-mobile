@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from 'expo-router';
@@ -47,6 +47,15 @@ export function RecurrencePicker({ value, onChange, dtstart, allDay = false }: P
   const [showUntilPicker, setShowUntilPicker] = useState(false);
   const [countText, setCountText] = useState<string | null>(null);
   const [weekNoText, setWeekNoText] = useState<string | null>(null);
+
+  // Drop in-progress text if the stored value changed from elsewhere.
+  useEffect(() => {
+    setCountText((text) => (text !== null && Number(text) !== value?.count ? null : text));
+  }, [value?.count]);
+
+  useEffect(() => {
+    setWeekNoText((text) => (text !== null && Number(text) !== value?.byWeekNo?.[0] ? null : text));
+  }, [value?.byWeekNo?.[0]]);
 
   const FREQS: { label: string; value: RecurrenceFreq | null }[] = [
     { label: t('event.freqNone'), value: null },

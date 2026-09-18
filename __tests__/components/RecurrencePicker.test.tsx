@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Text } from 'react-native';
 import type { ReactElement } from 'react';
 import { render as rtlRender, fireEvent } from '@testing-library/react-native';
 import dayjs from 'dayjs';
@@ -20,22 +21,27 @@ function Harness({
   initial,
   onChange,
   allDay = false,
+  external,
 }: {
   initial?: RecurrenceRule;
   onChange: (rule: RecurrenceRule | undefined) => void;
   allDay?: boolean;
+  external?: RecurrenceRule;
 }) {
   const [rule, setRule] = useState<RecurrenceRule | undefined>(initial);
   return (
-    <RecurrencePicker
-      value={rule}
-      dtstart={DTSTART}
-      allDay={allDay}
-      onChange={(next) => {
-        setRule(next);
-        onChange(next);
-      }}
-    />
+    <>
+      <RecurrencePicker
+        value={rule}
+        dtstart={DTSTART}
+        allDay={allDay}
+        onChange={(next) => {
+          setRule(next);
+          onChange(next);
+        }}
+      />
+      {external ? <Text onPress={() => setRule(external)}>external</Text> : null}
+    </>
   );
 }
 
@@ -131,6 +137,25 @@ describe('RecurrencePicker end conditions', () => {
 
     expect(getByDisplayValue('0')).toBeTruthy();
     expect(last(onChange)).toEqual({ freq: 'WEEKLY', count: 10 });
+  });
+
+  it('drops the typed text when the rule changes from elsewhere', () => {
+    const onChange = jest.fn();
+    const { getByText, getByDisplayValue } = render(
+      <Harness
+        initial={{ freq: 'WEEKLY' }}
+        external={{ freq: 'WEEKLY', count: 7 }}
+        onChange={onChange}
+      />
+    );
+    fireEvent.press(getByText('After'));
+
+    fireEvent.changeText(getByDisplayValue('10'), '5');
+    expect(getByDisplayValue('5')).toBeTruthy();
+
+    fireEvent.press(getByText('external'));
+
+    expect(getByDisplayValue('7')).toBeTruthy();
   });
 
   it('defaults the end date to one month after the start, inclusive of that day', () => {
