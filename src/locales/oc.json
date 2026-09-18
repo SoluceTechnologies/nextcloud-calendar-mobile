@@ -296,7 +296,10 @@
       },
       "connectionLost": "La connexion a aqueste servidor a expirat. Reconnectatz-vos per contunhar la sincronizacion.",
       "use": "Utilizar",
-      "editOnNextcloud": "Modificar sus Nextcloud"
+      "editOnNextcloud": "Modificar sus Nextcloud",
+      "defaultCalendar": "Calendièr per defaut",
+      "defaultCalendarHint": "Presseleccionat a la creacion d'un eveniment.",
+      "defaultCalendarAuto": "Automatic"
     },
     "accountActive": "Actiu"
   },

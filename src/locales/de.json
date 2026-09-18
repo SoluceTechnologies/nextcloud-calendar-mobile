@@ -301,7 +301,10 @@
       },
       "connectionLost": "Die Verbindung zu diesem Server ist abgelaufen. Verbinden Sie sich neu, um weiter zu synchronisieren.",
       "use": "Verwenden",
-      "editOnNextcloud": "In Nextcloud bearbeiten"
+      "editOnNextcloud": "In Nextcloud bearbeiten",
+      "defaultCalendar": "Standardkalender",
+      "defaultCalendarHint": "Wird beim Erstellen eines Termins vorausgewählt.",
+      "defaultCalendarAuto": "Automatisch"
     },
     "accountActive": "Aktiv",
     "talk": {

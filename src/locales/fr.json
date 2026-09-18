@@ -301,7 +301,10 @@
       },
       "connectionLost": "La connexion à ce serveur a expiré. Reconnectez-vous pour continuer à synchroniser.",
       "use": "Utiliser",
-      "editOnNextcloud": "Éditer sur Nextcloud"
+      "editOnNextcloud": "Éditer sur Nextcloud",
+      "defaultCalendar": "Calendrier par défaut",
+      "defaultCalendarHint": "Présélectionné lors de la création d'un événement.",
+      "defaultCalendarAuto": "Automatique"
     },
     "accountActive": "Actif",
     "talk": {

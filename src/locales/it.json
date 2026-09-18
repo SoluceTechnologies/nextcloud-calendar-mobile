@@ -301,7 +301,10 @@
       },
       "connectionLost": "La connessione a questo server è scaduta. Riconnettiti per continuare a sincronizzare.",
       "use": "Usa",
-      "editOnNextcloud": "Modifica su Nextcloud"
+      "editOnNextcloud": "Modifica su Nextcloud",
+      "defaultCalendar": "Calendario predefinito",
+      "defaultCalendarHint": "Preselezionato alla creazione di un evento.",
+      "defaultCalendarAuto": "Automatico"
     },
     "accountActive": "Attivo",
     "talk": {
