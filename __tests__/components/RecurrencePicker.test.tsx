@@ -80,7 +80,47 @@ describe('RecurrencePicker end conditions', () => {
     expect(last(onChange)).toEqual({ freq: 'WEEKLY', count: 3 });
   });
 
-  it('clamps a zero or empty occurrence count to one', () => {
+  it('lets the occurrences field be emptied without auto-filling', () => {
+    const onChange = jest.fn();
+    const { getByText, getByDisplayValue } = render(
+      <Harness initial={{ freq: 'WEEKLY' }} onChange={onChange} />
+    );
+    fireEvent.press(getByText('After'));
+
+    fireEvent.changeText(getByDisplayValue('10'), '');
+
+    expect(getByDisplayValue('')).toBeTruthy();
+    expect(last(onChange)).toEqual({ freq: 'WEEKLY', count: 10 });
+  });
+
+  it('accepts a single digit after the occurrences field was cleared', () => {
+    const onChange = jest.fn();
+    const { getByText, getByDisplayValue } = render(
+      <Harness initial={{ freq: 'WEEKLY' }} onChange={onChange} />
+    );
+    fireEvent.press(getByText('After'));
+
+    fireEvent.changeText(getByDisplayValue('10'), '');
+    fireEvent.changeText(getByDisplayValue(''), '2');
+
+    expect(last(onChange)).toEqual({ freq: 'WEEKLY', count: 2 });
+  });
+
+  it('restores the last valid occurrence count when the field loses focus empty', () => {
+    const onChange = jest.fn();
+    const { getByText, getByDisplayValue } = render(
+      <Harness initial={{ freq: 'WEEKLY' }} onChange={onChange} />
+    );
+    fireEvent.press(getByText('After'));
+
+    fireEvent.changeText(getByDisplayValue('10'), '');
+    fireEvent(getByDisplayValue(''), 'onBlur');
+
+    expect(getByDisplayValue('10')).toBeTruthy();
+    expect(last(onChange)).toEqual({ freq: 'WEEKLY', count: 10 });
+  });
+
+  it('does not emit a zero occurrence count', () => {
     const onChange = jest.fn();
     const { getByText, getByDisplayValue } = render(
       <Harness initial={{ freq: 'WEEKLY' }} onChange={onChange} />
@@ -89,7 +129,8 @@ describe('RecurrencePicker end conditions', () => {
 
     fireEvent.changeText(getByDisplayValue('10'), '0');
 
-    expect(last(onChange)).toEqual({ freq: 'WEEKLY', count: 1 });
+    expect(getByDisplayValue('0')).toBeTruthy();
+    expect(last(onChange)).toEqual({ freq: 'WEEKLY', count: 10 });
   });
 
   it('defaults the end date to one month after the start, inclusive of that day', () => {
@@ -325,5 +366,19 @@ describe('RecurrencePicker advanced patterns', () => {
     fireEvent.changeText(getByDisplayValue('1'), '99');
 
     expect(last(onChange)!.byWeekNo).toEqual([53]);
+  });
+
+  it('lets the week-number field be emptied and restores it on blur', () => {
+    const onChange = jest.fn();
+    const { getByDisplayValue } = render(
+      <Harness initial={{ freq: 'YEARLY', byWeekNo: [1], byDay: ['MO'] }} onChange={onChange} />
+    );
+
+    fireEvent.changeText(getByDisplayValue('1'), '');
+    expect(getByDisplayValue('')).toBeTruthy();
+
+    fireEvent(getByDisplayValue(''), 'onBlur');
+    expect(getByDisplayValue('1')).toBeTruthy();
+    expect(onChange).not.toHaveBeenCalled();
   });
 });

@@ -45,6 +45,8 @@ export function RecurrencePicker({ value, onChange, dtstart, allDay = false }: P
   const theme = useTheme();
   const { t, i18n } = useTranslation();
   const [showUntilPicker, setShowUntilPicker] = useState(false);
+  const [countText, setCountText] = useState<string | null>(null);
+  const [weekNoText, setWeekNoText] = useState<string | null>(null);
 
   const FREQS: { label: string; value: RecurrenceFreq | null }[] = [
     { label: t('event.freqNone'), value: null },
@@ -105,6 +107,8 @@ export function RecurrencePicker({ value, onChange, dtstart, allDay = false }: P
       : 'date';
 
   function handleFreqSelect(freq: RecurrenceFreq | null) {
+    setCountText(null);
+    setWeekNoText(null);
     if (freq === null) {
       onChange(undefined);
       return;
@@ -129,6 +133,7 @@ export function RecurrencePicker({ value, onChange, dtstart, allDay = false }: P
 
   function handleEndModeSelect(mode: EndMode) {
     if (!value) return;
+    setCountText(null);
     if (mode === 'never') onChange({ ...value, count: undefined, until: undefined });
     else if (mode === 'count') onChange({ ...value, count: DEFAULT_COUNT, until: undefined });
     else onChange({ ...value, count: undefined, until: untilDate });
@@ -136,9 +141,12 @@ export function RecurrencePicker({ value, onChange, dtstart, allDay = false }: P
 
   function handleCountChange(raw: string) {
     if (!value) return;
-    const digits = raw.replace(/[^0-9]/g, '');
+    const digits = raw.replace(/\D/g, '');
+    setCountText(digits);
     const parsed = Number(digits);
-    onChange({ ...value, count: digits === '' || parsed < 1 ? 1 : parsed, until: undefined });
+    if (digits !== '' && parsed >= 1) {
+      onChange({ ...value, count: parsed, until: undefined });
+    }
   }
 
   function handleUntilChange(_: unknown, selected?: Date) {
@@ -160,6 +168,7 @@ export function RecurrencePicker({ value, onChange, dtstart, allDay = false }: P
 
   function handleYearlyModeSelect(mode: YearlyMode) {
     if (!value) return;
+    setWeekNoText(null);
     if (mode === 'date') {
       onChange({ ...value, byMonth: undefined, byWeekNo: undefined, byDay: undefined });
       return;
@@ -213,8 +222,11 @@ export function RecurrencePicker({ value, onChange, dtstart, allDay = false }: P
   function handleWeekNoChange(raw: string) {
     if (!value) return;
     const digits = raw.replace(/\D/g, '');
-    const parsed = digits === '' ? 1 : Math.min(53, Math.max(1, Number(digits)));
-    onChange({ ...value, byWeekNo: [parsed] });
+    setWeekNoText(digits);
+    const parsed = Number(digits);
+    if (digits !== '' && parsed >= 1) {
+      onChange({ ...value, byWeekNo: [Math.min(53, parsed)] });
+    }
   }
 
   function renderModeSelect<T extends string>(
@@ -355,8 +367,9 @@ export function RecurrencePicker({ value, onChange, dtstart, allDay = false }: P
         <View style={styles.patternRow}>
           <View style={styles.weekNoField}>
             <TextField
-              value={String(value.byWeekNo?.[0] ?? isoWeekNumber(dtstart))}
+              value={weekNoText ?? String(value.byWeekNo?.[0] ?? isoWeekNumber(dtstart))}
               onChangeText={handleWeekNoChange}
+              onBlur={() => setWeekNoText(null)}
               keyboardType="number-pad"
               maxLength={2}
               accessibilityLabel={t('event.weekNumberLabel')}
@@ -401,8 +414,9 @@ export function RecurrencePicker({ value, onChange, dtstart, allDay = false }: P
             <View style={styles.endDetail}>
               <View style={styles.countField}>
                 <TextField
-                  value={String(value.count ?? DEFAULT_COUNT)}
+                  value={countText ?? String(value.count ?? DEFAULT_COUNT)}
                   onChangeText={handleCountChange}
+                  onBlur={() => setCountText(null)}
                   keyboardType="number-pad"
                   maxLength={4}
                   accessibilityLabel={t('event.occurrences')}
