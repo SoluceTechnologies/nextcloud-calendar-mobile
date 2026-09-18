@@ -9,6 +9,7 @@ import { TalkToggle } from './TalkToggle';
 import { AttendeesField } from './AttendeesField';
 import { requestAlertPermission } from '@/features/notifications/scheduleAlerts';
 import { useSettingsStore } from '@/stores/settingsStore';
+import { isWritableCalendar } from '@/utils/calendars';
 import { AlertPicker } from './AlertPicker';
 import { RecurrencePicker } from './RecurrencePicker';
 import { Stack, Typography, TextField, DateField, Button, Chip, Toggle } from '@/ui/components';
@@ -55,12 +56,16 @@ export function EventForm({
   const twoColDates = useWindowDimensions().width >= 600;
 
   const [summary, setSummary] = useState(initialValues?.summary ?? '');
-  const writableCalendars = calendars.filter(
-    (c) => !c.isReadOnly && !c.isSubscribed && c.supportsEvents !== false,
+  const writableCalendars = calendars.filter(isWritableCalendar);
+  const storedDefault = useSettingsStore((s) =>
+    account ? s.defaultCalendarByAccount[account.id] : undefined,
   );
 
   const defaultCalendarId =
     initialValues?.calendarId ??
+    (storedDefault && writableCalendars.some((c) => c.id === storedDefault)
+      ? storedDefault
+      : undefined) ??
     writableCalendars.find((c) => c.slug.toLowerCase() === 'personal')?.id ??
     writableCalendars[0]?.id ?? '';
   const [calendarId, setCalendarId] = useState(defaultCalendarId);

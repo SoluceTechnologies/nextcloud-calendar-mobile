@@ -5,6 +5,7 @@ import { ThemeWrapper } from '../helpers/theme';
 const render = (ui: ReactElement, opts?: Parameters<typeof rtlRender>[1]) =>
   rtlRender(ui, { wrapper: ThemeWrapper, ...opts });
 import { EventForm } from '@/features/event/components/EventForm';
+import { useSettingsStore } from '../../src/stores/settingsStore';
 import i18n from '../../src/utils/i18n';
 import type { CalendarMeta } from '../../src/types';
 
@@ -68,6 +69,109 @@ describe('EventForm calendar picker', () => {
     const { queryByText, getByText } = render(<EventForm {...baseProps} calendars={withDeck} />);
     expect(getByText('Personal')).toBeTruthy();
     expect(queryByText('Deck Roadmap')).toBeNull();
+  });
+});
+
+describe('EventForm default calendar', () => {
+  const twoCalendars: CalendarMeta[] = [
+    {
+      id: 'personal-url', accountId: 'acc-1', displayName: 'Personal', color: '#0082c9',
+      ctag: '1', url: 'https://cloud.example.com/remote.php/dav/calendars/john/personal/', slug: 'personal',
+    },
+    {
+      id: 'work-url', accountId: 'acc-1', displayName: 'Work', color: '#e9322d',
+      ctag: '1', url: 'https://cloud.example.com/remote.php/dav/calendars/john/work/', slug: 'work',
+    },
+  ];
+  const account = {
+    id: 'acc-1',
+    baseUrl: 'https://cloud.example.com',
+    username: 'john',
+    appPassword: 'x',
+  };
+
+  beforeEach(async () => {
+    await i18n.changeLanguage('en');
+    useSettingsStore.setState({ defaultCalendarByAccount: {} });
+  });
+
+  it('pre-selects the stored default calendar for new events', () => {
+    useSettingsStore.getState().setDefaultCalendar('acc-1', 'work-url');
+    const onSubmit = jest.fn();
+    const { getByText } = render(
+      <EventForm
+        {...baseProps}
+        calendars={twoCalendars}
+        account={account}
+        onSubmit={onSubmit}
+        initialValues={{ summary: 'Lunch' }}
+      />,
+    );
+
+    fireEvent.press(getByText('Save Event'));
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({ calendarId: 'work-url' }),
+    );
+  });
+
+  it('falls back to the heuristic when the stored calendar is gone', () => {
+    useSettingsStore.getState().setDefaultCalendar('acc-1', 'deleted-url');
+    const onSubmit = jest.fn();
+    const { getByText } = render(
+      <EventForm
+        {...baseProps}
+        calendars={twoCalendars}
+        account={account}
+        onSubmit={onSubmit}
+        initialValues={{ summary: 'Lunch' }}
+      />,
+    );
+
+    fireEvent.press(getByText('Save Event'));
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({ calendarId: 'personal-url' }),
+    );
+  });
+
+  it('falls back to the heuristic when the stored calendar became read-only', () => {
+    useSettingsStore.getState().setDefaultCalendar('acc-1', 'work-url');
+    const readOnlyWork = twoCalendars.map((c) =>
+      c.id === 'work-url' ? { ...c, isReadOnly: true } : c,
+    );
+    const onSubmit = jest.fn();
+    const { getByText } = render(
+      <EventForm
+        {...baseProps}
+        calendars={readOnlyWork}
+        account={account}
+        onSubmit={onSubmit}
+        initialValues={{ summary: 'Lunch' }}
+      />,
+    );
+
+    fireEvent.press(getByText('Save Event'));
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({ calendarId: 'personal-url' }),
+    );
+  });
+
+  it('lets initialValues.calendarId win over the stored default', () => {
+    useSettingsStore.getState().setDefaultCalendar('acc-1', 'work-url');
+    const onSubmit = jest.fn();
+    const { getByText } = render(
+      <EventForm
+        {...baseProps}
+        calendars={twoCalendars}
+        account={account}
+        onSubmit={onSubmit}
+        initialValues={{ summary: 'Lunch', calendarId: 'personal-url' }}
+      />,
+    );
+
+    fireEvent.press(getByText('Save Event'));
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({ calendarId: 'personal-url' }),
+    );
   });
 });
 

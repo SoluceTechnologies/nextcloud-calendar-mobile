@@ -10,6 +10,7 @@ describe('settingsStore', () => {
       themePreference: 'system',
       language: 'en',
       weekStartsOn: 0,
+      defaultCalendarByAccount: {},
     });
   });
 
@@ -36,6 +37,31 @@ describe('settingsStore', () => {
   it('setThemePreference updates the theme', () => {
     useSettingsStore.getState().setThemePreference('dark');
     expect(useSettingsStore.getState().themePreference).toBe('dark');
+  });
+});
+
+describe('default calendar per account', () => {
+  beforeEach(() => {
+    useSettingsStore.setState({ defaultCalendarByAccount: {} });
+  });
+
+  it('defaults to no per-account override', () => {
+    expect(useSettingsStore.getState().defaultCalendarByAccount).toEqual({});
+  });
+
+  it('setDefaultCalendar stores the calendar for the given account only', () => {
+    useSettingsStore.getState().setDefaultCalendar('acc-1', 'cal-url');
+    useSettingsStore.getState().setDefaultCalendar('acc-2', 'other-url');
+    expect(useSettingsStore.getState().defaultCalendarByAccount).toEqual({
+      'acc-1': 'cal-url',
+      'acc-2': 'other-url',
+    });
+  });
+
+  it('setDefaultCalendar with undefined clears the override', () => {
+    useSettingsStore.getState().setDefaultCalendar('acc-1', 'cal-url');
+    useSettingsStore.getState().setDefaultCalendar('acc-1', undefined);
+    expect(useSettingsStore.getState().defaultCalendarByAccount).toEqual({});
   });
 });
 

@@ -301,7 +301,10 @@
       },
       "connectionLost": "De verbinding met deze server is verlopen. Maak opnieuw verbinding om te blijven synchroniseren.",
       "use": "Gebruiken",
-      "editOnNextcloud": "Bewerken in Nextcloud"
+      "editOnNextcloud": "Bewerken in Nextcloud",
+      "defaultCalendar": "Standaardagenda",
+      "defaultCalendarHint": "Vooraf geselecteerd bij het aanmaken van een evenement.",
+      "defaultCalendarAuto": "Automatisch"
     },
     "accountActive": "Actief",
     "talk": {

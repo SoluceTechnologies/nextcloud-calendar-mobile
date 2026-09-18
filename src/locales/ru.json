@@ -301,7 +301,10 @@
       },
       "connectionLost": "Подключение к этому серверу истекло. Переподключитесь, чтобы продолжить синхронизацию.",
       "use": "Выбрать",
-      "editOnNextcloud": "Изменить в Nextcloud"
+      "editOnNextcloud": "Изменить в Nextcloud",
+      "defaultCalendar": "Календарь по умолчанию",
+      "defaultCalendarHint": "Выбирается автоматически при создании события.",
+      "defaultCalendarAuto": "Автоматически"
     },
     "accountActive": "Активный",
     "talk": {

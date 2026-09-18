@@ -301,7 +301,10 @@
       },
       "connectionLost": "La conexión con este servidor ha caducado. Vuelve a conectarte para seguir sincronizando.",
       "use": "Usar",
-      "editOnNextcloud": "Editar en Nextcloud"
+      "editOnNextcloud": "Editar en Nextcloud",
+      "defaultCalendar": "Calendario predeterminado",
+      "defaultCalendarHint": "Preseleccionado al crear un evento.",
+      "defaultCalendarAuto": "Automático"
     },
     "accountActive": "Activo",
     "talk": {
