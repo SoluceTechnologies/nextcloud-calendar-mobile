@@ -6,6 +6,7 @@ import type { SharedValue } from 'react-native-reanimated';
 import { ThemeWrapper } from '../helpers/theme';
 import { TimeGridView } from '@/features/calendar/components/TimeGridView';
 import { toGridEvents } from '@/features/calendar/utils/toGridEvents';
+import { useSettingsStore } from '@/stores/settingsStore';
 import {
   ALL_DAY_PAD,
   ALL_DAY_ROW_HEIGHT,
@@ -96,8 +97,9 @@ describe('TimeGridView', () => {
   });
 
   it('renders the 24 hour labels exactly once, outside the pager', () => {
+    useSettingsStore.setState({ timeFormat: '24h' });
     const { getAllByText } = render(view());
-    expect(getAllByText('9:00')).toHaveLength(1);
+    expect(getAllByText('09:00')).toHaveLength(1);
     expect(getAllByText('23:00')).toHaveLength(1);
   });
 

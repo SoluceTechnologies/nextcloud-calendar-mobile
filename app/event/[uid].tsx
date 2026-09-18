@@ -22,6 +22,7 @@ import { EventMapPreview, EventMapSheet } from '@/features/map/components';
 import { openMaps } from '@/features/map/utils/mapLinks';
 import { useAccountStore } from '@/stores/accountStore';
 import { useSettingsStore } from '@/stores/settingsStore';
+import { useTimeFormat } from '@/hooks/useTimeFormat';
 import {
   ViewContainer, Stack, Typography, Button, Chip, Icon, List, Item,
   SectionHeader, Avatar, Spinner, ScreenHeader,
@@ -53,6 +54,7 @@ export default function EventDetailScreen() {
 
   const event = useEventByUid(activeAccountId, uid);
   const talkOpenMode = useSettingsStore((s) => s.talkOpenMode);
+  const { formatTime } = useTimeFormat();
 
   const navigation = useNavigation();
   useEffect(() => {
@@ -192,7 +194,7 @@ export default function EventDetailScreen() {
     ? (dayjs(event.dtstart).isSame(event.dtend, 'day')
         ? t('event.allDayTime')
         : `${dayjs(event.dtstart).format('ll')} – ${dayjs(event.dtend).format('ll')}`)
-    : `${dayjs(event.dtstart).format('lll')} – ${dayjs(event.dtend).format('LT')}`;
+    : `${dayjs(event.dtstart).format('ll')} ${formatTime(event.dtstart)} – ${formatTime(event.dtend)}`;
 
   const reminderLabel = (() => {
     if (event.alarms === undefined || event.alarms.length === 0) return null;

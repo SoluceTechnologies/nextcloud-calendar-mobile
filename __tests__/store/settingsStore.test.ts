@@ -10,6 +10,7 @@ describe('settingsStore', () => {
       themePreference: 'system',
       language: 'en',
       weekStartsOn: 0,
+      timeFormat: 'auto',
     });
   });
 
@@ -26,6 +27,15 @@ describe('settingsStore', () => {
     useSettingsStore.getState().setWeekStartsOn(1);
     useSettingsStore.getState().setWeekStartsOn(0);
     expect(useSettingsStore.getState().weekStartsOn).toBe(0);
+  });
+
+  it('defaults timeFormat to auto', () => {
+    expect(useSettingsStore.getState().timeFormat).toBe('auto');
+  });
+
+  it('setTimeFormat updates the preference', () => {
+    useSettingsStore.getState().setTimeFormat('12h');
+    expect(useSettingsStore.getState().timeFormat).toBe('12h');
   });
 
   it('setLanguage updates the language', () => {

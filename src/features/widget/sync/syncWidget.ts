@@ -1,6 +1,7 @@
 import { Appearance } from 'react-native';
 
 import { useSettingsStore } from '@/stores/settingsStore';
+import { resolveUse24h } from '@/utils/timeFormat';
 
 import { useAccountStore } from '@/stores/accountStore';
 import { useCalendarStore } from '@/stores/calendarStore';
@@ -29,11 +30,12 @@ async function runSync(now: Date): Promise<void> {
     const { widgetDisabledCalendarIds, notifDisabledCalendarIds } = useCalendarStore.getState();
     const events = (await readUpcomingEvents(AGENDA_DAYS, now))
       .filter((event) => !widgetDisabledCalendarIds.includes(event.calendarId));
-    const locale = useSettingsStore.getState().language;
+    const { language: locale, timeFormat } = useSettingsStore.getState();
+    const use24h = resolveUse24h(timeFormat, locale);
     const scheme = Appearance.getColorScheme() === 'dark' ? 'dark' : 'light';
 
     if (homeWidget.isSupported()) {
-      const timeline = buildAgendaTimeline(events, { now, locale, scheme, days: AGENDA_DAYS, maxPerSection: 10 });
+      const timeline = buildAgendaTimeline(events, { now, locale, scheme, use24h, days: AGENDA_DAYS, maxPerSection: 10 });
       await homeWidget.update(timeline);
     }
 

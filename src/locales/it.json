@@ -201,6 +201,12 @@
       "expanded": "Espanso",
       "large": "Grande"
     },
+    "timeFormat": {
+      "title": "Formato orario",
+      "auto": "Auto",
+      "h24": "24 ore",
+      "h12": "12 ore"
+    },
     "accounts": "Account",
     "addAccount": "+ Aggiungi account",
     "removeTitle": "Rimuovi account",

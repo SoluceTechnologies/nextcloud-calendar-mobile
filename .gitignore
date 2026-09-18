@@ -15,6 +15,7 @@ expo-env.d.ts
 modules/*/android/build/
 modules/*/android/.gradle/
 modules/*/android/.cxx/
+modules/*/android/.settings/
 *.orig.*
 *.jks
 *.p8
@@ -61,3 +62,6 @@ android/*
 
 .idea
 .env
+
+# Devin CLI working files (skills, plans, agents) — like .claude/.codex
+.devin/

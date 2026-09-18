@@ -5,11 +5,13 @@ import { getInitialLanguage, getInitialWeekStartsOn, type AppLanguage } from '@/
 import type { TalkOpenMode } from '@/types';
 
 export type ThemePreference = 'system' | 'light' | 'dark';
+export type TimeFormatPreference = 'auto' | '12h' | '24h';
 
 interface SettingsState {
   themePreference: ThemePreference;
   language: AppLanguage;
   weekStartsOn: 0 | 1;
+  timeFormat: TimeFormatPreference;
   liveActivityEnabled: boolean;
   timedAlerts: number[];
   allDayAlerts: number[];
@@ -19,6 +21,7 @@ interface SettingsState {
   setThemePreference: (pref: ThemePreference) => void;
   setLanguage: (lang: AppLanguage) => void;
   setWeekStartsOn: (v: 0 | 1) => void;
+  setTimeFormat: (v: TimeFormatPreference) => void;
   setLiveActivityEnabled: (v: boolean) => void;
   setTimedAlerts: (v: number[]) => void;
   setAllDayAlerts: (v: number[]) => void;
@@ -33,6 +36,7 @@ export const useSettingsStore = create<SettingsState>()(
       themePreference: 'system',
       language: getInitialLanguage(),
       weekStartsOn: getInitialWeekStartsOn(),
+      timeFormat: 'auto',
       liveActivityEnabled: true,
       timedAlerts: [],
       allDayAlerts: [],
@@ -44,6 +48,7 @@ export const useSettingsStore = create<SettingsState>()(
       setThemePreference: (pref) => set({ themePreference: pref }),
       setLanguage: (lang) => set({ language: lang }),
       setWeekStartsOn: (v) => set({ weekStartsOn: v }),
+      setTimeFormat: (v) => set({ timeFormat: v }),
       setLiveActivityEnabled: (v) => set({ liveActivityEnabled: v }),
       setHapticsEnabled: (v) => set({ hapticsEnabled: v }),
       setReduceMotion: (v) => set({ reduceMotion: v }),
@@ -75,6 +80,7 @@ export const useSettingsStore = create<SettingsState>()(
         themePreference: state.themePreference,
         language: state.language,
         weekStartsOn: state.weekStartsOn,
+        timeFormat: state.timeFormat,
         liveActivityEnabled: state.liveActivityEnabled,
         timedAlerts: state.timedAlerts,
         allDayAlerts: state.allDayAlerts,
