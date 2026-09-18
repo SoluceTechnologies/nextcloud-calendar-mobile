@@ -201,6 +201,12 @@
       "expanded": "Erweitert",
       "large": "Groß"
     },
+    "timeFormat": {
+      "title": "Zeitformat",
+      "auto": "Automatisch",
+      "h24": "24 Stunden",
+      "h12": "12 Stunden"
+    },
     "accounts": "Konten",
     "addAccount": "+ Konto hinzufügen",
     "removeTitle": "Konto entfernen",

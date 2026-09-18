@@ -11,6 +11,7 @@ export interface BuildAgendaOptions {
   days?: number;
   maxPerSection?: number;
   scheme?: 'light' | 'dark';
+  use24h?: boolean;
 }
 
 const DAY_MS = 86_400_000;
@@ -28,13 +29,15 @@ const FMT_OPTS: Record<FmtKind, Intl.DateTimeFormatOptions> = {
 
 const FMT_CACHE = new Map<string, Intl.DateTimeFormat>();
 
-function fmt(kind: FmtKind, locale: string | undefined, tz: string): Intl.DateTimeFormat {
-  const key = `${kind}|${locale ?? ''}|${tz}`;
+function fmt(kind: FmtKind, locale: string | undefined, tz: string, use24h?: boolean): Intl.DateTimeFormat {
+  const key = `${kind}|${locale ?? ''}|${tz}|${use24h ?? ''}`;
   let f = FMT_CACHE.get(key);
   if (!f) {
+    const opts = { ...FMT_OPTS[kind] };
+    if (kind === 'time' && use24h !== undefined) opts.hour12 = !use24h;
     f = new Intl.DateTimeFormat(kind === 'dayKey' ? 'en-CA' : locale, {
       timeZone: tz,
-      ...FMT_OPTS[kind],
+      ...opts,
     });
     FMT_CACHE.set(key, f);
   }
@@ -45,9 +48,9 @@ function zonedKey(d: Date, tz: string): string {
   return fmt('dayKey', undefined, tz).format(d);
 }
 
-function timeLabel(event: CalendarEvent, locale: string | undefined, tz: string): string {
+function timeLabel(event: CalendarEvent, locale: string | undefined, tz: string, use24h?: boolean): string {
   if (event.allDay) return 'All day';
-  const f = fmt('time', locale, tz);
+  const f = fmt('time', locale, tz, use24h);
   return `${f.format(event.dtstart)} – ${f.format(event.dtend)}`;
 }
 
@@ -70,7 +73,7 @@ function indexEvents(events: CalendarEvent[], tz: string): EventIndex {
   return { byKey };
 }
 
-function toItem(event: CalendarEvent, locale: string | undefined, tz: string): AgendaEventItem {
+function toItem(event: CalendarEvent, locale: string | undefined, tz: string, use24h?: boolean): AgendaEventItem {
   return {
     uid: event.uid,
     title: event.summary || '(no title)',
@@ -78,7 +81,7 @@ function toItem(event: CalendarEvent, locale: string | undefined, tz: string): A
     endIso: event.dtend.toISOString(),
     allDay: event.allDay,
     color: event.color || '#3b82f6',
-    timeLabel: timeLabel(event, locale, tz),
+    timeLabel: timeLabel(event, locale, tz, use24h),
     deepLink: eventDeepLink(event.uid),
   };
 }
@@ -87,7 +90,7 @@ export function buildAgendaSnapshot(
   events: CalendarEvent[],
   {
     now = new Date(), locale, timeZone,
-    maxEvents = 3, days = 0, maxPerSection = 3, scheme = 'light',
+    maxEvents = 3, days = 0, maxPerSection = 3, scheme = 'light', use24h,
   }: BuildAgendaOptions = {},
   index?: EventIndex,
 ): AgendaSnapshot {
@@ -118,7 +121,7 @@ export function buildAgendaSnapshot(
       dayNumber: fmt('dayNumber', locale, tz).format(dayDate),
       weekdayLong: fmt('weekdayLong', locale, tz).format(dayDate),
       isToday,
-      items: dayEvents.slice(0, maxPerSection).map((e) => toItem(e, locale, tz)),
+      items: dayEvents.slice(0, maxPerSection).map((e) => toItem(e, locale, tz, use24h)),
     });
   }
 
@@ -131,7 +134,7 @@ export function buildAgendaSnapshot(
     dayLabel,
     dayNumber,
     relativeLabel,
-    events: todays.slice(0, maxEvents).map((e) => toItem(e, locale, tz)),
+    events: todays.slice(0, maxEvents).map((e) => toItem(e, locale, tz, use24h)),
     sections,
     ...(nextEvent ? { nextEvent } : {}),
   };

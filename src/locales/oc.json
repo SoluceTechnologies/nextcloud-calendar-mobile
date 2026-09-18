@@ -196,6 +196,12 @@
       "expanded": "Desplegat",
       "large": "Grand"
     },
+    "timeFormat": {
+      "title": "Format oràri",
+      "auto": "Auto",
+      "h24": "24 oras",
+      "h12": "12 oras"
+    },
     "accounts": "Comptes",
     "addAccount": "+ Apondre un compte",
     "removeTitle": "Suprimir lo compte",

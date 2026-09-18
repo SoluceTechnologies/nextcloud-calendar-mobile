@@ -201,6 +201,12 @@
       "expanded": "Uitgebreid",
       "large": "Groot"
     },
+    "timeFormat": {
+      "title": "Tijdnotatie",
+      "auto": "Auto",
+      "h24": "24 uur",
+      "h12": "12 uur"
+    },
     "accounts": "Accounts",
     "addAccount": "+ Account toevoegen",
     "removeTitle": "Account verwijderen",

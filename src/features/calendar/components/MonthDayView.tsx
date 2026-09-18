@@ -9,6 +9,7 @@ import { useTranslation } from 'react-i18next';
 import { useTheme } from 'expo-router';
 import InfinitePager, { type InfinitePagerImperativeApi } from 'react-native-infinite-pager';
 import { useSettingsStore } from '@/stores/settingsStore';
+import { useTimeFormat } from '@/hooks/useTimeFormat';
 import type { CalendarEvent } from '@/types';
 
 dayjs.extend(localizedFormat);
@@ -150,6 +151,7 @@ function MonthDayViewImpl({ date, events, weekStartsOn, jump, onSelectDate, onMo
   const theme = useTheme();
   const { t } = useTranslation();
   const language = useSettingsStore((s) => s.language);
+  const { formatTime } = useTimeFormat();
   const { height } = useWindowDimensions();
 
   const selected = useMemo(() => dayjs(date), [date]);
@@ -319,7 +321,7 @@ function MonthDayViewImpl({ date, events, weekStartsOn, jump, onSelectDate, onMo
                   <Text style={[styles.eventTime, { color: theme.colors.textSecondary }]}>
                     {item.allDay
                       ? t('calendar.allDay')
-                      : `${dayjs(item.dtstart).locale(language).format('LT')} – ${dayjs(item.dtend).locale(language).format('LT')}`}
+                      : `${formatTime(item.dtstart)} – ${formatTime(item.dtend)}`}
                   </Text>
                 </View>
               </TouchableOpacity>

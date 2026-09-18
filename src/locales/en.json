@@ -201,6 +201,12 @@
       "expanded": "Expanded",
       "large": "Large"
     },
+    "timeFormat": {
+      "title": "Time Format",
+      "auto": "Auto",
+      "h24": "24-hour",
+      "h12": "12-hour"
+    },
     "accounts": "Accounts",
     "addAccount": "+ Add Account",
     "removeTitle": "Remove Account",
