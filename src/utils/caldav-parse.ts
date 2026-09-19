@@ -401,15 +401,15 @@ export function parseIcsItem(
 
           if (!inRange(occStart, occEnd)) return false;
 
-          const overrides =
+          const fieldOverrides =
             item && item.component !== vevent ? exceptionFields(item.component) : {};
-          const occAttachments = (overrides.attachments ?? base.attachments)?.map(
+          const occAttachments = (fieldOverrides.attachments ?? base.attachments)?.map(
             stripInlineContent,
           );
 
           events.push({
             ...base,
-            ...overrides,
+            ...fieldOverrides,
             attachments: occAttachments,
             uid: `${icalEvent.uid}_occ_${slot.toUnixTime()}`,
             href,
