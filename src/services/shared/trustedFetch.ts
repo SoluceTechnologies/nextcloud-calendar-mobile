@@ -60,6 +60,8 @@ type Init = {
     method?: string;
     headers?: Record<string, string> | Headers;
     body?: string;
+    /** Binary-safe request body — takes precedence over `body` (which is UTF-8 encoded). */
+    bodyBase64?: string;
     timeoutMs?: number;
     /** Number of retries for transient network/server errors (429/5xx/timeout). Defaults to 0. */
     maxRetries?: number;
@@ -129,7 +131,7 @@ async function doRequest(
         url,
         method: init.method ?? 'GET',
         headers: toRecord(init.headers),
-        bodyBase64: init.body != null ? utf8ToBase64(init.body) : undefined,
+        bodyBase64: init.bodyBase64 ?? (init.body != null ? utf8ToBase64(init.body) : undefined),
         timeoutMs: init.timeoutMs ?? DEFAULT_TIMEOUT_MS,
         maxBodyBytes: init.maxBodyBytes,
     });
