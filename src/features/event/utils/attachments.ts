@@ -14,11 +14,14 @@ import {
 } from 'lucide-react-native';
 
 import { trustedFetch } from '@/services/shared/trustedFetch';
+import { fetchEventIcs } from '@/services/nextcloud/caldav';
 import { utf8ToBase64 } from '@/services/shared/base64';
+import { extractEventAttachments } from '@/utils/caldav-parse';
 import i18n from '@/utils/i18n';
 import type { Account, EventAttachment } from '@/types';
 
 const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024;
+const ATTACHMENT_CACHE_TTL_MS = 60 * 60 * 1000;
 
 const EXT = {
   image: ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'heic', 'heif', 'bmp'],
@@ -72,7 +75,7 @@ export function attachmentDisplayName(att: EventAttachment): string {
 }
 
 export function isOpenableAttachment(att: EventAttachment): boolean {
-  return !!att.base64 || /^https?:/i.test(att.uri ?? '');
+  return !!att.base64 || !!att.inline || /^https?:/i.test(att.uri ?? '');
 }
 
 function hostOf(url: string): string {
@@ -80,7 +83,7 @@ function hostOf(url: string): string {
 }
 
 function sanitizeFilename(name: string): string {
-  return name.replace(/[^\w.-]+/g, '_').slice(-80) || 'attachment';
+  return name.replace(/[^\p{L}\p{N}._-]+/gu, '_').slice(-80) || 'attachment';
 }
 
 function isSameHost(att: EventAttachment, account: Account | null): boolean {
@@ -88,16 +91,36 @@ function isSameHost(att: EventAttachment, account: Account | null): boolean {
   return !!uriHost && !!account && uriHost === hostOf(account.baseUrl);
 }
 
-function base64Size(att: EventAttachment): number {
-  if (att.size) return att.size;
-  const b64 = att.base64 ?? '';
+function decodedBase64Bytes(b64: string): number {
   const padding = b64.endsWith('==') ? 2 : b64.endsWith('=') ? 1 : 0;
   return Math.max(0, Math.floor(b64.length * 3 / 4) - padding);
 }
 
+function base64Size(att: EventAttachment): number {
+  // A declared SIZE parameter can lie — never trust it below the real payload size.
+  return Math.max(att.size ?? 0, decodedBase64Bytes(att.base64 ?? ''));
+}
+
+async function pruneAttachmentCache(dir: string): Promise<void> {
+  try {
+    const cutoff = Date.now() - ATTACHMENT_CACHE_TTL_MS;
+    for (const file of await FileSystem.readDirectoryAsync(dir)) {
+      const ts = Number(file.slice(0, file.indexOf('-')));
+      if (Number.isFinite(ts) && ts < cutoff) {
+        await FileSystem.deleteAsync(dir + file, { idempotent: true }).catch(() => {});
+      }
+    }
+  } catch {
+    // Best effort — a failed cleanup must not block opening a file.
+  }
+}
+
 async function cacheFileFor(att: EventAttachment): Promise<string> {
-  const dir = `${FileSystem.cacheDirectory}attachments/`;
+  const root = FileSystem.cacheDirectory;
+  if (!root) throw new Error('no-cache-directory');
+  const dir = `${root}attachments/`;
   await FileSystem.makeDirectoryAsync(dir, { intermediates: true }).catch(() => {});
+  void pruneAttachmentCache(dir);
   const ext = extOf(att.filename);
   const base = sanitizeFilename(att.filename ?? 'attachment');
   const name = ext ? base : `${base}${guessExt(att.fmttype)}`;
@@ -174,20 +197,54 @@ async function openUriAttachment(
     Alert.alert(i18n.t('event.attachmentTooLarge'));
     return;
   }
+  const body = await res.base64();
+  if (decodedBase64Bytes(body) > MAX_ATTACHMENT_BYTES) {
+    Alert.alert(i18n.t('event.attachmentTooLarge'));
+    return;
+  }
   const fileUri = await cacheFileFor(att);
-  await FileSystem.writeAsStringAsync(fileUri, await res.base64(), {
+  await FileSystem.writeAsStringAsync(fileUri, body, {
     encoding: FileSystem.EncodingType.Base64,
   });
   await shareFile(fileUri, att);
 }
 
+/**
+ * Recurrence occurrences store only attachment metadata (see caldav-parse):
+ * re-fetch the event ICS to recover the embedded payload, then open it.
+ */
+async function openInlineAttachment(
+  att: EventAttachment,
+  account: Account | null,
+  href?: string,
+): Promise<void> {
+  if (att.size && att.size > MAX_ATTACHMENT_BYTES) {
+    Alert.alert(i18n.t('event.attachmentTooLarge'));
+    return;
+  }
+  if (!account || !href) throw new Error('inline-attachment-no-source');
+  const ics = await fetchEventIcs(account, href);
+  const match = extractEventAttachments(ics).find(
+    (candidate) =>
+      !!candidate.base64 &&
+      (candidate.filename ?? '') === (att.filename ?? '') &&
+      (candidate.fmttype ?? '') === (att.fmttype ?? '') &&
+      (candidate.size ?? 0) === (att.size ?? 0),
+  );
+  if (!match?.base64) throw new Error('inline-attachment-not-found');
+  await openBase64Attachment({ ...att, base64: match.base64 });
+}
+
 export async function openAttachment(
   att: EventAttachment,
   account: Account | null,
+  href?: string,
 ): Promise<void> {
   try {
     if (att.base64) {
       await openBase64Attachment(att);
+    } else if (att.inline) {
+      await openInlineAttachment(att, account, href);
     } else if (att.uri && /^https?:/i.test(att.uri)) {
       await openUriAttachment(att, account);
     }

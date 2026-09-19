@@ -113,6 +113,31 @@ export function readAttachments(props: ICAL.Property[]): EventAttachment[] {
   return out;
 }
 
+/**
+ * Recurrence occurrences are expanded into one row each; copying an embedded
+ * base64 payload into every row would multiply its storage. Keep only the
+ * metadata plus an `inline` marker — the content is re-fetched on demand.
+ */
+function stripInlineContent(att: EventAttachment): EventAttachment {
+  return att.base64 ? { ...att, base64: undefined, inline: true } : att;
+}
+
+/** All attachments declared by every VEVENT/VTODO of an ICS document. */
+export function extractEventAttachments(ics: string): EventAttachment[] {
+  try {
+    const comp = new ICAL.Component(parseIcsToJcal(ics));
+    const out: EventAttachment[] = [];
+    for (const name of ['vevent', 'vtodo']) {
+      for (const sub of comp.getAllSubcomponents(name)) {
+        out.push(...readAttachments(sub.getAllProperties('attach')));
+      }
+    }
+    return out;
+  } catch {
+    return [];
+  }
+}
+
 function organizerEmailOf(vevent: ICAL.Component): string | undefined {
   const prop = vevent.getFirstProperty('organizer');
   return prop ? (prop.getFirstValue() as string).replace(/^mailto:/i, '') : undefined;
@@ -376,9 +401,16 @@ export function parseIcsItem(
 
           if (!inRange(occStart, occEnd)) return false;
 
+          const overrides =
+            item && item.component !== vevent ? exceptionFields(item.component) : {};
+          const occAttachments = (overrides.attachments ?? base.attachments)?.map(
+            stripInlineContent,
+          );
+
           events.push({
             ...base,
-            ...(item && item.component !== vevent ? exceptionFields(item.component) : {}),
+            ...overrides,
+            attachments: occAttachments,
             uid: `${icalEvent.uid}_occ_${slot.toUnixTime()}`,
             href,
             recurrenceId: resolveInstant(slot, tzid),

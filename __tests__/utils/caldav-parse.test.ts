@@ -880,6 +880,41 @@ END:VCALENDAR`;
     expect(e.attachments).toEqual([]);
   });
 
+  it('strips base64 payloads from recurrence occurrences but keeps an inline marker', () => {
+    const ics = `BEGIN:VCALENDAR
+VERSION:2.0
+BEGIN:VEVENT
+UID:attach-rec
+DTSTART:20260601T140000Z
+DTEND:20260601T150000Z
+RRULE:FREQ=DAILY;COUNT=3
+ATTACH;ENCODING=BASE64;VALUE=BINARY;FMTTYPE=text/plain;FILENAME=note.txt:aGVsbG8=
+ATTACH;FMTTYPE=application/pdf;FILENAME=a.pdf:https://example.com/a.pdf
+END:VEVENT
+END:VCALENDAR`;
+    const events = parseIcsObjects(
+      [{ ics, href: '/c/r.ics' }],
+      calMeta,
+      new Date('2026-06-01T00:00:00Z'),
+      new Date('2026-06-10T00:00:00Z'),
+    );
+    expect(events.length).toBe(3);
+    for (const e of events) {
+      expect(e.attachments).toHaveLength(2);
+      const embedded = e.attachments!.find((a) => a.filename === 'note.txt');
+      expect(embedded).toEqual({
+        filename: 'note.txt',
+        fmttype: 'text/plain',
+        size: 5,
+        base64: undefined,
+        inline: true,
+      });
+      const linked = e.attachments!.find((a) => a.filename === 'a.pdf');
+      expect(linked?.uri).toBe('https://example.com/a.pdf');
+      expect(linked?.inline).toBeUndefined();
+    }
+  });
+
   it('keeps ATTACH lines out of the writer-managed set so updates preserve them', () => {
     const extra = extractExtraVeventLines(attachIcs);
     const attachLines = extra.filter((l) => /^ATTACH/i.test(l));
