@@ -5,7 +5,14 @@ jest.mock('@/services/shared/trustedFetch', () => ({
 }));
 
 import { trustedFetch } from '@/services/shared/trustedFetch';
-import { ensureFolder, fileDavUrl, uploadAttachmentFile } from '@/services/nextcloud/files';
+import {
+  deleteRemoteFile,
+  ensureFolder,
+  fileDavUrl,
+  isOwnDavFile,
+  ownDavPath,
+  uploadAttachmentFile,
+} from '@/services/nextcloud/files';
 
 const req = trustedFetch as jest.Mock;
 
@@ -90,5 +97,44 @@ describe('uploadAttachmentFile', () => {
     expect(fileDavUrl(account, '/Calendar/été 2026.pdf')).toBe(
       'https://srv/remote.php/dav/files/alice/Calendar/%C3%A9t%C3%A9%202026.pdf',
     );
+  });
+});
+
+describe('ownDavPath / isOwnDavFile', () => {
+  it('maps an own DAV url back to its path', () => {
+    expect(
+      ownDavPath(account, 'https://srv/remote.php/dav/files/alice/Calendar/doc%20x.pdf'),
+    ).toBe('/Calendar/doc x.pdf');
+  });
+
+  it('rejects foreign or non-files urls', () => {
+    expect(ownDavPath(account, 'https://other.example.com/remote.php/dav/files/alice/x')).toBeNull();
+    expect(ownDavPath(account, 'https://srv/remote.php/dav/calendars/alice/personal/e.ics')).toBeNull();
+    expect(ownDavPath(account, 'https://srv/f/1234')).toBeNull();
+    expect(isOwnDavFile(account, { uri: 'https://srv/f/1234' })).toBe(false);
+    expect(isOwnDavFile(account, {})).toBe(false);
+    expect(
+      isOwnDavFile(account, {
+        uri: 'https://srv/remote.php/dav/files/alice/Calendar/doc.pdf',
+      }),
+    ).toBe(true);
+  });
+});
+
+describe('deleteRemoteFile', () => {
+  it('DELETEs the file and accepts 404 as already-gone', async () => {
+    req.mockResolvedValueOnce(res(204));
+    await deleteRemoteFile(account, '/Calendar/doc.pdf');
+    expect(req).toHaveBeenCalledWith(
+      'https://srv/remote.php/dav/files/alice/Calendar/doc.pdf',
+      expect.objectContaining({ method: 'DELETE' }),
+    );
+    req.mockResolvedValueOnce(res(404));
+    await expect(deleteRemoteFile(account, '/Calendar/gone.pdf')).resolves.toBeUndefined();
+  });
+
+  it('throws on other failures', async () => {
+    req.mockResolvedValueOnce(res(403));
+    await expect(deleteRemoteFile(account, '/Calendar/x')).rejects.toThrow();
   });
 });

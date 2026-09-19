@@ -41,6 +41,7 @@ import {
   openAttachment,
 } from '@/features/event/utils/attachments';
 import { useEventAttachments } from '@/features/event/hooks/useEventAttachments';
+import { isOwnDavFile } from '@/services/nextcloud/files';
 import { askRecurrenceScope, type RecurrenceScopeStrings } from '@/features/event/recurrenceScope';
 import { decideMoveEventScope } from '@/features/calendar/utils/moveEventScope';
 import {
@@ -132,19 +133,35 @@ export default function EventDetailScreen() {
   }, [attachments, t]);
 
   const handleRemoveAttachment = useCallback((att: EventAttachment) => {
+    const deletable = !!activeAccount && isOwnDavFile(activeAccount, att);
     Alert.alert(
       t('event.attachmentRemove'),
-      t('event.attachmentRemoveConfirm'),
-      [
-        { text: t('common.cancel'), style: 'cancel' },
-        {
-          text: t('event.attachmentRemove'),
-          style: 'destructive',
-          onPress: () => void attachments.remove(att),
-        },
-      ],
+      deletable
+        ? t('event.attachmentRemoveConfirmDeletable')
+        : t('event.attachmentRemoveConfirm'),
+      deletable
+        ? [
+            { text: t('common.cancel'), style: 'cancel' },
+            {
+              text: t('event.attachmentRemove'),
+              onPress: () => void attachments.remove(att),
+            },
+            {
+              text: t('event.attachmentRemoveAndDelete'),
+              style: 'destructive',
+              onPress: () => void attachments.remove(att, { deleteFile: true }),
+            },
+          ]
+        : [
+            { text: t('common.cancel'), style: 'cancel' },
+            {
+              text: t('event.attachmentRemove'),
+              style: 'destructive',
+              onPress: () => void attachments.remove(att),
+            },
+          ],
     );
-  }, [attachments, t]);
+  }, [attachments, activeAccount, t]);
 
   const recurrenceScopeStrings: RecurrenceScopeStrings = {
     message: t('event.recurrenceScopeMessage'),
