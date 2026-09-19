@@ -66,6 +66,13 @@ export type CalendarEvent = {
     recurrenceId?: Date;
     alarms?: number[];
     isTask?: boolean;
+    // VTODO completion (RFC 5545 §3.8.2). A task counts as completed when any of
+    // the Nextcloud criteria holds: STATUS:COMPLETED, a COMPLETED timestamp, or
+    // PERCENT-COMPLETE:100. STATUS:CANCELLED is also rendered as done.
+    taskStatus?: string;
+    taskCompletedAt?: Date;
+    taskPercent?: number;
+    taskCompleted?: boolean;
     readOnly?: boolean;
 };
 
