@@ -153,6 +153,6 @@ describe('EventDetailScreen attachments', () => {
     mockEvent = event({ attachments: [att] });
     const { getByText } = render(<EventDetailScreen />, { wrapper });
     fireEvent.press(getByText('doc.pdf'));
-    expect(openAttachment).toHaveBeenCalledWith(att, account);
+    expect(openAttachment).toHaveBeenCalledWith(att, account, '/c/e1.ics');
   });
 });

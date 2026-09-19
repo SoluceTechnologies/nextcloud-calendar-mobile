@@ -374,7 +374,7 @@ export default function EventDetailScreen() {
                         description={subtitle || undefined}
                         onPress={
                           isOpenableAttachment(att)
-                            ? () => openAttachment(att, activeAccount)
+                            ? () => openAttachment(att, activeAccount, event.href)
                             : undefined
                         }
                       />
