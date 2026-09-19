@@ -54,6 +54,14 @@ export type EventAttachment = {
     size?: number;
 };
 
+/** A file picked on the device, buffered until the event is saved. */
+export type PendingAttachment = {
+    name: string;
+    contentBase64: string;
+    mimeType?: string;
+    size?: number;
+};
+
 export type TalkRoomType = 'public' | 'private';
 
 export type TalkOpenMode = 'app' | 'browser' | 'ask';
@@ -97,6 +105,10 @@ export type CreateEventInput = {
     organizerName: string;
     rrule?: RecurrenceRule;
     alarms?: number[];
+    /** Device files to upload to Nextcloud and attach on save. */
+    pendingAttachments?: PendingAttachment[];
+    /** Existing ATTACH properties to strip on save (edit only). */
+    removedAttachments?: EventAttachment[];
 };
 
 export type CalendarAppStatus = 'unknown' | 'available' | 'unconfigured';

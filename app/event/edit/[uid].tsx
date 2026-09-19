@@ -82,6 +82,7 @@ export default function EditEventScreen() {
     attendees: event.attendees,
     alarms: event.alarms,
     rrule: parseRrule(event.rrule),
+    attachments: event.attachments,
   };
 
   const scopeLabel =

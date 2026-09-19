@@ -4,8 +4,10 @@ import * as Crypto from 'expo-crypto';
 import dayjs from 'dayjs';
 
 import { putEvent, updateEvent, deleteEvent, moveEvent, fetchEventIcs } from '@/services/nextcloud/caldav';
+import { uploadAttachmentFile } from '@/services/nextcloud/files';
 import { createTalkRoom } from '@/services/nextcloud/talk';
 import { describeMutationError } from '@/services/shared/errors';
+import { buildAttachLine, injectAttachLine, removeAttachLine } from '@/features/event/utils/attachmentWrite';
 import { buildIcs, buildAllDayIcs, buildExceptionIcs, injectExdate, truncateRruleUntil, shiftIcsDates } from '@/utils/ics';
 import { parseIcsObjects, extractDtstartTzid, extractSequence, extractDtstartDtend, extractExtraVeventLines } from '@/utils/caldav-parse';
 import { isValidTimeZone } from '@/utils/timezone';
@@ -21,10 +23,69 @@ import {
   seriesBaseUid,
   shiftSeriesDates,
 } from '@/database/eventWrites';
+import { syncCalendarDelta } from '@/database/sync';
 import { exceptionResourceUid, occurrenceSlot } from '@/features/event/occurrenceTarget';
 import type { Account, CalendarMeta, CalendarEvent, CreateEventInput, RecurrenceEditScope } from '@/types';
 
 const TALK_URL_PATTERN = /\/call\//;
+
+/**
+ * Applies the attachment delta carried by a form submit to a built ICS:
+ * strips `removedAttachments` lines, uploads `pendingAttachments` to Files and
+ * injects their ATTACH lines. Upload failures never block the event save —
+ * they are counted so the caller can warn once.
+ */
+async function applyAttachmentDelta(
+  account: Account,
+  ics: string,
+  input: CreateEventInput,
+): Promise<{ ics: string; failures: number }> {
+  let out = ics;
+  for (const att of input.removedAttachments ?? []) {
+    out = removeAttachLine(out, att);
+  }
+  let failures = 0;
+  for (const pending of input.pendingAttachments ?? []) {
+    try {
+      const up = await uploadAttachmentFile(account, pending.name, pending.contentBase64, pending.mimeType);
+      out = injectAttachLine(
+        out,
+        buildAttachLine({
+          uri: up.davUrl,
+          filename: up.filename,
+          fmttype: pending.mimeType,
+          size: pending.size,
+        }),
+      );
+    } catch (error) {
+      failures++;
+      console.warn('[attachments] pending upload failed', pending.name, error);
+    }
+  }
+  return { ics: out, failures };
+}
+
+function warnAttachmentFailures(failures: number) {
+  if (failures > 0) Alert.alert(i18n.t('event.attachmentAddError'));
+}
+
+function hasAttachmentDelta(input: CreateEventInput): boolean {
+  return !!(input.pendingAttachments?.length || input.removedAttachments?.length);
+}
+
+/** Attachments live in the ICS blob — refresh local rows so the UI reflects them. */
+async function resyncAfterAttachmentDelta(
+  account: Account,
+  calendar: CalendarMeta | undefined,
+  input: CreateEventInput,
+): Promise<void> {
+  if (!calendar || !hasAttachmentDelta(input)) return;
+  try {
+    await syncCalendarDelta(account, calendar);
+  } catch (error) {
+    console.warn('[attachments] post-save resync failed', error);
+  }
+}
 
 export function seriesDeltas(
   occurrence: { dtstart: Date; dtend: Date },
@@ -209,13 +270,16 @@ export function useCreateEvent(account: Account, calendars: CalendarMeta[]) {
       try {
         const resolved = await resolveLocationAndDescription(account, input);
         const timezone = resolveTimezone(account);
-        const ics = buildIcsForInput(uid, input, resolved.location, resolved.description, timezone);
+        const built = buildIcsForInput(uid, input, resolved.location, resolved.description, timezone);
+        const { ics, failures } = await applyAttachmentDelta(account, built, input);
         await putEvent(account, calendar, uid, ics);
 
         const real = input.rrule
           ? expandOccurrences(uid, input, calendar, account)
           : [eventFromInput(uid, input, calendar, account, resolved)];
         await insertEvents(real);
+        warnAttachmentFailures(failures);
+        await resyncAfterAttachmentDelta(account, calendar, input);
       } catch (error) {
         await removeWhere(account.id, (e) => seriesBaseUid(e.uid) === uid);
         Alert.alert(i18n.t('event.errorCreateFailed'), describeMutationError(error));
@@ -278,7 +342,10 @@ export function useUpdateEvent(account: Account, calendars: CalendarMeta[]) {
               newStart = new Date(bounds.dtstart.getTime() + deltaStart);
               newEnd = new Date(bounds.dtend.getTime() + deltaEnd);
             }
-            await updateEvent(account, event.href, shiftIcsDates(masterIcs, newStart, newEnd, tz, input.allDay, sequence));
+            const shifted = shiftIcsDates(masterIcs, newStart, newEnd, tz, input.allDay, sequence);
+            const { ics, failures } = await applyAttachmentDelta(account, shifted, input);
+            await updateEvent(account, event.href, ics);
+            warnAttachmentFailures(failures);
           } else {
             let uid = event.uid;
             let masterInput = scheduled;
@@ -302,7 +369,10 @@ export function useUpdateEvent(account: Account, calendars: CalendarMeta[]) {
                 console.warn('[useUpdateEvent] failed to fetch master ics for sequence/extra lines:', error);
               }
             }
-            await updateEvent(account, event.href, buildIcsForInput(uid, masterInput, location, description, timezone, sequence, preserved));
+            const rebuilt = buildIcsForInput(uid, masterInput, location, description, timezone, sequence, preserved);
+            const { ics, failures } = await applyAttachmentDelta(account, rebuilt, input);
+            await updateEvent(account, event.href, ics);
+            warnAttachmentFailures(failures);
           }
           if (!event.isRecurring && input.calendarId !== event.calendarId) {
             const cal = calendars.find((c) => c.id === input.calendarId);
@@ -325,7 +395,9 @@ export function useUpdateEvent(account: Account, calendars: CalendarMeta[]) {
             sequence: extractSequence(masterIcs) + 1,
             extraLines: extractExtraVeventLines(masterIcs),
           });
-          await putEvent(account, cal, exceptionUid, exIcs);
+          const { ics: exFinal, failures: exFailures } = await applyAttachmentDelta(account, exIcs, input);
+          await putEvent(account, cal, exceptionUid, exFinal);
+          warnAttachmentFailures(exFailures);
         } else if (scope === 'thisAndFollowing') {
           const masterIcs = await fetchEventIcs(account, event.href);
           const oneDayBefore = dayjs(occurrenceSlot(event)).subtract(1, 'day').endOf('day').toDate();
@@ -333,8 +405,16 @@ export function useUpdateEvent(account: Account, calendars: CalendarMeta[]) {
           const cal = calendars.find((c) => c.id === event.calendarId) ?? calendars.find((c) => c.id === input.calendarId);
           if (!cal) throw new Error('Calendar not found for new series');
           const newUid = Crypto.randomUUID();
-          await putEvent(account, cal, newUid, buildIcsForInput(newUid, scheduled, location, description, timezone, 0, extractExtraVeventLines(masterIcs)));
+          const seriesIcs = buildIcsForInput(newUid, scheduled, location, description, timezone, 0, extractExtraVeventLines(masterIcs));
+          const { ics: seriesFinal, failures: seriesFailures } = await applyAttachmentDelta(account, seriesIcs, input);
+          await putEvent(account, cal, newUid, seriesFinal);
+          warnAttachmentFailures(seriesFailures);
         }
+        await resyncAfterAttachmentDelta(
+          account,
+          calendars.find((c) => c.id === event.calendarId),
+          input,
+        );
       } catch (error) {
         await restoreSeries(account.id, base, snapshot);
         Alert.alert(i18n.t('event.errorUpdateFailed'), describeMutationError(error));

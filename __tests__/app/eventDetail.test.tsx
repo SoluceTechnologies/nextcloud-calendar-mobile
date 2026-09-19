@@ -241,8 +241,25 @@ describe('EventDetailScreen attachments', () => {
     fireEvent.press(getByLabelText('Remove attachment'));
     expect(alertSpy).toHaveBeenCalled();
     const buttons = alertSpy.mock.calls[0][2] ?? [];
+    expect(buttons.find((b) => b.text === 'Remove and delete file')).toBeUndefined();
     const confirm = buttons.find((b) => b.style === 'destructive');
     confirm?.onPress?.();
     expect(mockAttachments.remove).toHaveBeenCalledWith(att);
+  });
+
+  it('offers file deletion for attachments inside the account DAV space', () => {
+    const att = {
+      uri: 'https://cloud.example.com/remote.php/dav/files/alice/Calendar/doc.pdf',
+      filename: 'doc.pdf',
+    };
+    mockEvent = event({ attachments: [att] });
+    const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+    const { getByLabelText } = render(<EventDetailScreen />, { wrapper });
+    fireEvent.press(getByLabelText('Remove attachment'));
+    const buttons = alertSpy.mock.calls[0][2] ?? [];
+    const destructive = buttons.find((b) => b.style === 'destructive');
+    expect(destructive?.text).toBe('Remove and delete file');
+    destructive?.onPress?.();
+    expect(mockAttachments.remove).toHaveBeenCalledWith(att, { deleteFile: true });
   });
 });
