@@ -2,27 +2,23 @@ import { useCallback, useState } from 'react';
 import { Alert } from 'react-native';
 
 import { fetchEventIcs, updateEvent } from '@/services/nextcloud/caldav';
-import { uploadAttachmentFile } from '@/services/nextcloud/files';
+import { deleteRemoteFile, ownDavPath, uploadAttachmentFile } from '@/services/nextcloud/files';
 import { describeMutationError } from '@/services/shared/errors';
 import { syncCalendarDelta } from '@/database/sync';
 import { buildAttachLine, injectAttachLine, removeAttachLine } from '@/features/event/utils/attachmentWrite';
 import i18n from '@/utils/i18n';
-import type { Account, CalendarEvent, CalendarMeta, EventAttachment } from '@/types';
-
-export type PickedAttachment = {
-  name: string;
-  contentBase64: string;
-  mimeType?: string;
-  size?: number;
-};
+import type {
+  Account, CalendarEvent, CalendarMeta, EventAttachment, PendingAttachment,
+} from '@/types';
 
 /**
  * Add/remove ATTACH properties on an existing event.
  *
  * Attachments belong to the VEVENT master, so adding one to a recurring event
  * applies to the whole series — same semantics as the Nextcloud Calendar web
- * app. Removing an attachment only unlinks it from the event: the file itself
- * stays in the user's Nextcloud files.
+ * app. Removing an attachment unlinks it from the event; deleting the remote
+ * file is opt-in (`deleteFile`) and only possible for files inside the
+ * account's own DAV space.
  */
 export function useEventAttachments(
   account: Account | null,
@@ -34,7 +30,7 @@ export function useEventAttachments(
   const ready = !!account && !!event?.href && !!calendar && !event?.isTask;
 
   const add = useCallback(
-    async (file: PickedAttachment) => {
+    async (file: PendingAttachment) => {
       if (!account || !event?.href || !calendar) return;
       setIsPending(true);
       try {
@@ -64,19 +60,32 @@ export function useEventAttachments(
   );
 
   const remove = useCallback(
-    async (att: EventAttachment) => {
+    async (att: EventAttachment, opts?: { deleteFile?: boolean }) => {
       if (!account || !event?.href || !calendar) return;
       setIsPending(true);
+      let unlinked = false;
       try {
         const ics = await fetchEventIcs(account, event.href);
         const next = removeAttachLine(ics, att);
         await updateEvent(account, event.href, next);
+        unlinked = true;
         await syncCalendarDelta(account, calendar);
       } catch (error) {
         console.warn('[attachments] remove failed', error);
         Alert.alert(i18n.t('event.attachmentRemoveError'), describeMutationError(error));
       } finally {
         setIsPending(false);
+      }
+      if (unlinked && opts?.deleteFile && att.uri) {
+        const path = ownDavPath(account, att.uri);
+        if (path) {
+          try {
+            await deleteRemoteFile(account, path);
+          } catch (error) {
+            console.warn('[attachments] remote file delete failed', error);
+            Alert.alert(i18n.t('event.attachmentFileDeleteError'));
+          }
+        }
       }
     },
     [account, event?.href, calendar],

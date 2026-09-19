@@ -71,6 +71,27 @@ export type UploadedFile = {
 };
 
 /**
+ * Returns the DAV path when `url` points inside the account's own Files space,
+ * null otherwise (external link, public share, other host…).
+ */
+export function ownDavPath(account: Account, url: string): string | null {
+  const root = filesUrl(account, '');
+  if (!url.startsWith(root + '/')) return null;
+  return decodeURIComponent(url.slice(root.length));
+}
+
+export function isOwnDavFile(account: Account, att: { uri?: string }): boolean {
+  return !!att.uri && ownDavPath(account, att.uri) !== null;
+}
+
+/** Deletes a file inside the account's Files space. A missing file is a no-op. */
+export async function deleteRemoteFile(account: Account, path: string): Promise<void> {
+  const res = await davFetch(filesUrl(account, path), account, { method: 'DELETE' });
+  if (res.status === 404) return;
+  if (!res.ok) throw httpErrorFrom(res, 'deleteRemoteFile');
+}
+
+/**
  * Uploads a file into the attachments folder, creating it if needed and
  * resolving name conflicts by suffixing (`name (2).ext`).
  */
