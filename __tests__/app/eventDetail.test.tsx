@@ -1,6 +1,9 @@
 import React from 'react';
-import { render, fireEvent } from '@testing-library/react-native';
+import { Alert } from 'react-native';
+import { render, fireEvent, waitFor } from '@testing-library/react-native';
 import { ThemeProvider } from 'expo-router';
+import * as DocumentPicker from 'expo-document-picker';
+import * as FileSystem from 'expo-file-system/legacy';
 import { lightTheme } from '../../src/theme';
 import EventDetailScreen from '../../app/event/[uid]';
 import { openAttachment } from '../../src/features/event/utils/attachments';
@@ -52,8 +55,10 @@ jest.mock('../../src/hooks/useAccounts', () => ({
   useAccounts: () => [account],
 }));
 
+let mockCalendars: CalendarMeta[] = [calendar];
+
 jest.mock('../../src/hooks/useCalendars', () => ({
-  useCalendars: () => ({ data: [calendar], isFetching: false }),
+  useCalendars: () => ({ data: mockCalendars, isFetching: false }),
 }));
 
 jest.mock('../../src/features/event/hooks/useMutateEvent', () => ({
@@ -76,6 +81,26 @@ jest.mock('../../src/features/map/utils/mapLinks', () => ({
 jest.mock('../../src/features/event/utils/attachments', () => ({
   ...jest.requireActual('../../src/features/event/utils/attachments'),
   openAttachment: jest.fn(),
+}));
+
+const mockAttachments = {
+  add: jest.fn(async () => undefined),
+  remove: jest.fn(async () => undefined),
+  isPending: false,
+  ready: true,
+};
+
+jest.mock('../../src/features/event/hooks/useEventAttachments', () => ({
+  useEventAttachments: () => mockAttachments,
+}));
+
+jest.mock('expo-document-picker', () => ({
+  getDocumentAsync: jest.fn(async () => ({ canceled: true, assets: null })),
+}));
+
+jest.mock('expo-file-system/legacy', () => ({
+  readAsStringAsync: jest.fn(async () => 'aGk='),
+  EncodingType: { Base64: 'base64' },
 }));
 
 jest.mock('expo-clipboard', () => ({
@@ -108,14 +133,36 @@ function event(partial: Partial<CalendarEvent> = {}): CalendarEvent {
 describe('EventDetailScreen attachments', () => {
   beforeEach(async () => {
     jest.clearAllMocks();
+    mockCalendars = [calendar];
+    mockAttachments.add.mockClear();
+    mockAttachments.remove.mockClear();
     await i18n.changeLanguage('en');
     useAccountStore.setState({ activeAccountId: 'acc-1' });
   });
 
-  it('does not render the attachments section when the event has none', () => {
+  it('shows an empty section with an add button on editable events', () => {
+    mockEvent = event();
+    const { getByText, getByLabelText } = render(<EventDetailScreen />, { wrapper });
+    expect(getByText('Attachments')).toBeTruthy();
+    expect(getByLabelText('Add attachment')).toBeTruthy();
+  });
+
+  it('hides the section entirely on read-only calendars', () => {
+    mockCalendars = [{ ...calendar, isReadOnly: true }];
     mockEvent = event();
     const { queryByText } = render(<EventDetailScreen />, { wrapper });
     expect(queryByText('Attachments')).toBeNull();
+  });
+
+  it('hides the add button on read-only calendars with attachments', () => {
+    mockCalendars = [{ ...calendar, isReadOnly: true }];
+    mockEvent = event({
+      attachments: [{ uri: 'https://cloud.example.com/f.pdf', filename: 'doc.pdf' }],
+    });
+    const { getByText, queryByLabelText } = render(<EventDetailScreen />, { wrapper });
+    expect(getByText('doc.pdf')).toBeTruthy();
+    expect(queryByLabelText('Add attachment')).toBeNull();
+    expect(queryByLabelText('Remove attachment')).toBeNull();
   });
 
   it('lists each attachment with its filename, MIME type and size', () => {
@@ -154,5 +201,48 @@ describe('EventDetailScreen attachments', () => {
     const { getByText } = render(<EventDetailScreen />, { wrapper });
     fireEvent.press(getByText('doc.pdf'));
     expect(openAttachment).toHaveBeenCalledWith(att, account, '/c/e1.ics');
+  });
+
+  it('uploads the picked document through attachments.add', async () => {
+    (DocumentPicker.getDocumentAsync as jest.Mock).mockResolvedValueOnce({
+      canceled: false,
+      assets: [
+        { uri: 'file:///cache/doc.pdf', name: 'doc.pdf', size: 2048, mimeType: 'application/pdf' },
+      ],
+    });
+    mockEvent = event();
+    const { getByLabelText } = render(<EventDetailScreen />, { wrapper });
+    fireEvent.press(getByLabelText('Add attachment'));
+    await waitFor(() => expect(mockAttachments.add).toHaveBeenCalled());
+    expect(FileSystem.readAsStringAsync).toHaveBeenCalledWith('file:///cache/doc.pdf', {
+      encoding: 'base64',
+    });
+    expect(mockAttachments.add).toHaveBeenCalledWith({
+      name: 'doc.pdf',
+      contentBase64: 'aGk=',
+      mimeType: 'application/pdf',
+      size: 2048,
+    });
+  });
+
+  it('does nothing when the picker is cancelled', async () => {
+    mockEvent = event();
+    const { getByLabelText } = render(<EventDetailScreen />, { wrapper });
+    fireEvent.press(getByLabelText('Add attachment'));
+    await Promise.resolve();
+    expect(mockAttachments.add).not.toHaveBeenCalled();
+  });
+
+  it('asks for confirmation before removing an attachment', () => {
+    const att = { uri: 'https://cloud.example.com/f.pdf', filename: 'doc.pdf' };
+    mockEvent = event({ attachments: [att] });
+    const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+    const { getByLabelText } = render(<EventDetailScreen />, { wrapper });
+    fireEvent.press(getByLabelText('Remove attachment'));
+    expect(alertSpy).toHaveBeenCalled();
+    const buttons = alertSpy.mock.calls[0][2] ?? [];
+    const confirm = buttons.find((b) => b.style === 'destructive');
+    confirm?.onPress?.();
+    expect(mockAttachments.remove).toHaveBeenCalledWith(att);
   });
 });

@@ -24,7 +24,7 @@ import { base64Fingerprint, extractEventAttachments } from '@/utils/caldav-parse
 import i18n from '@/utils/i18n';
 import type { Account, EventAttachment } from '@/types';
 
-const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024;
+export const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024;
 const ATTACHMENT_CACHE_TTL_MS = 60 * 60 * 1000;
 
 const EXT = {

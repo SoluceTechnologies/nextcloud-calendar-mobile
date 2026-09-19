@@ -3,9 +3,11 @@ import { View, StyleSheet, ScrollView, Alert } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
 import { haptic } from '@/utils/haptics';
+import * as DocumentPicker from 'expo-document-picker';
+import * as FileSystem from 'expo-file-system/legacy';
 import {
   Pencil, Clock, CalendarDays, MapPin, Video, Repeat, Trash2, Copy, Check, Bell,
-  Navigation,
+  Navigation, Plus,
 } from 'lucide-react-native';
 import { useLocalSearchParams, useNavigation, useRouter, useTheme } from 'expo-router';
 import dayjs from 'dayjs';
@@ -28,15 +30,17 @@ import {
   SectionHeader, Avatar, Spinner, ScreenHeader,
   IconButton,
 } from '@/ui/components';
-import type { RecurrenceEditScope } from '@/types';
+import type { EventAttachment, RecurrenceEditScope } from '@/types';
 import { openTalkRoom, promptTalkRoomOpen } from '@/features/event/utils/openTalkRoom';
 import {
   attachmentDisplayName,
   attachmentIcon,
   formatBytes,
   isOpenableAttachment,
+  MAX_ATTACHMENT_BYTES,
   openAttachment,
 } from '@/features/event/utils/attachments';
+import { useEventAttachments } from '@/features/event/hooks/useEventAttachments';
 import { askRecurrenceScope, type RecurrenceScopeStrings } from '@/features/event/recurrenceScope';
 import { decideMoveEventScope } from '@/features/calendar/utils/moveEventScope';
 import {
@@ -78,6 +82,7 @@ export default function EventDetailScreen() {
 
   const calendar = calendars.find((c) => c.id === event?.calendarId);
   const deleteMutation = useDeleteEvent(activeAccount!);
+  const attachments = useEventAttachments(activeAccount, event, calendar);
 
   const canEdit = !calendar?.isReadOnly && !calendar?.isSubscribed && !event?.isTask;
   const eventsLoading = event === undefined;
@@ -102,6 +107,44 @@ export default function EventDetailScreen() {
     if (!event?.location) return;
     await openMaps(event.location, coordinates?.lat, coordinates?.lon);
   }, [event?.location, coordinates]);
+
+  const handleAddAttachment = useCallback(async () => {
+    const picked = await DocumentPicker.getDocumentAsync({
+      type: '*/*',
+      copyToCacheDirectory: true,
+      multiple: false,
+    });
+    if (picked.canceled || !picked.assets?.[0]) return;
+    const asset = picked.assets[0];
+    if (asset.size && asset.size > MAX_ATTACHMENT_BYTES) {
+      Alert.alert(t('event.attachmentTooLarge'));
+      return;
+    }
+    const contentBase64 = await FileSystem.readAsStringAsync(asset.uri, {
+      encoding: FileSystem.EncodingType.Base64,
+    });
+    await attachments.add({
+      name: asset.name,
+      contentBase64,
+      mimeType: asset.mimeType,
+      size: asset.size,
+    });
+  }, [attachments, t]);
+
+  const handleRemoveAttachment = useCallback((att: EventAttachment) => {
+    Alert.alert(
+      t('event.attachmentRemove'),
+      t('event.attachmentRemoveConfirm'),
+      [
+        { text: t('common.cancel'), style: 'cancel' },
+        {
+          text: t('event.attachmentRemove'),
+          style: 'destructive',
+          onPress: () => void attachments.remove(att),
+        },
+      ],
+    );
+  }, [attachments, t]);
 
   const recurrenceScopeStrings: RecurrenceScopeStrings = {
     message: t('event.recurrenceScopeMessage'),
@@ -352,34 +395,66 @@ export default function EventDetailScreen() {
               </Stack>
             )}
 
-            {!!event.attachments?.length && (
+            {(!!event.attachments?.length || (canEdit && attachments.ready)) && (
               <Stack gap={8}>
-                <SectionHeader title={t('event.attachments')} />
-                <List>
-                  {event.attachments.map((att, i) => {
-                    const AttachIcon = attachmentIcon(att);
-                    const subtitle = [att.fmttype, formatBytes(att.size)]
-                      .filter(Boolean)
-                      .join(' · ');
-                    return (
-                      <Item
-                        key={att.uri ?? `${att.filename ?? 'attachment'}-${i}`}
-                        leading={
-                          <Icon size={20}>
-                            <AttachIcon color={theme.colors.textSecondary} />
-                          </Icon>
-                        }
-                        title={attachmentDisplayName(att)}
-                        description={subtitle || undefined}
-                        onPress={
-                          isOpenableAttachment(att)
-                            ? () => openAttachment(att, activeAccount, event.href)
-                            : undefined
-                        }
-                      />
-                    );
-                  })}
-                </List>
+                <SectionHeader
+                  title={t('event.attachments')}
+                  trailing={
+                    canEdit && attachments.ready ? (
+                      <IconButton
+                        variant="plain"
+                        size={36}
+                        onPress={() => void handleAddAttachment()}
+                        disabled={attachments.isPending}
+                        accessibilityLabel={t('event.addAttachment')}
+                      >
+                        {attachments.isPending
+                          ? <Spinner size={18} />
+                          : <Plus size={18} color={theme.colors.textSecondary} />}
+                      </IconButton>
+                    ) : undefined
+                  }
+                />
+                {!!event.attachments?.length && (
+                  <List>
+                    {event.attachments.map((att, i) => {
+                      const AttachIcon = attachmentIcon(att);
+                      const subtitle = [att.fmttype, formatBytes(att.size)]
+                        .filter(Boolean)
+                        .join(' · ');
+                      return (
+                        <Item
+                          key={att.uri ?? `${att.filename ?? 'attachment'}-${i}`}
+                          leading={
+                            <Icon size={20}>
+                              <AttachIcon color={theme.colors.textSecondary} />
+                            </Icon>
+                          }
+                          title={attachmentDisplayName(att)}
+                          description={subtitle || undefined}
+                          onPress={
+                            isOpenableAttachment(att)
+                              ? () => openAttachment(att, activeAccount, event.href)
+                              : undefined
+                          }
+                          trailing={
+                            canEdit ? (
+                              <IconButton
+                                variant="plain"
+                                size={36}
+                                onPress={() => handleRemoveAttachment(att)}
+                                disabled={attachments.isPending}
+                                accessibilityLabel={t('event.attachmentRemove')}
+                              >
+                                <Trash2 size={18} color={theme.colors.danger} />
+                              </IconButton>
+                            ) : undefined
+                          }
+                        />
+                      );
+                    })}
+                  </List>
+                )}
               </Stack>
             )}
 

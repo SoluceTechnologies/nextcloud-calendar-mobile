@@ -66,6 +66,14 @@ describe('trustedFetch', () => {
     );
   });
 
+  it('forwards bodyBase64 verbatim for binary bodies', async () => {
+    req.mockResolvedValueOnce({ type: 'response', status: 201, headers: {}, bodyBase64: '' });
+    // 0xff bytes would be mangled by UTF-8 encoding — base64 must pass through as-is.
+    const bin = '//8AAP//';
+    await trustedFetch('https://h/x', { method: 'PUT', bodyBase64: bin, body: 'ignored' });
+    expect(req).toHaveBeenCalledWith(expect.objectContaining({ bodyBase64: bin }));
+  });
+
   it('throws UntrustedCertError on untrusted_cert result', async () => {
     const untrusted = {
       type: 'untrusted_cert',
