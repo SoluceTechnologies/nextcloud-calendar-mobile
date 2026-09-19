@@ -1,5 +1,5 @@
-import { parseIcsObjects, parseIcsObjectsAsync, extractDtstartDtend } from '@/utils/caldav-parse';
-import { buildAllDayIcs } from '@/utils/ics';
+import { parseIcsObjects, parseIcsObjectsAsync, extractDtstartDtend, extractExtraVeventLines } from '@/utils/caldav-parse';
+import { buildAllDayIcs, buildIcs } from '@/utils/ics';
 
 const sampleIcs = `BEGIN:VCALENDAR
 VERSION:2.0
@@ -788,5 +788,153 @@ END:VCALENDAR`;
   it('keeps every occurrence when there is no EXDATE at all', () => {
     const got = occurrences('X-NOTHING:1');
     expect(got).toContain(deletedSlot);
+  });
+});
+
+describe('ATTACH parsing — event attachments', () => {
+  const calMeta = { calendarId: 'cal-1', accountId: 'acc-1', color: '#0082c9' };
+
+  const attachIcs = `BEGIN:VCALENDAR
+VERSION:2.0
+BEGIN:VEVENT
+UID:attach-1
+DTSTART:20260601T140000Z
+DTEND:20260601T150000Z
+SUMMARY:Meeting with files
+ATTACH;FMTTYPE=application/pdf;FILENAME=agenda.pdf;SIZE=10240:https://cloud.example.com/remote.php/dav/files/user/agenda.pdf
+ATTACH;ENCODING=BASE64;VALUE=BINARY;FMTTYPE=text/plain:aGVsbG8gd29ybGQ=
+END:VEVENT
+END:VCALENDAR`;
+
+  it('parses URI attachments with FMTTYPE/FILENAME/SIZE params', () => {
+    const [e] = parseIcsObjects([{ ics: attachIcs, href: '/c/e.ics' }], calMeta);
+    expect(e.attachments).toHaveLength(2);
+    const uri = e.attachments![0];
+    expect(uri.uri).toBe('https://cloud.example.com/remote.php/dav/files/user/agenda.pdf');
+    expect(uri.filename).toBe('agenda.pdf');
+    expect(uri.fmttype).toBe('application/pdf');
+    expect(uri.size).toBe(10240);
+  });
+
+  it('parses embedded base64 attachments and estimates their size', () => {
+    const [e] = parseIcsObjects([{ ics: attachIcs, href: '/c/e.ics' }], calMeta);
+    const embedded = e.attachments![1];
+    expect(embedded.uri).toBeUndefined();
+    expect(embedded.base64).toBe('aGVsbG8gd29ybGQ=');
+    expect(embedded.fmttype).toBe('text/plain');
+    expect(embedded.size).toBe(11);
+  });
+
+  it('derives the filename from the URI path when FILENAME is absent', () => {
+    const ics = `BEGIN:VCALENDAR
+VERSION:2.0
+BEGIN:VEVENT
+UID:attach-2
+DTSTART:20260601T140000Z
+DTEND:20260601T150000Z
+ATTACH:https://cloud.example.com/s/Manual%20v2.pdf?download=1
+END:VEVENT
+END:VCALENDAR`;
+    const [e] = parseIcsObjects([{ ics, href: '/c/e.ics' }], calMeta);
+    expect(e.attachments![0].filename).toBe('Manual v2.pdf');
+  });
+
+  it('parses multiple ATTACH properties and dedupes identical URIs', () => {
+    const ics = `BEGIN:VCALENDAR
+VERSION:2.0
+BEGIN:VEVENT
+UID:attach-3
+DTSTART:20260601T140000Z
+DTEND:20260601T150000Z
+ATTACH:https://example.com/a.pdf
+ATTACH:https://example.com/a.pdf
+ATTACH:https://example.com/b.png
+END:VEVENT
+END:VCALENDAR`;
+    const [e] = parseIcsObjects([{ ics, href: '/c/e.ics' }], calMeta);
+    expect(e.attachments!.map((a) => a.uri)).toEqual([
+      'https://example.com/a.pdf',
+      'https://example.com/b.png',
+    ]);
+  });
+
+  it('parses attachments on VTODO', () => {
+    const ics = `BEGIN:VCALENDAR
+VERSION:2.0
+BEGIN:VTODO
+UID:todo-attach
+DTSTART:20260601T140000Z
+SUMMARY:Task with file
+ATTACH;FILENAME=spec.txt:https://example.com/spec.txt
+END:VTODO
+END:VCALENDAR`;
+    const [e] = parseIcsObjects([{ ics, href: '/c/t.ics' }], calMeta);
+    expect(e.isTask).toBe(true);
+    expect(e.attachments).toEqual([
+      { uri: 'https://example.com/spec.txt', filename: 'spec.txt', fmttype: undefined, size: undefined },
+    ]);
+  });
+
+  it('returns no attachments when the event has none', () => {
+    const [e] = parseIcsObjects([{ ics: sampleIcs, href: '/c/e.ics' }], calMeta);
+    expect(e.attachments).toEqual([]);
+  });
+
+  it('strips base64 payloads from recurrence occurrences but keeps an inline marker', () => {
+    const ics = `BEGIN:VCALENDAR
+VERSION:2.0
+BEGIN:VEVENT
+UID:attach-rec
+DTSTART:20260601T140000Z
+DTEND:20260601T150000Z
+RRULE:FREQ=DAILY;COUNT=3
+ATTACH;ENCODING=BASE64;VALUE=BINARY;FMTTYPE=text/plain;FILENAME=note.txt:aGVsbG8=
+ATTACH;FMTTYPE=application/pdf;FILENAME=a.pdf:https://example.com/a.pdf
+END:VEVENT
+END:VCALENDAR`;
+    const events = parseIcsObjects(
+      [{ ics, href: '/c/r.ics' }],
+      calMeta,
+      new Date('2026-06-01T00:00:00Z'),
+      new Date('2026-06-10T00:00:00Z'),
+    );
+    expect(events.length).toBe(3);
+    for (const e of events) {
+      expect(e.attachments).toHaveLength(2);
+      const embedded = e.attachments!.find((a) => a.filename === 'note.txt');
+      expect(embedded).toEqual({
+        filename: 'note.txt',
+        fmttype: 'text/plain',
+        size: 5,
+        base64: undefined,
+        inline: true,
+      });
+      const linked = e.attachments!.find((a) => a.filename === 'a.pdf');
+      expect(linked?.uri).toBe('https://example.com/a.pdf');
+      expect(linked?.inline).toBeUndefined();
+    }
+  });
+
+  it('keeps ATTACH lines out of the writer-managed set so updates preserve them', () => {
+    const extra = extractExtraVeventLines(attachIcs);
+    const attachLines = extra.filter((l) => /^ATTACH/i.test(l));
+    expect(attachLines).toHaveLength(2);
+    expect(attachLines[0]).toContain('FILENAME=agenda.pdf');
+
+    const regenerated = buildIcs({
+      uid: 'attach-1',
+      summary: 'Meeting with files',
+      description: '',
+      location: '',
+      dtstart: new Date('2026-06-01T14:00:00Z'),
+      dtend: new Date('2026-06-01T15:00:00Z'),
+      organizerEmail: 'o@x.com',
+      organizerName: 'O',
+      attendees: [],
+      timezone: 'UTC',
+      extraLines: extra,
+    });
+    expect(regenerated).toContain('ATTACH;FMTTYPE=application/pdf;FILENAME=agenda.pdf;SIZE=10240');
+    expect(regenerated).toContain('ATTACH;ENCODING=BASE64;FMTTYPE=text/plain;VALUE=BINARY:aGVsbG8gd29ybGQ=');
   });
 });

@@ -1,5 +1,5 @@
 import ICAL from 'ical.js';
-import type { CalendarEvent, Attendee } from '@/types';
+import type { CalendarEvent, Attendee, EventAttachment } from '@/types';
 import { yieldToUI } from '@/utils/scheduling';
 import { isValidTimeZone, zonedWallTimeToUtc } from '@/utils/timezone';
 import { NO_ALARM_PROP, triggerToMinutes } from '@/features/notifications/alerts';
@@ -66,6 +66,78 @@ function readAttendees(props: ICAL.Property[]): Attendee[] {
   return attendees;
 }
 
+function filenameFromUri(uri: string): string | undefined {
+  const segment = uri.split(/[?#]/, 1)[0].split('/').filter(Boolean).pop();
+  if (!segment) return undefined;
+  try {
+    return decodeURIComponent(segment) || undefined;
+  } catch {
+    return segment;
+  }
+}
+
+function base64DecodedSize(b64: string): number {
+  const padding = b64.endsWith('==') ? 2 : b64.endsWith('=') ? 1 : 0;
+  return Math.max(0, Math.floor(b64.length * 3 / 4) - padding);
+}
+
+function attachSize(prop: ICAL.Property, base64?: string): number | undefined {
+  const raw = prop.getParameter('size');
+  const n = typeof raw === 'number' ? raw : Number(raw);
+  if (Number.isFinite(n) && n > 0) return n;
+  if (base64) return base64DecodedSize(base64) || undefined;
+  return undefined;
+}
+
+export function readAttachments(props: ICAL.Property[]): EventAttachment[] {
+  const seen = new Set<string>();
+  const out: EventAttachment[] = [];
+  for (const prop of props) {
+    const value = prop.getFirstValue();
+    const fmttype = (prop.getParameter('fmttype') as string) ?? undefined;
+    let filename =
+      ((prop.getParameter('filename') ?? prop.getParameter('x-filename')) as string) ?? undefined;
+    if (value instanceof ICAL.Binary) {
+      const base64 = String(value);
+      if (!base64) continue;
+      if (seen.has(base64)) continue;
+      seen.add(base64);
+      out.push({ base64, fmttype, filename, size: attachSize(prop, base64) });
+    } else if (typeof value === 'string' && value) {
+      if (seen.has(value)) continue;
+      seen.add(value);
+      filename = filename ?? filenameFromUri(value);
+      out.push({ uri: value, fmttype, filename, size: attachSize(prop) });
+    }
+  }
+  return out;
+}
+
+/**
+ * Recurrence occurrences are expanded into one row each; copying an embedded
+ * base64 payload into every row would multiply its storage. Keep only the
+ * metadata plus an `inline` marker — the content is re-fetched on demand.
+ */
+function stripInlineContent(att: EventAttachment): EventAttachment {
+  return att.base64 ? { ...att, base64: undefined, inline: true } : att;
+}
+
+/** All attachments declared by every VEVENT/VTODO of an ICS document. */
+export function extractEventAttachments(ics: string): EventAttachment[] {
+  try {
+    const comp = new ICAL.Component(parseIcsToJcal(ics));
+    const out: EventAttachment[] = [];
+    for (const name of ['vevent', 'vtodo']) {
+      for (const sub of comp.getAllSubcomponents(name)) {
+        out.push(...readAttachments(sub.getAllProperties('attach')));
+      }
+    }
+    return out;
+  } catch {
+    return [];
+  }
+}
+
 function organizerEmailOf(vevent: ICAL.Component): string | undefined {
   const prop = vevent.getFirstProperty('organizer');
   return prop ? (prop.getFirstValue() as string).replace(/^mailto:/i, '') : undefined;
@@ -73,7 +145,14 @@ function organizerEmailOf(vevent: ICAL.Component): string | undefined {
 
 type OverridableFields = Pick<
   CalendarEvent,
-  'summary' | 'description' | 'location' | 'talkUrl' | 'attendees' | 'organizerEmail' | 'alarms'
+  | 'summary'
+  | 'description'
+  | 'location'
+  | 'talkUrl'
+  | 'attendees'
+  | 'organizerEmail'
+  | 'alarms'
+  | 'attachments'
 >;
 
 function exceptionFields(vevent: ICAL.Component): Partial<OverridableFields> {
@@ -98,6 +177,9 @@ function exceptionFields(vevent: ICAL.Component): Partial<OverridableFields> {
 
   const alarms = alarmMinutesList(vevent);
   if (alarms !== undefined) fields.alarms = alarms;
+
+  const attachProps = vevent.getAllProperties('attach');
+  if (attachProps.length) fields.attachments = readAttachments(attachProps);
 
   return fields;
 }
@@ -228,6 +310,7 @@ function parseVtodo(
     isRecurring: false,
     alarms: alarmMinutesList(vtodo),
     isTask: true,
+    attachments: readAttachments(vtodo.getAllProperties('attach')),
   };
 }
 
@@ -270,6 +353,8 @@ export function parseIcsItem(
 
       const alarms = alarmMinutesList(vevent);
 
+      const attachments = readAttachments(vevent.getAllProperties('attach'));
+
       const rruleProp = vevent.getFirstProperty('rrule');
       const isRecurring = !!rruleProp;
       const rruleStr: string | undefined = rruleProp
@@ -292,6 +377,7 @@ export function parseIcsItem(
         isRecurring,
         rrule: rruleStr,
         alarms,
+        attachments,
       };
 
       if (isRecurring && (rangeStart || rangeEnd)) {
@@ -315,9 +401,16 @@ export function parseIcsItem(
 
           if (!inRange(occStart, occEnd)) return false;
 
+          const fieldOverrides =
+            item && item.component !== vevent ? exceptionFields(item.component) : {};
+          const occAttachments = (fieldOverrides.attachments ?? base.attachments)?.map(
+            stripInlineContent,
+          );
+
           events.push({
             ...base,
-            ...(item && item.component !== vevent ? exceptionFields(item.component) : {}),
+            ...fieldOverrides,
+            attachments: occAttachments,
             uid: `${icalEvent.uid}_occ_${slot.toUnixTime()}`,
             href,
             recurrenceId: resolveInstant(slot, tzid),

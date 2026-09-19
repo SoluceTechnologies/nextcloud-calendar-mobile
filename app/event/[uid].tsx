@@ -29,6 +29,13 @@ import {
 } from '@/ui/components';
 import type { RecurrenceEditScope } from '@/types';
 import { openTalkRoom, promptTalkRoomOpen } from '@/features/event/utils/openTalkRoom';
+import {
+  attachmentDisplayName,
+  attachmentIcon,
+  formatBytes,
+  isOpenableAttachment,
+  openAttachment,
+} from '@/features/event/utils/attachments';
 import { askRecurrenceScope, type RecurrenceScopeStrings } from '@/features/event/recurrenceScope';
 import { decideMoveEventScope } from '@/features/calendar/utils/moveEventScope';
 import {
@@ -339,6 +346,37 @@ export default function EventDetailScreen() {
                         description={att.displayName ? att.email : undefined}
                       />
                     ))}
+                </List>
+              </Stack>
+            )}
+
+            {!!event.attachments?.length && (
+              <Stack gap={8}>
+                <SectionHeader title={t('event.attachments')} />
+                <List>
+                  {event.attachments.map((att, i) => {
+                    const AttachIcon = attachmentIcon(att);
+                    const subtitle = [att.fmttype, formatBytes(att.size)]
+                      .filter(Boolean)
+                      .join(' · ');
+                    return (
+                      <Item
+                        key={att.uri ?? `${att.filename ?? 'attachment'}-${i}`}
+                        leading={
+                          <Icon size={20}>
+                            <AttachIcon color={theme.colors.textSecondary} />
+                          </Icon>
+                        }
+                        title={attachmentDisplayName(att)}
+                        description={subtitle || undefined}
+                        onPress={
+                          isOpenableAttachment(att)
+                            ? () => openAttachment(att, activeAccount, event.href)
+                            : undefined
+                        }
+                      />
+                    );
+                  })}
                 </List>
               </Stack>
             )}
