@@ -73,6 +73,7 @@ const config: ExpoConfig = {
         '@react-native-community/datetimepicker',
         'expo-router',
         'expo-secure-store',
+        'expo-sharing',
         'expo-web-browser',
         [
             'expo-camera',

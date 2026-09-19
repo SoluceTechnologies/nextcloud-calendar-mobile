@@ -107,6 +107,7 @@ Create, view, and edit calendar events with support for:
 - Attendee lists with display names
 - Recurring event detection
 - Multiple reminders per event, configurable defaults, and custom offsets
+- Attachment viewing — files stored on your Nextcloud are downloaded with your account and opened through the share sheet, embedded files are decoded on demand; adding attachments is not supported yet
 
 ### Nextcloud Talk Integration
 Optionally attach a Nextcloud Talk room to any event at creation time, the Talk link is stored in the event and surfaced in the event detail view.
@@ -142,6 +143,10 @@ This project is free and open source. If you're interested in contributing, have
 | New event | Accounts | Account detail |
 | :---: | :---: | :---: |
 | <img src="/.github/assets/new-event.png" alt="New event" width="230" /> | <img src="/.github/assets/accounts.png" alt="Accounts" width="230" /> | <img src="/.github/assets/account-detail.png" alt="Account detail" width="230" /> |
+
+| Event attachments | | |
+| :---: | :---: | :---: |
+| <img src="/.github/assets/event-attachments.png" alt="Event attachments" width="230" /> | | |
 
 | Settings | Appearance | Calendar settings |
 | :---: | :---: | :---: |

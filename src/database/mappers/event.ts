@@ -1,4 +1,4 @@
-import type { Attendee, CalendarEvent } from '@/types';
+import type { Attendee, CalendarEvent, EventAttachment } from '@/types';
 import { dedupeAttendees } from '@/utils/attendees';
 
 import Event from '../models/Event';
@@ -27,6 +27,16 @@ function parseAlarms(raw?: string, legacyMinutes?: number): number[] | undefined
   return legacyMinutes != null ? [legacyMinutes] : undefined;
 }
 
+function parseAttachments(raw?: string): EventAttachment[] | undefined {
+  if (!raw) return undefined;
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) && parsed.length ? (parsed as EventAttachment[]) : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 export function mapEventToShared(event: Event): CalendarEvent {
   return {
     uid: event.uid,
@@ -48,5 +58,6 @@ export function mapEventToShared(event: Event): CalendarEvent {
     recurrenceId: event.recurrenceId != null ? new Date(event.recurrenceId) : undefined,
     alarms: parseAlarms(event.alarms ?? undefined, event.alarmMinutes ?? undefined),
     isTask: !!event.isTask,
+    attachments: parseAttachments(event.attachments ?? undefined),
   };
 }

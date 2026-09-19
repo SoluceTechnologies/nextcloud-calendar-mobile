@@ -48,6 +48,13 @@ export function serializeAlarms(alarms?: number[]): string | undefined {
   return JSON.stringify([...new Set(alarms)].sort((a, b) => b - a));
 }
 
+export function serializeAttachments(attachments?: CalendarEvent['attachments']): string | undefined {
+  if (!attachments?.length) return undefined;
+  const sorted = [...attachments].sort((a, b) =>
+    (a.filename ?? a.uri ?? '').localeCompare(b.filename ?? b.uri ?? ''));
+  return JSON.stringify(sorted);
+}
+
 export function writeEvent(row: Event, ev: CalendarEvent): void {
   row.accountId = ev.accountId;
   row.calendarId = ev.calendarId;
@@ -69,6 +76,7 @@ export function writeEvent(row: Event, ev: CalendarEvent): void {
   row.alarms = serializeAlarms(ev.alarms);
   row.alarmMinutes = ev.alarms?.[0] ?? undefined;
   row.isTask = ev.isTask ?? false;
+  row.attachments = serializeAttachments(ev.attachments);
 }
 
 function calendarUnchanged(row: Calendar, c: CalendarMeta): boolean {
@@ -100,7 +108,8 @@ function eventUnchanged(row: Event, ev: CalendarEvent): boolean {
     (row.recurrenceId ?? undefined) === (ev.recurrenceId?.getTime() ?? undefined) &&
     !!row.isTask === !!ev.isTask &&
     (row.alarms ?? undefined) === serializeAlarms(ev.alarms) &&
-    (row.attendees ?? '[]') === JSON.stringify(ev.attendees ?? [])
+    (row.attendees ?? '[]') === JSON.stringify(ev.attendees ?? []) &&
+    (row.attachments ?? undefined) === serializeAttachments(ev.attachments)
   );
 }
 
