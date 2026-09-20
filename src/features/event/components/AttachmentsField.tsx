@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Alert } from 'react-native';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system/legacy';
@@ -6,6 +7,8 @@ import { useTranslation } from 'react-i18next';
 import { useTheme } from 'expo-router';
 
 import { Icon, IconButton, Item, List, SectionHeader, Stack, Typography } from '@/ui/components';
+import { DavFilePicker } from './DavFilePicker';
+import { fileDavUrl, type FilesAccount } from '@/services/nextcloud/files';
 import {
   attachmentDisplayName, attachmentIcon, decodedBase64Bytes, formatBytes, MAX_ATTACHMENT_BYTES,
 } from '@/features/event/utils/attachments';
@@ -16,9 +19,14 @@ interface Props {
   existing: EventAttachment[];
   /** Device files buffered until save. */
   pending: PendingAttachment[];
+  /** Files already on Nextcloud, queued to be referenced on save. */
+  remote: EventAttachment[];
+  account?: FilesAccount | null;
   onAdd: (file: PendingAttachment) => void;
+  onAddRemote: (att: EventAttachment) => void;
   onRemoveExisting: (att: EventAttachment) => void;
   onRemovePending: (index: number) => void;
+  onRemoveRemote: (index: number) => void;
 }
 
 /**
@@ -26,12 +34,29 @@ interface Props {
  * upload. Nothing touches the network until the form is submitted.
  */
 export function AttachmentsField({
-  existing, pending, onAdd, onRemoveExisting, onRemovePending,
+  existing, pending, remote, account,
+  onAdd, onAddRemote, onRemoveExisting, onRemovePending, onRemoveRemote,
 }: Props) {
   const { t } = useTranslation();
   const theme = useTheme();
+  const [davPickerOpen, setDavPickerOpen] = useState(false);
 
-  async function pick() {
+  function pick() {
+    if (!account) {
+      void pickDevice();
+      return;
+    }
+    Alert.alert(t('event.addAttachment'), undefined, [
+      { text: t('common.cancel'), style: 'cancel' },
+      { text: t('event.attachFromDevice'), onPress: () => void pickDevice() },
+      {
+        text: t('event.attachFromNextcloud'),
+        onPress: () => setDavPickerOpen(true),
+      },
+    ]);
+  }
+
+  async function pickDevice() {
     try {
       const result = await DocumentPicker.getDocumentAsync({
         type: '*/*',
@@ -78,14 +103,14 @@ export function AttachmentsField({
           <IconButton
             variant="plain"
             size={36}
-            onPress={() => void pick()}
+            onPress={() => pick()}
             accessibilityLabel={t('event.addAttachment')}
           >
             <Plus size={18} color={theme.colors.textSecondary} />
           </IconButton>
         }
       />
-      {existing.length + pending.length > 0 && (
+      {existing.length + pending.length + remote.length > 0 && (
         <List>
           {existing.map((att, i) => {
             const AttachIcon = attachmentIcon(att);
@@ -114,12 +139,42 @@ export function AttachmentsField({
               />
             );
           })}
+          {remote.map((att, i) => {
+            const AttachIcon = attachmentIcon(att);
+            const subtitle = [att.fmttype, formatBytes(att.size), t('event.attachmentRemote')]
+              .filter(Boolean).join(' · ');
+            return (
+              <Item
+                key={`remote-${att.uri ?? i}`}
+                leading={<Icon size={20}><AttachIcon color={theme.colors.primary} /></Icon>}
+                title={attachmentDisplayName(att)}
+                description={subtitle}
+                trailing={removeButton(() => onRemoveRemote(i))}
+              />
+            );
+          })}
         </List>
       )}
-      {existing.length + pending.length === 0 && (
+      {existing.length + pending.length + remote.length === 0 && (
         <Typography variant="caption" color="secondary">
           {t('event.noAttachments')}
         </Typography>
+      )}
+      {account && davPickerOpen && (
+        <DavFilePicker
+          visible={davPickerOpen}
+          account={account}
+          onClose={() => setDavPickerOpen(false)}
+          onSelect={(entry) => {
+            setDavPickerOpen(false);
+            onAddRemote({
+              uri: fileDavUrl(account, entry.path),
+              filename: entry.name,
+              fmttype: entry.mime,
+              size: entry.size,
+            });
+          }}
+        />
       )}
     </Stack>
   );

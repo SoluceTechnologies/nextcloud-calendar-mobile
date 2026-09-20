@@ -72,6 +72,31 @@ export function useEventAttachments(
     [account, event?.href, calendar],
   );
 
+  /**
+   * Attaches a file already on Nextcloud — no upload, the DAV URL goes
+   * straight into a new ATTACH line.
+   */
+  const addRemote = useCallback(
+    async (att: EventAttachment) => {
+      if (!account || !event?.href || !calendar || busy.current) return;
+      busy.current = true;
+      setIsPending(true);
+      try {
+        const { ics, etag } = await fetchEventIcsWithEtag(account, event.href);
+        const next = injectAttachLine(ics, buildAttachLine(att));
+        await updateEvent(account, event.href, next, etag);
+        await syncCalendarDelta(account, calendar);
+      } catch (error) {
+        console.warn('[attachments] add remote failed', error);
+        Alert.alert(i18n.t('event.attachmentAddError'), describeMutationError(error));
+      } finally {
+        busy.current = false;
+        setIsPending(false);
+      }
+    },
+    [account, event?.href, calendar],
+  );
+
   const remove = useCallback(
     async (att: EventAttachment, opts?: { deleteFile?: boolean }) => {
       if (!account || !event?.href || !calendar || busy.current) return;
@@ -118,5 +143,5 @@ export function useEventAttachments(
     [account, event?.href, calendar],
   );
 
-  return { add, remove, isPending, ready };
+  return { add, addRemote, remove, isPending, ready };
 }

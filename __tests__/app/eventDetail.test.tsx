@@ -211,8 +211,11 @@ describe('EventDetailScreen attachments', () => {
       ],
     });
     mockEvent = event();
+    const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
     const { getByLabelText } = render(<EventDetailScreen />, { wrapper });
     fireEvent.press(getByLabelText('Add attachment'));
+    const buttons = alertSpy.mock.calls[0][2] ?? [];
+    buttons.find((b) => b.text === 'From this device')?.onPress?.();
     await waitFor(() => expect(mockAttachments.add).toHaveBeenCalled());
     expect(FileSystem.readAsStringAsync).toHaveBeenCalledWith('file:///cache/doc.pdf', {
       encoding: 'base64',
@@ -227,8 +230,11 @@ describe('EventDetailScreen attachments', () => {
 
   it('does nothing when the picker is cancelled', async () => {
     mockEvent = event();
+    const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
     const { getByLabelText } = render(<EventDetailScreen />, { wrapper });
     fireEvent.press(getByLabelText('Add attachment'));
+    const buttons = alertSpy.mock.calls[0][2] ?? [];
+    buttons.find((b) => b.text === 'From this device')?.onPress?.();
     await Promise.resolve();
     expect(mockAttachments.add).not.toHaveBeenCalled();
   });

@@ -2,7 +2,7 @@ import type { Account } from '@/types';
 import { httpErrorFrom } from '../shared/errors';
 import { trustedFetch } from '../shared/trustedFetch';
 import { decodeXmlEntities } from './caldav';
-import { fileDavUrl } from './files';
+import { fileDavUrl, type FilesAccount } from './files';
 
 /**
  * The Nextcloud Calendar web app writes `ATTACH` URIs as `/f/<fileid>` links —
@@ -29,7 +29,7 @@ function basicAuth(account: Pick<Account, 'username' | 'appPassword'>): string {
  * URI relative to the Nextcloud root (`f/123`, `index.php/s/token`), or null
  * when the URI is absolute and points outside this account's base URL.
  */
-function pathBelowBase(account: Account, uri: string): string | null {
+function pathBelowBase(account: FilesAccount, uri: string): string | null {
   const base = account.baseUrl.replace(/\/+$/, '');
   if (/^https?:/i.test(uri)) {
     if (!uri.startsWith(base + '/')) return null;
@@ -39,14 +39,14 @@ function pathBelowBase(account: Account, uri: string): string | null {
 }
 
 /** File id from a `/f/<id>` (or `index.php/f/<id>`) link, null when not one. */
-export function internalFileId(account: Account, uri: string): number | null {
+export function internalFileId(account: FilesAccount, uri: string): number | null {
   const path = pathBelowBase(account, uri);
   const m = path?.match(/^(?:index\.php\/)?f\/(\d+)\/?$/);
   return m ? Number(m[1]) : null;
 }
 
 /** Share token from a `/s/<token>` link (optional `/download[...]` suffix). */
-export function publicShareToken(account: Account, uri: string): string | null {
+export function publicShareToken(account: FilesAccount, uri: string): string | null {
   const path = pathBelowBase(account, uri);
   const m = path?.match(/^(?:index\.php\/)?s\/([A-Za-z0-9]+)(?:\/.*)?$/);
   return m ? m[1] : null;
@@ -65,11 +65,11 @@ export function isFileLinkUri(uri?: string): boolean {
 }
 
 /** Direct download endpoint for a public share — no credentials needed. */
-export function shareDownloadUrl(account: Account, token: string): string {
+export function shareDownloadUrl(account: FilesAccount, token: string): string {
   return `${account.baseUrl.replace(/\/+$/, '')}/s/${encodeURIComponent(token)}/download`;
 }
 
-function davHrefToPath(account: Account, href: string): string | null {
+function davHrefToPath(account: FilesAccount, href: string): string | null {
   const root = `/remote.php/dav/files/${encodeURIComponent(account.davUserId)}`;
   if (!href.startsWith(root + '/')) return null;
   try {
@@ -99,7 +99,7 @@ function parseMultistatus(xml: string): { href: string; chunk: string }[] {
 
 /** `SEARCH` basicsearch by file id — one request on Nextcloud ≥ ~20. */
 async function searchByFileId(
-  account: Account,
+  account: FilesAccount,
   fileId: number,
 ): Promise<ResolvedFile | null> {
   const body =
@@ -144,7 +144,7 @@ async function searchByFileId(
  * tree asking only for `oc:fileid`. Heavy on large accounts — last resort.
  */
 async function walkByFileId(
-  account: Account,
+  account: FilesAccount,
   fileId: number,
 ): Promise<ResolvedFile | null> {
   const res = await trustedFetch(
@@ -157,8 +157,8 @@ async function walkByFileId(
         'Content-Type': 'application/xml; charset=utf-8',
       },
       body:
-        '<?xml version="1.0"?><propfind xmlns="DAV:" xmlns:oc="http://owncloud.org/ns">' +
-        '<prop><oc:fileid/><d:displayname/><d:getcontenttype/><d:getcontentlength/></prop></propfind>',
+        '<?xml version="1.0"?><d:propfind xmlns:d="DAV:" xmlns:oc="http://owncloud.org/ns">' +
+        '<d:prop><oc:fileid/><d:displayname/><d:getcontenttype/><d:getcontentlength/></d:prop></d:propfind>',
       timeoutMs: 30000,
       maxRetries: 1,
     },
@@ -186,7 +186,7 @@ async function walkByFileId(
  * files space — e.g. deleted share target).
  */
 export async function resolveInternalFile(
-  account: Account,
+  account: FilesAccount,
   fileId: number,
 ): Promise<ResolvedFile | null> {
   const found = await searchByFileId(account, fileId);
@@ -199,6 +199,6 @@ export async function resolveInternalFile(
  * a direct DAV URL or a `/f/<id>` link that resolves to one. Governs whether
  * "remove and delete the file" is offered.
  */
-export function isOwnFileRef(account: Account, att: { uri?: string }): boolean {
+export function isOwnFileRef(account: FilesAccount, att: { uri?: string }): boolean {
   return !!att.uri && internalFileId(account, att.uri) !== null;
 }
