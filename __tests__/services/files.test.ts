@@ -10,6 +10,7 @@ import {
   ensureFolder,
   fileDavUrl,
   isOwnDavFile,
+  listDavFolder,
   ownDavPath,
   uploadAttachmentFile,
 } from '@/services/nextcloud/files';
@@ -166,6 +167,43 @@ describe('ownDavPath / isOwnDavFile', () => {
     expect(
       ownDavPath(account, 'https://srv/remote.php/dav/files/alice/Calendar/doc%20x.pdf'),
     ).toBe('/Calendar/doc x.pdf');
+  });
+});
+
+describe('listDavFolder', () => {
+  const listing =
+    '<?xml version="1.0"?><d:multistatus xmlns:d="DAV:">' +
+    '<d:response><d:href>/remote.php/dav/files/alice/Calendar/</d:href>' +
+    '<d:propstat><d:prop><d:displayname>Calendar</d:displayname>' +
+    '<d:resourcetype><d:collection/></d:resourcetype></d:prop></d:propstat></d:response>' +
+    '<d:response><d:href>/remote.php/dav/files/alice/Calendar/z.txt</d:href>' +
+    '<d:propstat><d:prop><d:displayname>z.txt</d:displayname>' +
+    '<d:getcontenttype>text/plain</d:getcontenttype>' +
+    '<d:getcontentlength>32</d:getcontentlength></d:prop></d:propstat></d:response>' +
+    '<d:response><d:href>/remote.php/dav/files/alice/Calendar/Sub%20dir/</d:href>' +
+    '<d:propstat><d:prop><d:displayname>Sub dir</d:displayname>' +
+    '<d:resourcetype><d:collection/></d:resourcetype></d:prop></d:propstat></d:response></d:multistatus>';
+
+  it('lists a folder, skipping itself and sorting directories first', async () => {
+    req.mockResolvedValueOnce({ ...res(207), text: async () => listing });
+    const out = await listDavFolder(account, '/Calendar');
+    expect(req).toHaveBeenCalledWith(
+      'https://srv/remote.php/dav/files/alice/Calendar/',
+      expect.objectContaining({ method: 'PROPFIND' }),
+    );
+    // SabreDAV rejects elements whose `d:` prefix is undeclared.
+    const sentBody = req.mock.calls[0][1].body as string;
+    expect(sentBody).toContain('xmlns:d="DAV:"');
+    expect(sentBody).toContain('<d:displayname/>');
+    expect(out).toEqual([
+      { path: '/Calendar/Sub dir', name: 'Sub dir', isDir: true, mime: undefined, size: undefined },
+      { path: '/Calendar/z.txt', name: 'z.txt', isDir: false, mime: 'text/plain', size: 32 },
+    ]);
+  });
+
+  it('throws on PROPFIND failure', async () => {
+    req.mockResolvedValueOnce(res(403));
+    await expect(listDavFolder(account, '/Calendar')).rejects.toThrow();
   });
 });
 

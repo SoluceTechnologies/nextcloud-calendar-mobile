@@ -4,6 +4,7 @@ import { act, renderHook } from '@testing-library/react-native';
 import { useEventAttachments } from '../../../src/features/event/hooks/useEventAttachments';
 import { fetchEventIcsWithEtag, updateEvent } from '../../../src/services/nextcloud/caldav';
 import { deleteRemoteFile, uploadAttachmentFile } from '../../../src/services/nextcloud/files';
+import { resolveInternalFile } from '../../../src/services/nextcloud/fileLinks';
 import { syncCalendarDelta } from '../../../src/database/sync';
 import i18n from '../../../src/utils/i18n';
 import type { Account, CalendarEvent, CalendarMeta } from '../../../src/types';
@@ -23,6 +24,11 @@ jest.mock('../../../src/services/nextcloud/files', () => ({
   isOwnDavFile: () => true,
 }));
 
+jest.mock('../../../src/services/nextcloud/fileLinks', () => ({
+  ...jest.requireActual('../../../src/services/nextcloud/fileLinks'),
+  resolveInternalFile: jest.fn(),
+}));
+
 jest.mock('../../../src/database/sync', () => ({
   syncCalendarDelta: jest.fn(async () => undefined),
 }));
@@ -31,6 +37,7 @@ const mockFetchIcs = fetchEventIcsWithEtag as jest.Mock;
 const mockUpdate = updateEvent as jest.Mock;
 const mockUpload = uploadAttachmentFile as jest.Mock;
 const mockDelete = deleteRemoteFile as jest.Mock;
+const mockResolve = resolveInternalFile as jest.Mock;
 const mockSync = syncCalendarDelta as jest.Mock;
 
 const account = {
@@ -154,5 +161,80 @@ describe('useEventAttachments', () => {
     expect(mockUpdate).not.toHaveBeenCalled();
     expect(mockDelete).not.toHaveBeenCalled();
     expect(mockSync).toHaveBeenCalled();
+  });
+
+  it('addRemote injects the DAV URI without uploading anything', async () => {
+    mockFetchIcs.mockResolvedValue({ ics: baseIcs, etag: '"etag-9"' });
+    const { result } = hook();
+
+    await act(async () => {
+      await result.current.addRemote({
+        uri: 'https://srv/remote.php/dav/files/alice/Docs/notes.md',
+        filename: 'notes.md',
+        fmttype: 'text/markdown',
+      });
+    });
+
+    expect(mockUpload).not.toHaveBeenCalled();
+    // ATTACH lines fold at 75 chars — unfold before matching the full URI.
+    expect(mockUpdate).toHaveBeenCalledWith(
+      account,
+      event.href,
+      expect.any(String),
+      '"etag-9"',
+    );
+    const sent = (mockUpdate.mock.calls[0][2] as string).replace(/\r\n[ \t]/g, '');
+    expect(sent).toContain(
+      'ATTACH;FMTTYPE=text/markdown;FILENAME=notes.md:https://srv/remote.php/dav/files/alice/Docs/notes.md',
+    );
+    expect(mockSync).toHaveBeenCalled();
+  });
+
+  it('remove with deleteFile resolves a /f/<id> link before deleting', async () => {
+    const icsWithF = baseIcs.replace(
+      'END:VEVENT',
+      'ATTACH;FILENAME=pickme.txt:https://srv/f/326\r\nEND:VEVENT',
+    );
+    mockFetchIcs.mockResolvedValue({ ics: icsWithF, etag: '"e"' });
+    mockResolve.mockResolvedValue({
+      davUrl: 'https://srv/remote.php/dav/files/alice/Calendar/pickme.txt',
+      path: '/Calendar/pickme.txt',
+    });
+    const { result } = hook();
+
+    await act(async () => {
+      await result.current.remove(
+        { uri: 'https://srv/f/326', filename: 'pickme.txt' },
+        { deleteFile: true },
+      );
+    });
+
+    expect(mockResolve).toHaveBeenCalledWith(account, 326);
+    expect(mockDelete).toHaveBeenCalledWith(account, '/Calendar/pickme.txt');
+  });
+
+  it('a failing /f/ resolution alerts instead of crashing the remove', async () => {
+    const icsWithF = baseIcs.replace(
+      'END:VEVENT',
+      'ATTACH;FILENAME=pickme.txt:https://srv/f/326\r\nEND:VEVENT',
+    );
+    mockFetchIcs.mockResolvedValue({ ics: icsWithF, etag: '"e"' });
+    mockResolve.mockRejectedValue(new Error('Network request failed'));
+    const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+    const { result } = hook();
+
+    await act(async () => {
+      await result.current.remove(
+        { uri: 'https://srv/f/326', filename: 'pickme.txt' },
+        { deleteFile: true },
+      );
+    });
+
+    // The unlink still succeeded — only the delete alert fires.
+    expect(alertSpy).toHaveBeenCalledWith(
+      'Attachment removed, but the file could not be deleted',
+    );
+    expect(mockDelete).not.toHaveBeenCalled();
+    alertSpy.mockRestore();
   });
 });

@@ -1,4 +1,8 @@
 import type { Account } from '@/types';
+
+/** Every function here only needs these four fields. */
+export type FilesAccount = Pick<Account, 'baseUrl' | 'davUserId' | 'username' | 'appPassword'>;
+import { decodeXmlEntities } from './caldav';
 import { httpErrorFrom } from '../shared/errors';
 import { trustedFetch } from '../shared/trustedFetch';
 
@@ -13,37 +17,38 @@ function encodePath(path: string): string {
   return path.split('/').map(encodeURIComponent).join('/');
 }
 
-function filesUrl(account: Account, path = ''): string {
+function filesUrl(account: FilesAccount, path = ''): string {
   return `${account.baseUrl}/remote.php/dav/files/${encodeURIComponent(account.davUserId)}${encodePath(path)}`;
 }
 
 /** Absolute WebDAV URL for a file path — the URI form written into ATTACH. */
-export function fileDavUrl(account: Account, path: string): string {
+export function fileDavUrl(account: FilesAccount, path: string): string {
   return filesUrl(account, path);
 }
 
 async function davFetch(
   url: string,
-  account: Account,
-  options: { method?: string; headers?: Record<string, string>; bodyBase64?: string } = {},
+  account: FilesAccount,
+  options: { method?: string; headers?: Record<string, string>; body?: string; bodyBase64?: string } = {},
 ) {
   return trustedFetch(url, {
     method: options.method,
     headers: { Authorization: basicAuth(account), ...(options.headers ?? {}) },
+    body: options.body,
     bodyBase64: options.bodyBase64,
     timeoutMs: 30000,
     maxRetries: 2,
   });
 }
 
-export async function ensureFolder(account: Account, path: string): Promise<void> {
+export async function ensureFolder(account: FilesAccount, path: string): Promise<void> {
   const res = await davFetch(filesUrl(account, path), account, { method: 'MKCOL' });
   // 201 created · 405 already exists · 301/302 would mean a misconfigured server
   if (res.status === 405) return;
   if (!res.ok) throw httpErrorFrom(res, 'ensureFolder');
 }
 
-async function remoteExists(account: Account, path: string): Promise<boolean> {
+async function remoteExists(account: FilesAccount, path: string): Promise<boolean> {
   const res = await davFetch(filesUrl(account, path), account, { method: 'HEAD' });
   return res.ok;
 }
@@ -53,7 +58,7 @@ function splitName(filename: string): { stem: string; ext: string } {
   return i > 0 ? { stem: filename.slice(0, i), ext: filename.slice(i) } : { stem: filename, ext: '' };
 }
 
-async function resolveConflict(account: Account, dir: string, filename: string): Promise<string> {
+async function resolveConflict(account: FilesAccount, dir: string, filename: string): Promise<string> {
   if (!(await remoteExists(account, `${dir}/${filename}`))) return filename;
   const { stem, ext } = splitName(filename);
   for (let n = 2; n < 100; n++) {
@@ -76,7 +81,7 @@ export type UploadedFile = {
  * Returns the DAV path when `url` points inside the account's own Files space,
  * null otherwise (external link, public share, other host…).
  */
-export function ownDavPath(account: Account, url: string): string | null {
+export function ownDavPath(account: FilesAccount, url: string): string | null {
   const root = filesUrl(account, '');
   if (!url.startsWith(root + '/')) return null;
   let path: string;
@@ -90,12 +95,81 @@ export function ownDavPath(account: Account, url: string): string | null {
   return path;
 }
 
-export function isOwnDavFile(account: Account, att: { uri?: string }): boolean {
+export function isOwnDavFile(account: FilesAccount, att: { uri?: string }): boolean {
   return !!att.uri && ownDavPath(account, att.uri) !== null;
 }
 
+export type DavEntry = {
+  /** DAV path below the user's files root (`/dir/file.pdf`). */
+  path: string;
+  name: string;
+  isDir: boolean;
+  mime?: string;
+  size?: number;
+};
+
+/**
+ * One level of a folder in the user's files space — the building block of the
+ * in-app Nextcloud file picker. Entries are sorted folders-first by name.
+ */
+export async function listDavFolder(account: FilesAccount, path: string): Promise<DavEntry[]> {
+  const res = await davFetch(filesUrl(account, path) + '/', account, {
+    method: 'PROPFIND',
+    headers: {
+      Depth: '1',
+      'Content-Type': 'application/xml; charset=utf-8',
+    },
+    body:
+      '<?xml version="1.0"?><d:propfind xmlns:d="DAV:"><d:prop><d:displayname/>' +
+      '<d:resourcetype/><d:getcontenttype/><d:getcontentlength/></d:prop></d:propfind>',
+  });
+  if (!res.ok) throw httpErrorFrom(res, 'listDavFolder');
+  const xml = await res.text();
+  const root = `/remote.php/dav/files/${encodeURIComponent(account.davUserId)}`;
+  const wanted = path.replace(/\/+$/, '') || '';
+  const out: DavEntry[] = [];
+  const re = /<d:response[^>]*>([\s\S]*?)<\/d:response>/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(xml))) {
+    const chunk = m[1];
+    const href = chunk.match(/<d:href>([^<]*)<\/d:href>/)?.[1];
+    if (!href) continue;
+    let decoded: string;
+    try {
+      decoded = decodeXmlEntities(decodeURIComponent(href));
+    } catch {
+      continue; // malformed percent-encoding — skip the entry
+    }
+    if (!decoded.startsWith(root + '/')) continue;
+    const rel = decoded.slice(root.length).replace(/\/+$/, '');
+    if (rel === wanted) continue; // the collection itself
+    const name =
+      chunk.match(/<d:displayname[^>]*>([^<]*)<\/d:displayname>/)?.[1] ??
+      rel.split('/').pop() ??
+      rel;
+    const size = Number(
+      chunk.match(/<d:getcontentlength[^>]*>([^<]*)<\/d:getcontentlength>/)?.[1],
+    );
+    out.push({
+      path: rel,
+      name: decodeXmlEntities(name),
+      isDir: /<d:collection/.test(chunk),
+      mime:
+        chunk.match(/<d:getcontenttype[^>]*>([^<]*)<\/d:getcontenttype>/)?.[1] ||
+        undefined,
+      size: Number.isFinite(size) ? size : undefined,
+    });
+  }
+  out.sort((a, b) =>
+    a.isDir === b.isDir
+      ? a.name.localeCompare(b.name)
+      : a.isDir ? -1 : 1,
+  );
+  return out;
+}
+
 /** Deletes a file inside the account's Files space. A missing file is a no-op. */
-export async function deleteRemoteFile(account: Account, path: string): Promise<void> {
+export async function deleteRemoteFile(account: FilesAccount, path: string): Promise<void> {
   const res = await davFetch(filesUrl(account, path), account, { method: 'DELETE' });
   if (res.status === 404) return;
   if (!res.ok) throw httpErrorFrom(res, 'deleteRemoteFile');
@@ -115,7 +189,7 @@ function safeFilename(name: string): string {
  * resolving name conflicts by suffixing (`name (2).ext`).
  */
 export async function uploadAttachmentFile(
-  account: Account,
+  account: FilesAccount,
   filename: string,
   contentBase64: string,
   mimeType?: string,
