@@ -109,6 +109,8 @@ export type CreateEventInput = {
     pendingAttachments?: PendingAttachment[];
     /** Files already on Nextcloud to attach by URI on save (no upload). */
     remoteAttachments?: EventAttachment[];
+    /** Write new attachments as public `/s/<token>` links (for events with attendees). */
+    shareAttachments?: boolean;
     /** Existing ATTACH properties to strip on save (edit only). */
     removedAttachments?: EventAttachment[];
 };

@@ -349,3 +349,35 @@ export async function openAttachment(
     Alert.alert(i18n.t('event.attachmentOpenError'));
   }
 }
+
+/**
+ * How an attachment written on an event with attendees should be shared.
+ * `'public'` → create an OCS public link and write its `/s/<token>` URL so
+ * attendees (including external emails) can open the file. `'private'` →
+ * keep the authenticated DAV URL, only readable by the owner.
+ */
+export type AttachmentShareMode = 'public' | 'private';
+
+/**
+ * Asks how attachments added to an event *with attendees* should be shared —
+ * mirroring the Nextcloud web app, which warns before exposing the file.
+ * Resolves null when the user cancels (the caller should abort).
+ */
+export function askAttachmentShareMode(): Promise<AttachmentShareMode | null> {
+  return new Promise((resolve) => {
+    let settled = false;
+    const done = (v: AttachmentShareMode | null) => {
+      if (!settled) { settled = true; resolve(v); }
+    };
+    Alert.alert(
+      i18n.t('event.attachmentShareTitle'),
+      i18n.t('event.attachmentSharePrompt'),
+      [
+        { text: i18n.t('common.cancel'), style: 'cancel', onPress: () => done(null) },
+        { text: i18n.t('event.attachmentSharePrivate'), onPress: () => done('private') },
+        { text: i18n.t('event.attachmentSharePublic'), onPress: () => done('public') },
+      ],
+      { cancelable: true, onDismiss: () => done(null) },
+    );
+  });
+}

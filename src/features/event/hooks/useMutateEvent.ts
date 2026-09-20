@@ -4,7 +4,8 @@ import * as Crypto from 'expo-crypto';
 import dayjs from 'dayjs';
 
 import { putEvent, updateEvent, deleteEvent, moveEvent, fetchEventIcsWithEtag } from '@/services/nextcloud/caldav';
-import { deleteRemoteFile, uploadAttachmentFile } from '@/services/nextcloud/files';
+import { deleteRemoteFile, ownDavPath, uploadAttachmentFile } from '@/services/nextcloud/files';
+import { createPublicLinkShare } from '@/services/nextcloud/shares';
 import { createTalkRoom } from '@/services/nextcloud/talk';
 import { describeMutationError } from '@/services/shared/errors';
 import { buildAttachLine, injectAttachLine, removeAttachLine } from '@/features/event/utils/attachmentWrite';
@@ -44,20 +45,36 @@ async function applyAttachmentDelta(
   for (const att of input.removedAttachments ?? []) {
     out = removeAttachLine(out, att);
   }
+  let failures = 0;
+  // Events with attendees can opt into public `/s/<token>` links so
+  // attendees can open the files — a private DAV URL is useless to them.
+  const sharePublicly = !!input.shareAttachments;
+  const publicUriFor = async (path: string, fallback: string): Promise<string> => {
+    try {
+      return (await createPublicLinkShare(account, path)).url;
+    } catch (error) {
+      failures++;
+      console.warn('[attachments] public share failed, keeping private link', error);
+      return fallback;
+    }
+  };
   // Files already on Nextcloud — the URI goes straight into the ICS.
   for (const att of input.remoteAttachments ?? []) {
-    out = injectAttachLine(out, buildAttachLine(att));
+    const path = sharePublicly && att.uri ? ownDavPath(account, att.uri) : null;
+    const uri =
+      path && att.uri ? await publicUriFor(path, att.uri) : att.uri;
+    out = injectAttachLine(out, buildAttachLine({ ...att, uri }));
   }
-  let failures = 0;
   const uploadedPaths: string[] = [];
   for (const pending of input.pendingAttachments ?? []) {
     try {
       const up = await uploadAttachmentFile(account, pending.name, pending.contentBase64, pending.mimeType);
       uploadedPaths.push(up.path);
+      const uri = sharePublicly ? await publicUriFor(up.path, up.davUrl) : up.davUrl;
       out = injectAttachLine(
         out,
         buildAttachLine({
-          uri: up.davUrl,
+          uri,
           filename: up.filename,
           fmttype: pending.mimeType,
           size: pending.size,

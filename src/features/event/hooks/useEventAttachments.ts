@@ -6,6 +6,8 @@ import {
   deleteRemoteFile, ownDavPath, uploadAttachmentFile, type UploadedFile,
 } from '@/services/nextcloud/files';
 import { internalFileId, resolveInternalFile } from '@/services/nextcloud/fileLinks';
+import { createPublicLinkShare } from '@/services/nextcloud/shares';
+import { askAttachmentShareMode } from '@/features/event/utils/attachments';
 import { describeMutationError } from '@/services/shared/errors';
 import { syncCalendarDelta } from '@/database/sync';
 import { buildAttachLine, injectAttachLine, removeAttachLine } from '@/features/event/utils/attachmentWrite';
@@ -23,6 +25,27 @@ import type {
  * file is opt-in (`deleteFile`) and only possible for files inside the
  * account's own DAV space.
  */
+/**
+ * Turns a DAV path into the URI written into ATTACH: a `/s/<token>` public
+ * link when the caller chose public sharing, the private DAV URL otherwise.
+ * A failed share creation falls back to the private URL so the attachment
+ * still exists (owner-only) rather than vanishing.
+ */
+async function publicUriOr(
+  account: Account,
+  path: string,
+  fallbackUri: string,
+  share: 'public' | 'private',
+): Promise<string> {
+  if (share !== 'public') return fallbackUri;
+  try {
+    return (await createPublicLinkShare(account, path)).url;
+  } catch (error) {
+    console.warn('[attachments] public share failed, keeping private link', error);
+    return fallbackUri;
+  }
+}
+
 export function useEventAttachments(
   account: Account | null,
   event: CalendarEvent | null | undefined,
@@ -40,6 +63,11 @@ export function useEventAttachments(
   const add = useCallback(
     async (file: PendingAttachment) => {
       if (!account || !event?.href || !calendar || busy.current) return;
+      // Events with attendees: a private DAV URL is useless to them — offer
+      // to expose the file through a public link, like the web app does.
+      const share =
+        (event.attendees?.length ?? 0) > 0 ? await askAttachmentShareMode() : 'private';
+      if (share === null) return;
       busy.current = true;
       setIsPending(true);
       let uploaded: UploadedFile | undefined;
@@ -47,11 +75,12 @@ export function useEventAttachments(
         uploaded = await uploadAttachmentFile(
           account, file.name, file.contentBase64, file.mimeType,
         );
+        const uri = await publicUriOr(account, uploaded.path, uploaded.davUrl, share);
         const { ics, etag } = await fetchEventIcsWithEtag(account, event.href);
         const next = injectAttachLine(
           ics,
           buildAttachLine({
-            uri: uploaded.davUrl,
+            uri,
             filename: uploaded.filename,
             fmttype: file.mimeType,
             size: file.size,
@@ -69,7 +98,7 @@ export function useEventAttachments(
         setIsPending(false);
       }
     },
-    [account, event?.href, calendar],
+    [account, event, calendar],
   );
 
   /**
@@ -79,11 +108,20 @@ export function useEventAttachments(
   const addRemote = useCallback(
     async (att: EventAttachment) => {
       if (!account || !event?.href || !calendar || busy.current) return;
+      const share =
+        (event.attendees?.length ?? 0) > 0 ? await askAttachmentShareMode() : 'private';
+      if (share === null) return;
       busy.current = true;
       setIsPending(true);
       try {
+        // The picker only yields own-DAV files, so a public share is possible.
+        const path = att.uri ? ownDavPath(account, att.uri) : null;
+        const uri =
+          share === 'public' && path && att.uri
+            ? await publicUriOr(account, path, att.uri, share)
+            : att.uri;
         const { ics, etag } = await fetchEventIcsWithEtag(account, event.href);
-        const next = injectAttachLine(ics, buildAttachLine(att));
+        const next = injectAttachLine(ics, buildAttachLine({ ...att, uri }));
         await updateEvent(account, event.href, next, etag);
         await syncCalendarDelta(account, calendar);
       } catch (error) {
@@ -94,7 +132,7 @@ export function useEventAttachments(
         setIsPending(false);
       }
     },
-    [account, event?.href, calendar],
+    [account, event, calendar],
   );
 
   const remove = useCallback(
