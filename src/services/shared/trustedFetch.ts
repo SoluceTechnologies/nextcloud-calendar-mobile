@@ -128,7 +128,6 @@ async function doRequest(
     url: string,
     init: Init,
 ): Promise<NativeResult> {
-<<<<<<< HEAD
     const timeoutMs = init.timeoutMs ?? DEFAULT_TIMEOUT_MS;
     let watchdog: ReturnType<typeof setTimeout> | undefined;
     try {

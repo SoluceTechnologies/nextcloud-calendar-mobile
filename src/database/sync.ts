@@ -393,16 +393,41 @@ export async function syncCalendarDelta(account: Account, calendar: CalendarMeta
     await safeWrite(db, async () => {
         const ops = [];
         const deletedSet = new Set(result.deleted);
+        const fetchedByKey = new Map(
+            fetched.map((ev) => [eventKey(ev.accountId, ev.calendarId, ev.uid), ev]),
+        );
+        // Rows kept because the fetched event is identical — avoids churning a
+        // delete+recreate (bridge ops + observer re-queries) on every delta sync,
+        // and keeps rows alive under screens currently observing them.
+        const keptKeys = new Set<string>();
+        const keepOrDrop = (r: Event) => {
+            const k = rowKey(r);
+            const fresh = fetchedByKey.get(k);
+            if (fresh && eventUnchanged(r, fresh) && !keptKeys.has(k)) {
+                keptKeys.add(k);
+            } else {
+                ops.push(r.prepareMarkAsDeleted());
+            }
+        };
+
         const touched = new Set<string>([...result.deleted, ...returnedHrefs]);
         const existing = await collectByHref(events, account.id, touched);
         if (localWriteEpoch() !== epoch) return;
         for (const r of existing) {
-            if (deletedSet.has(r.href) || returnedHrefs.has(r.href)) {
+            if (deletedSet.has(r.href)) {
                 ops.push(r.prepareMarkAsDeleted());
+            } else if (returnedHrefs.has(r.href)) {
+                keepOrDrop(r);
             }
         }
 
-        for (const ev of fetched) ops.push(prepareCreateEvent(events, ev));
+        const createdKeys = new Set<string>();
+        for (const ev of fetched) {
+            const k = eventKey(ev.accountId, ev.calendarId, ev.uid);
+            if (keptKeys.has(k) || createdKeys.has(k)) continue;
+            createdKeys.add(k);
+            ops.push(prepareCreateEvent(events, ev));
+        }
         pushSyncTokenOp(ops, calendars, row, calendar, account, result.newToken, now);
 
         if (ops.length > 0) await db.batch(ops);
