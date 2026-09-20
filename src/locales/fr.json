@@ -84,6 +84,8 @@
     "allDay": "Toute la journée",
     "start": "Début",
     "end": "Fin",
+    "timezone": "Fuseau horaire",
+    "timezoneSearch": "Rechercher un fuseau horaire",
     "location": "Lieu",
     "locationPlaceholder": "Salle ou adresse",
     "openInMaps": "Ouvrir dans l'app cartes",

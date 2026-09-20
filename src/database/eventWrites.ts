@@ -38,6 +38,7 @@ function applyPatch(row: Event, patch: Partial<CalendarEvent>): void {
     row.alarms = serializeAlarms(patch.alarms);
     row.alarmMinutes = patch.alarms?.[0] ?? undefined;
   }
+  if ('timezone' in patch) row.timezone = patch.timezone ?? undefined;
 }
 
 export async function insertEvents(list: CalendarEvent[]): Promise<void> {

@@ -84,6 +84,8 @@
     "allDay": "Весь день",
     "start": "Начало",
     "end": "Конец",
+    "timezone": "Часовой пояс",
+    "timezoneSearch": "Поиск часового пояса",
     "location": "Место",
     "locationPlaceholder": "Помещение или адрес",
     "openInMaps": "Open in Maps",

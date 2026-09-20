@@ -5,7 +5,7 @@ import * as Clipboard from 'expo-clipboard';
 import { haptic } from '@/utils/haptics';
 import {
   Pencil, Clock, CalendarDays, MapPin, Video, Repeat, Trash2, Copy, Check, Bell,
-  Navigation,
+  Navigation, Globe,
 } from 'lucide-react-native';
 import { useLocalSearchParams, useNavigation, useRouter, useTheme } from 'expo-router';
 import dayjs from 'dayjs';
@@ -38,6 +38,8 @@ import {
   type TimedAlert, type AllDayAlert,
 } from '@/features/notifications/alerts';
 import { goBackOrHome } from '@/utils/navigationGuard';
+import { formatRangeInZone, resolveAccountTimezone } from '@/utils/timezone';
+import { gmtOffsetLabel } from '@/utils/vtimezone';
 
 dayjs.extend(localizedFormat);
 
@@ -190,10 +192,18 @@ export default function EventDetailScreen() {
     );
   }
 
+  // A foreign-zone event shows its wall time in its own zone, plus the zone
+  // itself as a separate row so the displayed times are unambiguous.
+  const eventTz = event.allDay ? undefined : event.timezone;
+  const accountTz = resolveAccountTimezone(activeAccount);
+  const showZone = !!eventTz && eventTz !== accountTz;
+
   const timeStr = event.allDay
     ? (dayjs(event.dtstart).isSame(event.dtend, 'day')
         ? t('event.allDayTime')
         : `${dayjs(event.dtstart).format('ll')} – ${dayjs(event.dtend).format('ll')}`)
+    : showZone
+    ? formatRangeInZone(event.dtstart, event.dtend, eventTz!, i18n.language)
     : `${dayjs(event.dtstart).format('ll')} ${formatTime(event.dtstart)} – ${formatTime(event.dtend)}`;
 
   const reminderLabel = (() => {
@@ -248,6 +258,13 @@ export default function EventDetailScreen() {
                 leading={<Icon size={20}><Clock color={theme.colors.textSecondary} /></Icon>}
                 title={timeStr}
               />
+              {showZone && (
+                <Item
+                  leading={<Icon size={20}><Globe color={theme.colors.textSecondary} /></Icon>}
+                  title={eventTz!.replace(/_/g, ' ')}
+                  description={gmtOffsetLabel(eventTz!, event.dtstart)}
+                />
+              )}
               {reminderLabel && (
                 <Item
                   leading={<Icon size={20}><Bell color={theme.colors.textSecondary} /></Icon>}

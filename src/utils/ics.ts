@@ -1,5 +1,6 @@
 import type {Attendee, RecurrenceRule} from '@/types';
 import {minutesToTrigger, NO_ALARM_PROP} from '@/features/notifications/alerts';
+import {vtimezoneLines} from '@/utils/vtimezone';
 
 const PRODID = '-//Nextcloud Calendar Mobile//EN';
 
@@ -99,11 +100,12 @@ function attendeeLines(attendees: Attendee[]): string[] {
     });
 }
 
-function serialize(veventBody: string[]): string {
+function serialize(veventBody: string[], calendarLines: string[] = []): string {
     return [
         'BEGIN:VCALENDAR',
         'VERSION:2.0',
         `PRODID:${PRODID}`,
+        ...calendarLines,
         'BEGIN:VEVENT',
         ...veventBody,
         'END:VEVENT',
@@ -113,7 +115,11 @@ function serialize(veventBody: string[]): string {
         .join('');
 }
 
-type ExtraLines = { extraLines?: string[] };
+type ExtraLines = {
+    extraLines?: string[];
+    /** Extra VCALENDAR-level lines (e.g. VTIMEZONE blocks preserved from a rewrite). */
+    calendarLines?: string[];
+};
 
 export interface BuildIcsParams extends ExtraLines {
     uid: string;
@@ -146,7 +152,8 @@ export function buildIcs(params: BuildIcsParams): string {
         rrule,
         alarms,
         sequence = 0,
-        extraLines = []
+        extraLines = [],
+        calendarLines = []
     } = params;
 
     return serialize([
@@ -160,7 +167,7 @@ export function buildIcs(params: BuildIcsParams): string {
         ...schedulingLines(organizerName, organizerEmail, attendees),
         ...extraLines,
         ...alarmLines(alarms),
-    ]);
+    ], [...vtimezoneLines(timezone, dtstart), ...calendarLines]);
 }
 
 export type BuildAllDayIcsParams = Omit<BuildIcsParams, 'timezone'>;
@@ -179,7 +186,8 @@ export function buildAllDayIcs(params: BuildAllDayIcsParams): string {
         rrule,
         alarms,
         sequence = 0,
-        extraLines = []
+        extraLines = [],
+        calendarLines = []
     } = params;
     const endExclusive = new Date(dtend.getFullYear(), dtend.getMonth(), dtend.getDate() + 1);
 
@@ -194,7 +202,7 @@ export function buildAllDayIcs(params: BuildAllDayIcsParams): string {
         ...schedulingLines(organizerName, organizerEmail, attendees),
         ...extraLines,
         ...alarmLines(alarms),
-    ]);
+    ], calendarLines);
 }
 
 export function buildExceptionIcs(params: BuildIcsParams & { recurrenceId: Date }): string {
@@ -212,7 +220,8 @@ export function buildExceptionIcs(params: BuildIcsParams & { recurrenceId: Date 
         recurrenceId,
         alarms,
         sequence = 0,
-        extraLines = []
+        extraLines = [],
+        calendarLines = []
     } = params;
 
     return serialize([
@@ -226,7 +235,7 @@ export function buildExceptionIcs(params: BuildIcsParams & { recurrenceId: Date 
         ...schedulingLines(organizerName, organizerEmail, attendees),
         ...extraLines,
         ...alarmLines(alarms),
-    ]);
+    ], [...vtimezoneLines(timezone, dtstart), ...calendarLines]);
 }
 
 function editMasterVevent(ics: string, edit: (block: string) => string): string {

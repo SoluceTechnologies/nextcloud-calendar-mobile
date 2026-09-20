@@ -84,6 +84,8 @@
     "allDay": "Ganztägig",
     "start": "Beginn",
     "end": "Ende",
+    "timezone": "Zeitzone",
+    "timezoneSearch": "Zeitzone suchen",
     "location": "Ort",
     "locationPlaceholder": "Raum oder Adresse",
     "openInMaps": "Open in Maps",
