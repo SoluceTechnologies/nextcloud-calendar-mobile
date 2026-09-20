@@ -418,6 +418,9 @@ export async function syncCalendarDelta(account: Account, calendar: CalendarMeta
                 ops.push(r.prepareMarkAsDeleted());
             } else if (returnedHrefs.has(r.href)) {
                 keepOrDrop(r);
+            } else if (changedSet.has(r.href)) {
+                // Deleted remotely, or the resource now expands to zero events.
+                ops.push(r.prepareMarkAsDeleted());
             }
         }
 
