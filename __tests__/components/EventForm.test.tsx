@@ -313,14 +313,16 @@ describe('EventForm timezone', () => {
 
   it('keeps the instant when editing a foreign-zone event unchanged', () => {
     const onSubmit = jest.fn();
-    const { getByText } = render(
+    const formRef = createRef<EventFormHandle>();
+    render(
       <EventForm
         {...baseProps}
+        ref={formRef}
         onSubmit={onSubmit}
         initialValues={{ ...timedInitial, timezone: 'America/New_York' }}
       />,
     );
-    fireEvent.press(getByText('Save Event'));
+    act(() => formRef.current!.submit());
     const input = onSubmit.mock.calls[0][0];
     expect(input.timezone).toBe('America/New_York');
     // Fields show the zone's wall time; saving untouched must keep the instant.
@@ -330,9 +332,11 @@ describe('EventForm timezone', () => {
 
   it('treats an empty account timezone as unset (device fallback)', () => {
     const onSubmit = jest.fn();
-    const { getByText } = render(
+    const formRef = createRef<EventFormHandle>();
+    render(
       <EventForm
         {...baseProps}
+        ref={formRef}
         onSubmit={onSubmit}
         account={{
           id: 'acc-1', baseUrl: 'https://cloud.example.com',
@@ -341,7 +345,7 @@ describe('EventForm timezone', () => {
         initialValues={timedInitial}
       />,
     );
-    fireEvent.press(getByText('Save Event'));
+    act(() => formRef.current!.submit());
     expect(onSubmit.mock.calls[0][0].timezone).toBe(resolveAccountTimezone({ timezone: '' }));
   });
 

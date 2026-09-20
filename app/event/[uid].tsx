@@ -38,7 +38,7 @@ import {
   type TimedAlert, type AllDayAlert,
 } from '@/features/notifications/alerts';
 import { goBackOrHome } from '@/utils/navigationGuard';
-import { formatRangeInZone, resolveAccountTimezone } from '@/utils/timezone';
+import { formatRangeInZone, isValidTimeZone, resolveAccountTimezone } from '@/utils/timezone';
 import { gmtOffsetLabel } from '@/utils/vtimezone';
 
 dayjs.extend(localizedFormat);
@@ -196,7 +196,9 @@ export default function EventDetailScreen() {
   // itself as a separate row so the displayed times are unambiguous.
   const eventTz = event.allDay ? undefined : event.timezone;
   const accountTz = resolveAccountTimezone(activeAccount);
-  const showZone = !!eventTz && eventTz !== accountTz;
+  // Non-IANA TZIDs (e.g. Outlook's "W. Europe Standard Time") can't be
+  // formatted by Intl — treat them like the default zone rather than crash.
+  const showZone = !!eventTz && isValidTimeZone(eventTz) && eventTz !== accountTz;
 
   const timeStr = event.allDay
     ? (dayjs(event.dtstart).isSame(event.dtend, 'day')

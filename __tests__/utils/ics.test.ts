@@ -1,4 +1,4 @@
-import { buildIcs, buildAllDayIcs, shiftIcsDates, injectExdate, truncateRruleUntil } from '@/utils/ics';
+import { buildIcs, buildAllDayIcs, buildExceptionIcs, shiftIcsDates, injectExdate, truncateRruleUntil } from '@/utils/ics';
 import { parseRrule } from '@/features/calendar/utils/parseRrule';
 import { parseIcsObjects, extractExtraVeventLines } from '@/utils/caldav-parse';
 import type { Attendee } from '../../src/types';
@@ -378,6 +378,21 @@ END:VEVENT`;
     expect(blocks[0]).toContain('EXDATE;TZID=Europe/Paris:20260826T140000');
     expect(blocks[1]).not.toContain('EXDATE');
     expect(out.match(/EXDATE/g)).toHaveLength(1);
+  });
+});
+
+describe('buildExceptionIcs', () => {
+  it('keeps the master TZID on RECURRENCE-ID when the exception overrides the zone', () => {
+    const slot = new Date('2026-09-02T12:00:00Z'); // 14:00 Paris / 08:00 NYC
+    const ics = buildExceptionIcs({
+      ...base,
+      timezone: 'America/New_York',
+      recurrenceId: slot,
+      recurrenceIdTzid: 'Europe/Paris',
+    });
+    expect(ics).toContain('RECURRENCE-ID;TZID=Europe/Paris:20260902T140000');
+    expect(ics).toContain('DTSTART;TZID=America/New_York:20260601T100000');
+    expect(ics).toContain('TZID:America/New_York');
   });
 });
 

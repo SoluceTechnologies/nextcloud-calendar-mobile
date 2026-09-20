@@ -205,7 +205,9 @@ export function buildAllDayIcs(params: BuildAllDayIcsParams): string {
     ], calendarLines);
 }
 
-export function buildExceptionIcs(params: BuildIcsParams & { recurrenceId: Date }): string {
+export function buildExceptionIcs(
+    params: BuildIcsParams & { recurrenceId: Date; recurrenceIdTzid?: string },
+): string {
     const {
         uid,
         summary,
@@ -224,11 +226,15 @@ export function buildExceptionIcs(params: BuildIcsParams & { recurrenceId: Date 
         calendarLines = []
     } = params;
 
+    // RECURRENCE-ID identifies the occurrence in the master's coordinates:
+    // it must keep the master's TZID even when the exception overrides it.
+    const ridTzid = params.recurrenceIdTzid ?? timezone;
+
     return serialize([
         `UID:${uid}`,
         `DTSTAMP:${utcStamp(new Date())}`,
         `SEQUENCE:${sequence}`,
-        `RECURRENCE-ID;TZID=${timezone}:${localStamp(recurrenceId, timezone)}`,
+        `RECURRENCE-ID;TZID=${ridTzid}:${localStamp(recurrenceId, ridTzid)}`,
         `DTSTART;TZID=${timezone}:${localStamp(dtstart, timezone)}`,
         `DTEND;TZID=${timezone}:${localStamp(dtend, timezone)}`,
         ...textLines(summary, description, location),
