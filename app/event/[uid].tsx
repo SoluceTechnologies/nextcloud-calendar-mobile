@@ -33,12 +33,18 @@ import { openTalkRoom, promptTalkRoomOpen } from '@/features/event/utils/openTal
 import {
   attachmentDisplayName,
   attachmentIcon,
+  canEditAttachment,
+  editAttachment,
   formatBytes,
   isOpenableAttachment,
+  mimeFromName,
   openAttachment,
   pickDeviceAttachment,
 } from '@/features/event/utils/attachments';
 import { useEventAttachments } from '@/features/event/hooks/useEventAttachments';
+import {
+  fetchDirectEditors, editorForMime, type DirectEditor,
+} from '@/services/nextcloud/directEditing';
 import { fileDavUrl, isOwnDavFile } from '@/services/nextcloud/files';
 import { isOwnFileRef, publicShareToken } from '@/services/nextcloud/fileLinks';
 import { DavFilePicker } from '@/features/event/components/DavFilePicker';
@@ -115,6 +121,30 @@ export default function EventDetailScreen() {
   }, [attachments]);
 
   const [davPickerOpen, setDavPickerOpen] = useState(false);
+
+  // Direct Editing editors (Text, Collabora…) — fetched once per account to
+  // know which attachments can offer an "edit in browser" action.
+  const [editors, setEditors] = useState<DirectEditor[]>([]);
+  useEffect(() => {
+    let on = true;
+    setEditors([]);
+    if (activeAccount) {
+      fetchDirectEditors(activeAccount)
+        .then((list) => on && setEditors(list))
+        .catch(() => on && setEditors([]));
+    }
+    return () => { on = false; };
+  }, [activeAccount]);
+
+  const isEditable = useCallback(
+    (att: EventAttachment) =>
+      canEditAttachment(att, activeAccount) &&
+      !!editorForMime(
+        editors,
+        att.fmttype ?? mimeFromName(att.filename ?? att.uri?.split('?')[0].split('/').pop()),
+      ),
+    [activeAccount, editors],
+  );
 
   const handleAddAttachment = useCallback(() => {
     // The DAV picker needs a davUserId to build paths — older accounts may
@@ -498,17 +528,31 @@ export default function EventDetailScreen() {
                               : undefined
                           }
                           trailing={
-                            canEdit && attachments.ready ? (
-                              <IconButton
-                                variant="plain"
-                                size={36}
-                                onPress={() => handleRemoveAttachment(att)}
-                                disabled={attachments.isPending}
-                                accessibilityLabel={t('event.attachmentRemove')}
-                              >
-                                <Trash2 size={18} color={theme.colors.danger} />
-                              </IconButton>
-                            ) : undefined
+                            isEditable(att) || (canEdit && attachments.ready) ? (
+                            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                              {isEditable(att) && (
+                                <IconButton
+                                  variant="plain"
+                                  size={36}
+                                  onPress={() => void editAttachment(att, activeAccount)}
+                                  accessibilityLabel={t('event.attachmentEdit')}
+                                >
+                                  <Pencil size={18} color={theme.colors.textSecondary} />
+                                </IconButton>
+                              )}
+                              {canEdit && attachments.ready ? (
+                                <IconButton
+                                  variant="plain"
+                                  size={36}
+                                  onPress={() => handleRemoveAttachment(att)}
+                                  disabled={attachments.isPending}
+                                  accessibilityLabel={t('event.attachmentRemove')}
+                                >
+                                  <Trash2 size={18} color={theme.colors.danger} />
+                                </IconButton>
+                              ) : null}
+                            </View>
+                          ) : undefined
                           }
                         />
                       );

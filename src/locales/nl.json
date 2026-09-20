@@ -94,6 +94,8 @@
     "attachments": "Bijlagen",
     "attachmentUntitled": "Bijlage",
     "attachmentOpenError": "Kon deze bijlage niet openen",
+    "attachmentEdit": "Bijlage bewerken",
+    "attachmentEditError": "De editor kon niet worden geopend",
     "attachmentTooLarge": "Deze bijlage is te groot om te openen",
     "addAttachment": "Bijlage toevoegen",
     "attachmentAddError": "Bijlage kon niet worden toegevoegd",

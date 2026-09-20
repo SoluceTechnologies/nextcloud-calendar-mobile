@@ -94,6 +94,8 @@
     "attachments": "Pièces jointes",
     "attachmentUntitled": "Pièce jointe",
     "attachmentOpenError": "Impossible d’ouvrir cette pièce jointe",
+    "attachmentEdit": "Modifier la pièce jointe",
+    "attachmentEditError": "Impossible d’ouvrir l’éditeur",
     "attachmentTooLarge": "Cette pièce jointe est trop volumineuse",
     "addAttachment": "Ajouter une pièce jointe",
     "attachmentAddError": "Impossible d’ajouter la pièce jointe",

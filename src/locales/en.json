@@ -94,6 +94,8 @@
     "attachments": "Attachments",
     "attachmentUntitled": "Attachment",
     "attachmentOpenError": "Could not open this attachment",
+    "attachmentEdit": "Edit attachment",
+    "attachmentEditError": "Could not open the editor",
     "attachmentTooLarge": "This attachment is too large to open",
     "addAttachment": "Add attachment",
     "attachmentAddError": "Could not add the attachment",
