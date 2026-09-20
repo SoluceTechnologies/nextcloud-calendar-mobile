@@ -107,7 +107,7 @@ Create, view, and edit calendar events with support for:
 - Attendee lists with display names
 - Recurring event detection
 - Multiple reminders per event, configurable defaults, and custom offsets
-- Attachments — files stored on your Nextcloud are downloaded with your account and opened through the share sheet, embedded files are decoded on demand; you can attach files from your device (uploaded to `Calendar/` via WebDAV) or remove them (the file itself is kept)
+- Attachments — files stored on your Nextcloud are downloaded with your account and opened through the share sheet, embedded files are decoded on demand; you can attach files from your device (uploaded to `Calendar/` via WebDAV) or remove them (with an option to also delete the file). Attachments added by the Nextcloud Calendar web app (`/f/<id>` links) are resolved to their real WebDAV file, and public share links (`/s/<token>`) are downloaded anonymously
 
 ### Nextcloud Talk Integration
 Optionally attach a Nextcloud Talk room to any event at creation time, the Talk link is stored in the event and surfaced in the event detail view.

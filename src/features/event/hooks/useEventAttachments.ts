@@ -1,10 +1,11 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { Alert } from 'react-native';
 
 import { fetchEventIcsWithEtag, updateEvent } from '@/services/nextcloud/caldav';
 import {
   deleteRemoteFile, ownDavPath, uploadAttachmentFile, type UploadedFile,
 } from '@/services/nextcloud/files';
+import { internalFileId, resolveInternalFile } from '@/services/nextcloud/fileLinks';
 import { describeMutationError } from '@/services/shared/errors';
 import { syncCalendarDelta } from '@/database/sync';
 import { buildAttachLine, injectAttachLine, removeAttachLine } from '@/features/event/utils/attachmentWrite';
@@ -28,6 +29,9 @@ export function useEventAttachments(
   calendar: CalendarMeta | undefined,
 ) {
   const [isPending, setIsPending] = useState(false);
+  // Guards against concurrent mutations — two remove() calls racing on the
+  // same etag would make the loser's If-Match PUT fail with a spurious 412.
+  const busy = useRef(false);
 
   const ready =
     !!account && !!event?.href && !!calendar &&
@@ -35,7 +39,8 @@ export function useEventAttachments(
 
   const add = useCallback(
     async (file: PendingAttachment) => {
-      if (!account || !event?.href || !calendar) return;
+      if (!account || !event?.href || !calendar || busy.current) return;
+      busy.current = true;
       setIsPending(true);
       let uploaded: UploadedFile | undefined;
       try {
@@ -60,6 +65,7 @@ export function useEventAttachments(
         console.warn('[attachments] add failed', error);
         Alert.alert(i18n.t('event.attachmentAddError'), describeMutationError(error));
       } finally {
+        busy.current = false;
         setIsPending(false);
       }
     },
@@ -68,7 +74,8 @@ export function useEventAttachments(
 
   const remove = useCallback(
     async (att: EventAttachment, opts?: { deleteFile?: boolean }) => {
-      if (!account || !event?.href || !calendar) return;
+      if (!account || !event?.href || !calendar || busy.current) return;
+      busy.current = true;
       setIsPending(true);
       let unlinked = false;
       try {
@@ -88,17 +95,23 @@ export function useEventAttachments(
         console.warn('[attachments] remove failed', error);
         Alert.alert(i18n.t('event.attachmentRemoveError'), describeMutationError(error));
       } finally {
+        busy.current = false;
         setIsPending(false);
       }
       if (unlinked && opts?.deleteFile && att.uri) {
-        const path = ownDavPath(account, att.uri);
-        if (path) {
-          try {
-            await deleteRemoteFile(account, path);
-          } catch (error) {
-            console.warn('[attachments] remote file delete failed', error);
-            Alert.alert(i18n.t('event.attachmentFileDeleteError'));
+        try {
+          let path = ownDavPath(account, att.uri);
+          if (!path) {
+            // `/f/<id>` link written by the web app — resolve to its DAV path.
+            const fileId = internalFileId(account, att.uri);
+            if (fileId != null) {
+              path = (await resolveInternalFile(account, fileId))?.path ?? null;
+            }
           }
+          if (path) await deleteRemoteFile(account, path);
+        } catch (error) {
+          console.warn('[attachments] remote file delete failed', error);
+          Alert.alert(i18n.t('event.attachmentFileDeleteError'));
         }
       }
     },
