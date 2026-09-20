@@ -185,4 +185,12 @@ describe('removeAttachLine', () => {
   it('leaves the ICS unchanged when nothing matches', () => {
     expect(removeAttachLine(withTwo, { uri: 'https://srv/other' })).toBe(withTwo);
   });
+
+  it('returns the identical string on a folded ICS when nothing matches', () => {
+    // The caller detects "no match" via strict equality — unfolding folded
+    // lines would break that guard, so the input must come back untouched.
+    const foldedDesc = foldLine('DESCRIPTION:' + 'x'.repeat(120));
+    const ics = withTwo.replace('END:VEVENT', foldedDesc + CRLF + 'END:VEVENT');
+    expect(removeAttachLine(ics, { uri: 'https://srv/other' })).toBe(ics);
+  });
 });
