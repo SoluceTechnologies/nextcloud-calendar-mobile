@@ -1,5 +1,4 @@
 import type { Account } from '@/types';
-import { httpErrorFrom } from '../shared/errors';
 import { trustedFetch } from '../shared/trustedFetch';
 import { decodeXmlEntities } from './caldav';
 import { fileDavUrl, type FilesAccount } from './files';
@@ -48,7 +47,7 @@ export function internalFileId(account: FilesAccount, uri: string): number | nul
 /** Share token from a `/s/<token>` link (optional `/download[...]` suffix). */
 export function publicShareToken(account: FilesAccount, uri: string): string | null {
   const path = pathBelowBase(account, uri);
-  const m = path?.match(/^(?:index\.php\/)?s\/([A-Za-z0-9]+)(?:\/.*)?$/);
+  const m = path?.match(/^(?:index\.php\/)?s\/([A-Za-z0-9_-]+)(?:\/.*)?$/);
   return m ? m[1] : null;
 }
 
@@ -70,15 +69,19 @@ export function shareDownloadUrl(account: FilesAccount, token: string): string {
 }
 
 function davHrefToPath(account: FilesAccount, href: string): string | null {
-  const root = `/remote.php/dav/files/${encodeURIComponent(account.davUserId)}`;
-  if (!href.startsWith(root + '/')) return null;
+  // Compare decoded-to-decoded: servers may or may not percent-encode the
+  // user id segment (e.g. `user@x.com` vs `user%40x.com`) in the href.
+  const root = `/remote.php/dav/files/${account.davUserId}`;
+  let decoded: string;
   try {
-    const path = decodeURIComponent(href.slice(root.length));
-    if (path.split('/').some((s) => s === '..')) return null;
-    return path;
+    decoded = decodeXmlEntities(decodeURIComponent(href));
   } catch {
     return null;
   }
+  if (!decoded.startsWith(root + '/')) return null;
+  const path = decoded.slice(root.length);
+  if (path.split('/').some((s) => s === '..')) return null;
+  return path;
 }
 
 function propOf(chunk: string, tag: string): string | undefined {
@@ -163,7 +166,13 @@ async function walkByFileId(
       maxRetries: 1,
     },
   );
-  if (!res.ok) throw httpErrorFrom(res, 'walkByFileId');
+  // Depth: infinity is rejected (403/501) by some servers — report "not
+  // found" rather than an opaque HTTP error; the attachment stays openable
+  // in the browser.
+  if (!res.ok) {
+    console.warn('[fileLinks] walkByFileId rejected:', res.status);
+    return null;
+  }
   for (const { href, chunk } of parseMultistatus(await res.text())) {
     if (propOf(chunk, 'oc:fileid') !== String(fileId)) continue;
     const path = davHrefToPath(account, href);

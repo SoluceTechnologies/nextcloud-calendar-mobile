@@ -1,7 +1,5 @@
 import { useState } from 'react';
 import { Alert } from 'react-native';
-import * as DocumentPicker from 'expo-document-picker';
-import * as FileSystem from 'expo-file-system/legacy';
 import { Plus, X } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from 'expo-router';
@@ -10,7 +8,7 @@ import { Icon, IconButton, Item, List, SectionHeader, Stack, Typography } from '
 import { DavFilePicker } from './DavFilePicker';
 import { fileDavUrl, type FilesAccount } from '@/services/nextcloud/files';
 import {
-  attachmentDisplayName, attachmentIcon, decodedBase64Bytes, formatBytes, MAX_ATTACHMENT_BYTES,
+  attachmentDisplayName, attachmentIcon, formatBytes, pickDeviceAttachment,
 } from '@/features/event/utils/attachments';
 import type { EventAttachment, PendingAttachment } from '@/types';
 
@@ -42,7 +40,9 @@ export function AttachmentsField({
   const [davPickerOpen, setDavPickerOpen] = useState(false);
 
   function pick() {
-    if (!account) {
+    // The DAV picker needs a davUserId to build paths — accounts created
+    // before that field existed fall back to the device picker only.
+    if (!account?.davUserId) {
       void pickDevice();
       return;
     }
@@ -57,31 +57,8 @@ export function AttachmentsField({
   }
 
   async function pickDevice() {
-    try {
-      const result = await DocumentPicker.getDocumentAsync({
-        type: '*/*',
-        copyToCacheDirectory: true,
-        multiple: false,
-      });
-      if (result.canceled || !result.assets?.[0]) return;
-      const asset = result.assets[0];
-      if (asset.size && asset.size > MAX_ATTACHMENT_BYTES) {
-        Alert.alert(t('event.attachmentTooLarge'));
-        return;
-      }
-      const contentBase64 = await FileSystem.readAsStringAsync(asset.uri, {
-        encoding: FileSystem.EncodingType.Base64,
-      });
-      // `asset.size` may be missing — re-check on the actual payload.
-      if (decodedBase64Bytes(contentBase64) > MAX_ATTACHMENT_BYTES) {
-        Alert.alert(t('event.attachmentTooLarge'));
-        return;
-      }
-      onAdd({ name: asset.name, contentBase64, mimeType: asset.mimeType, size: asset.size });
-    } catch (error) {
-      console.warn('[attachments] pick/read failed', error);
-      Alert.alert(t('event.attachmentAddError'));
-    }
+    const file = await pickDeviceAttachment();
+    if (file) onAdd(file);
   }
 
   const removeButton = (onPress: () => void) => (
@@ -160,7 +137,7 @@ export function AttachmentsField({
           {t('event.noAttachments')}
         </Typography>
       )}
-      {account && davPickerOpen && (
+      {account?.davUserId && davPickerOpen && (
         <DavFilePicker
           visible={davPickerOpen}
           account={account}

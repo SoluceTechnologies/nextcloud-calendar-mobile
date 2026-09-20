@@ -46,8 +46,9 @@ export function foldLine(line: string, eol = '\r\n'): string {
 }
 
 function escapeParam(value: string): string {
-  // RFC 5545 param values containing ; : or , must be quoted.
-  return /[;:,]/.test(value) ? `"${value.replace(/"/g, "'")}"` : value;
+  // RFC 5545 param values containing ; : or , must be quoted — and a bare
+  // double-quote is never legal in paramtext, so it also forces quoting.
+  return /[;:,"]/.test(value) ? `"${value.replace(/"/g, "'")}"` : value;
 }
 
 /** Builds the (folded) ATTACH property line for an attachment. */

@@ -4,7 +4,7 @@ import * as Crypto from 'expo-crypto';
 import dayjs from 'dayjs';
 
 import { putEvent, updateEvent, deleteEvent, moveEvent, fetchEventIcsWithEtag } from '@/services/nextcloud/caldav';
-import { deleteRemoteFile, ownDavPath, uploadAttachmentFile } from '@/services/nextcloud/files';
+import { deleteRemoteFile, ownDavPath, uploadAttachmentFile, type UploadedFile } from '@/services/nextcloud/files';
 import { createPublicLinkShare } from '@/services/nextcloud/shares';
 import { createTalkRoom } from '@/services/nextcloud/talk';
 import { describeMutationError } from '@/services/shared/errors';
@@ -60,16 +60,21 @@ async function applyAttachmentDelta(
   };
   // Files already on Nextcloud — the URI goes straight into the ICS.
   for (const att of input.remoteAttachments ?? []) {
-    const path = sharePublicly && att.uri ? ownDavPath(account, att.uri) : null;
-    const uri =
-      path && att.uri ? await publicUriFor(path, att.uri) : att.uri;
-    out = injectAttachLine(out, buildAttachLine({ ...att, uri }));
+    try {
+      const path = sharePublicly && att.uri ? ownDavPath(account, att.uri) : null;
+      const uri =
+        path && att.uri ? await publicUriFor(path, att.uri) : att.uri;
+      out = injectAttachLine(out, buildAttachLine({ ...att, uri }));
+    } catch (error) {
+      failures++;
+      console.warn('[attachments] remote attach failed', att.uri, error);
+    }
   }
   const uploadedPaths: string[] = [];
   for (const pending of input.pendingAttachments ?? []) {
+    let up: UploadedFile | undefined;
     try {
-      const up = await uploadAttachmentFile(account, pending.name, pending.contentBase64, pending.mimeType);
-      uploadedPaths.push(up.path);
+      up = await uploadAttachmentFile(account, pending.name, pending.contentBase64, pending.mimeType);
       const uri = sharePublicly ? await publicUriFor(up.path, up.davUrl) : up.davUrl;
       out = injectAttachLine(
         out,
@@ -81,9 +86,14 @@ async function applyAttachmentDelta(
           fileId: up.fileId,
         }),
       );
+      // Tracked only once the file is actually referenced — the caller uses
+      // this list to delete orphans when the enclosing PUT never happens.
+      uploadedPaths.push(up.path);
     } catch (error) {
       failures++;
       console.warn('[attachments] pending upload failed', pending.name, error);
+      // Uploaded but never injected — delete it now so nothing is orphaned.
+      if (up) await deleteRemoteFile(account, up.path).catch(() => {});
     }
   }
   return { ics: out, failures, uploadedPaths };
