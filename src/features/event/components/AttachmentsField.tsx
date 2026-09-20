@@ -172,6 +172,7 @@ export function AttachmentsField({
               filename: entry.name,
               fmttype: entry.mime,
               size: entry.size,
+              fileId: entry.fileId,
             });
           }}
         />

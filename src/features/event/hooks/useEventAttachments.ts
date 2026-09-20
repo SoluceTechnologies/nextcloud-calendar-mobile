@@ -5,8 +5,8 @@ import { fetchEventIcsWithEtag, updateEvent } from '@/services/nextcloud/caldav'
 import {
   deleteRemoteFile, ownDavPath, uploadAttachmentFile, type UploadedFile,
 } from '@/services/nextcloud/files';
-import { internalFileId, resolveInternalFile } from '@/services/nextcloud/fileLinks';
-import { createPublicLinkShare } from '@/services/nextcloud/shares';
+import { internalFileId, publicShareToken, resolveInternalFile } from '@/services/nextcloud/fileLinks';
+import { createPublicLinkShare, deleteShare, findShareByToken } from '@/services/nextcloud/shares';
 import { askAttachmentShareMode } from '@/features/event/utils/attachments';
 import { describeMutationError } from '@/services/shared/errors';
 import { syncCalendarDelta } from '@/database/sync';
@@ -84,6 +84,7 @@ export function useEventAttachments(
             filename: uploaded.filename,
             fmttype: file.mimeType,
             size: file.size,
+            fileId: uploaded.fileId,
           }),
         );
         await updateEvent(account, event.href, next, etag);
@@ -136,7 +137,10 @@ export function useEventAttachments(
   );
 
   const remove = useCallback(
-    async (att: EventAttachment, opts?: { deleteFile?: boolean }) => {
+    async (
+      att: EventAttachment,
+      opts?: { deleteFile?: boolean; revokeShare?: boolean },
+    ) => {
       if (!account || !event?.href || !calendar || busy.current) return;
       busy.current = true;
       setIsPending(true);
@@ -175,6 +179,17 @@ export function useEventAttachments(
         } catch (error) {
           console.warn('[attachments] remote file delete failed', error);
           Alert.alert(i18n.t('event.attachmentFileDeleteError'));
+        }
+      }
+      if (unlinked && opts?.revokeShare && att.uri) {
+        try {
+          // `/s/<token>` ATTACH — find our matching share and revoke it.
+          const token = publicShareToken(account, att.uri);
+          const share = token ? await findShareByToken(account, token) : null;
+          if (share) await deleteShare(account, share.id);
+        } catch (error) {
+          console.warn('[attachments] share revoke failed', error);
+          Alert.alert(i18n.t('event.attachmentShareRevokeError'));
         }
       }
     },

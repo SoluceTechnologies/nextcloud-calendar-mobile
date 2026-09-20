@@ -5,7 +5,7 @@ jest.mock('@/services/shared/trustedFetch', () => ({
 }));
 
 import { trustedFetch } from '@/services/shared/trustedFetch';
-import { createPublicLinkShare } from '@/services/nextcloud/shares';
+import { createPublicLinkShare, findShareByToken, deleteShare } from '@/services/nextcloud/shares';
 
 const req = trustedFetch as jest.Mock;
 
@@ -62,5 +62,46 @@ describe('createPublicLinkShare', () => {
   it('throws when the response lacks a token', async () => {
     req.mockResolvedValueOnce(res(200, { ocs: { data: {} } }));
     await expect(createPublicLinkShare(account, '/x')).rejects.toThrow();
+  });
+});
+
+describe('findShareByToken', () => {
+  it('returns the share matching the token', async () => {
+    req.mockResolvedValueOnce(
+      res(200, {
+        ocs: {
+          data: [
+            { id: 3, token: 'Other1', path: '/a.txt' },
+            { id: 12, token: 'Tok123', path: '/Calendar/demo.txt' },
+          ],
+        },
+      }),
+    );
+    const share = await findShareByToken(account, 'Tok123');
+    expect(req).toHaveBeenCalledWith(
+      'https://srv/ocs/v2.php/apps/files_sharing/api/v1/shares',
+      expect.objectContaining({ method: 'GET' }),
+    );
+    expect(share).toEqual({ id: 12, path: '/Calendar/demo.txt' });
+  });
+
+  it('returns null when no share matches', async () => {
+    req.mockResolvedValueOnce(res(200, { ocs: { data: [] } }));
+    await expect(findShareByToken(account, 'Nope')).resolves.toBeNull();
+  });
+});
+
+describe('deleteShare', () => {
+  it('DELETEs the share by id and accepts 404 as already-gone', async () => {
+    req.mockResolvedValueOnce(res(200));
+    await deleteShare(account, 12);
+    expect(req).toHaveBeenCalledWith(
+      'https://srv/ocs/v2.php/apps/files_sharing/api/v1/shares/12',
+      expect.objectContaining({ method: 'DELETE' }),
+    );
+    req.mockResolvedValueOnce(res(404));
+    await expect(deleteShare(account, 12)).resolves.toBeUndefined();
+    req.mockResolvedValueOnce(res(500));
+    await expect(deleteShare(account, 12)).rejects.toThrow();
   });
 });

@@ -78,6 +78,7 @@ async function applyAttachmentDelta(
           filename: up.filename,
           fmttype: pending.mimeType,
           size: pending.size,
+          fileId: up.fileId,
         }),
       );
     } catch (error) {
