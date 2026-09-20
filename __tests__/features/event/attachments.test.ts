@@ -34,6 +34,13 @@ jest.mock('../../../src/services/shared/trustedFetch', () => ({
 
 jest.mock('../../../src/services/nextcloud/caldav', () => ({
   fetchEventIcs: jest.fn(),
+  decodeXmlEntities: (s: string) =>
+    s
+      .replace(/&quot;/g, '"')
+      .replace(/&apos;/g, "'")
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&amp;/g, '&'),
 }));
 
 const mockedFetch = trustedFetch as jest.MockedFunction<typeof trustedFetch>;
@@ -119,6 +126,9 @@ describe('isOpenableAttachment', () => {
     expect(isOpenableAttachment({ base64: 'aGk=' })).toBe(true);
     expect(isOpenableAttachment({ inline: true, filename: 'a.pdf' })).toBe(true);
     expect(isOpenableAttachment({ uri: 'https://x.tld/f.pdf' })).toBe(true);
+    // Relative links written by the web app resolve against the account.
+    expect(isOpenableAttachment({ uri: '/f/123' })).toBe(true);
+    expect(isOpenableAttachment({ uri: 'index.php/s/tok' })).toBe(true);
   });
 
   it('rejects non-http URIs and empty attachments', () => {
@@ -322,6 +332,123 @@ describe('openAttachment', () => {
     await openAttachment(att, account());
     expect(Alert.alert).toHaveBeenCalledWith('This attachment is too large to open');
     expect(mockedShare).not.toHaveBeenCalled();
+  });
+
+  it('resolves a /f/<id> link via SEARCH then downloads the DAV file', async () => {
+    mockedFetch
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 207,
+        headers: { get: () => null },
+        text: async () =>
+          '<?xml version="1.0"?><d:multistatus xmlns:d="DAV:">' +
+          '<d:response><d:href>/remote.php/dav/files/alice/Calendar/report.pdf</d:href>' +
+          '<d:propstat><d:prop><d:displayname>report.pdf</d:displayname>' +
+          '<d:getcontenttype>application/pdf</d:getcontenttype></d:prop></d:propstat>' +
+          '</d:response></d:multistatus>',
+      } as unknown as Awaited<ReturnType<typeof trustedFetch>>)
+      .mockResolvedValue(fetchOk());
+    const att: EventAttachment = {
+      uri: 'https://cloud.example.com/f/326',
+    };
+    await openAttachment(att, account());
+    expect(mockedFetch).toHaveBeenNthCalledWith(
+      1,
+      'https://cloud.example.com/remote.php/dav',
+      expect.objectContaining({ method: 'SEARCH' }),
+    );
+    // HEAD preflight first, then the credentialed GET.
+    expect(mockedFetch).toHaveBeenNthCalledWith(
+      2,
+      'https://cloud.example.com/remote.php/dav/files/alice/Calendar/report.pdf',
+      expect.objectContaining({ method: 'HEAD' }),
+    );
+    expect(mockedFetch).toHaveBeenNthCalledWith(
+      3,
+      'https://cloud.example.com/remote.php/dav/files/alice/Calendar/report.pdf',
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          Authorization: expect.stringMatching(/^Basic /),
+        }),
+      }),
+    );
+    expect(mockedShare).toHaveBeenCalledWith(
+      expect.stringContaining('report.pdf'),
+      expect.objectContaining({ mimeType: 'application/pdf' }),
+    );
+  });
+
+  it('resolves a relative /f/<id> link against the account', async () => {
+    mockedFetch
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 207,
+        headers: { get: () => null },
+        text: async () =>
+          '<?xml version="1.0"?><d:multistatus xmlns:d="DAV:">' +
+          '<d:response><d:href>/remote.php/dav/files/alice/a.txt</d:href>' +
+          '<d:propstat><d:prop><d:displayname>a.txt</d:displayname></d:prop></d:propstat>' +
+          '</d:response></d:multistatus>',
+      } as unknown as Awaited<ReturnType<typeof trustedFetch>>)
+      .mockResolvedValue(fetchOk());
+    await openAttachment({ uri: '/f/55' }, account());
+    expect(mockedFetch).toHaveBeenNthCalledWith(
+      3,
+      'https://cloud.example.com/remote.php/dav/files/alice/a.txt',
+      expect.anything(),
+    );
+    expect(mockedShare).toHaveBeenCalled();
+  });
+
+  it('alerts when the /f/<id> target no longer exists', async () => {
+    const empty = {
+      ok: true,
+      status: 207,
+      headers: { get: () => null },
+      text: async () => '<d:multistatus xmlns:d="DAV:"/>',
+    } as unknown as Awaited<ReturnType<typeof trustedFetch>>;
+    mockedFetch.mockResolvedValueOnce(empty).mockResolvedValueOnce(empty);
+    await openAttachment({ uri: 'https://cloud.example.com/f/999' }, account());
+    expect(Alert.alert).toHaveBeenCalledWith('Could not open this attachment');
+    expect(mockedShare).not.toHaveBeenCalled();
+  });
+
+  it('downloads a public /s/<token> link without credentials', async () => {
+    mockedFetch.mockResolvedValue(fetchOk());
+    const att: EventAttachment = {
+      uri: 'https://cloud.example.com/s/tok123',
+      filename: 'shared.pdf',
+      fmttype: 'application/pdf',
+    };
+    await openAttachment(att, account());
+    expect(mockedFetch).toHaveBeenCalledWith(
+      'https://cloud.example.com/s/tok123/download',
+      expect.objectContaining({ headers: {} }),
+    );
+    expect(mockedShare).toHaveBeenCalledWith(
+      expect.stringContaining('shared.pdf'),
+      expect.objectContaining({ mimeType: 'application/pdf' }),
+    );
+    expect(Linking.openURL).not.toHaveBeenCalled();
+  });
+
+  it('alerts instead of sharing an HTML page masquerading as a file', async () => {
+    mockedFetch.mockResolvedValue({
+      ok: true,
+      status: 200,
+      headers: {
+        get: (n: string) => (n === 'content-type' ? 'text/html; charset=UTF-8' : null),
+      },
+      base64: async () => 'PGh0bWw+',
+    } as unknown as Awaited<ReturnType<typeof trustedFetch>>);
+    const att: EventAttachment = {
+      uri: 'https://cloud.example.com/remote.php/dav/files/alice/doc.txt',
+      filename: 'doc.txt',
+    };
+    await openAttachment(att, account());
+    expect(mockedWrite).not.toHaveBeenCalled();
+    expect(mockedShare).not.toHaveBeenCalled();
+    expect(Alert.alert).toHaveBeenCalledWith('Could not open this attachment');
   });
 
   describe('inline (occurrence) attachments', () => {

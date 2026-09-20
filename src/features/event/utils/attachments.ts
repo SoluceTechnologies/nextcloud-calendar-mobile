@@ -19,6 +19,13 @@ import {
   type TrustedResponse,
 } from '@/services/shared/trustedFetch';
 import { fetchEventIcs } from '@/services/nextcloud/caldav';
+import {
+  internalFileId,
+  isFileLinkUri,
+  publicShareToken,
+  resolveInternalFile,
+  shareDownloadUrl,
+} from '@/services/nextcloud/fileLinks';
 import { utf8ToBase64 } from '@/services/shared/base64';
 import { base64Fingerprint, extractEventAttachments } from '@/utils/caldav-parse';
 import i18n from '@/utils/i18n';
@@ -79,7 +86,12 @@ export function attachmentDisplayName(att: EventAttachment): string {
 }
 
 export function isOpenableAttachment(att: EventAttachment): boolean {
-  return !!att.base64 || !!att.inline || /^https?:/i.test(att.uri ?? '');
+  return (
+    !!att.base64 ||
+    !!att.inline ||
+    /^https?:/i.test(att.uri ?? '') ||
+    isFileLinkUri(att.uri) // relative /f/<id> or /s/<token> written by the web app
+  );
 }
 
 function originOf(url: string): string {
@@ -172,35 +184,23 @@ async function openBase64Attachment(att: EventAttachment): Promise<void> {
   await shareFile(fileUri, att);
 }
 
-async function openUriAttachment(
+function authHeader(account: Account): string {
+  return `Basic ${utf8ToBase64(`${account.username}:${account.appPassword}`)}`;
+}
+
+async function downloadAndShare(
+  url: string,
   att: EventAttachment,
-  account: Account | null,
+  auth?: string,
 ): Promise<void> {
-  const uri = att.uri!;
-
-  if (att.size && att.size > MAX_ATTACHMENT_BYTES) {
-    Alert.alert(i18n.t('event.attachmentTooLarge'));
-    return;
-  }
-
-  // Public/external links: hand off to the system browser.
-  if (!isSameOrigin(att, account)) {
-    await Linking.openURL(uri);
-    return;
-  }
-
-  // Same-origin (private Nextcloud) files need the app credentials — plain
-  // browser links would get a 401 without a web session.
-  const authHeaders = {
-    Authorization: `Basic ${utf8ToBase64(`${account!.username}:${account!.appPassword}`)}`,
-  };
+  const headers = auth ? { Authorization: auth } : {};
 
   // A HEAD first avoids downloading a body we would reject anyway: the
   // declared SIZE parameter can lie.
   try {
-    const head = await trustedFetch(uri, {
+    const head = await trustedFetch(url, {
       method: 'HEAD',
-      headers: authHeaders,
+      headers,
       timeoutMs: 15000,
     });
     const len = Number(head.headers.get('content-length'));
@@ -216,8 +216,8 @@ async function openUriAttachment(
   // buffering an oversized body (e.g. a chunked reply with no Content-Length).
   let res: TrustedResponse;
   try {
-    res = await trustedFetch(uri, {
-      headers: authHeaders,
+    res = await trustedFetch(url, {
+      headers,
       timeoutMs: 30000,
       maxBodyBytes: MAX_ATTACHMENT_BYTES,
     });
@@ -230,6 +230,12 @@ async function openUriAttachment(
   }
   if (!res.ok) {
     throw new Error(`attachment-download-${res.status}`);
+  }
+  // An HTML body means a login/redirect page (expired session, password-gated
+  // share, unresolved /f/ link) — never the file itself.
+  const contentType = res.headers.get('content-type') ?? '';
+  if (/text\/html/i.test(contentType)) {
+    throw new Error('attachment-download-html');
   }
   const contentLength = Number(res.headers.get('content-length'));
   if (Number.isFinite(contentLength) && contentLength > MAX_ATTACHMENT_BYTES) {
@@ -246,6 +252,56 @@ async function openUriAttachment(
     encoding: FileSystem.EncodingType.Base64,
   });
   await shareFile(fileUri, att);
+}
+
+async function openUriAttachment(
+  att: EventAttachment,
+  account: Account | null,
+): Promise<void> {
+  const uri = att.uri!;
+
+  if (att.size && att.size > MAX_ATTACHMENT_BYTES) {
+    Alert.alert(i18n.t('event.attachmentTooLarge'));
+    return;
+  }
+
+  // `/f/<id>` links (what the web app writes) resolve to the real DAV path
+  // before downloading — a plain GET would return the Files UI HTML page.
+  const fileId = account ? internalFileId(account, uri) : null;
+  if (fileId != null && account) {
+    const resolved = await resolveInternalFile(account, fileId);
+    if (!resolved) throw new Error('attachment-file-not-found');
+    const enriched: EventAttachment = {
+      ...att,
+      filename: att.filename ?? resolved.filename,
+      fmttype: att.fmttype ?? resolved.mime,
+      size: att.size ?? resolved.size,
+    };
+    if (enriched.size && enriched.size > MAX_ATTACHMENT_BYTES) {
+      Alert.alert(i18n.t('event.attachmentTooLarge'));
+      return;
+    }
+    await downloadAndShare(resolved.davUrl, enriched, authHeader(account));
+    return;
+  }
+
+  // Public share links serve the file anonymously via /s/<token>/download.
+  const shareToken = account ? publicShareToken(account, uri) : null;
+  if (shareToken && account) {
+    await downloadAndShare(shareDownloadUrl(account, shareToken), att);
+    return;
+  }
+
+  // Public/external links: hand off to the system browser.
+  if (!isSameOrigin(att, account)) {
+    if (!/^https?:/i.test(uri)) throw new Error('attachment-unresolvable-uri');
+    await Linking.openURL(uri);
+    return;
+  }
+
+  // Same-host (private Nextcloud) files need the app credentials — plain
+  // browser links would get a 401 without a web session.
+  await downloadAndShare(uri, att, authHeader(account!));
 }
 
 /**
@@ -285,7 +341,7 @@ export async function openAttachment(
       await openBase64Attachment(att);
     } else if (att.inline) {
       await openInlineAttachment(att, account, href);
-    } else if (att.uri && /^https?:/i.test(att.uri)) {
+    } else if (att.uri && (/^https?:/i.test(att.uri) || isFileLinkUri(att.uri))) {
       await openUriAttachment(att, account);
     }
   } catch (error) {
