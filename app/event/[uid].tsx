@@ -35,6 +35,7 @@ import { openTalkRoom, promptTalkRoomOpen } from '@/features/event/utils/openTal
 import {
   attachmentDisplayName,
   attachmentIcon,
+  decodedBase64Bytes,
   formatBytes,
   isOpenableAttachment,
   MAX_ATTACHMENT_BYTES,
@@ -110,26 +111,36 @@ export default function EventDetailScreen() {
   }, [event?.location, coordinates]);
 
   const handleAddAttachment = useCallback(async () => {
-    const picked = await DocumentPicker.getDocumentAsync({
-      type: '*/*',
-      copyToCacheDirectory: true,
-      multiple: false,
-    });
-    if (picked.canceled || !picked.assets?.[0]) return;
-    const asset = picked.assets[0];
-    if (asset.size && asset.size > MAX_ATTACHMENT_BYTES) {
-      Alert.alert(t('event.attachmentTooLarge'));
-      return;
+    try {
+      const picked = await DocumentPicker.getDocumentAsync({
+        type: '*/*',
+        copyToCacheDirectory: true,
+        multiple: false,
+      });
+      if (picked.canceled || !picked.assets?.[0]) return;
+      const asset = picked.assets[0];
+      if (asset.size && asset.size > MAX_ATTACHMENT_BYTES) {
+        Alert.alert(t('event.attachmentTooLarge'));
+        return;
+      }
+      const contentBase64 = await FileSystem.readAsStringAsync(asset.uri, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+      // `asset.size` may be missing — re-check on the actual payload.
+      if (decodedBase64Bytes(contentBase64) > MAX_ATTACHMENT_BYTES) {
+        Alert.alert(t('event.attachmentTooLarge'));
+        return;
+      }
+      await attachments.add({
+        name: asset.name,
+        contentBase64,
+        mimeType: asset.mimeType,
+        size: asset.size,
+      });
+    } catch (error) {
+      console.warn('[attachments] pick/read failed', error);
+      Alert.alert(t('event.attachmentAddError'));
     }
-    const contentBase64 = await FileSystem.readAsStringAsync(asset.uri, {
-      encoding: FileSystem.EncodingType.Base64,
-    });
-    await attachments.add({
-      name: asset.name,
-      contentBase64,
-      mimeType: asset.mimeType,
-      size: asset.size,
-    });
   }, [attachments, t]);
 
   const handleRemoveAttachment = useCallback((att: EventAttachment) => {
@@ -455,7 +466,7 @@ export default function EventDetailScreen() {
                               : undefined
                           }
                           trailing={
-                            canEdit ? (
+                            canEdit && attachments.ready ? (
                               <IconButton
                                 variant="plain"
                                 size={36}

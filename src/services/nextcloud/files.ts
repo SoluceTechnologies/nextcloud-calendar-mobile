@@ -68,6 +68,8 @@ export type UploadedFile = {
   davUrl: string;
   /** The filename actually stored (after conflict resolution). */
   filename: string;
+  /** DAV path of the stored file — what deleteRemoteFile expects. */
+  path: string;
 };
 
 /**
@@ -77,7 +79,15 @@ export type UploadedFile = {
 export function ownDavPath(account: Account, url: string): string | null {
   const root = filesUrl(account, '');
   if (!url.startsWith(root + '/')) return null;
-  return decodeURIComponent(url.slice(root.length));
+  let path: string;
+  try {
+    path = decodeURIComponent(url.slice(root.length));
+  } catch {
+    return null;
+  }
+  // A decoded '..' segment would escape the Files root — never follow it.
+  if (path.split('/').some((s) => s === '..')) return null;
+  return path;
 }
 
 export function isOwnDavFile(account: Account, att: { uri?: string }): boolean {
@@ -92,6 +102,15 @@ export async function deleteRemoteFile(account: Account, path: string): Promise<
 }
 
 /**
+ * The picked name becomes a single DAV path segment — strip separators and
+ * dot-segments that would escape the attachments folder.
+ */
+function safeFilename(name: string): string {
+  const cleaned = name.replace(/[/\\]/g, '_').trim();
+  return cleaned === '' || cleaned === '.' || cleaned === '..' ? 'attachment' : cleaned;
+}
+
+/**
  * Uploads a file into the attachments folder, creating it if needed and
  * resolving name conflicts by suffixing (`name (2).ext`).
  */
@@ -102,13 +121,23 @@ export async function uploadAttachmentFile(
   mimeType?: string,
 ): Promise<UploadedFile> {
   await ensureFolder(account, `/${ATTACHMENTS_DIR}`);
-  const stored = await resolveConflict(account, `/${ATTACHMENTS_DIR}`, filename);
-  const path = `/${ATTACHMENTS_DIR}/${stored}`;
-  const res = await davFetch(filesUrl(account, path), account, {
-    method: 'PUT',
-    headers: { 'Content-Type': mimeType || 'application/octet-stream' },
-    bodyBase64: contentBase64,
-  });
-  if (!res.ok) throw httpErrorFrom(res, 'uploadAttachmentFile');
-  return { davUrl: fileDavUrl(account, path), filename: stored };
+  const safe = safeFilename(filename);
+  // The HEAD-then-PUT conflict check races with concurrent uploads —
+  // If-None-Match turns an overwrite into a 412 so we can retry the next suffix.
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const stored = await resolveConflict(account, `/${ATTACHMENTS_DIR}`, safe);
+    const path = `/${ATTACHMENTS_DIR}/${stored}`;
+    const res = await davFetch(filesUrl(account, path), account, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': mimeType || 'application/octet-stream',
+        'If-None-Match': '*',
+      },
+      bodyBase64: contentBase64,
+    });
+    if (res.status === 412) continue;
+    if (!res.ok) throw httpErrorFrom(res, 'uploadAttachmentFile');
+    return { davUrl: fileDavUrl(account, path), filename: stored, path };
+  }
+  throw new Error('upload-conflict');
 }

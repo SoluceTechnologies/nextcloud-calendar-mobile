@@ -7,7 +7,7 @@ import { useTheme } from 'expo-router';
 
 import { Icon, IconButton, Item, List, SectionHeader, Stack, Typography } from '@/ui/components';
 import {
-  attachmentDisplayName, attachmentIcon, formatBytes, MAX_ATTACHMENT_BYTES,
+  attachmentDisplayName, attachmentIcon, decodedBase64Bytes, formatBytes, MAX_ATTACHMENT_BYTES,
 } from '@/features/event/utils/attachments';
 import type { EventAttachment, PendingAttachment } from '@/types';
 
@@ -32,21 +32,31 @@ export function AttachmentsField({
   const theme = useTheme();
 
   async function pick() {
-    const result = await DocumentPicker.getDocumentAsync({
-      type: '*/*',
-      copyToCacheDirectory: true,
-      multiple: false,
-    });
-    if (result.canceled || !result.assets?.[0]) return;
-    const asset = result.assets[0];
-    if (asset.size && asset.size > MAX_ATTACHMENT_BYTES) {
-      Alert.alert(t('event.attachmentTooLarge'));
-      return;
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: '*/*',
+        copyToCacheDirectory: true,
+        multiple: false,
+      });
+      if (result.canceled || !result.assets?.[0]) return;
+      const asset = result.assets[0];
+      if (asset.size && asset.size > MAX_ATTACHMENT_BYTES) {
+        Alert.alert(t('event.attachmentTooLarge'));
+        return;
+      }
+      const contentBase64 = await FileSystem.readAsStringAsync(asset.uri, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+      // `asset.size` may be missing — re-check on the actual payload.
+      if (decodedBase64Bytes(contentBase64) > MAX_ATTACHMENT_BYTES) {
+        Alert.alert(t('event.attachmentTooLarge'));
+        return;
+      }
+      onAdd({ name: asset.name, contentBase64, mimeType: asset.mimeType, size: asset.size });
+    } catch (error) {
+      console.warn('[attachments] pick/read failed', error);
+      Alert.alert(t('event.attachmentAddError'));
     }
-    const contentBase64 = await FileSystem.readAsStringAsync(asset.uri, {
-      encoding: FileSystem.EncodingType.Base64,
-    });
-    onAdd({ name: asset.name, contentBase64, mimeType: asset.mimeType, size: asset.size });
   }
 
   const removeButton = (onPress: () => void) => (

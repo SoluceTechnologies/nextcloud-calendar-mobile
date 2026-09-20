@@ -1,8 +1,10 @@
 import { useCallback, useState } from 'react';
 import { Alert } from 'react-native';
 
-import { fetchEventIcs, updateEvent } from '@/services/nextcloud/caldav';
-import { deleteRemoteFile, ownDavPath, uploadAttachmentFile } from '@/services/nextcloud/files';
+import { fetchEventIcsWithEtag, updateEvent } from '@/services/nextcloud/caldav';
+import {
+  deleteRemoteFile, ownDavPath, uploadAttachmentFile, type UploadedFile,
+} from '@/services/nextcloud/files';
 import { describeMutationError } from '@/services/shared/errors';
 import { syncCalendarDelta } from '@/database/sync';
 import { buildAttachLine, injectAttachLine, removeAttachLine } from '@/features/event/utils/attachmentWrite';
@@ -27,17 +29,20 @@ export function useEventAttachments(
 ) {
   const [isPending, setIsPending] = useState(false);
 
-  const ready = !!account && !!event?.href && !!calendar && !event?.isTask;
+  const ready =
+    !!account && !!event?.href && !!calendar &&
+    !event?.isTask && !calendar.isReadOnly && !calendar.isSubscribed;
 
   const add = useCallback(
     async (file: PendingAttachment) => {
       if (!account || !event?.href || !calendar) return;
       setIsPending(true);
+      let uploaded: UploadedFile | undefined;
       try {
-        const uploaded = await uploadAttachmentFile(
+        uploaded = await uploadAttachmentFile(
           account, file.name, file.contentBase64, file.mimeType,
         );
-        const ics = await fetchEventIcs(account, event.href);
+        const { ics, etag } = await fetchEventIcsWithEtag(account, event.href);
         const next = injectAttachLine(
           ics,
           buildAttachLine({
@@ -47,9 +52,11 @@ export function useEventAttachments(
             size: file.size,
           }),
         );
-        await updateEvent(account, event.href, next);
+        await updateEvent(account, event.href, next, etag);
         await syncCalendarDelta(account, calendar);
       } catch (error) {
+        // The event was never updated — the uploaded file would be orphaned.
+        if (uploaded) await deleteRemoteFile(account, uploaded.path).catch(() => {});
         console.warn('[attachments] add failed', error);
         Alert.alert(i18n.t('event.attachmentAddError'), describeMutationError(error));
       } finally {
@@ -65,10 +72,17 @@ export function useEventAttachments(
       setIsPending(true);
       let unlinked = false;
       try {
-        const ics = await fetchEventIcs(account, event.href);
+        const { ics, etag } = await fetchEventIcsWithEtag(account, event.href);
         const next = removeAttachLine(ics, att);
-        await updateEvent(account, event.href, next);
-        unlinked = true;
+        if (next !== ics) {
+          await updateEvent(account, event.href, next, etag);
+          unlinked = true;
+        } else {
+          // No matching ATTACH line — the local row is stale. Resyncing
+          // reconciles it; the remote file must NOT be deleted while the
+          // link may still exist in the stored ICS.
+          console.warn('[attachments] remove matched no ATTACH line; resyncing');
+        }
         await syncCalendarDelta(account, calendar);
       } catch (error) {
         console.warn('[attachments] remove failed', error);
