@@ -52,6 +52,8 @@ export type EventAttachment = {
     filename?: string;
     fmttype?: string;
     size?: number;
+    /** Nextcloud file id — written as X-NC-FILE-ID so the web app can preview. */
+    fileId?: number;
 };
 
 /** A file picked on the device, buffered until the event is saved. */

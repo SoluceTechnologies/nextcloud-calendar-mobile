@@ -79,6 +79,19 @@ describe('uploadAttachmentFile', () => {
     );
   });
 
+  it('extracts the numeric file id from the OC-FileId response header', async () => {
+    const putRes = {
+      ...res(201),
+      headers: { get: (h: string) => (h === 'oc-fileid' ? '00000335oc6dwivsma33' : null) },
+    };
+    req
+      .mockResolvedValueOnce(res(405)) // MKCOL
+      .mockResolvedValueOnce(res(404)) // HEAD
+      .mockResolvedValueOnce(putRes); // PUT
+    const out = await uploadAttachmentFile(account, 'doc.pdf', 'aGk=');
+    expect(out.fileId).toBe(335);
+  });
+
   it('sanitizes filenames that would escape the attachments folder', async () => {
     req
       .mockResolvedValueOnce(res(405)) // MKCOL: exists
@@ -179,7 +192,8 @@ describe('listDavFolder', () => {
     '<d:response><d:href>/remote.php/dav/files/alice/Calendar/z.txt</d:href>' +
     '<d:propstat><d:prop><d:displayname>z.txt</d:displayname>' +
     '<d:getcontenttype>text/plain</d:getcontenttype>' +
-    '<d:getcontentlength>32</d:getcontentlength></d:prop></d:propstat></d:response>' +
+    '<d:getcontentlength>32</d:getcontentlength>' +
+    '<oc:fileid>456</oc:fileid></d:prop></d:propstat></d:response>' +
     '<d:response><d:href>/remote.php/dav/files/alice/Calendar/Sub%20dir/</d:href>' +
     '<d:propstat><d:prop><d:displayname>Sub dir</d:displayname>' +
     '<d:resourcetype><d:collection/></d:resourcetype></d:prop></d:propstat></d:response></d:multistatus>';
@@ -197,7 +211,7 @@ describe('listDavFolder', () => {
     expect(sentBody).toContain('<d:displayname/>');
     expect(out).toEqual([
       { path: '/Calendar/Sub dir', name: 'Sub dir', isDir: true, mime: undefined, size: undefined },
-      { path: '/Calendar/z.txt', name: 'z.txt', isDir: false, mime: 'text/plain', size: 32 },
+      { path: '/Calendar/z.txt', name: 'z.txt', isDir: false, mime: 'text/plain', size: 32, fileId: 456 },
     ]);
   });
 

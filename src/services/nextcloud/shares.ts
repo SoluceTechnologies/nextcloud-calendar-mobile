@@ -49,3 +49,63 @@ export async function createPublicLinkShare(
   if (!token || !url) throw new Error('createPublicLinkShare: malformed OCS response');
   return { url, token, id };
 }
+
+/**
+ * Finds one of the account's own shares by its public token — the only
+ * handle available on an `ATTACH:…/s/<token>` line. Returns null when the
+ * share isn't ours (e.g. a link to someone else's file).
+ */
+export async function findShareByToken(
+  account: FilesAccount,
+  token: string,
+): Promise<{ id: number; path?: string } | null> {
+  const res = await trustedFetch(
+    `${account.baseUrl.replace(/\/+$/, '')}/ocs/v2.php/apps/files_sharing/api/v1/shares`,
+    {
+      method: 'GET',
+      headers: {
+        Authorization: basicAuth(account),
+        'OCS-APIRequest': 'true',
+        Accept: 'application/json',
+      },
+      timeoutMs: 30000,
+      maxRetries: 1,
+    },
+  );
+  if (!res.ok) throw httpErrorFrom(res, 'findShareByToken');
+  const json: unknown = await res.json();
+  const data = (json as { ocs?: { data?: unknown } })?.ocs?.data;
+  if (!Array.isArray(data)) return null;
+  for (const s of data) {
+    const share = s as Record<string, unknown>;
+    if (share.token === token) {
+      return {
+        id: Number(share.id),
+        path: typeof share.path === 'string' ? share.path : undefined,
+      };
+    }
+  }
+  return null;
+}
+
+/** Deletes (revokes) a share by its OCS id — the public link stops working. */
+export async function deleteShare(
+  account: FilesAccount,
+  id: number,
+): Promise<void> {
+  const res = await trustedFetch(
+    `${account.baseUrl.replace(/\/+$/, '')}/ocs/v2.php/apps/files_sharing/api/v1/shares/${id}`,
+    {
+      method: 'DELETE',
+      headers: {
+        Authorization: basicAuth(account),
+        'OCS-APIRequest': 'true',
+      },
+      timeoutMs: 30000,
+      maxRetries: 1,
+    },
+  );
+  // 404 = already revoked.
+  if (res.status === 404) return;
+  if (!res.ok) throw httpErrorFrom(res, 'deleteShare');
+}

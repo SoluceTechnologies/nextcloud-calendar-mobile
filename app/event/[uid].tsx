@@ -43,7 +43,7 @@ import {
 } from '@/features/event/utils/attachments';
 import { useEventAttachments } from '@/features/event/hooks/useEventAttachments';
 import { fileDavUrl, isOwnDavFile } from '@/services/nextcloud/files';
-import { isOwnFileRef } from '@/services/nextcloud/fileLinks';
+import { isOwnFileRef, publicShareToken } from '@/services/nextcloud/fileLinks';
 import { DavFilePicker } from '@/features/event/components/DavFilePicker';
 import { askRecurrenceScope, type RecurrenceScopeStrings } from '@/features/event/recurrenceScope';
 import { decideMoveEventScope } from '@/features/calendar/utils/moveEventScope';
@@ -169,11 +169,15 @@ export default function EventDetailScreen() {
     const deletable =
       !!activeAccount &&
       (isOwnDavFile(activeAccount, att) || isOwnFileRef(activeAccount, att));
+    const revocable =
+      !!activeAccount && !!att.uri && !!publicShareToken(activeAccount, att.uri);
     Alert.alert(
       t('event.attachmentRemove'),
       deletable
         ? t('event.attachmentRemoveConfirmDeletable')
-        : t('event.attachmentRemoveConfirm'),
+        : revocable
+          ? t('event.attachmentRemoveConfirmShare')
+          : t('event.attachmentRemoveConfirm'),
       deletable
         ? [
             { text: t('common.cancel'), style: 'cancel' },
@@ -187,14 +191,28 @@ export default function EventDetailScreen() {
               onPress: () => void attachments.remove(att, { deleteFile: true }),
             },
           ]
-        : [
-            { text: t('common.cancel'), style: 'cancel' },
-            {
-              text: t('event.attachmentRemove'),
-              style: 'destructive',
-              onPress: () => void attachments.remove(att),
-            },
-          ],
+        : revocable
+          ? [
+              { text: t('common.cancel'), style: 'cancel' },
+              {
+                text: t('event.attachmentRemove'),
+                onPress: () => void attachments.remove(att),
+              },
+              {
+                text: t('event.attachmentRemoveAndRevoke'),
+                style: 'destructive',
+                onPress: () =>
+                  void attachments.remove(att, { revokeShare: true }),
+              },
+            ]
+          : [
+              { text: t('common.cancel'), style: 'cancel' },
+              {
+                text: t('event.attachmentRemove'),
+                style: 'destructive',
+                onPress: () => void attachments.remove(att),
+              },
+            ],
     );
   }, [attachments, activeAccount, t]);
 
@@ -422,6 +440,7 @@ export default function EventDetailScreen() {
                   filename: entry.name,
                   fmttype: entry.mime,
                   size: entry.size,
+                  fileId: entry.fileId,
                 });
               }}
             />

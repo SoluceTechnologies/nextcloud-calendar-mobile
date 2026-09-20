@@ -74,6 +74,12 @@ describe('buildAttachLine', () => {
   it('omits SIZE when absent', () => {
     expect(buildAttachLine({ uri: 'u' })).toBe('ATTACH:u');
   });
+
+  it('emits X-NC-FILE-ID when a file id is known', () => {
+    const line = buildAttachLine({ uri: 'u', filename: 'a.txt', fileId: 335 });
+    expect(line).toContain('X-NC-FILE-ID=335');
+    expect(buildAttachLine({ uri: 'u' })).not.toContain('X-NC-FILE-ID');
+  });
 });
 
 describe('injectAttachLine', () => {

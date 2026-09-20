@@ -56,6 +56,7 @@ export function buildAttachLine(att: EventAttachment, eol = '\r\n'): string {
   if (att.fmttype) line += `;FMTTYPE=${escapeParam(att.fmttype)}`;
   if (att.filename) line += `;FILENAME=${escapeParam(att.filename)}`;
   if (att.size && att.size > 0) line += `;SIZE=${Math.round(att.size)}`;
+  if (att.fileId && att.fileId > 0) line += `;X-NC-FILE-ID=${att.fileId}`;
   if (att.base64) {
     line += `;ENCODING=BASE64;VALUE=BINARY:${att.base64}`;
   } else {
