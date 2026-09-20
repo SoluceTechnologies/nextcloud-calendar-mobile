@@ -44,6 +44,10 @@ async function applyAttachmentDelta(
   for (const att of input.removedAttachments ?? []) {
     out = removeAttachLine(out, att);
   }
+  // Files already on Nextcloud — the URI goes straight into the ICS.
+  for (const att of input.remoteAttachments ?? []) {
+    out = injectAttachLine(out, buildAttachLine(att));
+  }
   let failures = 0;
   const uploadedPaths: string[] = [];
   for (const pending of input.pendingAttachments ?? []) {
@@ -86,7 +90,11 @@ function warnAttachmentFailures(failures: number) {
 }
 
 function hasAttachmentDelta(input: CreateEventInput): boolean {
-  return !!(input.pendingAttachments?.length || input.removedAttachments?.length);
+  return !!(
+    input.pendingAttachments?.length ||
+    input.remoteAttachments?.length ||
+    input.removedAttachments?.length
+  );
 }
 
 /** Attachments live in the ICS blob — refresh local rows so the UI reflects them. */

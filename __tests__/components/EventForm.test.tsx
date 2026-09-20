@@ -305,6 +305,7 @@ describe('EventForm contact suggestions', () => {
     baseUrl: 'https://cloud.example.com',
     username: 'john',
     appPassword: 'xxxx',
+    davUserId: 'john',
   };
 
   beforeEach(async () => {

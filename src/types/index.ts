@@ -107,6 +107,8 @@ export type CreateEventInput = {
     alarms?: number[];
     /** Device files to upload to Nextcloud and attach on save. */
     pendingAttachments?: PendingAttachment[];
+    /** Files already on Nextcloud to attach by URI on save (no upload). */
+    remoteAttachments?: EventAttachment[];
     /** Existing ATTACH properties to strip on save (edit only). */
     removedAttachments?: EventAttachment[];
 };
