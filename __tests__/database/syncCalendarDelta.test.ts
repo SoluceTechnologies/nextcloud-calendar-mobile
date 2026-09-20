@@ -61,6 +61,17 @@ function outcome(
   return { events, syncedCalendarIds, failures };
 }
 
+/**
+ * Mocks fetchEventsByHrefs: returns `events` and reports `responded` hrefs via
+ * the returned `returnedHrefs` set (defaults to the hrefs of the returned
+ * events — i.e. every href that produced an event is assumed to have answered
+ * the multiget).
+ */
+function mockMultiget(events: CalendarEvent[], responded?: string[]) {
+  const hrefs = responded ?? events.map((e) => e.href);
+  mockFetchByHrefs.mockResolvedValue({ events, returnedHrefs: new Set(hrefs) });
+}
+
 function makeDb(opts: { calendarRow?: any; eventRows?: any[] }) {
   const eventRows = opts.eventRows ?? [];
   const calendarRows = opts.calendarRow ? [opts.calendarRow] : [];
@@ -167,7 +178,7 @@ describe('syncCalendarDelta — non-destructive guards', () => {
     // A recurring ICS yields multiple CalendarEvent rows for a single href —
     // fetched.length > changed.length must not be treated as a bad response.
     mockSyncCollection.mockResolvedValue({ changed: ['h1'], deleted: [], newToken: 't4', reset: false });
-    mockFetchByHrefs.mockResolvedValue([
+    mockMultiget([
       evt('h1'),
       { ...evt('h1'), uid: 'h1-uid_occ_1', dtstart: new Date('2026-07-02T09:00:00Z') },
       { ...evt('h1'), uid: 'h1-uid_occ_2', dtstart: new Date('2026-07-03T09:00:00Z') },
@@ -190,7 +201,7 @@ describe('syncCalendarDelta — non-destructive guards', () => {
     // that churn held the write lock and briefly hid open detail screens.
     mockSyncCollection.mockResolvedValue({ changed: ['h1'], deleted: [], newToken: 't5', reset: false });
     const ev = evt('h1');
-    mockFetchByHrefs.mockResolvedValue([ev]);
+    mockMultiget([ev]);
     const unchanged = {
       href: 'h1',
       uid: ev.uid,

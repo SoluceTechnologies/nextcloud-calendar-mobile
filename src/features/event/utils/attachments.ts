@@ -99,7 +99,7 @@ function isSameOrigin(att: EventAttachment, account: Account | null): boolean {
   return !!origin && !!account && origin === originOf(account.baseUrl);
 }
 
-function decodedBase64Bytes(b64: string): number {
+export function decodedBase64Bytes(b64: string): number {
   const padding = b64.endsWith('==') ? 2 : b64.endsWith('=') ? 1 : 0;
   return Math.max(0, Math.floor(b64.length * 3 / 4) - padding);
 }

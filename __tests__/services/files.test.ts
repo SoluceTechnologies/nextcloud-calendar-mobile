@@ -64,14 +64,52 @@ describe('uploadAttachmentFile', () => {
     const out = await uploadAttachmentFile(account, 'doc.pdf', 'aGk=', 'application/pdf');
     expect(out.filename).toBe('doc.pdf');
     expect(out.davUrl).toBe('https://srv/remote.php/dav/files/alice/Calendar/doc.pdf');
+    expect(out.path).toBe('/Calendar/doc.pdf');
     expect(req).toHaveBeenLastCalledWith(
       out.davUrl,
       expect.objectContaining({
         method: 'PUT',
         bodyBase64: 'aGk=',
-        headers: expect.objectContaining({ 'Content-Type': 'application/pdf' }),
+        headers: expect.objectContaining({
+          'Content-Type': 'application/pdf',
+          'If-None-Match': '*',
+        }),
       }),
     );
+  });
+
+  it('sanitizes filenames that would escape the attachments folder', async () => {
+    req
+      .mockResolvedValueOnce(res(405)) // MKCOL: exists
+      .mockResolvedValueOnce(res(404)) // HEAD
+      .mockResolvedValueOnce(res(201)); // PUT
+    const out = await uploadAttachmentFile(account, '../evil.txt', 'aGk=');
+    expect(out.path).toBe('/Calendar/.._evil.txt');
+    expect(out.davUrl).toBe('https://srv/remote.php/dav/files/alice/Calendar/.._evil.txt');
+
+    req.mockReset();
+    req
+      .mockResolvedValueOnce(res(405))
+      .mockResolvedValueOnce(res(404))
+      .mockResolvedValueOnce(res(201));
+    const dot = await uploadAttachmentFile(account, '..', 'aGk=');
+    expect(dot.filename).toBe('attachment');
+    expect(dot.path).toBe('/Calendar/attachment');
+  });
+
+  it('retries the next suffix when the PUT loses an upload race (412)', async () => {
+    req
+      .mockResolvedValueOnce(res(405)) // MKCOL: exists
+      .mockResolvedValueOnce(res(200)) // HEAD doc.pdf → exists
+      .mockResolvedValueOnce(res(404)) // HEAD doc (2).pdf → free
+      .mockResolvedValueOnce(res(412)) // PUT doc (2).pdf → lost the race
+      .mockResolvedValueOnce(res(200)) // HEAD doc.pdf → still exists
+      .mockResolvedValueOnce(res(200)) // HEAD doc (2).pdf → taken meanwhile
+      .mockResolvedValueOnce(res(404)) // HEAD doc (3).pdf → free
+      .mockResolvedValueOnce(res(201)); // PUT doc (3).pdf
+    const out = await uploadAttachmentFile(account, 'doc.pdf', 'aGk=');
+    expect(out.filename).toBe('doc (3).pdf');
+    expect(out.path).toBe('/Calendar/doc (3).pdf');
   });
 
   it('resolves name conflicts with a (n) suffix', async () => {
@@ -118,6 +156,16 @@ describe('ownDavPath / isOwnDavFile', () => {
         uri: 'https://srv/remote.php/dav/files/alice/Calendar/doc.pdf',
       }),
     ).toBe(true);
+  });
+
+  it('rejects paths that escape the files root after decoding', () => {
+    expect(
+      ownDavPath(account, 'https://srv/remote.php/dav/files/alice/Calendar/%2E%2E/secret'),
+    ).toBeNull();
+    expect(ownDavPath(account, 'https://srv/remote.php/dav/files/alice/%bad')).toBeNull();
+    expect(
+      ownDavPath(account, 'https://srv/remote.php/dav/files/alice/Calendar/doc%20x.pdf'),
+    ).toBe('/Calendar/doc x.pdf');
   });
 });
 
