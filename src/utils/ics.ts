@@ -205,7 +205,9 @@ export function buildAllDayIcs(params: BuildAllDayIcsParams): string {
     ], calendarLines);
 }
 
-export function buildExceptionIcs(params: BuildIcsParams & { recurrenceId: Date; allDay?: boolean }): string {
+export function buildExceptionIcs(
+    params: BuildIcsParams & { recurrenceId: Date; allDay?: boolean; recurrenceIdTzid?: string },
+): string {
     const {
         uid,
         summary,
@@ -226,6 +228,9 @@ export function buildExceptionIcs(params: BuildIcsParams & { recurrenceId: Date;
     } = params;
     // RECURRENCE-ID must have the master DTSTART's value type: DATE for an all-day series.
     const endExclusive = new Date(dtend.getFullYear(), dtend.getMonth(), dtend.getDate() + 1);
+    // RECURRENCE-ID identifies the occurrence in the master's coordinates:
+    // it must keep the master's TZID even when the exception overrides it.
+    const ridTzid = params.recurrenceIdTzid ?? timezone;
     const dates = allDay
         ? [
             `RECURRENCE-ID;VALUE=DATE:${dateStamp(recurrenceId)}`,
@@ -233,7 +238,7 @@ export function buildExceptionIcs(params: BuildIcsParams & { recurrenceId: Date;
             `DTEND;VALUE=DATE:${dateStamp(endExclusive)}`,
         ]
         : [
-            `RECURRENCE-ID;TZID=${timezone}:${localStamp(recurrenceId, timezone)}`,
+            `RECURRENCE-ID;TZID=${ridTzid}:${localStamp(recurrenceId, ridTzid)}`,
             `DTSTART;TZID=${timezone}:${localStamp(dtstart, timezone)}`,
             `DTEND;TZID=${timezone}:${localStamp(dtend, timezone)}`,
         ];
