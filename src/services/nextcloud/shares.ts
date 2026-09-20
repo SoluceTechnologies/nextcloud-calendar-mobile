@@ -46,7 +46,9 @@ export async function createPublicLinkShare(
   const token = typeof data?.token === 'string' ? data.token : '';
   const url = typeof data?.url === 'string' ? data.url : '';
   const id = Number(data?.id);
-  if (!token || !url) throw new Error('createPublicLinkShare: malformed OCS response');
+  if (!token || !url || !Number.isFinite(id)) {
+    throw new Error('createPublicLinkShare: malformed OCS response');
+  }
   return { url, token, id };
 }
 
@@ -78,9 +80,10 @@ export async function findShareByToken(
   if (!Array.isArray(data)) return null;
   for (const s of data) {
     const share = s as Record<string, unknown>;
-    if (share.token === token) {
+    const id = Number(share.id);
+    if (share.token === token && Number.isFinite(id)) {
       return {
-        id: Number(share.id),
+        id,
         path: typeof share.path === 'string' ? share.path : undefined,
       };
     }
