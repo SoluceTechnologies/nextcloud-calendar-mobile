@@ -75,6 +75,8 @@ export type UploadedFile = {
   filename: string;
   /** DAV path of the stored file — what deleteRemoteFile expects. */
   path: string;
+  /** Numeric file id (from the `OC-FileId` response header), when returned. */
+  fileId?: number;
 };
 
 /**
@@ -106,6 +108,8 @@ export type DavEntry = {
   isDir: boolean;
   mime?: string;
   size?: number;
+  /** Numeric file id (`oc:fileid`) — lets us write X-NC-FILE-ID in ATTACH. */
+  fileId?: number;
 };
 
 /**
@@ -120,8 +124,9 @@ export async function listDavFolder(account: FilesAccount, path: string): Promis
       'Content-Type': 'application/xml; charset=utf-8',
     },
     body:
-      '<?xml version="1.0"?><d:propfind xmlns:d="DAV:"><d:prop><d:displayname/>' +
-      '<d:resourcetype/><d:getcontenttype/><d:getcontentlength/></d:prop></d:propfind>',
+      '<?xml version="1.0"?><d:propfind xmlns:d="DAV:" xmlns:oc="http://owncloud.org/ns">' +
+      '<d:prop><d:displayname/><d:resourcetype/><d:getcontenttype/>' +
+      '<d:getcontentlength/><oc:fileid/></d:prop></d:propfind>',
   });
   if (!res.ok) throw httpErrorFrom(res, 'listDavFolder');
   const xml = await res.text();
@@ -150,6 +155,7 @@ export async function listDavFolder(account: FilesAccount, path: string): Promis
     const size = Number(
       chunk.match(/<d:getcontentlength[^>]*>([^<]*)<\/d:getcontentlength>/)?.[1],
     );
+    const fileId = Number(chunk.match(/<oc:fileid[^>]*>(\d+)<\/oc:fileid>/)?.[1]);
     out.push({
       path: rel,
       name: decodeXmlEntities(name),
@@ -158,6 +164,7 @@ export async function listDavFolder(account: FilesAccount, path: string): Promis
         chunk.match(/<d:getcontenttype[^>]*>([^<]*)<\/d:getcontenttype>/)?.[1] ||
         undefined,
       size: Number.isFinite(size) ? size : undefined,
+      fileId: Number.isFinite(fileId) ? fileId : undefined,
     });
   }
   out.sort((a, b) =>
@@ -211,7 +218,15 @@ export async function uploadAttachmentFile(
     });
     if (res.status === 412) continue;
     if (!res.ok) throw httpErrorFrom(res, 'uploadAttachmentFile');
-    return { davUrl: fileDavUrl(account, path), filename: stored, path };
+    // OC-FileId looks like `00000335oc6dwivsma33` — the fileid is its
+    // leading digits; the suffix is the storage id.
+    const fileId = Number(res.headers.get('oc-fileid')?.match(/^\d+/)?.[0]);
+    return {
+      davUrl: fileDavUrl(account, path),
+      filename: stored,
+      path,
+      fileId: Number.isFinite(fileId) && fileId > 0 ? fileId : undefined,
+    };
   }
   throw new Error('upload-conflict');
 }

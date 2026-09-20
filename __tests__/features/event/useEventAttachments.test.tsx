@@ -5,7 +5,7 @@ import { useEventAttachments } from '../../../src/features/event/hooks/useEventA
 import { fetchEventIcsWithEtag, updateEvent } from '../../../src/services/nextcloud/caldav';
 import { deleteRemoteFile, uploadAttachmentFile } from '../../../src/services/nextcloud/files';
 import { resolveInternalFile } from '../../../src/services/nextcloud/fileLinks';
-import { createPublicLinkShare } from '../../../src/services/nextcloud/shares';
+import { createPublicLinkShare, findShareByToken, deleteShare } from '../../../src/services/nextcloud/shares';
 import { askAttachmentShareMode } from '../../../src/features/event/utils/attachments';
 import { syncCalendarDelta } from '../../../src/database/sync';
 import i18n from '../../../src/utils/i18n';
@@ -37,6 +37,8 @@ jest.mock('../../../src/database/sync', () => ({
 
 jest.mock('../../../src/services/nextcloud/shares', () => ({
   createPublicLinkShare: jest.fn(),
+  findShareByToken: jest.fn(),
+  deleteShare: jest.fn(async () => undefined),
 }));
 
 jest.mock('../../../src/features/event/utils/attachments', () => ({
@@ -49,6 +51,8 @@ const mockUpload = uploadAttachmentFile as jest.Mock;
 const mockDelete = deleteRemoteFile as jest.Mock;
 const mockResolve = resolveInternalFile as jest.Mock;
 const mockShare = createPublicLinkShare as jest.Mock;
+const mockFindShare = findShareByToken as jest.Mock;
+const mockDeleteShare = deleteShare as jest.Mock;
 const mockAskShare = askAttachmentShareMode as jest.Mock;
 const mockSync = syncCalendarDelta as jest.Mock;
 
@@ -348,5 +352,44 @@ describe('useEventAttachments', () => {
     );
     expect(mockDelete).not.toHaveBeenCalled();
     alertSpy.mockRestore();
+  });
+
+  it('remove with revokeShare revokes the /s/ link but keeps the file', async () => {
+    const icsWithS = baseIcs.replace(
+      'END:VEVENT',
+      'ATTACH;FILENAME=demo.txt:https://srv/s/Tok123\r\nEND:VEVENT',
+    );
+    mockFetchIcs.mockResolvedValue({ ics: icsWithS, etag: '"e"' });
+    mockFindShare.mockResolvedValue({ id: 12, path: '/Calendar/demo.txt' });
+    const { result } = hook();
+
+    await act(async () => {
+      await result.current.remove(
+        { uri: 'https://srv/s/Tok123', filename: 'demo.txt' },
+        { revokeShare: true },
+      );
+    });
+
+    expect(mockFindShare).toHaveBeenCalledWith(account, 'Tok123');
+    expect(mockDeleteShare).toHaveBeenCalledWith(account, 12);
+    expect(mockDelete).not.toHaveBeenCalled();
+    const sent = mockUpdate.mock.calls[0][2] as string;
+    expect(sent).not.toContain('demo.txt');
+  });
+
+  it('does not revoke the share when the unlink did not happen', async () => {
+    // ICS without the attachment — removeAttachLine matches nothing.
+    mockFetchIcs.mockResolvedValue({ ics: baseIcs, etag: '"e"' });
+    const { result } = hook();
+
+    await act(async () => {
+      await result.current.remove(
+        { uri: 'https://srv/s/Tok123', filename: 'absent.txt' },
+        { revokeShare: true },
+      );
+    });
+
+    expect(mockFindShare).not.toHaveBeenCalled();
+    expect(mockDeleteShare).not.toHaveBeenCalled();
   });
 });
