@@ -1,4 +1,5 @@
 import { Alert, Linking } from 'react-native';
+import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import {
@@ -29,7 +30,7 @@ import {
 import { utf8ToBase64 } from '@/services/shared/base64';
 import { base64Fingerprint, extractEventAttachments } from '@/utils/caldav-parse';
 import i18n from '@/utils/i18n';
-import type { Account, EventAttachment } from '@/types';
+import type { Account, EventAttachment, PendingAttachment } from '@/types';
 
 export const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024;
 const ATTACHMENT_CACHE_TTL_MS = 60 * 60 * 1000;
@@ -363,6 +364,45 @@ export type AttachmentShareMode = 'public' | 'private';
  * mirroring the Nextcloud web app, which warns before exposing the file.
  * Resolves null when the user cancels (the caller should abort).
  */
+/**
+ * Opens the device document picker and reads the chosen file as base64.
+ * Returns null when the user cancels, the file exceeds the size limit, or
+ * reading fails (the user-facing alert is already shown in those cases).
+ */
+export async function pickDeviceAttachment(): Promise<PendingAttachment | null> {
+  try {
+    const result = await DocumentPicker.getDocumentAsync({
+      type: '*/*',
+      copyToCacheDirectory: true,
+      multiple: false,
+    });
+    if (result.canceled || !result.assets?.[0]) return null;
+    const asset = result.assets[0];
+    if (asset.size && asset.size > MAX_ATTACHMENT_BYTES) {
+      Alert.alert(i18n.t('event.attachmentTooLarge'));
+      return null;
+    }
+    const contentBase64 = await FileSystem.readAsStringAsync(asset.uri, {
+      encoding: FileSystem.EncodingType.Base64,
+    });
+    // `asset.size` may be missing — re-check on the actual payload.
+    if (decodedBase64Bytes(contentBase64) > MAX_ATTACHMENT_BYTES) {
+      Alert.alert(i18n.t('event.attachmentTooLarge'));
+      return null;
+    }
+    return {
+      name: asset.name,
+      contentBase64,
+      mimeType: asset.mimeType,
+      size: asset.size,
+    };
+  } catch (error) {
+    console.warn('[attachments] pick/read failed', error);
+    Alert.alert(i18n.t('event.attachmentAddError'));
+    return null;
+  }
+}
+
 export function askAttachmentShareMode(): Promise<AttachmentShareMode | null> {
   return new Promise((resolve) => {
     let settled = false;

@@ -1,5 +1,5 @@
 import React from 'react';
-import { fireEvent, render, waitFor } from '@testing-library/react-native';
+import { act, fireEvent, render, waitFor } from '@testing-library/react-native';
 import { ThemeProvider } from 'expo-router';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system/legacy';
@@ -164,7 +164,7 @@ describe('AttachmentsField', () => {
       (b) => b.text === 'From Nextcloud files',
     );
     expect(nextcloudBtn).toBeTruthy();
-    nextcloudBtn?.onPress?.();
+    act(() => nextcloudBtn?.onPress?.());
     await waitFor(() => getByText('report.pdf'));
     fireEvent.press(getByText('report.pdf'));
     expect(onAddRemote).toHaveBeenCalledWith({

@@ -63,15 +63,15 @@ export function useEventAttachments(
   const add = useCallback(
     async (file: PendingAttachment) => {
       if (!account || !event?.href || !calendar || busy.current) return;
-      // Events with attendees: a private DAV URL is useless to them — offer
-      // to expose the file through a public link, like the web app does.
-      const share =
-        (event.attendees?.length ?? 0) > 0 ? await askAttachmentShareMode() : 'private';
-      if (share === null) return;
       busy.current = true;
       setIsPending(true);
       let uploaded: UploadedFile | undefined;
       try {
+        // Events with attendees: a private DAV URL is useless to them — offer
+        // to expose the file through a public link, like the web app does.
+        const share =
+          (event.attendees?.length ?? 0) > 0 ? await askAttachmentShareMode() : 'private';
+        if (share === null) return;
         uploaded = await uploadAttachmentFile(
           account, file.name, file.contentBase64, file.mimeType,
         );
@@ -109,12 +109,12 @@ export function useEventAttachments(
   const addRemote = useCallback(
     async (att: EventAttachment) => {
       if (!account || !event?.href || !calendar || busy.current) return;
-      const share =
-        (event.attendees?.length ?? 0) > 0 ? await askAttachmentShareMode() : 'private';
-      if (share === null) return;
       busy.current = true;
       setIsPending(true);
       try {
+        const share =
+          (event.attendees?.length ?? 0) > 0 ? await askAttachmentShareMode() : 'private';
+        if (share === null) return;
         // The picker only yields own-DAV files, so a public share is possible.
         const path = att.uri ? ownDavPath(account, att.uri) : null;
         const uri =

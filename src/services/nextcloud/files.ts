@@ -18,7 +18,7 @@ function encodePath(path: string): string {
 }
 
 function filesUrl(account: FilesAccount, path = ''): string {
-  return `${account.baseUrl}/remote.php/dav/files/${encodeURIComponent(account.davUserId)}${encodePath(path)}`;
+  return `${account.baseUrl.replace(/\/+$/, '')}/remote.php/dav/files/${encodeURIComponent(account.davUserId)}${encodePath(path)}`;
 }
 
 /** Absolute WebDAV URL for a file path — the URI form written into ATTACH. */
@@ -84,14 +84,17 @@ export type UploadedFile = {
  * null otherwise (external link, public share, other host…).
  */
 export function ownDavPath(account: FilesAccount, url: string): string | null {
-  const root = filesUrl(account, '');
-  if (!url.startsWith(root + '/')) return null;
-  let path: string;
+  // Compare decoded-to-decoded: servers may or may not percent-encode the
+  // user id segment (e.g. `user@x.com` vs `user%40x.com`) in the URI.
+  const root = `${account.baseUrl.replace(/\/+$/, '')}/remote.php/dav/files/${account.davUserId}`;
+  let decoded: string;
   try {
-    path = decodeURIComponent(url.slice(root.length));
+    decoded = decodeURIComponent(url);
   } catch {
     return null;
   }
+  if (!decoded.startsWith(root + '/')) return null;
+  const path = decoded.slice(root.length);
   // A decoded '..' segment would escape the Files root — never follow it.
   if (path.split('/').some((s) => s === '..')) return null;
   return path;
@@ -130,7 +133,9 @@ export async function listDavFolder(account: FilesAccount, path: string): Promis
   });
   if (!res.ok) throw httpErrorFrom(res, 'listDavFolder');
   const xml = await res.text();
-  const root = `/remote.php/dav/files/${encodeURIComponent(account.davUserId)}`;
+  // Decoded root: the href is percent-decoded below, so the comparison must
+  // use the raw user id (servers may emit `user@x.com` or `user%40x.com`).
+  const root = `/remote.php/dav/files/${account.davUserId}`;
   const wanted = path.replace(/\/+$/, '') || '';
   const out: DavEntry[] = [];
   const re = /<d:response[^>]*>([\s\S]*?)<\/d:response>/g;
@@ -141,7 +146,7 @@ export async function listDavFolder(account: FilesAccount, path: string): Promis
     if (!href) continue;
     let decoded: string;
     try {
-      decoded = decodeXmlEntities(decodeURIComponent(href));
+      decoded = decodeURIComponent(decodeXmlEntities(href));
     } catch {
       continue; // malformed percent-encoding — skip the entry
     }

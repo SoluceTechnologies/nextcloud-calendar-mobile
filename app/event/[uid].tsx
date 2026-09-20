@@ -3,8 +3,6 @@ import { View, StyleSheet, ScrollView, Alert } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
 import { haptic } from '@/utils/haptics';
-import * as DocumentPicker from 'expo-document-picker';
-import * as FileSystem from 'expo-file-system/legacy';
 import {
   Pencil, Clock, CalendarDays, MapPin, Video, Repeat, Trash2, Copy, Check, Bell,
   Navigation, Plus,
@@ -35,11 +33,10 @@ import { openTalkRoom, promptTalkRoomOpen } from '@/features/event/utils/openTal
 import {
   attachmentDisplayName,
   attachmentIcon,
-  decodedBase64Bytes,
   formatBytes,
   isOpenableAttachment,
-  MAX_ATTACHMENT_BYTES,
   openAttachment,
+  pickDeviceAttachment,
 } from '@/features/event/utils/attachments';
 import { useEventAttachments } from '@/features/event/hooks/useEventAttachments';
 import { fileDavUrl, isOwnDavFile } from '@/services/nextcloud/files';
@@ -113,41 +110,15 @@ export default function EventDetailScreen() {
   }, [event?.location, coordinates]);
 
   const pickDeviceFile = useCallback(async () => {
-    try {
-      const picked = await DocumentPicker.getDocumentAsync({
-        type: '*/*',
-        copyToCacheDirectory: true,
-        multiple: false,
-      });
-      if (picked.canceled || !picked.assets?.[0]) return;
-      const asset = picked.assets[0];
-      if (asset.size && asset.size > MAX_ATTACHMENT_BYTES) {
-        Alert.alert(t('event.attachmentTooLarge'));
-        return;
-      }
-      const contentBase64 = await FileSystem.readAsStringAsync(asset.uri, {
-        encoding: FileSystem.EncodingType.Base64,
-      });
-      // `asset.size` may be missing — re-check on the actual payload.
-      if (decodedBase64Bytes(contentBase64) > MAX_ATTACHMENT_BYTES) {
-        Alert.alert(t('event.attachmentTooLarge'));
-        return;
-      }
-      await attachments.add({
-        name: asset.name,
-        contentBase64,
-        mimeType: asset.mimeType,
-        size: asset.size,
-      });
-    } catch (error) {
-      console.warn('[attachments] pick/read failed', error);
-      Alert.alert(t('event.attachmentAddError'));
-    }
-  }, [attachments, t]);
+    const file = await pickDeviceAttachment();
+    if (file) await attachments.add(file);
+  }, [attachments]);
 
   const [davPickerOpen, setDavPickerOpen] = useState(false);
 
   const handleAddAttachment = useCallback(() => {
+    // The DAV picker needs a davUserId to build paths — older accounts may
+    // not have one, so the Nextcloud source is only offered when present.
     Alert.alert(
       t('event.addAttachment'),
       undefined,
@@ -157,13 +128,15 @@ export default function EventDetailScreen() {
           text: t('event.attachFromDevice'),
           onPress: () => void pickDeviceFile(),
         },
-        {
-          text: t('event.attachFromNextcloud'),
-          onPress: () => setDavPickerOpen(true),
-        },
+        ...(activeAccount?.davUserId
+          ? [{
+              text: t('event.attachFromNextcloud'),
+              onPress: () => setDavPickerOpen(true),
+            }]
+          : []),
       ],
     );
-  }, [pickDeviceFile, t]);
+  }, [pickDeviceFile, activeAccount?.davUserId, t]);
 
   const handleRemoveAttachment = useCallback((att: EventAttachment) => {
     const deletable =
@@ -429,7 +402,7 @@ export default function EventDetailScreen() {
             )}
 
             <DavFilePicker
-              visible={davPickerOpen && !!activeAccount}
+              visible={davPickerOpen && !!activeAccount?.davUserId}
               account={activeAccount}
               onClose={() => setDavPickerOpen(false)}
               onSelect={(entry) => {
