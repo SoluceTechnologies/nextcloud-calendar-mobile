@@ -156,6 +156,26 @@ describe('removeAttachLine', () => {
     expect(out).not.toContain('ATTACH');
   });
 
+  it('removes a stripped occurrence attachment when the line has no SIZE', () => {
+    // Occurrence copies lose the payload but keep the decoded size; a line
+    // without SIZE must still match on FILENAME/FMTTYPE alone.
+    const ics = baseIcs.replace(
+      'END:VEVENT',
+      'ATTACH;ENCODING=BASE64;FMTTYPE=text/plain;FILENAME=n.txt;VALUE=BINARY:aGk=\r\nEND:VEVENT',
+    );
+    const out = removeAttachLine(ics, { filename: 'n.txt', fmttype: 'text/plain', size: 2, inline: true });
+    expect(out).not.toContain('ATTACH');
+  });
+
+  it('still distinguishes same-name attachments by a declared SIZE', () => {
+    const ics = baseIcs.replace(
+      'END:VEVENT',
+      'ATTACH;FILENAME=n.txt;SIZE=4;ENCODING=BASE64;VALUE=BINARY:aGk=\r\nEND:VEVENT',
+    );
+    const out = removeAttachLine(ics, { filename: 'n.txt', size: 99, inline: true });
+    expect(out).toContain('ATTACH;FILENAME=n.txt;SIZE=4');
+  });
+
   it('leaves the ICS unchanged when nothing matches', () => {
     expect(removeAttachLine(withTwo, { uri: 'https://srv/other' })).toBe(withTwo);
   });
