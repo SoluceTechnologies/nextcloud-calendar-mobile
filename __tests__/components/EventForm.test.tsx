@@ -6,6 +6,7 @@ const render = (ui: ReactElement, opts?: Parameters<typeof rtlRender>[1]) =>
   rtlRender(ui, { wrapper: ThemeWrapper, ...opts });
 import { EventForm, type EventFormHandle } from '@/features/event/components/EventForm';
 import { useSettingsStore } from '../../src/stores/settingsStore';
+import { resolveAccountTimezone } from '@/utils/timezone';
 import i18n from '../../src/utils/i18n';
 import type { CalendarMeta } from '../../src/types';
 
@@ -296,6 +297,59 @@ describe('EventForm recurrence end condition', () => {
         rrule: expect.objectContaining({ until: new Date(2026, 6, 1, 23, 59, 59) }),
       })
     );
+  });
+});
+
+describe('EventForm timezone', () => {
+  const timedInitial = {
+    summary: 'Call',
+    dtstart: new Date(Date.UTC(2026, 8, 20, 14, 0)),
+    dtend: new Date(Date.UTC(2026, 8, 20, 15, 0)),
+  };
+
+  beforeEach(async () => {
+    await i18n.changeLanguage('en');
+  });
+
+  it('keeps the instant when editing a foreign-zone event unchanged', () => {
+    const onSubmit = jest.fn();
+    const { getByText } = render(
+      <EventForm
+        {...baseProps}
+        onSubmit={onSubmit}
+        initialValues={{ ...timedInitial, timezone: 'America/New_York' }}
+      />,
+    );
+    fireEvent.press(getByText('Save Event'));
+    const input = onSubmit.mock.calls[0][0];
+    expect(input.timezone).toBe('America/New_York');
+    // Fields show the zone's wall time; saving untouched must keep the instant.
+    expect(input.dtstart.getTime()).toBe(timedInitial.dtstart.getTime());
+    expect(input.dtend.getTime()).toBe(timedInitial.dtend.getTime());
+  });
+
+  it('treats an empty account timezone as unset (device fallback)', () => {
+    const onSubmit = jest.fn();
+    const { getByText } = render(
+      <EventForm
+        {...baseProps}
+        onSubmit={onSubmit}
+        account={{
+          id: 'acc-1', baseUrl: 'https://cloud.example.com',
+          username: 'john', appPassword: 'xxxx', timezone: '',
+        }}
+        initialValues={timedInitial}
+      />,
+    );
+    fireEvent.press(getByText('Save Event'));
+    expect(onSubmit.mock.calls[0][0].timezone).toBe(resolveAccountTimezone({ timezone: '' }));
+  });
+
+  it('hides the timezone picker for all-day events', () => {
+    const { queryByText } = render(
+      <EventForm {...baseProps} initialValues={{ allDay: true }} />,
+    );
+    expect(queryByText('Time zone')).toBeNull();
   });
 });
 

@@ -50,6 +50,32 @@ describe('buildIcs', () => {
     expect(ics).toContain('RRULE:FREQ=WEEKLY\r\n');
   });
 
+  it('emits a VTIMEZONE block matching the event TZID before the VEVENT', () => {
+    const ics = buildIcs({ ...base, timezone: 'Europe/Paris' });
+    expect(ics.indexOf('BEGIN:VTIMEZONE')).toBeGreaterThan(-1);
+    expect(ics.indexOf('BEGIN:VTIMEZONE')).toBeLessThan(ics.indexOf('BEGIN:VEVENT'));
+    expect(ics).toContain('TZID:Europe/Paris\r\n');
+  });
+
+  it('keeps foreign VTIMEZONE blocks passed via calendarLines', () => {
+    const foreign = [
+      'BEGIN:VTIMEZONE', 'TZID:America/New_York', 'BEGIN:STANDARD',
+      'DTSTART:19701101T020000', 'TZOFFSETFROM:-0400', 'TZOFFSETTO:-0500',
+      'END:STANDARD', 'END:VTIMEZONE',
+    ];
+    const ics = buildIcs({ ...base, timezone: 'Europe/Paris', calendarLines: foreign });
+    expect(ics).toContain('TZID:America/New_York\r\n');
+    expect(ics).toContain('TZID:Europe/Paris\r\n');
+  });
+
+  it('round-trips the event timezone through the CalDAV parser', () => {
+    const ics = buildIcs({ ...base, timezone: 'America/New_York' });
+    const [ev] = parseIcsObjects([{ ics, href: '/e.ics' }], {
+      calendarId: 'cal', accountId: 'acc', color: '#fff',
+    });
+    expect(ev.timezone).toBe('America/New_York');
+  });
+
   it('encodes UID correctly', () => {
     expect(buildIcs(base)).toContain('UID:test-uid-123\r\n');
   });
@@ -102,7 +128,7 @@ describe('buildIcs', () => {
 
   it('omits LOCATION when empty', () => {
     const ics = buildIcs({ ...base, location: '' });
-    expect(ics).not.toContain('LOCATION');
+    expect(ics).not.toMatch(/^LOCATION:/m);
   });
 });
 
