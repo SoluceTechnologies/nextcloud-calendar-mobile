@@ -94,6 +94,8 @@
     "attachments": "Anhänge",
     "attachmentUntitled": "Anhang",
     "attachmentOpenError": "Anhang konnte nicht geöffnet werden",
+    "attachmentEdit": "Anhang bearbeiten",
+    "attachmentEditError": "Der Editor konnte nicht geöffnet werden",
     "attachmentTooLarge": "Dieser Anhang ist zu groß zum Öffnen",
     "addAttachment": "Anhang hinzufügen",
     "attachmentAddError": "Anhang konnte nicht hinzugefügt werden",

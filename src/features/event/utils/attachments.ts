@@ -27,6 +27,12 @@ import {
   resolveInternalFile,
   shareDownloadUrl,
 } from '@/services/nextcloud/fileLinks';
+import { ownDavPath } from '@/services/nextcloud/files';
+import {
+  editorForMime,
+  fetchDirectEditors,
+  openDirectEditingUrl,
+} from '@/services/nextcloud/directEditing';
 import { utf8ToBase64 } from '@/services/shared/base64';
 import { base64Fingerprint, extractEventAttachments } from '@/utils/caldav-parse';
 import i18n from '@/utils/i18n';
@@ -348,6 +354,73 @@ export async function openAttachment(
   } catch (error) {
     console.warn('[attachments] open failed', error);
     Alert.alert(i18n.t('event.attachmentOpenError'));
+  }
+}
+
+/** Extension → MIME for the common cases, used when the ATTACH omits FMTTYPE. */
+const EXT_TO_MIME: Record<string, string> = {
+  md: 'text/markdown',
+  txt: 'text/plain',
+  csv: 'text/csv',
+  html: 'text/html',
+  xml: 'application/xml',
+  json: 'application/json',
+  yaml: 'application/yaml',
+  yml: 'application/yaml',
+};
+
+export function mimeFromName(filename?: string): string | undefined {
+  const ext = filename?.split('.').pop()?.toLowerCase();
+  return ext ? EXT_TO_MIME[ext] : undefined;
+}
+
+/**
+ * Whether the attachment lives in the account's own Files space and could be
+ * opened in a server-side editor — direct DAV URL or `/f/<id>` reference.
+ * `/s/` links (possibly other users' files) and inline blobs are excluded.
+ */
+export function canEditAttachment(
+  att: EventAttachment,
+  account: Account | null,
+): boolean {
+  if (!account || !att.uri || att.base64 || att.inline) return false;
+  return (
+    ownDavPath(account, att.uri) !== null ||
+    internalFileId(account, att.uri) !== null
+  );
+}
+
+/**
+ * Opens an own-Files attachment in its server-side editor via the Direct
+ * Editing API: resolves the DAV path (including `/f/<id>` links), picks an
+ * editor for the MIME type, gets a one-time URL and hands it to the browser.
+ */
+export async function editAttachment(
+  att: EventAttachment,
+  account: Account | null,
+): Promise<void> {
+  if (!account) return;
+  try {
+    let path = ownDavPath(account, att.uri ?? '');
+    let mime = att.fmttype;
+    if (!path) {
+      const fileId = internalFileId(account, att.uri ?? '');
+      if (fileId != null) {
+        const resolved = await resolveInternalFile(account, fileId);
+        path = resolved?.path ?? null;
+        mime ??= resolved?.mime;
+      }
+    }
+    if (!path) throw new Error('attachment-not-editable');
+    const editors = await fetchDirectEditors(account);
+    const name = att.filename ?? path.split('/').filter(Boolean).pop();
+    const editor = editorForMime(editors, mime ?? mimeFromName(name));
+    if (!editor) throw new Error('no-editor-for-mime');
+    const url = await openDirectEditingUrl(account, path, editor.id);
+    await Linking.openURL(url);
+  } catch (error) {
+    console.warn('[attachments] edit failed', error);
+    Alert.alert(i18n.t('event.attachmentEditError'));
   }
 }
 

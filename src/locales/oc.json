@@ -93,6 +93,8 @@
     "attachments": "Pèças juntas",
     "attachmentUntitled": "Pèça junta",
     "attachmentOpenError": "Impossible de dobrir aquesta pèça junta",
+    "attachmentEdit": "Modificar la pèça junta",
+    "attachmentEditError": "Impossible de dobrir l’editor",
     "attachmentTooLarge": "Aquesta pèça junta es tròp voluminosa",
     "addAttachment": "Apondre una pèça junta",
     "attachmentAddError": "Impossible d’apondre la pèça junta",

@@ -94,6 +94,8 @@
     "attachments": "Allegati",
     "attachmentUntitled": "Allegato",
     "attachmentOpenError": "Impossibile aprire questo allegato",
+    "attachmentEdit": "Modifica allegato",
+    "attachmentEditError": "Impossibile aprire l'editor",
     "attachmentTooLarge": "Questo allegato è troppo grande",
     "addAttachment": "Aggiungi allegato",
     "attachmentAddError": "Impossibile aggiungere l'allegato",
