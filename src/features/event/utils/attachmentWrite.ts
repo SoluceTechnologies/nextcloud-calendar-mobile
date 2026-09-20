@@ -140,14 +140,20 @@ function attachLineMatches(line: string, att: EventAttachment): boolean {
 export function removeAttachLine(ics: string, att: EventAttachment): string {
   const { lines, eol } = unfoldLines(ics);
   const kept: string[] = [];
+  let removed = 0;
   let inMaster = false;
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     const up = line.toUpperCase();
     if (up === 'BEGIN:VEVENT') inMaster = isMasterVeventBlock(lines, i);
-    if (inMaster && attachLineMatches(line, att)) continue;
+    if (inMaster && attachLineMatches(line, att)) {
+      removed++;
+      continue;
+    }
     if (up === 'END:VEVENT') inMaster = false;
     kept.push(line);
   }
-  return kept.join(eol);
+  // Unfolding rewrites every folded line — the caller relies on reference
+  // equality to detect "nothing matched", so return the input untouched.
+  return removed === 0 ? ics : kept.join(eol);
 }
