@@ -122,10 +122,13 @@ function attachLineMatches(line: string, att: EventAttachment): boolean {
   if (att.uri) return prop.value === att.uri;
   if (att.base64) return prop.value === att.base64;
   // Occurrence copies lack the payload: match on metadata like openInlineAttachment does.
+  // att.size may come from the decoded payload when the line omits SIZE, so the
+  // parameter is only discriminating when the line actually declares it.
+  const lineSize = paramValue(prop.params, 'SIZE');
   return (
     (paramValue(prop.params, 'FILENAME') ?? '') === (att.filename ?? '') &&
     (paramValue(prop.params, 'FMTTYPE') ?? '') === (att.fmttype ?? '') &&
-    Number(paramValue(prop.params, 'SIZE') ?? 0) === (att.size ?? 0)
+    (lineSize === undefined || Number(lineSize) === (att.size ?? 0))
   );
 }
 
