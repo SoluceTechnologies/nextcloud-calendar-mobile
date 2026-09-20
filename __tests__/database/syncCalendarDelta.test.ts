@@ -185,6 +185,37 @@ describe('syncCalendarDelta — non-destructive guards', () => {
     expect(batch).toHaveBeenCalled();
   });
 
+  it('keeps an unchanged row instead of delete+recreating it', async () => {
+    // A fetched event identical to the stored row must not churn the row —
+    // that churn held the write lock and briefly hid open detail screens.
+    mockSyncCollection.mockResolvedValue({ changed: ['h1'], deleted: [], newToken: 't5', reset: false });
+    const ev = evt('h1');
+    mockFetchByHrefs.mockResolvedValue([ev]);
+    const unchanged = {
+      href: 'h1',
+      uid: ev.uid,
+      accountId: account.id,
+      calendarId: calendar.id,
+      summary: ev.summary,
+      start: ev.dtstart.getTime(),
+      end: ev.dtend.getTime(),
+      allDay: ev.allDay,
+      color: ev.color,
+      attendees: '[]',
+      isTask: false,
+      prepareMarkAsDeleted: jest.fn(() => ({ _op: 'del' })),
+    };
+    const { db, batch, prepareCreate } = makeDb({ calendarRow: tokenRow(), eventRows: [unchanged] });
+    mockGetDb.mockReturnValue(db);
+
+    await syncCalendarDelta(account, calendar);
+
+    expect(unchanged.prepareMarkAsDeleted).not.toHaveBeenCalled();
+    expect(prepareCreate).not.toHaveBeenCalled();
+    // only the calendar syncToken update should be written
+    expect(batch).toHaveBeenCalled();
+  });
+
   it('incremental: deletes explicit removals + replaces fetched, leaves untouched hrefs intact', async () => {
     mockSyncCollection.mockResolvedValue({ changed: ['h1'], deleted: ['h2'], newToken: 't3', reset: false });
     mockFetchByHrefs.mockResolvedValue({ events: [evt('h1')], returnedHrefs: new Set(['h1']) });
