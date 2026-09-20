@@ -6,7 +6,11 @@ import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system/legacy';
 import { lightTheme } from '../../src/theme';
 import EventDetailScreen from '../../app/event/[uid]';
-import { openAttachment } from '../../src/features/event/utils/attachments';
+import {
+  editAttachment,
+  openAttachment,
+} from '../../src/features/event/utils/attachments';
+import { fetchDirectEditors } from '../../src/services/nextcloud/directEditing';
 import { useAccountStore } from '../../src/stores/accountStore';
 import i18n from '../../src/utils/i18n';
 import type { Account, CalendarEvent, CalendarMeta } from '../../src/types';
@@ -81,6 +85,7 @@ jest.mock('../../src/features/map/utils/mapLinks', () => ({
 jest.mock('../../src/features/event/utils/attachments', () => ({
   ...jest.requireActual('../../src/features/event/utils/attachments'),
   openAttachment: jest.fn(),
+  editAttachment: jest.fn(),
 }));
 
 const mockAttachments = {
@@ -92,6 +97,12 @@ const mockAttachments = {
 
 jest.mock('../../src/features/event/hooks/useEventAttachments', () => ({
   useEventAttachments: () => mockAttachments,
+}));
+
+jest.mock('../../src/services/nextcloud/directEditing', () => ({
+  fetchDirectEditors: jest.fn(async () => []),
+  editorForMime: jest.requireActual('../../src/services/nextcloud/directEditing')
+    .editorForMime,
 }));
 
 jest.mock('expo-document-picker', () => ({
@@ -267,5 +278,41 @@ describe('EventDetailScreen attachments', () => {
     expect(destructive?.text).toBe('Remove and delete file');
     destructive?.onPress?.();
     expect(mockAttachments.remove).toHaveBeenCalledWith(att, { deleteFile: true });
+  });
+
+  it('shows an edit button for own files covered by a direct editor', async () => {
+    (fetchDirectEditors as jest.Mock).mockResolvedValue([
+      { id: 'text', name: 'Text', mimetypes: ['text/plain'], optionalMimetypes: [] },
+    ]);
+    const att = {
+      uri: 'https://cloud.example.com/remote.php/dav/files/alice/Calendar/note.txt',
+      filename: 'note.txt',
+      fmttype: 'text/plain',
+    };
+    mockEvent = event({ attachments: [att] });
+    const { findByLabelText } = render(<EventDetailScreen />, { wrapper });
+    const editBtn = await findByLabelText('Edit attachment');
+    fireEvent.press(editBtn);
+    expect(editAttachment).toHaveBeenCalledWith(att, account);
+  });
+
+  it('hides the edit button when no editor matches the MIME type', async () => {
+    (fetchDirectEditors as jest.Mock).mockResolvedValue([
+      { id: 'text', name: 'Text', mimetypes: ['text/plain'], optionalMimetypes: [] },
+    ]);
+    mockEvent = event({
+      attachments: [
+        {
+          uri: 'https://cloud.example.com/remote.php/dav/files/alice/big.zip',
+          filename: 'big.zip',
+          fmttype: 'application/zip',
+        },
+      ],
+    });
+    const { queryByLabelText, findByText } = render(<EventDetailScreen />, {
+      wrapper,
+    });
+    await findByText('big.zip');
+    expect(queryByLabelText('Edit attachment')).toBeNull();
   });
 });

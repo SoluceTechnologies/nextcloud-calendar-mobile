@@ -94,6 +94,8 @@
     "attachments": "Вложения",
     "attachmentUntitled": "Вложение",
     "attachmentOpenError": "Не удалось открыть вложение",
+    "attachmentEdit": "Изменить вложение",
+    "attachmentEditError": "Не удалось открыть редактор",
     "attachmentTooLarge": "Это вложение слишком большое",
     "addAttachment": "Добавить вложение",
     "attachmentAddError": "Не удалось добавить вложение",

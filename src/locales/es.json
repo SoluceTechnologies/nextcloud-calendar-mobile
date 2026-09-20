@@ -94,6 +94,8 @@
     "attachments": "Archivos adjuntos",
     "attachmentUntitled": "Archivo adjunto",
     "attachmentOpenError": "No se pudo abrir el archivo adjunto",
+    "attachmentEdit": "Editar adjunto",
+    "attachmentEditError": "No se pudo abrir el editor",
     "attachmentTooLarge": "Este archivo adjunto es demasiado grande",
     "addAttachment": "Añadir archivo adjunto",
     "attachmentAddError": "No se pudo añadir el archivo adjunto",
