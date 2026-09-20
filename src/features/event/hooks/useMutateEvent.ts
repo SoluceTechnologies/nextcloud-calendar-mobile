@@ -267,22 +267,41 @@ export function useCreateEvent(account: Account, calendars: CalendarMeta[]) {
         : [eventFromInput(uid, input, calendar, account)];
       await insertEvents(optimistic);
 
+      let resolved: { location: string; description: string };
+      let failures = 0;
       try {
-        const resolved = await resolveLocationAndDescription(account, input);
+        resolved = await resolveLocationAndDescription(account, input);
         const timezone = resolveTimezone(account);
         const built = buildIcsForInput(uid, input, resolved.location, resolved.description, timezone);
-        const { ics, failures } = await applyAttachmentDelta(account, built, input);
-        await putEvent(account, calendar, uid, ics);
-
-        const real = input.rrule
-          ? expandOccurrences(uid, input, calendar, account)
-          : [eventFromInput(uid, input, calendar, account, resolved)];
-        await insertEvents(real);
-        warnAttachmentFailures(failures);
-        await resyncAfterAttachmentDelta(account, calendar, input);
+        const delta = await applyAttachmentDelta(account, built, input);
+        failures = delta.failures;
+        await putEvent(account, calendar, uid, delta.ics);
       } catch (error) {
         await removeWhere(account.id, (e) => seriesBaseUid(e.uid) === uid);
         Alert.alert(i18n.t('event.errorCreateFailed'), describeMutationError(error));
+        return;
+      }
+
+      // The PUT succeeded — the event exists on the server. Local writes are
+      // best-effort: a failure must not report "create failed"; the delta sync
+      // reconciles local state from the server.
+      let resync = hasAttachmentDelta(input);
+      const real = input.rrule
+        ? expandOccurrences(uid, input, calendar, account)
+        : [eventFromInput(uid, input, calendar, account, resolved)];
+      try {
+        await insertEvents(real);
+      } catch (error) {
+        console.warn('[useCreateEvent] post-PUT local write failed; forcing resync', error);
+        resync = true;
+      }
+      warnAttachmentFailures(failures);
+      if (resync) {
+        try {
+          await syncCalendarDelta(account, calendar);
+        } catch (error) {
+          console.warn('[useCreateEvent] post-save resync failed', error);
+        }
       }
     }, [account, calendars]),
   );

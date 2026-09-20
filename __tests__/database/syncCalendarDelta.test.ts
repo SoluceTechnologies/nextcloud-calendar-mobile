@@ -163,6 +163,28 @@ describe('syncCalendarDelta — non-destructive guards', () => {
     expect(batch).toHaveBeenCalled();
   });
 
+  it('accepts extra parsed events when one href expands to several occurrences', async () => {
+    // A recurring ICS yields multiple CalendarEvent rows for a single href —
+    // fetched.length > changed.length must not be treated as a bad response.
+    mockSyncCollection.mockResolvedValue({ changed: ['h1'], deleted: [], newToken: 't4', reset: false });
+    mockFetchByHrefs.mockResolvedValue([
+      evt('h1'),
+      { ...evt('h1'), uid: 'h1-uid_occ_1', dtstart: new Date('2026-07-02T09:00:00Z') },
+      { ...evt('h1'), uid: 'h1-uid_occ_2', dtstart: new Date('2026-07-03T09:00:00Z') },
+    ]);
+    const h1old = makeRow('h1');
+    const h9other = makeRow('h9');
+    const { db, batch, prepareCreate } = makeDb({ calendarRow: tokenRow(), eventRows: [h1old, h9other] });
+    mockGetDb.mockReturnValue(db);
+
+    await syncCalendarDelta(account, calendar);
+
+    expect(h1old.prepareMarkAsDeleted).toHaveBeenCalled();
+    expect(h9other.prepareMarkAsDeleted).not.toHaveBeenCalled();
+    expect(prepareCreate).toHaveBeenCalledTimes(3);
+    expect(batch).toHaveBeenCalled();
+  });
+
   it('incremental: deletes explicit removals + replaces fetched, leaves untouched hrefs intact', async () => {
     mockSyncCollection.mockResolvedValue({ changed: ['h1'], deleted: ['h2'], newToken: 't3', reset: false });
     mockFetchByHrefs.mockResolvedValue({ events: [evt('h1')], returnedHrefs: new Set(['h1']) });
