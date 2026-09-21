@@ -12,7 +12,8 @@
     "errorServer": "Il server è temporaneamente non disponibile. Riprova più tardi.",
     "errorRateLimited": "Troppe richieste. Attendi un momento e riprova.",
     "errorRateLimitedRetry": "Troppe richieste. Riprova tra {{seconds}} s.",
-    "back": "Indietro"
+    "back": "Indietro",
+    "retry": "Riprova"
   },
   "tabs": {
     "calendar": "Calendario",
@@ -197,7 +198,8 @@
     "errorCreateFailed": "Creazione dell'evento non riuscita",
     "errorUpdateFailed": "Aggiornamento dell'evento non riuscito",
     "errorDeleteFailed": "Eliminazione dell'evento non riuscita",
-    "alerts": "Avvisi"
+    "alerts": "Avvisi",
+    "editorLoadSlow": "L'editor sta impiegando più tempo del previsto…"
   },
   "settings": {
     "title": "Impostazioni",
