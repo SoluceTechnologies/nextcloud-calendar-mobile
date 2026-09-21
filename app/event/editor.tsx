@@ -16,6 +16,7 @@ import {
 import { createPublicLinkShare } from '@/services/nextcloud/shares';
 import { utf8ToBase64 } from '@/services/shared/base64';
 import { downloadAndShare } from '@/features/event/utils/attachments';
+import { takePendingEditorUrl } from '@/features/event/utils/editorSession';
 import { Button, ScreenHeader, Spinner, Typography, ViewContainer } from '@/ui/components';
 import { goBackOrHome } from '@/utils/navigationGuard';
 
@@ -41,12 +42,10 @@ const DIRECT_EDITING_BRIDGE = `(function() {
 true;`;
 
 export default function AttachmentEditorScreen() {
-  const { path, editorId, name, url: initialUrl } = useLocalSearchParams<{
+  const { path, editorId, name } = useLocalSearchParams<{
     path?: string;
     editorId?: string;
     name?: string;
-    /** Pre-minted one-time URL (from `directEditing/create`) — skips `open`. */
-    url?: string;
   }>();
   const router = useRouter();
   const theme = useTheme();
@@ -54,7 +53,9 @@ export default function AttachmentEditorScreen() {
   const activeAccountId = useAccountStore((s) => s.activeAccountId);
   const account = useActiveAccount(activeAccountId);
 
-  const [url, setUrl] = useState<string | null>(initialUrl ?? null);
+  // A pre-minted create URL comes through the session slot (not params) so a
+  // restored screen falls back to `requestUrl` instead of a dead token.
+  const [url, setUrl] = useState<string | null>(() => takePendingEditorUrl());
   const [loaded, setLoaded] = useState(false);
   const [timedOut, setTimedOut] = useState(false);
   const [failed, setFailed] = useState(false);
@@ -62,7 +63,13 @@ export default function AttachmentEditorScreen() {
   // The one-time URL is consumed by the first load, so `reload` (session
   // invalidation) must request a fresh URL rather than call webView.reload().
   const requestUrl = useCallback(async () => {
-    if (!account || !path) return;
+    // `account` may briefly be null while the store hydrates — only a missing
+    // path is a dead end (with no pending URL, nothing can ever load).
+    if (!path) {
+      setFailed(true);
+      return;
+    }
+    if (!account) return;
     setFailed(false);
     setTimedOut(false);
     setLoaded(false);
