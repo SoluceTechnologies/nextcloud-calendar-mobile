@@ -1,7 +1,11 @@
 import {
+  createDirectEditingUrl,
   editorForMime,
+  fetchDirectEditing,
   fetchDirectEditors,
+  officeUserAgent,
   openDirectEditingUrl,
+  usesOfficeUserAgent,
   type DirectEditor,
 } from '../../src/services/nextcloud/directEditing';
 import { trustedFetch } from '../../src/services/shared/trustedFetch';
@@ -130,6 +134,74 @@ describe('openDirectEditingUrl', () => {
     mockedFetch.mockResolvedValue(ocsOk({}));
     await expect(openDirectEditingUrl(account, '/a.txt')).rejects.toThrow(
       'malformed',
+    );
+  });
+});
+
+describe('fetchDirectEditing creators', () => {
+  it('parses the creators map', async () => {
+    mockedFetch.mockResolvedValue(
+      ocsOk({
+        editors: {},
+        creators: {
+          textdocument: {
+            id: 'textdocument',
+            editor: 'text',
+            name: 'Text document',
+            extension: 'md',
+            templates: false,
+            mimetype: 'text/markdown',
+          },
+        },
+      }),
+    );
+    const caps = await fetchDirectEditing(account);
+    expect(caps.creators).toEqual([
+      {
+        id: 'textdocument',
+        editor: 'text',
+        name: 'Text document',
+        extension: 'md',
+        mimetype: 'text/markdown',
+        templates: false,
+      },
+    ]);
+    expect(caps.editors).toEqual([]);
+  });
+});
+
+describe('createDirectEditingUrl', () => {
+  it('posts path, editorId and creatorId', async () => {
+    mockedFetch.mockResolvedValue(ocsOk({ url: 'https://x/edit/abc' }));
+    const url = await createDirectEditingUrl(
+      account,
+      '/Calendar/note.md',
+      'text',
+      'textdocument',
+    );
+    expect(mockedFetch).toHaveBeenCalledWith(
+      'https://cloud.example.com/ocs/v2.php/apps/files/api/v1/directEditing/create',
+      expect.objectContaining({
+        method: 'POST',
+        body: 'path=%2FCalendar%2Fnote.md&editorId=text&creatorId=textdocument',
+      }),
+    );
+    expect(url).toBe('https://x/edit/abc');
+  });
+});
+
+describe('office user agent', () => {
+  it('flags onlyoffice and eurooffice editors only', () => {
+    expect(usesOfficeUserAgent('onlyoffice')).toBe(true);
+    expect(usesOfficeUserAgent('eurooffice')).toBe(true);
+    expect(usesOfficeUserAgent('richdocuments')).toBe(false);
+    expect(usesOfficeUserAgent('text')).toBe(false);
+    expect(usesOfficeUserAgent(undefined)).toBe(false);
+  });
+
+  it('builds a mobile UA carrying the app version', () => {
+    expect(officeUserAgent('1.8.0')).toBe(
+      'Mozilla/5.0 (Android) Mobile Nextcloud-calendar/1.8.0',
     );
   });
 });

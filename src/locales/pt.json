@@ -199,7 +199,8 @@
     "errorUpdateFailed": "Falha ao atualizar o evento",
     "errorDeleteFailed": "Falha ao eliminar o evento",
     "alerts": "Alertas",
-    "editorLoadSlow": "O editor está a demorar mais do que o esperado…"
+    "editorLoadSlow": "O editor está a demorar mais do que o esperado…",
+    "attachNewDocumentHint": "Criar e editar no Nextcloud"
   },
   "settings": {
     "title": "Definições",
