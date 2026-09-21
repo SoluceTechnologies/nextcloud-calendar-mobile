@@ -7,6 +7,7 @@ import { useCalendars } from '@/hooks/useCalendars';
 import {
   type MonthWidgetCardStyle,
   type MonthWidgetDayTap,
+  type MonthWidgetFontSize,
   type MonthWidgetFontWeight,
   type MonthWidgetTheme,
   useCalendarStore,
@@ -24,10 +25,12 @@ export function WidgetCalendarSettings() {
   const hiddenCalendarIds = useCalendarStore((s) => s.hiddenCalendarIds);
   const widgetDisabledCalendarIds = useCalendarStore((s) => s.widgetDisabledCalendarIds);
   const toggleWidget = useCalendarStore((s) => s.toggleCalendarWidget);
+  const monthWidgetFontSize = useCalendarStore((s) => s.monthWidgetFontSize);
   const monthWidgetFontWeight = useCalendarStore((s) => s.monthWidgetFontWeight);
   const monthWidgetTheme = useCalendarStore((s) => s.monthWidgetTheme);
   const monthWidgetCardStyle = useCalendarStore((s) => s.monthWidgetCardStyle);
   const monthWidgetDayTap = useCalendarStore((s) => s.monthWidgetDayTap);
+  const setMonthWidgetFontSize = useCalendarStore((s) => s.setMonthWidgetFontSize);
   const setMonthWidgetFontWeight = useCalendarStore((s) => s.setMonthWidgetFontWeight);
   const setMonthWidgetTheme = useCalendarStore((s) => s.setMonthWidgetTheme);
   const setMonthWidgetCardStyle = useCalendarStore((s) => s.setMonthWidgetCardStyle);
@@ -43,6 +46,9 @@ export function WidgetCalendarSettings() {
     void refreshWidgets();
   }
 
+  const fontSizeOptions: SelectOption<MonthWidgetFontSize>[] = (['small', 'normal', 'large', 'xlarge', 'huge'] as const).map((value) => ({
+    value, label: t(`settings.widgets.month.fontSize.${value}`),
+  }));
   const fontWeightOptions: SelectOption<MonthWidgetFontWeight>[] = (['light', 'normal', 'medium', 'bold', 'black'] as const).map((value) => ({
     value, label: t(`settings.widgets.month.fontWeight.${value}`),
   }));
@@ -105,6 +111,8 @@ export function WidgetCalendarSettings() {
         <Typography variant="caption" color="secondary">{t('settings.widgets.month.hint')}</Typography>
       </Stack>
 
+      <Typography variant="body1">{t('settings.widgets.month.fontSizeLabel')}</Typography>
+      <Select value={monthWidgetFontSize} options={fontSizeOptions} onChange={(value) => setMonthOption(value, setMonthWidgetFontSize)} />
       <Typography variant="body1">{t('settings.widgets.month.fontWeightLabel')}</Typography>
       <Select value={monthWidgetFontWeight} options={fontWeightOptions} onChange={(value) => setMonthOption(value, setMonthWidgetFontWeight)} />
       <Typography variant="body1">{t('settings.widgets.month.themeLabel')}</Typography>

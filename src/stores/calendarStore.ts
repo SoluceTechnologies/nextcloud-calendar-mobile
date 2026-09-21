@@ -3,6 +3,7 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import { legacyBackedStorage } from '@/stores/legacyStorage';
 import type { ViewMode } from '@/types';
 
+export type MonthWidgetFontSize = 'small' | 'normal' | 'large' | 'xlarge' | 'huge';
 export type MonthWidgetFontWeight = 'light' | 'normal' | 'medium' | 'bold' | 'black';
 export type MonthWidgetTheme = 'system' | 'light' | 'dark';
 export type MonthWidgetCardStyle = 'card' | 'borderless' | 'transparent';
@@ -14,6 +15,7 @@ interface CalendarState {
   hiddenCalendarIds: string[];
   notifDisabledCalendarIds: string[];
   widgetDisabledCalendarIds: string[];
+  monthWidgetFontSize: MonthWidgetFontSize;
   monthWidgetFontWeight: MonthWidgetFontWeight;
   monthWidgetTheme: MonthWidgetTheme;
   monthWidgetCardStyle: MonthWidgetCardStyle;
@@ -24,6 +26,7 @@ interface CalendarState {
   toggleCalendarVisibility: (calendarId: string) => void;
   toggleCalendarNotifications: (calendarId: string) => void;
   toggleCalendarWidget: (calendarId: string) => void;
+  setMonthWidgetFontSize: (value: MonthWidgetFontSize) => void;
   setMonthWidgetFontWeight: (value: MonthWidgetFontWeight) => void;
   setMonthWidgetTheme: (value: MonthWidgetTheme) => void;
   setMonthWidgetCardStyle: (value: MonthWidgetCardStyle) => void;
@@ -43,6 +46,7 @@ export const useCalendarStore = create<CalendarState>()(
       hiddenCalendarIds: [],
       notifDisabledCalendarIds: [],
       widgetDisabledCalendarIds: [],
+      monthWidgetFontSize: 'large',
       monthWidgetFontWeight: 'light',
       monthWidgetTheme: 'system',
       monthWidgetCardStyle: 'card',
@@ -56,6 +60,7 @@ export const useCalendarStore = create<CalendarState>()(
         set({ notifDisabledCalendarIds: toggleIn(get().notifDisabledCalendarIds, calendarId) }),
       toggleCalendarWidget: (calendarId) =>
         set({ widgetDisabledCalendarIds: toggleIn(get().widgetDisabledCalendarIds, calendarId) }),
+      setMonthWidgetFontSize: (monthWidgetFontSize) => set({ monthWidgetFontSize }),
       setMonthWidgetFontWeight: (monthWidgetFontWeight) => set({ monthWidgetFontWeight }),
       setMonthWidgetTheme: (monthWidgetTheme) => set({ monthWidgetTheme }),
       setMonthWidgetCardStyle: (monthWidgetCardStyle) => set({ monthWidgetCardStyle }),
@@ -67,7 +72,7 @@ export const useCalendarStore = create<CalendarState>()(
       storage: createJSONStorage(() =>
         legacyBackedStorage([
           'viewMode', 'hiddenCalendarIds', 'notifDisabledCalendarIds', 'widgetDisabledCalendarIds', 'hourRowHeight',
-          'monthWidgetFontWeight', 'monthWidgetTheme', 'monthWidgetCardStyle', 'monthWidgetDayTap',
+          'monthWidgetFontSize', 'monthWidgetFontWeight', 'monthWidgetTheme', 'monthWidgetCardStyle', 'monthWidgetDayTap',
         ])
       ),
       partialize: (state) => ({
@@ -75,6 +80,7 @@ export const useCalendarStore = create<CalendarState>()(
         hiddenCalendarIds: state.hiddenCalendarIds,
         notifDisabledCalendarIds: state.notifDisabledCalendarIds,
         widgetDisabledCalendarIds: state.widgetDisabledCalendarIds,
+        monthWidgetFontSize: state.monthWidgetFontSize,
         monthWidgetFontWeight: state.monthWidgetFontWeight,
         monthWidgetTheme: state.monthWidgetTheme,
         monthWidgetCardStyle: state.monthWidgetCardStyle,
