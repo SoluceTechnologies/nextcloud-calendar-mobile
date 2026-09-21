@@ -11,6 +11,8 @@ jest.mock('react-native-android-widget', () => ({
 jest.mock('@/features/widget/storage/widgetStore', () => ({
   readAgendaSnapshot: jest.fn((): AgendaSnapshot | null => null),
   writeAgendaTimeline: jest.fn(),
+  readMonthWidgetSnapshot: jest.fn(() => null),
+  writeMonthWidgetSnapshot: jest.fn(),
 }));
 
 const mockBuildFreshTimeline = jest.fn();
@@ -53,6 +55,8 @@ describe('widgetTaskHandler (android)', () => {
     const store = require('@/features/widget/storage/widgetStore');
     store.readAgendaSnapshot.mockReset();
     store.writeAgendaTimeline.mockReset();
+    store.readMonthWidgetSnapshot.mockReset();
+    store.writeMonthWidgetSnapshot.mockReset();
   });
 
   it('refreshes from the local DB on WIDGET_UPDATE and renders the fresh snapshot', async () => {
