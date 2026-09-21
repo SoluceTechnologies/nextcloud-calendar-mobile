@@ -148,9 +148,9 @@ This project is free and open source. If you're interested in contributing, have
 | :---: | :---: | :---: |
 | <img src="/.github/assets/new-event.png" alt="New event" width="230" /> | <img src="/.github/assets/accounts.png" alt="Accounts" width="230" /> | <img src="/.github/assets/account-detail.png" alt="Account detail" width="230" /> |
 
-| Event attachments | | |
+| Event attachments | Attachment editor | |
 | :---: | :---: | :---: |
-| <img src="/.github/assets/event-attachments.png" alt="Event attachments" width="230" /> | | |
+| <img src="/.github/assets/event-attachments.png" alt="Event attachments" width="230" /> | <img src="/.github/assets/event-editor.png" alt="In-app attachment editor" width="230" /> | |
 
 | Settings | Appearance | Calendar settings |
 | :---: | :---: | :---: |
