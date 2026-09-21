@@ -194,7 +194,12 @@ function authHeader(account: Account): string {
   return `Basic ${utf8ToBase64(`${account.username}:${account.appPassword}`)}`;
 }
 
-async function downloadAndShare(
+/**
+ * Downloads `url` (optionally with a Basic auth header) to the attachment
+ * cache and opens the OS share sheet. Also used by the editor screen for
+ * the Direct Editing `downloadAs` message (export endpoints).
+ */
+export async function downloadAndShare(
   url: string,
   att: EventAttachment,
   auth?: string,

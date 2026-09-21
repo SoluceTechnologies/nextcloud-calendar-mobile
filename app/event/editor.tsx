@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Linking, StyleSheet, View } from 'react-native';
+import { Alert, Linking, Share, StyleSheet, View } from 'react-native';
 import { useLocalSearchParams, useRouter, useTheme } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import Constants from 'expo-constants';
 import WebView, { type WebViewMessageEvent } from 'react-native-webview';
+// Not re-exported by the package index in v15.
+import type { ShouldStartLoadRequest } from 'react-native-webview/lib/WebViewTypes';
 import { useActiveAccount } from '@/hooks/useAccounts';
 import { useAccountStore } from '@/stores/accountStore';
 import {
@@ -11,6 +13,9 @@ import {
   openDirectEditingUrl,
   usesOfficeUserAgent,
 } from '@/services/nextcloud/directEditing';
+import { createPublicLinkShare } from '@/services/nextcloud/shares';
+import { utf8ToBase64 } from '@/services/shared/base64';
+import { downloadAndShare } from '@/features/event/utils/attachments';
 import { Button, ScreenHeader, Spinner, Typography, ViewContainer } from '@/ui/components';
 import { goBackOrHome } from '@/utils/navigationGuard';
 
@@ -27,8 +32,10 @@ const DIRECT_EDITING_BRIDGE = `(function() {
     window.ReactNativeWebView.postMessage(JSON.stringify({ name: name, values: values }));
   };
   var iface = {};
-  ['loading', 'loaded', 'documentLoaded', 'close', 'reload', 'hyperlink']
-    .forEach(function(n) { iface[n] = function(v) { post(n, v); }; });
+  [
+    'loading', 'loaded', 'documentLoaded', 'close', 'reload',
+    'hyperlink', 'share', 'downloadAs',
+  ].forEach(function(n) { iface[n] = function(v) { post(n, v); }; });
   window.DirectEditingMobileInterface = iface;
 })();
 true;`;
@@ -80,6 +87,42 @@ export default function AttachmentEditorScreen() {
 
   const close = useCallback(() => goBackOrHome(router), [router]);
 
+  const shareFile = useCallback(async () => {
+    if (!account || !path) return;
+    try {
+      // Upstream opens its share dialog; the closest equivalent here is a
+      // fresh public link handed to the OS share sheet.
+      const { url: publicUrl } = await createPublicLinkShare(account, path);
+      await Share.share({ message: publicUrl });
+    } catch (error) {
+      console.warn('[editor] share failed', error);
+      Alert.alert(t('event.editorActionError'));
+    }
+  }, [account, path, t]);
+
+  const downloadAs = useCallback(
+    async (values: Record<string, unknown> | undefined) => {
+      if (!account) return;
+      const target = values?.URL ?? values?.url;
+      if (typeof target !== 'string') return;
+      try {
+        // Export endpoints live on the same host; Basic auth works there.
+        const absolute = new URL(target, account.baseUrl).toString();
+        const filename = typeof values?.filename === 'string' ? values.filename : undefined;
+        const fmttype = typeof values?.Type === 'string' ? values.Type : undefined;
+        await downloadAndShare(
+          absolute,
+          { uri: absolute, filename, fmttype },
+          `Basic ${utf8ToBase64(`${account.username}:${account.appPassword}`)}`,
+        );
+      } catch (error) {
+        console.warn('[editor] downloadAs failed', error);
+        Alert.alert(t('event.editorActionError'));
+      }
+    },
+    [account, t],
+  );
+
   const onMessage = useCallback(
     (event: WebViewMessageEvent) => {
       let msg: { name?: string; values?: unknown };
@@ -87,6 +130,16 @@ export default function AttachmentEditorScreen() {
         msg = JSON.parse(event.nativeEvent.data);
       } catch {
         return;
+      }
+      // Android's bridge contract delivers payloads as JSON strings.
+      let values: Record<string, unknown> | undefined;
+      try {
+        values =
+          typeof msg.values === 'string'
+            ? (JSON.parse(msg.values) as Record<string, unknown>)
+            : (msg.values as Record<string, unknown> | undefined);
+      } catch {
+        values = undefined;
       }
       switch (msg.name) {
         case 'loaded':
@@ -99,11 +152,13 @@ export default function AttachmentEditorScreen() {
         case 'reload':
           void requestUrl();
           break;
+        case 'share':
+          void shareFile();
+          break;
+        case 'downloadAs':
+          void downloadAs(values);
+          break;
         case 'hyperlink': {
-          const values =
-            typeof msg.values === 'string'
-              ? (JSON.parse(msg.values) as Record<string, unknown>)
-              : (msg.values as Record<string, unknown> | undefined);
           const target = values?.Url ?? values?.url;
           if (typeof target === 'string' && /^https?:/i.test(target)) {
             void Linking.openURL(target);
@@ -112,7 +167,26 @@ export default function AttachmentEditorScreen() {
         }
       }
     },
-    [close, requestUrl],
+    [close, requestUrl, shareFile, downloadAs],
+  );
+
+  /**
+   * Mirrors `ExternalSiteWebView.shouldOverrideUrlLoading`: the editor stays
+   * in the WebView only for same-host navigations (the one-time URL redirect
+   * chain, editor internals); anything else goes to the system browser.
+   */
+  const onShouldStartLoad = useCallback(
+    (request: ShouldStartLoadRequest) => {
+      const target = request.url;
+      if (!/^https?:/i.test(target)) return false;
+      if (!account) return true;
+      const hostOf = (u: string) =>
+        u.match(/^https?:\/\/([^/?#]+)/i)?.[1]?.toLowerCase() ?? '';
+      if (hostOf(target) === hostOf(account.baseUrl)) return true;
+      void Linking.openURL(target).catch(() => {});
+      return false;
+    },
+    [account],
   );
 
   return (
@@ -125,6 +199,7 @@ export default function AttachmentEditorScreen() {
             style={[styles.webview, { backgroundColor: theme.colors.background }]}
             injectedJavaScriptBeforeContentLoaded={DIRECT_EDITING_BRIDGE}
             onMessage={onMessage}
+            onShouldStartLoadWithRequest={onShouldStartLoad}
             userAgent={
               usesOfficeUserAgent(editorId)
                 ? officeUserAgent(Constants.expoConfig?.version ?? '0')

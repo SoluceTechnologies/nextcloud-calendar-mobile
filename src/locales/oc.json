@@ -195,7 +195,8 @@
     "errorDeleteFailed": "La supression de l'eveniment a pas capitat",
     "alerts": "Alèrtas",
     "editorLoadSlow": "L'editor met mai de temps que previst…",
-    "attachNewDocumentHint": "Crear e modificar sus Nextcloud"
+    "attachNewDocumentHint": "Crear e modificar sus Nextcloud",
+    "editorActionError": "L'accion a pas pogut èsser realizada"
   },
   "settings": {
     "title": "Paramètres",
