@@ -194,7 +194,8 @@
     "errorUpdateFailed": "La mesa a jorn de l'eveniment a pas capitat",
     "errorDeleteFailed": "La supression de l'eveniment a pas capitat",
     "alerts": "Alèrtas",
-    "editorLoadSlow": "L'editor met mai de temps que previst…"
+    "editorLoadSlow": "L'editor met mai de temps que previst…",
+    "attachNewDocumentHint": "Crear e modificar sus Nextcloud"
   },
   "settings": {
     "title": "Paramètres",

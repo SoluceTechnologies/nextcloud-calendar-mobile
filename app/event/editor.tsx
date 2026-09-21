@@ -2,10 +2,15 @@ import { useCallback, useEffect, useState } from 'react';
 import { Linking, StyleSheet, View } from 'react-native';
 import { useLocalSearchParams, useRouter, useTheme } from 'expo-router';
 import { useTranslation } from 'react-i18next';
+import Constants from 'expo-constants';
 import WebView, { type WebViewMessageEvent } from 'react-native-webview';
 import { useActiveAccount } from '@/hooks/useAccounts';
 import { useAccountStore } from '@/stores/accountStore';
-import { openDirectEditingUrl } from '@/services/nextcloud/directEditing';
+import {
+  officeUserAgent,
+  openDirectEditingUrl,
+  usesOfficeUserAgent,
+} from '@/services/nextcloud/directEditing';
 import { Button, ScreenHeader, Spinner, Typography, ViewContainer } from '@/ui/components';
 import { goBackOrHome } from '@/utils/navigationGuard';
 
@@ -29,10 +34,12 @@ const DIRECT_EDITING_BRIDGE = `(function() {
 true;`;
 
 export default function AttachmentEditorScreen() {
-  const { path, editorId, name } = useLocalSearchParams<{
+  const { path, editorId, name, url: initialUrl } = useLocalSearchParams<{
     path?: string;
     editorId?: string;
     name?: string;
+    /** Pre-minted one-time URL (from `directEditing/create`) — skips `open`. */
+    url?: string;
   }>();
   const router = useRouter();
   const theme = useTheme();
@@ -40,7 +47,7 @@ export default function AttachmentEditorScreen() {
   const activeAccountId = useAccountStore((s) => s.activeAccountId);
   const account = useActiveAccount(activeAccountId);
 
-  const [url, setUrl] = useState<string | null>(null);
+  const [url, setUrl] = useState<string | null>(initialUrl ?? null);
   const [loaded, setLoaded] = useState(false);
   const [timedOut, setTimedOut] = useState(false);
   const [failed, setFailed] = useState(false);
@@ -62,8 +69,8 @@ export default function AttachmentEditorScreen() {
   }, [account, path, editorId]);
 
   useEffect(() => {
-    void requestUrl();
-  }, [requestUrl]);
+    if (!url && !failed) void requestUrl();
+  }, [url, failed, requestUrl]);
 
   useEffect(() => {
     if (!url || loaded) return;
@@ -118,6 +125,11 @@ export default function AttachmentEditorScreen() {
             style={[styles.webview, { backgroundColor: theme.colors.background }]}
             injectedJavaScriptBeforeContentLoaded={DIRECT_EDITING_BRIDGE}
             onMessage={onMessage}
+            userAgent={
+              usesOfficeUserAgent(editorId)
+                ? officeUserAgent(Constants.expoConfig?.version ?? '0')
+                : undefined
+            }
             javaScriptEnabled
             domStorageEnabled
           />

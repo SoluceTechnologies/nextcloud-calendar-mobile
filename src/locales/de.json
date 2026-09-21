@@ -199,7 +199,8 @@
     "errorUpdateFailed": "Ereignis konnte nicht aktualisiert werden",
     "errorDeleteFailed": "Ereignis konnte nicht gelöscht werden",
     "alerts": "Erinnerungen",
-    "editorLoadSlow": "Der Editor braucht länger als erwartet…"
+    "editorLoadSlow": "Der Editor braucht länger als erwartet…",
+    "attachNewDocumentHint": "Auf Nextcloud erstellen und bearbeiten"
   },
   "settings": {
     "title": "Einstellungen",

@@ -199,7 +199,8 @@
     "errorUpdateFailed": "Не удалось обновить событие",
     "errorDeleteFailed": "Не удалось удалить событие",
     "alerts": "Напоминания",
-    "editorLoadSlow": "Редактор загружается дольше обычного…"
+    "editorLoadSlow": "Редактор загружается дольше обычного…",
+    "attachNewDocumentHint": "Создать и изменить в Nextcloud"
   },
   "settings": {
     "title": "Настройки",

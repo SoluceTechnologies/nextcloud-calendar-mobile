@@ -199,7 +199,8 @@
     "errorUpdateFailed": "Aggiornamento dell'evento non riuscito",
     "errorDeleteFailed": "Eliminazione dell'evento non riuscita",
     "alerts": "Avvisi",
-    "editorLoadSlow": "L'editor sta impiegando più tempo del previsto…"
+    "editorLoadSlow": "L'editor sta impiegando più tempo del previsto…",
+    "attachNewDocumentHint": "Crea e modifica su Nextcloud"
   },
   "settings": {
     "title": "Impostazioni",
