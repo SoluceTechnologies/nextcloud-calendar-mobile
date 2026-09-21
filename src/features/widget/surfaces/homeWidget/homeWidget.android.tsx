@@ -137,83 +137,354 @@ function MonthAndroidWidget({ snapshot }: { snapshot: MonthWidgetSnapshot | null
   const settings = useCalendarStore.getState();
   const systemDark = snapshot?.scheme === 'dark';
   const dark = settings.monthWidgetTheme === 'dark' || (settings.monthWidgetTheme === 'system' && systemDark);
-  const palette: Record<'background' | 'surface' | 'text' | 'muted' | 'today', `#${string}`> = dark
-    ? { background: '#1d1b20', surface: '#28252d', text: '#e9e5eb', muted: '#c9c2cd', today: '#9bcbff' }
-    : { background: '#f8f9fb', surface: '#ffffff', text: '#1d1b20', muted: '#62606a', today: '#006fae' };
-  const fontWeight = ({ light: '300', normal: '400', medium: '500', bold: '700', black: '900' } as const)[settings.monthWidgetFontWeight];
+
+  const palette = dark
+    ? {
+        cardBg: '#E6121214' as const,
+        cardBorder: '#444752' as const,
+        gridLine: '#40434E' as const,
+        titleText: '#FFFFFF' as const,
+        icon: '#D0D0D5' as const,
+        menuIcon: '#E0E0E0' as const,
+        dowWeekday: '#9E9EA5' as const,
+        dowSat: '#D8D8DC' as const,
+        dowSun: '#FF6B6B' as const,
+        dayCurMonth: '#FFFFFF' as const,
+        dayOtherMonth: '#55555A' as const,
+        todayBg: '#0082C9' as const,
+        todayText: '#FFFFFF' as const,
+        moreText: '#9E9EA5' as const,
+      }
+    : {
+        cardBg: '#F4FFFFFF' as const,
+        cardBorder: '#94A3B8' as const,
+        gridLine: '#CBD5E1' as const,
+        titleText: '#111827' as const,
+        icon: '#374151' as const,
+        menuIcon: '#4B5563' as const,
+        dowWeekday: '#4B5563' as const,
+        dowSat: '#1F2937' as const,
+        dowSun: '#DC2626' as const,
+        dayCurMonth: '#111827' as const,
+        dayOtherMonth: '#9CA3AF' as const,
+        todayBg: '#0082C9' as const,
+        todayText: '#FFFFFF' as const,
+        moreText: '#6B7280' as const,
+      };
+
+  const fontWeight = ({
+    light: '300',
+    normal: '400',
+    medium: '500',
+    bold: '700',
+    black: '900',
+  } as const)[settings.monthWidgetFontWeight];
+
   const cardStyle = settings.monthWidgetCardStyle;
-  const dayUri = (date: string) => settings.monthWidgetDayTap === 'newEvent'
-    ? `nextcloud-calendar:///event/new?date=${encodeURIComponent(`${date}T09:00:00`)}`
-    : `nextcloud-calendar:///calendar?date=${encodeURIComponent(date)}`;
+  const currentOffset = snapshot?.monthOffset ?? 0;
+
+  const dayUri = (date: string) =>
+    settings.monthWidgetDayTap === 'newEvent'
+      ? `nextcloud-calendar:///event/new?date=${encodeURIComponent(`${date}T09:00:00`)}`
+      : `nextcloud-calendar:///calendar?date=${encodeURIComponent(date)}`;
 
   if (!snapshot) {
     return (
-      <FlexWidget style={{ height: 'match_parent', width: 'match_parent', padding: widgetSpacing.md, backgroundColor: palette.background }}>
-        <TextWidget text="Calendar" style={{ fontSize: widgetType.body, color: palette.muted }} />
+      <FlexWidget
+        style={{
+          height: 'match_parent',
+          width: 'match_parent',
+          padding: widgetSpacing.md,
+          backgroundColor: palette.cardBg,
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+        clickAction="OPEN_URI"
+        clickActionData={{ uri: 'nextcloud-calendar:///calendar' }}
+      >
+        <TextWidget text="Calendar" style={{ fontSize: widgetType.body, color: palette.dowWeekday }} />
       </FlexWidget>
     );
   }
 
-  const weekDays = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
+  const weekDays = [
+    { name: 'Mon', color: palette.dowWeekday },
+    { name: 'Tue', color: palette.dowWeekday },
+    { name: 'Wed', color: palette.dowWeekday },
+    { name: 'Thu', color: palette.dowWeekday },
+    { name: 'Fri', color: palette.dowWeekday },
+    { name: 'Sat', color: palette.dowSat },
+    { name: 'Sun', color: palette.dowSun },
+  ];
+
   return (
     <FlexWidget
       style={{
         height: 'match_parent',
         width: 'match_parent',
         flexDirection: 'column',
-        backgroundColor: cardStyle === 'transparent' ? '#00000000' : palette.background,
-        borderRadius: cardStyle === 'card' ? widgetRadius.lg : 0,
-        padding: widgetSpacing.sm,
+        backgroundColor: cardStyle === 'transparent' ? '#00000000' : palette.cardBg,
+        borderRadius: cardStyle === 'card' ? 20 : 0,
+        borderWidth: cardStyle === 'card' ? 1 : 0,
+        borderColor: cardStyle === 'card' ? palette.cardBorder : '#00000000',
       }}
     >
-      <FlexWidget style={{ width: 'match_parent', flexDirection: 'row', alignItems: 'center', paddingBottom: 4 }}>
-        <FlexWidget style={{ flex: 1 }}>
-          <TextWidget text={snapshot.monthLabel} style={{ fontSize: widgetType.body, fontWeight, color: palette.text }} />
+      {/* 1. Header Bar */}
+      <FlexWidget
+        style={{
+          width: 'match_parent',
+          height: 48,
+          flexDirection: 'row',
+          alignItems: 'center',
+          paddingHorizontal: 8,
+        }}
+      >
+        {/* Menu (☰) -> Settings */}
+        <FlexWidget
+          style={{
+            width: 36,
+            height: 38,
+            justifyContent: 'center',
+            alignItems: 'center',
+          }}
+          clickAction="OPEN_URI"
+          clickActionData={{ uri: 'nextcloud-calendar:///settings/widgets' }}
+        >
+          <TextWidget
+            text="☰"
+            style={{
+              fontSize: 19,
+              fontWeight: 'bold',
+              color: palette.menuIcon,
+            }}
+          />
         </FlexWidget>
-        <TextWidget
-          text="+"
-          style={{ fontSize: widgetType.heading, fontWeight: '400', color: palette.today, paddingHorizontal: 6 }}
+
+        {/* Month Title -> Calendar App */}
+        <FlexWidget
+          style={{
+            flex: 1,
+            height: 38,
+            justifyContent: 'center',
+            paddingLeft: 6,
+          }}
+          clickAction="OPEN_URI"
+          clickActionData={{ uri: 'nextcloud-calendar:///calendar' }}
+        >
+          <TextWidget
+            text={snapshot.monthLabel}
+            maxLines={1}
+            style={{
+              fontSize: 16,
+              fontWeight: 'bold',
+              color: palette.titleText,
+            }}
+          />
+        </FlexWidget>
+
+        {/* Prev (❮) */}
+        <FlexWidget
+          style={{
+            width: 34,
+            height: 38,
+            justifyContent: 'center',
+            alignItems: 'center',
+          }}
+          clickAction="MONTH_PREV"
+          clickActionData={{ offset: currentOffset - 1 }}
+        >
+          <TextWidget
+            text="❮"
+            style={{
+              fontSize: 15,
+              fontWeight: 'bold',
+              color: palette.icon,
+            }}
+          />
+        </FlexWidget>
+
+        {/* Today (⚲) */}
+        <FlexWidget
+          style={{
+            width: 34,
+            height: 38,
+            justifyContent: 'center',
+            alignItems: 'center',
+          }}
+          clickAction="MONTH_TODAY"
+          clickActionData={{ offset: 0 }}
+        >
+          <TextWidget
+            text="⚲"
+            style={{
+              fontSize: 17,
+              fontWeight: 'bold',
+              color: palette.icon,
+            }}
+          />
+        </FlexWidget>
+
+        {/* Next (❯) */}
+        <FlexWidget
+          style={{
+            width: 34,
+            height: 38,
+            justifyContent: 'center',
+            alignItems: 'center',
+          }}
+          clickAction="MONTH_NEXT"
+          clickActionData={{ offset: currentOffset + 1 }}
+        >
+          <TextWidget
+            text="❯"
+            style={{
+              fontSize: 15,
+              fontWeight: 'bold',
+              color: palette.icon,
+            }}
+          />
+        </FlexWidget>
+
+        {/* Add (+) */}
+        <FlexWidget
+          style={{
+            width: 34,
+            height: 38,
+            justifyContent: 'center',
+            alignItems: 'center',
+          }}
           clickAction="OPEN_URI"
           clickActionData={{ uri: 'nextcloud-calendar:///event/new' }}
-        />
+        >
+          <TextWidget
+            text="+"
+            style={{
+              fontSize: 22,
+              fontWeight: 'bold',
+              color: palette.todayBg,
+            }}
+          />
+        </FlexWidget>
       </FlexWidget>
-      <FlexWidget style={{ width: 'match_parent', flexDirection: 'row', paddingBottom: 2 }}>
-        {weekDays.map((day) => (
-          <FlexWidget key={day} style={{ flex: 1, alignItems: 'center' }}>
-            <TextWidget text={day} style={{ fontSize: 9, fontWeight: '600', color: palette.muted }} />
+
+      {/* Header divider */}
+      <FlexWidget style={{ width: 'match_parent', height: 1, backgroundColor: palette.gridLine }} />
+
+      {/* 2. DOW Bar */}
+      <FlexWidget
+        style={{
+          width: 'match_parent',
+          height: 24,
+          flexDirection: 'row',
+          alignItems: 'center',
+        }}
+        clickAction="OPEN_URI"
+        clickActionData={{ uri: 'nextcloud-calendar:///calendar' }}
+      >
+        {weekDays.map((dow) => (
+          <FlexWidget
+            key={dow.name}
+            style={{
+              flex: 1,
+              justifyContent: 'center',
+              alignItems: 'center',
+            }}
+          >
+            <TextWidget
+              text={dow.name}
+              style={{
+                fontSize: 11,
+                fontWeight: '600',
+                color: dow.color,
+              }}
+            />
           </FlexWidget>
         ))}
       </FlexWidget>
+
+      {/* DOW divider */}
+      <FlexWidget style={{ width: 'match_parent', height: 1, backgroundColor: palette.gridLine }} />
+
+      {/* 3. 6-Week Month Grid */}
       {Array.from({ length: 6 }, (_, week) => (
-        <FlexWidget key={week} style={{ width: 'match_parent', flex: 1, flexDirection: 'row' }}>
-          {snapshot.days.slice(week * 7, week * 7 + 7).map((day) => (
-            <FlexWidget
-              key={day.dateIso}
-              style={{
-                flex: 1,
-                margin: 1,
-                padding: 3,
-                backgroundColor: day.isToday ? palette.today : cardStyle === 'transparent' ? '#00000000' : palette.surface,
-                borderRadius: cardStyle === 'card' ? widgetRadius.sm : 0,
-                flexDirection: 'column',
-              }}
-              clickAction="OPEN_URI"
-              clickActionData={{ uri: dayUri(day.dateIso) }}
-            >
-              <TextWidget
-                text={day.dayNumber}
-                style={{ fontSize: 12, fontWeight, color: day.isToday ? palette.background : day.inMonth ? palette.text : palette.muted }}
-              />
-              {day.events.map((event) => (
-                <TextWidget
-                  key={event.uid}
-                  text={event.title}
-                  maxLines={1}
-                  style={{ fontSize: 9, fontWeight, color: day.isToday ? palette.background : event.color as `#${string}`, marginTop: 1 }}
-                />
-              ))}
-            </FlexWidget>
-          ))}
+        <FlexWidget
+          key={week}
+          style={{
+            width: 'match_parent',
+            flex: 1,
+            flexDirection: 'column',
+          }}
+        >
+          {week > 0 && (
+            <FlexWidget style={{ width: 'match_parent', height: 1, backgroundColor: palette.gridLine }} />
+          )}
+          <FlexWidget style={{ width: 'match_parent', flex: 1, flexDirection: 'row' }}>
+            {snapshot.days.slice(week * 7, week * 7 + 7).map((day, colIdx) => {
+              const isSunday = colIdx === 6;
+              const dayNumColor = day.isToday
+                ? palette.todayText
+                : !day.inMonth
+                ? palette.dayOtherMonth
+                : isSunday
+                ? palette.dowSun
+                : palette.dayCurMonth;
+
+              return (
+                <FlexWidget
+                  key={day.dateIso}
+                  style={{
+                    flex: 1,
+                    height: 'match_parent',
+                    backgroundColor: day.isToday ? palette.todayBg : '#00000000',
+                    borderRightWidth: colIdx < 6 ? 1 : 0,
+                    borderColor: palette.gridLine,
+                    padding: 2,
+                    flexDirection: 'column',
+                  }}
+                  clickAction="OPEN_URI"
+                  clickActionData={{ uri: dayUri(day.dateIso) }}
+                >
+                  {/* Day Number */}
+                  <TextWidget
+                    text={day.dayNumber}
+                    style={{
+                      fontSize: 11,
+                      fontWeight: day.isToday ? 'bold' : fontWeight,
+                      color: dayNumColor,
+                      paddingLeft: 1,
+                    }}
+                  />
+
+                  {/* Events */}
+                  <FlexWidget style={{ width: 'match_parent', flex: 1, flexDirection: 'column', marginTop: 1 }}>
+                    {day.events.slice(0, 3).map((event) => (
+                      <TextWidget
+                        key={event.uid}
+                        text={event.title}
+                        maxLines={1}
+                        style={{
+                          fontSize: 8,
+                          fontWeight: '500',
+                          color: day.isToday ? '#FFFFFF' : (event.color as `#${string}`),
+                          marginTop: 1,
+                        }}
+                      />
+                    ))}
+                    {(day.totalEvents ?? day.events.length) > 3 && (
+                      <TextWidget
+                        text={`+${(day.totalEvents ?? day.events.length) - 3}`}
+                        style={{
+                          fontSize: 7,
+                          fontWeight: 'bold',
+                          color: day.isToday ? '#E0F2FE' : palette.moreText,
+                        }}
+                      />
+                    )}
+                  </FlexWidget>
+                </FlexWidget>
+              );
+            })}
+          </FlexWidget>
         </FlexWidget>
       ))}
     </FlexWidget>
@@ -238,23 +509,63 @@ function AndroidWidget({
 
 export const widgetTaskHandler = async (props: WidgetTaskHandlerProps) => {
   const cachedSnapshot = readAgendaSnapshot();
-  const cachedMonthSnapshot = readMonthWidgetSnapshot();
-  props.renderWidget(<AndroidWidget widgetName={props.widgetInfo.widgetName} snapshot={cachedSnapshot} monthSnapshot={cachedMonthSnapshot} />);
+  let cachedMonthSnapshot = readMonthWidgetSnapshot();
+
+  if (props.widgetAction === 'WIDGET_CLICK') {
+    if (
+      props.clickAction === 'MONTH_PREV' ||
+      props.clickAction === 'MONTH_NEXT' ||
+      props.clickAction === 'MONTH_TODAY'
+    ) {
+      const targetOffset = typeof props.clickActionData?.offset === 'number'
+        ? props.clickActionData.offset
+        : 0;
+
+      const newMonthSnapshot = await buildMonthWidgetSnapshot(new Date(), targetOffset);
+      if (newMonthSnapshot) {
+        writeMonthWidgetSnapshot(newMonthSnapshot);
+        props.renderWidget(
+          <AndroidWidget
+            widgetName={props.widgetInfo.widgetName}
+            snapshot={cachedSnapshot}
+            monthSnapshot={newMonthSnapshot}
+          />,
+        );
+        return;
+      }
+    }
+  }
+
+  props.renderWidget(
+    <AndroidWidget
+      widgetName={props.widgetInfo.widgetName}
+      snapshot={cachedSnapshot}
+      monthSnapshot={cachedMonthSnapshot}
+    />,
+  );
 
   if (props.widgetAction === 'WIDGET_ADDED' || props.widgetAction === 'WIDGET_UPDATE') {
     try {
-      const [timeline, monthSnapshot] = await Promise.all([buildFreshTimeline(), buildMonthWidgetSnapshot()]);
+      const currentOffset = cachedMonthSnapshot?.monthOffset ?? 0;
+      const [timeline, monthSnapshot] = await Promise.all([
+        buildFreshTimeline(),
+        buildMonthWidgetSnapshot(new Date(), currentOffset),
+      ]);
       if (timeline && timeline.length > 0) {
         writeAgendaTimeline(timeline);
+        if (monthSnapshot) {
+          writeMonthWidgetSnapshot(monthSnapshot);
+        }
+        props.renderWidget(
+          <AndroidWidget
+            widgetName={props.widgetInfo.widgetName}
+            snapshot={timeline[0].snapshot}
+            monthSnapshot={monthSnapshot ?? cachedMonthSnapshot}
+          />,
+        );
+      } else if (monthSnapshot) {
+        writeMonthWidgetSnapshot(monthSnapshot);
       }
-      writeMonthWidgetSnapshot(monthSnapshot);
-      props.renderWidget(
-        <AndroidWidget
-          widgetName={props.widgetInfo.widgetName}
-          snapshot={timeline?.[0]?.snapshot ?? cachedSnapshot}
-          monthSnapshot={monthSnapshot}
-        />,
-      );
     } catch (error) {
       if (__DEV__) console.warn('[widget] handler refresh failed', error);
     }
@@ -268,13 +579,17 @@ export const homeWidget: WidgetSurface<AgendaTimelineEntry[]> = {
     if (entries.length === 0) return;
     writeAgendaTimeline(entries);
     const snapshot = entries[0].snapshot;
-    const monthSnapshot = await buildMonthWidgetSnapshot();
+    const currentMonthSnapshot = readMonthWidgetSnapshot();
+    const currentOffset = currentMonthSnapshot?.monthOffset ?? 0;
+    const monthSnapshot = await buildMonthWidgetSnapshot(new Date(), currentOffset);
     writeMonthWidgetSnapshot(monthSnapshot);
     await Promise.all(
       WIDGET_NAMES.map((widgetName) =>
         requestWidgetUpdate({
           widgetName,
-          renderWidget: () => <AndroidWidget widgetName={widgetName} snapshot={snapshot} monthSnapshot={monthSnapshot} />,
+          renderWidget: () => (
+            <AndroidWidget widgetName={widgetName} snapshot={snapshot} monthSnapshot={monthSnapshot} />
+          ),
         }),
       ),
     );
@@ -286,7 +601,9 @@ export const homeWidget: WidgetSurface<AgendaTimelineEntry[]> = {
       WIDGET_NAMES.map((widgetName) =>
         requestWidgetUpdate({
           widgetName,
-          renderWidget: () => <AndroidWidget widgetName={widgetName} snapshot={null} monthSnapshot={null} />,
+          renderWidget: () => (
+            <AndroidWidget widgetName={widgetName} snapshot={null} monthSnapshot={null} />
+          ),
         }),
       ),
     );

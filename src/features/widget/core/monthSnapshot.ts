@@ -29,8 +29,12 @@ function eventsByDay(events: CalendarEvent[]): Map<string, CalendarEvent[]> {
   return indexed;
 }
 
-export async function buildMonthWidgetSnapshot(now: Date = new Date()): Promise<MonthWidgetSnapshot | null> {
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+export async function buildMonthWidgetSnapshot(
+  now: Date = new Date(),
+  monthOffset = 0,
+): Promise<MonthWidgetSnapshot | null> {
+  const target = new Date(now.getFullYear(), now.getMonth() + monthOffset, 1);
+  const monthStart = new Date(target.getFullYear(), target.getMonth(), 1);
   const gridStart = mondayOnOrBefore(monthStart);
   const gridEnd = new Date(gridStart.getTime() + 42 * DAY_MS);
   const events = await readWidgetEvents(gridStart, gridEnd);
@@ -39,21 +43,24 @@ export async function buildMonthWidgetSnapshot(now: Date = new Date()): Promise<
   const today = dayKey(now);
   const days: MonthWidgetDay[] = Array.from({ length: 42 }, (_, index) => {
     const date = new Date(gridStart.getTime() + index * DAY_MS);
+    const dayEvents = indexed.get(dayKey(date)) ?? [];
     return {
       dateIso: dayKey(date),
       dayNumber: String(date.getDate()),
       inMonth: date.getMonth() === monthStart.getMonth(),
       isToday: dayKey(date) === today,
-      events: (indexed.get(dayKey(date)) ?? []).slice(0, 2).map((event) => ({
+      events: dayEvents.slice(0, 4).map((event) => ({
         uid: event.uid,
         title: event.summary || '(no title)',
-        color: event.color || '#3b82f6',
+        color: event.color || '#0082C9',
       })),
+      totalEvents: dayEvents.length,
     };
   });
 
   return {
     monthLabel: new Intl.DateTimeFormat(locale, { month: 'long', year: 'numeric' }).format(monthStart),
+    monthOffset,
     scheme: Appearance.getColorScheme() === 'dark' ? 'dark' : 'light',
     days,
   };

@@ -49,10 +49,12 @@ export interface MonthWidgetDay {
   inMonth: boolean;
   isToday: boolean;
   events: MonthWidgetEvent[];
+  totalEvents?: number;
 }
 
 export interface MonthWidgetSnapshot {
   monthLabel: string;
+  monthOffset?: number;
   scheme: 'light' | 'dark';
   days: MonthWidgetDay[];
 }
