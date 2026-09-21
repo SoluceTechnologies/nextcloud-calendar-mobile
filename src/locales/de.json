@@ -200,7 +200,8 @@
     "errorDeleteFailed": "Ereignis konnte nicht gelöscht werden",
     "alerts": "Erinnerungen",
     "editorLoadSlow": "Der Editor braucht länger als erwartet…",
-    "attachNewDocumentHint": "Auf Nextcloud erstellen und bearbeiten"
+    "attachNewDocumentHint": "Auf Nextcloud erstellen und bearbeiten",
+    "editorActionError": "Die Aktion konnte nicht ausgeführt werden"
   },
   "settings": {
     "title": "Einstellungen",

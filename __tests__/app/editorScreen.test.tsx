@@ -47,6 +47,14 @@ jest.mock('../../src/services/nextcloud/directEditing', () => ({
   openDirectEditingUrl: jest.fn(),
 }));
 
+jest.mock('../../src/services/nextcloud/shares', () => ({
+  createPublicLinkShare: jest.fn(),
+}));
+
+jest.mock('../../src/features/event/utils/attachments', () => ({
+  downloadAndShare: jest.fn(),
+}));
+
 let webviewProps: Record<string, unknown> = {};
 jest.mock('react-native-webview', () => {
   const ReactNative = require('react');
@@ -139,5 +147,76 @@ describe('AttachmentEditorScreen', () => {
     const { findByText } = render(<AttachmentEditorScreen />, { wrapper });
     expect(await findByText('Could not open the editor')).toBeTruthy();
     expect(await findByText('Retry')).toBeTruthy();
+  });
+
+  it('creates a public link and shares it on share', async () => {
+    const { createPublicLinkShare } = jest.requireMock(
+      '../../src/services/nextcloud/shares',
+    );
+    createPublicLinkShare.mockResolvedValue({
+      url: 'https://cloud.example.com/s/tok',
+    });
+    const shareSpy = jest
+      .spyOn(require('react-native').Share, 'share')
+      .mockResolvedValue({ action: 'sharedAction' });
+    render(<AttachmentEditorScreen />, { wrapper });
+    await waitFor(() => expect(webviewProps.source).toBeTruthy());
+    sendMessage('share');
+    await waitFor(() =>
+      expect(shareSpy).toHaveBeenCalledWith({
+        message: 'https://cloud.example.com/s/tok',
+      }),
+    );
+    expect(createPublicLinkShare).toHaveBeenCalledWith(account, '/Calendar/note.txt');
+  });
+
+  it('downloads via downloadAndShare on downloadAs', async () => {
+    const { downloadAndShare } = jest.requireMock(
+      '../../src/features/event/utils/attachments',
+    );
+    render(<AttachmentEditorScreen />, { wrapper });
+    await waitFor(() => expect(webviewProps.source).toBeTruthy());
+    sendMessage('downloadAs', {
+      URL: '/index.php/apps/richdocuments/export',
+      Type: 'application/pdf',
+      filename: 'note.pdf',
+    });
+    await waitFor(() =>
+      expect(downloadAndShare).toHaveBeenCalledWith(
+        'https://cloud.example.com/index.php/apps/richdocuments/export',
+        expect.objectContaining({
+          filename: 'note.pdf',
+          fmttype: 'application/pdf',
+        }),
+        expect.stringMatching(/^Basic /),
+      ),
+    );
+  });
+
+  it('opens hyperlinks externally', async () => {
+    const linkSpy = jest
+      .spyOn(require('react-native').Linking, 'openURL')
+      .mockResolvedValue(true);
+    render(<AttachmentEditorScreen />, { wrapper });
+    await waitFor(() => expect(webviewProps.source).toBeTruthy());
+    sendMessage('hyperlink', JSON.stringify({ Url: 'https://example.org/x' }));
+    expect(linkSpy).toHaveBeenCalledWith('https://example.org/x');
+  });
+
+  it('keeps same-host navigation in the WebView and sends external links out', async () => {
+    const linkSpy = jest
+      .spyOn(require('react-native').Linking, 'openURL')
+      .mockResolvedValue(true);
+    render(<AttachmentEditorScreen />, { wrapper });
+    await waitFor(() => expect(webviewProps.source).toBeTruthy());
+    const guard = webviewProps.onShouldStartLoadWithRequest as (
+      r: unknown,
+    ) => boolean;
+    expect(
+      guard({ url: 'https://cloud.example.com/apps/text/something' }),
+    ).toBe(true);
+    expect(guard({ url: 'https://evil.example.com/' })).toBe(false);
+    expect(linkSpy).toHaveBeenCalledWith('https://evil.example.com/');
+    expect(guard({ url: 'intent://scan' })).toBe(false);
   });
 });

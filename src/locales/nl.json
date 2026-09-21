@@ -200,7 +200,8 @@
     "errorDeleteFailed": "Verwijderen van afspraak mislukt",
     "alerts": "Herinneringen",
     "editorLoadSlow": "De editor laadt langer dan verwacht…",
-    "attachNewDocumentHint": "Aanmaken en bewerken op Nextcloud"
+    "attachNewDocumentHint": "Aanmaken en bewerken op Nextcloud",
+    "editorActionError": "De actie kon niet worden uitgevoerd"
   },
   "settings": {
     "title": "Instellingen",

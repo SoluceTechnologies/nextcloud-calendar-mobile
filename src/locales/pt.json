@@ -200,7 +200,8 @@
     "errorDeleteFailed": "Falha ao eliminar o evento",
     "alerts": "Alertas",
     "editorLoadSlow": "O editor está a demorar mais do que o esperado…",
-    "attachNewDocumentHint": "Criar e editar no Nextcloud"
+    "attachNewDocumentHint": "Criar e editar no Nextcloud",
+    "editorActionError": "Não foi possível concluir a ação"
   },
   "settings": {
     "title": "Definições",

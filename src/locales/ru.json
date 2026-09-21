@@ -200,7 +200,8 @@
     "errorDeleteFailed": "Не удалось удалить событие",
     "alerts": "Напоминания",
     "editorLoadSlow": "Редактор загружается дольше обычного…",
-    "attachNewDocumentHint": "Создать и изменить в Nextcloud"
+    "attachNewDocumentHint": "Создать и изменить в Nextcloud",
+    "editorActionError": "Не удалось выполнить действие"
   },
   "settings": {
     "title": "Настройки",

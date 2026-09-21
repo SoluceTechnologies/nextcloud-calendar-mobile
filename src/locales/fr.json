@@ -200,7 +200,8 @@
     "errorDeleteFailed": "Échec de la suppression de l'événement",
     "alerts": "Alertes",
     "editorLoadSlow": "L'éditeur met plus de temps que prévu…",
-    "attachNewDocumentHint": "Créer et modifier sur Nextcloud"
+    "attachNewDocumentHint": "Créer et modifier sur Nextcloud",
+    "editorActionError": "L'action n'a pas pu être effectuée"
   },
   "settings": {
     "title": "Paramètres",
