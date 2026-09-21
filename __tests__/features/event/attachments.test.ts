@@ -5,7 +5,7 @@ import {
   attachmentDisplayName,
   attachmentIcon,
   canEditAttachment,
-  editAttachment,
+  prepareAttachmentEdit,
   formatBytes,
   isOpenableAttachment,
   mimeFromName,
@@ -561,7 +561,7 @@ describe('canEditAttachment', () => {
   });
 });
 
-describe('editAttachment', () => {
+describe('prepareAttachmentEdit', () => {
   const textEditor = {
     id: 'text',
     name: 'Nextcloud Text',
@@ -569,11 +569,10 @@ describe('editAttachment', () => {
     optionalMimetypes: [],
   };
 
-  it('opens the one-time editor URL in the browser', async () => {
+  it('resolves the DAV path and matching editor', async () => {
     (fetchDirectEditors as jest.Mock).mockResolvedValue([textEditor]);
-    (openDirectEditingUrl as jest.Mock).mockResolvedValue('https://cloud.example.com/apps/files/directEditing/Tok');
 
-    await editAttachment(
+    const session = await prepareAttachmentEdit(
       {
         uri: 'https://cloud.example.com/remote.php/dav/files/alice/Calendar/note.txt',
         filename: 'note.txt',
@@ -582,36 +581,32 @@ describe('editAttachment', () => {
       account({ baseUrl: 'https://cloud.example.com', davUserId: 'alice' }),
     );
 
-    expect(openDirectEditingUrl).toHaveBeenCalledWith(
-      expect.objectContaining({ baseUrl: 'https://cloud.example.com' }),
-      '/Calendar/note.txt',
-      'text',
-    );
-    expect(Linking.openURL).toHaveBeenCalledWith(
-      'https://cloud.example.com/apps/files/directEditing/Tok',
-    );
+    expect(session).toEqual({
+      path: '/Calendar/note.txt',
+      editorId: 'text',
+      name: 'note.txt',
+    });
   });
 
   it('falls back to a filename-based mime when FMTTYPE is missing', async () => {
     (fetchDirectEditors as jest.Mock).mockResolvedValue([textEditor]);
-    (openDirectEditingUrl as jest.Mock).mockResolvedValue('https://x/u');
 
-    await editAttachment(
+    const session = await prepareAttachmentEdit(
       { uri: 'https://cloud.example.com/remote.php/dav/files/alice/note.md' },
       account({ baseUrl: 'https://cloud.example.com', davUserId: 'alice' }),
     );
 
-    expect(openDirectEditingUrl).toHaveBeenCalledWith(
-      expect.anything(),
-      '/note.md',
-      'text',
-    );
+    expect(session).toEqual({
+      path: '/note.md',
+      editorId: 'text',
+      name: 'note.md',
+    });
   });
 
   it('alerts when no editor supports the mime type', async () => {
     (fetchDirectEditors as jest.Mock).mockResolvedValue([textEditor]);
 
-    await editAttachment(
+    const session = await prepareAttachmentEdit(
       {
         uri: 'https://cloud.example.com/remote.php/dav/files/alice/big.zip',
         fmttype: 'application/zip',
@@ -619,12 +614,12 @@ describe('editAttachment', () => {
       account({ baseUrl: 'https://cloud.example.com', davUserId: 'alice' }),
     );
 
+    expect(session).toBeNull();
     expect(Alert.alert).toHaveBeenCalledWith('Could not open the editor');
-    expect(Linking.openURL).not.toHaveBeenCalled();
   });
 
   it('alerts for attachments outside own Files space', async () => {
-    await editAttachment(
+    await prepareAttachmentEdit(
       { uri: 'https://other.tld/f.pdf' },
       account({ baseUrl: 'https://cloud.example.com' }),
     );

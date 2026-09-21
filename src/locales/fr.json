@@ -12,7 +12,8 @@
     "errorServer": "Le serveur est temporairement indisponible. Réessayez plus tard.",
     "errorRateLimited": "Trop de requêtes. Patientez un instant puis réessayez.",
     "errorRateLimitedRetry": "Trop de requêtes. Réessayez dans {{seconds}} s.",
-    "back": "Retour"
+    "back": "Retour",
+    "retry": "Réessayer"
   },
   "tabs": {
     "calendar": "Calendrier",
@@ -197,7 +198,8 @@
     "errorCreateFailed": "Échec de la création de l'événement",
     "errorUpdateFailed": "Échec de la mise à jour de l'événement",
     "errorDeleteFailed": "Échec de la suppression de l'événement",
-    "alerts": "Alertes"
+    "alerts": "Alertes",
+    "editorLoadSlow": "L'éditeur met plus de temps que prévu…"
   },
   "settings": {
     "title": "Paramètres",

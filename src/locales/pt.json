@@ -12,7 +12,8 @@
     "errorServer": "O servidor está temporariamente indisponível. Tente novamente mais tarde.",
     "errorRateLimited": "Demasiados pedidos. Aguarde um momento e tente novamente.",
     "errorRateLimitedRetry": "Demasiados pedidos. Tente novamente dentro de {{seconds}}s.",
-    "back": "Voltar"
+    "back": "Voltar",
+    "retry": "Tentar novamente"
   },
   "tabs": {
     "calendar": "Calendário",
@@ -197,7 +198,8 @@
     "errorCreateFailed": "Falha ao criar o evento",
     "errorUpdateFailed": "Falha ao atualizar o evento",
     "errorDeleteFailed": "Falha ao eliminar o evento",
-    "alerts": "Alertas"
+    "alerts": "Alertas",
+    "editorLoadSlow": "O editor está a demorar mais do que o esperado…"
   },
   "settings": {
     "title": "Definições",

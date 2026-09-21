@@ -7,8 +7,8 @@ import * as FileSystem from 'expo-file-system/legacy';
 import { lightTheme } from '../../src/theme';
 import EventDetailScreen from '../../app/event/[uid]';
 import {
-  editAttachment,
   openAttachment,
+  prepareAttachmentEdit,
 } from '../../src/features/event/utils/attachments';
 import { fetchDirectEditors } from '../../src/services/nextcloud/directEditing';
 import { useAccountStore } from '../../src/stores/accountStore';
@@ -85,7 +85,7 @@ jest.mock('../../src/features/map/utils/mapLinks', () => ({
 jest.mock('../../src/features/event/utils/attachments', () => ({
   ...jest.requireActual('../../src/features/event/utils/attachments'),
   openAttachment: jest.fn(),
-  editAttachment: jest.fn(),
+  prepareAttachmentEdit: jest.fn(async () => null),
 }));
 
 const mockAttachments = {
@@ -293,7 +293,7 @@ describe('EventDetailScreen attachments', () => {
     const { findByLabelText } = render(<EventDetailScreen />, { wrapper });
     const editBtn = await findByLabelText('Edit attachment');
     fireEvent.press(editBtn);
-    expect(editAttachment).toHaveBeenCalledWith(att, account);
+    expect(prepareAttachmentEdit).toHaveBeenCalledWith(att, account);
   });
 
   it('hides the edit button when no editor matches the MIME type', async () => {

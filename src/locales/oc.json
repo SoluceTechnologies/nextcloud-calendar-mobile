@@ -12,7 +12,8 @@
     "errorServer": "Lo servidor es temporàriament indisponible. Tornatz ensajar mai tard.",
     "errorRateLimited": "Tròp de requèstas. Esperatz un moment e tornatz ensajar.",
     "errorRateLimitedRetry": "Tròp de requèstas. Tornatz ensajar qu’aquí {{seconds}}s.",
-    "back": "Tornar"
+    "back": "Tornar",
+    "retry": "Tornar ensajar"
   },
   "tabs": {
     "calendar": "Calendari",
@@ -192,7 +193,8 @@
     "errorCreateFailed": "La creacion de l'eveniment a pas capitat",
     "errorUpdateFailed": "La mesa a jorn de l'eveniment a pas capitat",
     "errorDeleteFailed": "La supression de l'eveniment a pas capitat",
-    "alerts": "Alèrtas"
+    "alerts": "Alèrtas",
+    "editorLoadSlow": "L'editor met mai de temps que previst…"
   },
   "settings": {
     "title": "Paramètres",

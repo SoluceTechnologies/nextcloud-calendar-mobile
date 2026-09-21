@@ -31,7 +31,6 @@ import { ownDavPath } from '@/services/nextcloud/files';
 import {
   editorForMime,
   fetchDirectEditors,
-  openDirectEditingUrl,
 } from '@/services/nextcloud/directEditing';
 import { utf8ToBase64 } from '@/services/shared/base64';
 import { base64Fingerprint, extractEventAttachments } from '@/utils/caldav-parse';
@@ -390,16 +389,25 @@ export function canEditAttachment(
   );
 }
 
+/** Everything needed to start a Direct Editing session for an attachment. */
+export type AttachmentEditSession = {
+  /** User-relative Files path (`/Calendar/doc.md`) for `directEditing/open`. */
+  path: string;
+  editorId: string;
+  name: string;
+};
+
 /**
- * Opens an own-Files attachment in its server-side editor via the Direct
- * Editing API: resolves the DAV path (including `/f/<id>` links), picks an
- * editor for the MIME type, gets a one-time URL and hands it to the browser.
+ * Prepares a Direct Editing session for an own-Files attachment: resolves the
+ * DAV path (including `/f/<id>` links), then picks an editor matching the MIME
+ * type. Returns null (after a localized alert) when not editable.
+ * The caller turns the session into a one-time URL via `openDirectEditingUrl`.
  */
-export async function editAttachment(
+export async function prepareAttachmentEdit(
   att: EventAttachment,
   account: Account | null,
-): Promise<void> {
-  if (!account) return;
+): Promise<AttachmentEditSession | null> {
+  if (!account) return null;
   try {
     let path = ownDavPath(account, att.uri ?? '');
     let mime = att.fmttype;
@@ -413,14 +421,16 @@ export async function editAttachment(
     }
     if (!path) throw new Error('attachment-not-editable');
     const editors = await fetchDirectEditors(account);
-    const name = att.filename ?? path.split('/').filter(Boolean).pop();
+    const name =
+      att.filename ??
+      decodeURIComponent(path.split('/').filter(Boolean).pop() ?? '');
     const editor = editorForMime(editors, mime ?? mimeFromName(name));
     if (!editor) throw new Error('no-editor-for-mime');
-    const url = await openDirectEditingUrl(account, path, editor.id);
-    await Linking.openURL(url);
+    return { path, editorId: editor.id, name };
   } catch (error) {
-    console.warn('[attachments] edit failed', error);
+    console.warn('[attachments] edit prepare failed', error);
     Alert.alert(i18n.t('event.attachmentEditError'));
+    return null;
   }
 }
 

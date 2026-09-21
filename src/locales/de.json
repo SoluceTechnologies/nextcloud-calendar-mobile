@@ -12,7 +12,8 @@
     "errorServer": "Der Server ist vorübergehend nicht verfügbar. Bitte später erneut versuchen.",
     "errorRateLimited": "Zu viele Anfragen. Bitte warten Sie kurz und versuchen Sie es erneut.",
     "errorRateLimitedRetry": "Zu viele Anfragen. Bitte in {{seconds}} s erneut versuchen.",
-    "back": "Zurück"
+    "back": "Zurück",
+    "retry": "Erneut versuchen"
   },
   "tabs": {
     "calendar": "Kalender",
@@ -197,7 +198,8 @@
     "errorCreateFailed": "Ereignis konnte nicht erstellt werden",
     "errorUpdateFailed": "Ereignis konnte nicht aktualisiert werden",
     "errorDeleteFailed": "Ereignis konnte nicht gelöscht werden",
-    "alerts": "Erinnerungen"
+    "alerts": "Erinnerungen",
+    "editorLoadSlow": "Der Editor braucht länger als erwartet…"
   },
   "settings": {
     "title": "Einstellungen",

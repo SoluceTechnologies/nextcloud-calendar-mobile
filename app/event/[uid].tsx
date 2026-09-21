@@ -34,7 +34,7 @@ import {
   attachmentDisplayName,
   attachmentIcon,
   canEditAttachment,
-  editAttachment,
+  prepareAttachmentEdit,
   formatBytes,
   isOpenableAttachment,
   mimeFromName,
@@ -144,6 +144,23 @@ export default function EventDetailScreen() {
         att.fmttype ?? mimeFromName(att.filename ?? att.uri?.split('?')[0].split('/').pop()),
       ),
     [activeAccount, editors],
+  );
+
+  const handleEditAttachment = useCallback(
+    async (att: EventAttachment) => {
+      const session = await prepareAttachmentEdit(att, activeAccount);
+      if (session) {
+        router.push({
+          pathname: '/event/editor',
+          params: {
+            path: session.path,
+            editorId: session.editorId,
+            name: session.name,
+          },
+        });
+      }
+    },
+    [activeAccount, router],
   );
 
   const handleAddAttachment = useCallback(() => {
@@ -534,7 +551,7 @@ export default function EventDetailScreen() {
                                 <IconButton
                                   variant="plain"
                                   size={36}
-                                  onPress={() => void editAttachment(att, activeAccount)}
+                                  onPress={() => void handleEditAttachment(att)}
                                   accessibilityLabel={t('event.attachmentEdit')}
                                 >
                                   <Pencil size={18} color={theme.colors.textSecondary} />
