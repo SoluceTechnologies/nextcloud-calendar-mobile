@@ -149,6 +149,55 @@ function getEventColor(eventColor: string | undefined, evIdx: number, dayIdx: nu
   }
 }
 
+function getDayEventLines(
+  events: Array<{ uid: string; title: string; color: string }>,
+  totalCount: number,
+  eventFontSize: number,
+) {
+  const charsPerLine = Math.max(7, Math.floor(48 / (eventFontSize * 0.55)));
+  const estLines = (text: string) => Math.max(1, Math.ceil(text.length / charsPerLine));
+
+  if (events.length === 0) {
+    return { items: [], moreCount: 0 };
+  }
+
+  // If only 1 event, let it wrap up to 4 lines to fill the day box
+  if (events.length === 1) {
+    return {
+      items: [{ ...events[0], maxLines: 4 }],
+      moreCount: totalCount > 1 ? totalCount - 1 : 0,
+    };
+  }
+
+  // If 2 events: check if both can wrap without spilling out of the box (max 4 lines)
+  if (events.length === 2) {
+    const l1 = estLines(events[0].title);
+    const l2 = estLines(events[1].title);
+    if (l1 + l2 <= 4 && totalCount <= 2) {
+      const m1 = Math.min(3, Math.max(1, l1));
+      const m2 = Math.min(3, Math.max(1, 4 - m1));
+      return {
+        items: [
+          { ...events[0], maxLines: m1 },
+          { ...events[1], maxLines: m2 },
+        ],
+        moreCount: 0,
+      };
+    }
+    // If text spills out (>4 lines) or there are more events:
+    // limit each event to one line
+    return {
+      items: events.slice(0, 2).map((e) => ({ ...e, maxLines: 1 })),
+      moreCount: totalCount > 2 ? totalCount - 2 : 0,
+    };
+  }
+
+  // 3 or more events: strictly 1 line per event
+  const items = events.slice(0, 3).map((e) => ({ ...e, maxLines: 1 }));
+  const moreCount = totalCount > 3 ? totalCount - 3 : 0;
+  return { items, moreCount };
+}
+
 function MonthAndroidWidget({ snapshot, isDark }: { snapshot: MonthWidgetSnapshot | null; isDark?: boolean }) {
   const settings = useCalendarStore.getState();
   const dark = isDark !== undefined
@@ -161,7 +210,7 @@ function MonthAndroidWidget({ snapshot, isDark }: { snapshot: MonthWidgetSnapsho
 
   const palette = dark
     ? {
-        cardBg: '#121214' as const,
+        cardBg: '#E6121214' as const,
         cardBorder: '#444752' as const,
         gridLine: '#40434E' as const,
         titleText: '#FFFFFF' as const,
@@ -177,7 +226,7 @@ function MonthAndroidWidget({ snapshot, isDark }: { snapshot: MonthWidgetSnapsho
         moreText: '#9E9EA5' as const,
       }
     : {
-        cardBg: '#FFFFFF' as const,
+        cardBg: '#F4FFFFFF' as const,
         cardBorder: '#CBD5E1' as const,
         gridLine: '#E2E8F0' as const,
         titleText: '#111827' as const,
@@ -193,13 +242,13 @@ function MonthAndroidWidget({ snapshot, isDark }: { snapshot: MonthWidgetSnapsho
         moreText: '#6B7280' as const,
       };
 
-  const fontWeight = ({
-    light: '300',
-    normal: '400',
-    medium: '500',
-    bold: '700',
-    black: '900',
-  } as const)[settings.monthWidgetFontWeight];
+  const fontConfig = ({
+    light: { fontFamily: 'sans-serif-light', fontWeight: '300' as const },
+    normal: { fontFamily: 'sans-serif', fontWeight: '400' as const },
+    medium: { fontFamily: 'sans-serif-medium', fontWeight: '500' as const },
+    bold: { fontFamily: 'sans-serif', fontWeight: '700' as const },
+    black: { fontFamily: 'sans-serif-black', fontWeight: '900' as const },
+  } as const)[settings.monthWidgetFontWeight] ?? { fontFamily: 'sans-serif', fontWeight: '700' as const };
 
   const fontSizeSetting = settings.monthWidgetFontSize ?? 'large';
   const fontScale = ({
@@ -465,6 +514,8 @@ function MonthAndroidWidget({ snapshot, isDark }: { snapshot: MonthWidgetSnapsho
                 ? palette.dowSun
                 : palette.dayCurMonth;
 
+              const dayLayout = getDayEventLines(day.events, day.totalEvents ?? day.events.length, eventFontSize);
+
               return (
                 <FlexWidget
                   key={day.dateIso}
@@ -486,7 +537,8 @@ function MonthAndroidWidget({ snapshot, isDark }: { snapshot: MonthWidgetSnapsho
                     text={day.dayNumber}
                     style={{
                       fontSize: dayNumFontSize,
-                      fontWeight: day.isToday ? 'bold' : fontWeight,
+                      fontFamily: day.isToday ? 'sans-serif' : fontConfig.fontFamily,
+                      fontWeight: day.isToday ? 'bold' : fontConfig.fontWeight,
                       color: dayNumColor,
                       paddingLeft: 2,
                     }}
@@ -494,27 +546,30 @@ function MonthAndroidWidget({ snapshot, isDark }: { snapshot: MonthWidgetSnapsho
 
                   {/* Events */}
                   <FlexWidget style={{ width: 'match_parent', flex: 1, flexDirection: 'column', marginTop: 1 }}>
-                    {day.events.slice(0, 3).map((event, evIdx) => (
+                    {dayLayout.items.map((event, evIdx) => (
                       <TextWidget
                         key={event.uid}
                         text={event.title}
-                        maxLines={1}
+                        maxLines={event.maxLines}
                         truncate="END"
                         style={{
                           fontSize: eventFontSize,
-                          fontWeight: '500',
+                          fontFamily: fontConfig.fontFamily,
+                          fontWeight: fontConfig.fontWeight,
                           color: day.isToday ? '#FFFFFF' : getEventColor(event.color, evIdx, colIdx, dark),
                           marginTop: 1,
                         }}
                       />
                     ))}
-                    {(day.totalEvents ?? day.events.length) > 3 && (
+                    {dayLayout.moreCount > 0 && (
                       <TextWidget
-                        text={`+${(day.totalEvents ?? day.events.length) - 3}`}
+                        text={`+${dayLayout.moreCount} more`}
                         style={{
                           fontSize: moreFontSize,
+                          fontFamily: fontConfig.fontFamily,
                           fontWeight: 'bold',
                           color: day.isToday ? '#FFFFFF' : palette.moreText,
+                          marginTop: 1,
                         }}
                       />
                     )}

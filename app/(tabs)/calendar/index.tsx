@@ -1,5 +1,5 @@
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef } from 'react';
-import { View, StyleSheet } from 'react-native';
+import { Linking, View, StyleSheet } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -51,13 +51,37 @@ export default function CalendarScreen() {
   const { viewMode, date, fetchDate, agendaVisibleDate } = nav;
   const setViewMode = useCalendarStore((s) => s.setViewMode);
 
+  const applySelectedDate = useCallback((dateStr: string) => {
+    const raw = dateStr.split('T')[0];
+    const parts = raw.split('-').map(Number);
+    if (parts.length === 3 && !parts.some(Number.isNaN)) {
+      const targetDate = new Date(parts[0], parts[1] - 1, parts[2], 12, 0, 0);
+      nav.setDate(targetDate);
+      setViewMode('month');
+    }
+  }, [nav.setDate, setViewMode]);
+
   useEffect(() => {
-    if (!dateParam || Array.isArray(dateParam)) return;
-    const selected = new Date(dateParam);
-    if (Number.isNaN(selected.getTime())) return;
-    nav.setDate(selected);
-    setViewMode('month');
-  }, [dateParam, nav.setDate, setViewMode]);
+    if (dateParam && !Array.isArray(dateParam)) {
+      applySelectedDate(dateParam);
+    }
+  }, [dateParam, applySelectedDate]);
+
+  useEffect(() => {
+    const parseAndApplyUrl = (urlString: string | null) => {
+      if (!urlString) return;
+      try {
+        const match = urlString.match(/[?&]date=([^&]+)/);
+        if (match?.[1]) {
+          applySelectedDate(decodeURIComponent(match[1]));
+        }
+      } catch {}
+    };
+
+    void Linking.getInitialURL().then(parseAndApplyUrl);
+    const sub = Linking.addEventListener('url', (e) => parseAndApplyUrl(e.url));
+    return () => sub.remove();
+  }, [applySelectedDate]);
 
   const deferredViewMode = useDeferredValue(viewMode);
   const deferredDate = useDeferredValue(date);
