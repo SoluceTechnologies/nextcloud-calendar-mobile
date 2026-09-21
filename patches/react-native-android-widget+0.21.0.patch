@@ -1,0 +1,86 @@
+--- a/node_modules/react-native-android-widget/android/src/main/java/com/reactnativeandroidwidget/RNWidget.java
++++ b/node_modules/react-native-android-widget/android/src/main/java/com/reactnativeandroidwidget/RNWidget.java
+@@ -170,12 +170,17 @@
+         rootWidget.offsetDescendantRectToMyCoords(clickableWidget, offsetViewBounds);
+         RemoteViews clickableRemoteView = new RemoteViews(appContext.getPackageName(), R.layout.rn_widget_clickable);
+ 
++        int rootWidth = rootWidget.getWidth() > 0 ? rootWidget.getWidth() : RNWidgetUtil.dpToPx(appContext, RNWidgetUtil.getWidgetWidth(appContext, widgetId));
++        int rootHeight = rootWidget.getHeight() > 0 ? rootWidget.getHeight() : RNWidgetUtil.dpToPx(appContext, RNWidgetUtil.getWidgetHeight(appContext, widgetId));
++        int rightPadding = Math.max(0, rootWidth - offsetViewBounds.right);
++        int bottomPadding = Math.max(0, rootHeight - offsetViewBounds.bottom);
++
+         clickableRemoteView.setViewPadding(
+             R.id.rn_widget_clickable_positioner,
+             offsetViewBounds.left,
+             offsetViewBounds.top,
+-            RNWidgetUtil.dpToPx(appContext, RNWidgetUtil.getWidgetWidth(appContext, widgetId)) - offsetViewBounds.right,
+-            0
++            rightPadding,
++            bottomPadding
+         );
+ 
+         clickableRemoteView.setInt(R.id.rn_widget_clickable_area, "setMinimumHeight", offsetViewBounds.height());
+@@ -199,17 +204,59 @@
+         widgetView.addView(R.id.rn_widget_clickable_container, clickableRemoteView);
+     }
+ 
++    private static final java.util.concurrent.atomic.AtomicInteger sRequestCodeCounter =
++        new java.util.concurrent.atomic.AtomicInteger(1000);
++
+     private void registerClickTask(int id, ClickableView clickableView, RemoteViews widgetView, Integer button) {
++        String action = clickableView.getClickAction();
++        ReadableMap data = clickableView.getClickActionData();
++
++        if ("OPEN_URI".equals(action) && data != null && data.hasKey("uri") && data.getString("uri") != null) {
++            String uriStr = data.getString("uri");
++            Intent uriIntent = new Intent(Intent.ACTION_VIEW, Uri.parse(uriStr));
++            uriIntent.setPackage(appContext.getPackageName());
++            uriIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
++            int reqCode = sRequestCodeCounter.incrementAndGet();
++            uriIntent.setData(Uri.parse(uriStr));
++            PendingIntent pendingIntent = PendingIntent.getActivity(
++                appContext,
++                reqCode,
++                uriIntent,
++                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_MUTABLE
++            );
++            widgetView.setOnClickPendingIntent(button, pendingIntent);
++            return;
++        }
++
++        if ("OPEN_APP".equals(action)) {
++            Intent launchIntent = appContext.getPackageManager().getLaunchIntentForPackage(appContext.getPackageName());
++            if (launchIntent != null) {
++                launchIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
++                int reqCode = sRequestCodeCounter.incrementAndGet();
++                launchIntent.setData(Uri.parse("rnwidget://openapp/" + reqCode));
++                PendingIntent pendingIntent = PendingIntent.getActivity(
++                    appContext,
++                    reqCode,
++                    launchIntent,
++                    PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_MUTABLE
++                );
++                widgetView.setOnClickPendingIntent(button, pendingIntent);
++                return;
++            }
++        }
++
+         Intent intent = new Intent(appContext.getPackageName() + ".WIDGET_CLICK");
+         intent.setComponent(new ComponentName(appContext, RNWidgetUtil.getWidgetProviderClassName(appContext, widgetName)));
+         intent.putExtra("widgetId", id);
+-        intent.putExtra("clickAction", clickableView.getClickAction());
+-        intent.putExtra("clickActionData", Arguments.toBundle(clickableView.getClickActionData()));
++        intent.putExtra("clickAction", action);
++        intent.putExtra("clickActionData", Arguments.toBundle(data));
++        int reqCode = sRequestCodeCounter.incrementAndGet();
++        intent.setData(Uri.parse("rnwidget://" + widgetName + "/" + id + "/" + reqCode));
+         PendingIntent pendingIntent = PendingIntent.getBroadcast(
+             appContext,
+-            (int) System.currentTimeMillis(),
++            reqCode,
+             intent,
+-            PendingIntent.FLAG_CANCEL_CURRENT
++            PendingIntent.FLAG_UPDATE_CURRENT
+                 | PendingIntent.FLAG_MUTABLE
+         );
+         widgetView.setOnClickPendingIntent(button, pendingIntent);
