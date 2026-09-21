@@ -40,6 +40,21 @@ export async function readUpcomingEvents(days: number, now: Date = new Date()): 
   );
 }
 
+export async function readWidgetEvents(rangeStart: Date, rangeEnd: Date): Promise<CalendarEvent[]> {
+  const accountId = useAccountStore.getState().activeAccountId;
+  if (!accountId) return [];
+
+  const hidden = useCalendarStore.getState().hiddenCalendarIds;
+  const disabled = useCalendarStore.getState().widgetDisabledCalendarIds;
+  const rows = await eventsInRangeQuery(accountId, rangeStart.getTime(), rangeEnd.getTime()).fetch();
+
+  return normalizeEvents(
+    rows
+      .map(mapEventToShared)
+      .filter((event) => !hidden.includes(event.calendarId) && !disabled.includes(event.calendarId)),
+  );
+}
+
 export function observeTodayEventsQuery(accountId: string, now: Date = new Date()) {
   return eventsInRangeQuery(accountId, startOfDay(now), endOfDayAfter(now, 0));
 }

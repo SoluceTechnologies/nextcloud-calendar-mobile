@@ -1,6 +1,6 @@
 import { createMMKV, type MMKV } from 'react-native-mmkv';
 
-import type { AgendaSnapshot, AgendaTimelineEntry, LiveEventState } from '../core/types';
+import type { AgendaSnapshot, AgendaTimelineEntry, LiveEventState, MonthWidgetSnapshot } from '../core/types';
 
 export const WIDGET_MMKV_ID = 'group.com.soluce.nextcloud-calendar';
 
@@ -12,6 +12,7 @@ function store(): MMKV {
 
 const AGENDA_KEY = 'widget.agenda.v1';
 const LIVE_KEY = 'widget.live.v1';
+const MONTH_KEY = 'widget.month.v1';
 
 export function writeAgendaTimeline(entries: AgendaTimelineEntry[]): void {
   store().set(AGENDA_KEY, JSON.stringify(entries));
@@ -26,6 +27,22 @@ export function readAgendaSnapshot(now: Date = new Date()): AgendaSnapshot | nul
     const t = now.getTime();
     const current = entries.filter((e) => new Date(e.atIso).getTime() <= t).pop();
     return (current ?? entries[0]).snapshot;
+  } catch {
+    return null;
+  }
+}
+
+export function writeMonthWidgetSnapshot(snapshot: MonthWidgetSnapshot | null): void {
+  if (snapshot) store().set(MONTH_KEY, JSON.stringify(snapshot));
+  else store().remove(MONTH_KEY);
+}
+
+export function readMonthWidgetSnapshot(): MonthWidgetSnapshot | null {
+  const raw = store().getString(MONTH_KEY);
+  if (!raw) return null;
+  try {
+    const snapshot = JSON.parse(raw) as MonthWidgetSnapshot;
+    return Array.isArray(snapshot.days) && snapshot.days.length === 42 ? snapshot : null;
   } catch {
     return null;
   }
