@@ -133,14 +133,35 @@ function CompactAndroidWidget({ snapshot, limit }: { snapshot: AgendaSnapshot | 
   );
 }
 
-function MonthAndroidWidget({ snapshot }: { snapshot: MonthWidgetSnapshot | null }) {
+function getEventColor(eventColor: string | undefined, evIdx: number, dayIdx: number, dark: boolean): `#${string}` {
+  if (eventColor && eventColor !== '#0082C9' && eventColor.startsWith('#') && eventColor.length === 7) {
+    return eventColor as `#${string}`;
+  }
+  const mod = (evIdx + dayIdx) % 3;
+  if (dark) {
+    if (mod === 0) return '#FFEB3B'; // Bright Yellow
+    if (mod === 1) return '#4DD0E1'; // Cyan
+    return '#FFFFFF';
+  } else {
+    if (mod === 0) return '#0284C7'; // Sky Blue
+    if (mod === 1) return '#0D9488'; // Teal
+    return '#6D28D9'; // Purple
+  }
+}
+
+function MonthAndroidWidget({ snapshot, isDark }: { snapshot: MonthWidgetSnapshot | null; isDark?: boolean }) {
   const settings = useCalendarStore.getState();
-  const systemDark = snapshot?.scheme === 'dark';
-  const dark = settings.monthWidgetTheme === 'dark' || (settings.monthWidgetTheme === 'system' && systemDark);
+  const dark = isDark !== undefined
+    ? isDark
+    : settings.monthWidgetTheme === 'dark'
+    ? true
+    : settings.monthWidgetTheme === 'light'
+    ? false
+    : true;
 
   const palette = dark
     ? {
-        cardBg: '#E6121214' as const,
+        cardBg: '#121214' as const,
         cardBorder: '#444752' as const,
         gridLine: '#40434E' as const,
         titleText: '#FFFFFF' as const,
@@ -156,9 +177,9 @@ function MonthAndroidWidget({ snapshot }: { snapshot: MonthWidgetSnapshot | null
         moreText: '#9E9EA5' as const,
       }
     : {
-        cardBg: '#F4FFFFFF' as const,
-        cardBorder: '#94A3B8' as const,
-        gridLine: '#CBD5E1' as const,
+        cardBg: '#FFFFFF' as const,
+        cardBorder: '#CBD5E1' as const,
+        gridLine: '#E2E8F0' as const,
         titleText: '#111827' as const,
         icon: '#374151' as const,
         menuIcon: '#4B5563' as const,
@@ -446,24 +467,24 @@ function MonthAndroidWidget({ snapshot }: { snapshot: MonthWidgetSnapshot | null
                   <TextWidget
                     text={day.dayNumber}
                     style={{
-                      fontSize: 11,
+                      fontSize: 12,
                       fontWeight: day.isToday ? 'bold' : fontWeight,
                       color: dayNumColor,
-                      paddingLeft: 1,
+                      paddingLeft: 2,
                     }}
                   />
 
                   {/* Events */}
                   <FlexWidget style={{ width: 'match_parent', flex: 1, flexDirection: 'column', marginTop: 1 }}>
-                    {day.events.slice(0, 3).map((event) => (
+                    {day.events.slice(0, 3).map((event, evIdx) => (
                       <TextWidget
                         key={event.uid}
                         text={event.title}
                         maxLines={1}
                         style={{
-                          fontSize: 8,
+                          fontSize: 8.5,
                           fontWeight: '500',
-                          color: day.isToday ? '#FFFFFF' : (event.color as `#${string}`),
+                          color: day.isToday ? '#FFFFFF' : getEventColor(event.color, evIdx, colIdx, dark),
                           marginTop: 1,
                         }}
                       />
@@ -472,9 +493,9 @@ function MonthAndroidWidget({ snapshot }: { snapshot: MonthWidgetSnapshot | null
                       <TextWidget
                         text={`+${(day.totalEvents ?? day.events.length) - 3}`}
                         style={{
-                          fontSize: 7,
+                          fontSize: 7.5,
                           fontWeight: 'bold',
-                          color: day.isToday ? '#E0F2FE' : palette.moreText,
+                          color: day.isToday ? '#FFFFFF' : palette.moreText,
                         }}
                       />
                     )}
@@ -490,19 +511,34 @@ function MonthAndroidWidget({ snapshot }: { snapshot: MonthWidgetSnapshot | null
 }
 
 function AndroidWidget({
-  widgetName, snapshot, monthSnapshot,
+  widgetName,
+  snapshot,
+  monthSnapshot,
+  isDark,
 }: {
   widgetName: string;
   snapshot: AgendaSnapshot | null;
   monthSnapshot: MonthWidgetSnapshot | null;
+  isDark?: boolean;
 }) {
   if (widgetName === 'CalendarMonthWidget') {
-    return <MonthAndroidWidget snapshot={monthSnapshot} />;
+    return <MonthAndroidWidget snapshot={monthSnapshot} isDark={isDark} />;
   }
   if (widgetName === 'CalendarLargeWidget') {
     return <LargeAndroidWidget snapshot={snapshot} />;
   }
   return <CompactAndroidWidget snapshot={snapshot} limit={compactLimit(widgetName)} />;
+}
+
+function getWidgetRepresentation(
+  widgetName: string,
+  snapshot: AgendaSnapshot | null,
+  monthSnapshot: MonthWidgetSnapshot | null,
+) {
+  return {
+    light: <AndroidWidget widgetName={widgetName} snapshot={snapshot} monthSnapshot={monthSnapshot} isDark={false} />,
+    dark: <AndroidWidget widgetName={widgetName} snapshot={snapshot} monthSnapshot={monthSnapshot} isDark={true} />,
+  };
 }
 
 export const widgetTaskHandler = async (props: WidgetTaskHandlerProps) => {
@@ -523,11 +559,7 @@ export const widgetTaskHandler = async (props: WidgetTaskHandlerProps) => {
       if (newMonthSnapshot) {
         writeMonthWidgetSnapshot(newMonthSnapshot);
         props.renderWidget(
-          <AndroidWidget
-            widgetName={props.widgetInfo.widgetName}
-            snapshot={cachedSnapshot}
-            monthSnapshot={newMonthSnapshot}
-          />,
+          getWidgetRepresentation(props.widgetInfo.widgetName, cachedSnapshot, newMonthSnapshot),
         );
         return;
       }
@@ -535,14 +567,14 @@ export const widgetTaskHandler = async (props: WidgetTaskHandlerProps) => {
   }
 
   props.renderWidget(
-    <AndroidWidget
-      widgetName={props.widgetInfo.widgetName}
-      snapshot={cachedSnapshot}
-      monthSnapshot={cachedMonthSnapshot}
-    />,
+    getWidgetRepresentation(props.widgetInfo.widgetName, cachedSnapshot, cachedMonthSnapshot),
   );
 
-  if (props.widgetAction === 'WIDGET_ADDED' || props.widgetAction === 'WIDGET_UPDATE') {
+  if (
+    props.widgetAction === 'WIDGET_ADDED' ||
+    props.widgetAction === 'WIDGET_UPDATE' ||
+    props.widgetAction === 'WIDGET_RESIZED'
+  ) {
     try {
       const currentOffset = cachedMonthSnapshot?.monthOffset ?? 0;
       const [timeline, monthSnapshot] = await Promise.all([
@@ -555,11 +587,11 @@ export const widgetTaskHandler = async (props: WidgetTaskHandlerProps) => {
           writeMonthWidgetSnapshot(monthSnapshot);
         }
         props.renderWidget(
-          <AndroidWidget
-            widgetName={props.widgetInfo.widgetName}
-            snapshot={timeline[0].snapshot}
-            monthSnapshot={monthSnapshot ?? cachedMonthSnapshot}
-          />,
+          getWidgetRepresentation(
+            props.widgetInfo.widgetName,
+            timeline[0].snapshot,
+            monthSnapshot ?? cachedMonthSnapshot,
+          ),
         );
       } else if (monthSnapshot) {
         writeMonthWidgetSnapshot(monthSnapshot);
@@ -585,9 +617,7 @@ export const homeWidget: WidgetSurface<AgendaTimelineEntry[]> = {
       WIDGET_NAMES.map((widgetName) =>
         requestWidgetUpdate({
           widgetName,
-          renderWidget: () => (
-            <AndroidWidget widgetName={widgetName} snapshot={snapshot} monthSnapshot={monthSnapshot} />
-          ),
+          renderWidget: () => getWidgetRepresentation(widgetName, snapshot, monthSnapshot),
         }),
       ),
     );
@@ -599,9 +629,7 @@ export const homeWidget: WidgetSurface<AgendaTimelineEntry[]> = {
       WIDGET_NAMES.map((widgetName) =>
         requestWidgetUpdate({
           widgetName,
-          renderWidget: () => (
-            <AndroidWidget widgetName={widgetName} snapshot={null} monthSnapshot={null} />
-          ),
+          renderWidget: () => getWidgetRepresentation(widgetName, null, null),
         }),
       ),
     );
