@@ -208,9 +208,15 @@ function MonthAndroidWidget({ snapshot, isDark }: { snapshot: MonthWidgetSnapsho
     ? false
     : true;
 
+  const cardStyle = settings.monthWidgetCardStyle;
+  const currentOffset = snapshot?.monthOffset ?? 0;
+
+  const darkBg = cardStyle === 'transparent' ? 'rgba(0, 0, 0, 0.70)' : 'rgba(0, 0, 0, 0.88)';
+  const lightBg = cardStyle === 'transparent' ? 'rgba(255, 255, 255, 0.70)' : 'rgba(255, 255, 255, 0.92)';
+
   const palette = dark
     ? {
-        cardBg: '#E6121214' as const,
+        cardBg: darkBg,
         cardBorder: '#444752' as const,
         gridLine: '#40434E' as const,
         titleText: '#FFFFFF' as const,
@@ -226,7 +232,7 @@ function MonthAndroidWidget({ snapshot, isDark }: { snapshot: MonthWidgetSnapsho
         moreText: '#9E9EA5' as const,
       }
     : {
-        cardBg: '#F4FFFFFF' as const,
+        cardBg: lightBg,
         cardBorder: '#CBD5E1' as const,
         gridLine: '#E2E8F0' as const,
         titleText: '#111827' as const,
@@ -264,13 +270,10 @@ function MonthAndroidWidget({ snapshot, isDark }: { snapshot: MonthWidgetSnapsho
   const eventFontSize = Math.round(9.5 * fontScale * 2) / 2;
   const moreFontSize = Math.round(8 * fontScale);
 
-  const cardStyle = settings.monthWidgetCardStyle;
-  const currentOffset = snapshot?.monthOffset ?? 0;
-
   const dayUri = (date: string) =>
     settings.monthWidgetDayTap === 'newEvent'
-      ? `nextcloud-calendar:///event/new?date=${encodeURIComponent(`${date}T09:00:00`)}`
-      : `nextcloud-calendar:///calendar?date=${encodeURIComponent(date)}`;
+      ? `nextcloud-calendar://event/new?date=${encodeURIComponent(`${date}T09:00:00`)}`
+      : `nextcloud-calendar://calendar?date=${encodeURIComponent(date)}`;
 
   if (!snapshot) {
     return (
@@ -284,7 +287,7 @@ function MonthAndroidWidget({ snapshot, isDark }: { snapshot: MonthWidgetSnapsho
           justifyContent: 'center',
         }}
         clickAction="OPEN_URI"
-        clickActionData={{ uri: 'nextcloud-calendar:///calendar' }}
+        clickActionData={{ uri: 'nextcloud-calendar://calendar' }}
       >
         <TextWidget text="Calendar" style={{ fontSize: widgetType.body, color: palette.dowWeekday }} />
       </FlexWidget>
@@ -307,7 +310,7 @@ function MonthAndroidWidget({ snapshot, isDark }: { snapshot: MonthWidgetSnapsho
         height: 'match_parent',
         width: 'match_parent',
         flexDirection: 'column',
-        backgroundColor: cardStyle === 'transparent' ? '#00000000' : palette.cardBg,
+        backgroundColor: palette.cardBg,
         borderRadius: cardStyle === 'card' ? 20 : 0,
         borderWidth: cardStyle === 'card' ? 1 : 0,
         borderColor: cardStyle === 'card' ? palette.cardBorder : '#00000000',
@@ -332,7 +335,7 @@ function MonthAndroidWidget({ snapshot, isDark }: { snapshot: MonthWidgetSnapsho
             alignItems: 'center',
           }}
           clickAction="OPEN_URI"
-          clickActionData={{ uri: 'nextcloud-calendar:///settings/widgets' }}
+          clickActionData={{ uri: 'nextcloud-calendar://settings/widgets' }}
         >
           <TextWidget
             text="☰"
@@ -437,7 +440,7 @@ function MonthAndroidWidget({ snapshot, isDark }: { snapshot: MonthWidgetSnapsho
             alignItems: 'center',
           }}
           clickAction="OPEN_URI"
-          clickActionData={{ uri: 'nextcloud-calendar:///event/new' }}
+          clickActionData={{ uri: 'nextcloud-calendar://event/new' }}
         >
           <TextWidget
             text="+"
