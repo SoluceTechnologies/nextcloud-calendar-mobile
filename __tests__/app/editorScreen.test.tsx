@@ -132,7 +132,12 @@ describe('AttachmentEditorScreen', () => {
   });
 
   it('loads a pre-minted URL without calling open (create flow)', async () => {
-    mockParams.url = 'https://cloud.example.com/apps/files/directEditing/premade';
+    const { setPendingEditorUrl } = jest.requireActual(
+      '../../src/features/event/utils/editorSession',
+    );
+    setPendingEditorUrl(
+      'https://cloud.example.com/apps/files/directEditing/premade',
+    );
     render(<AttachmentEditorScreen />, { wrapper });
     await waitFor(() =>
       expect(webviewProps.source).toEqual({
@@ -140,6 +145,18 @@ describe('AttachmentEditorScreen', () => {
       }),
     );
     expect(openDirectEditingUrl).not.toHaveBeenCalled();
+  });
+
+  it('requests a fresh URL when restored without the pending token', async () => {
+    // Route params survive state restoration; the consumed one-time URL does
+    // not — a restored editor must mint a fresh one via `open`.
+    render(<AttachmentEditorScreen />, { wrapper });
+    await waitFor(() => expect(webviewProps.source).toBeTruthy());
+    expect(openDirectEditingUrl).toHaveBeenCalledWith(
+      account,
+      '/Calendar/note.txt',
+      'text',
+    );
   });
 
   it('shows an error with retry when the open request fails', async () => {

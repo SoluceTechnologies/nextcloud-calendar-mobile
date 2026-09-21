@@ -42,6 +42,7 @@ import {
   pickDeviceAttachment,
 } from '@/features/event/utils/attachments';
 import { useEventAttachments } from '@/features/event/hooks/useEventAttachments';
+import { setPendingEditorUrl } from '@/features/event/utils/editorSession';
 import {
   createDirectEditingUrl,
   fetchDirectEditing,
@@ -207,9 +208,12 @@ export default function EventDetailScreen() {
           filename,
           fmttype: creator.mimetype,
         });
+        // The one-time URL is handed over via the session slot, not route
+        // params — params survive state restoration while the token is dead.
+        setPendingEditorUrl(url);
         router.push({
           pathname: '/event/editor',
-          params: { url, path, editorId: creator.editor, name: filename },
+          params: { path, editorId: creator.editor, name: filename },
         });
       } catch (error) {
         console.warn('[attachments] new document failed', error);
