@@ -197,6 +197,20 @@ function safeFilename(name: string): string {
 }
 
 /**
+ * Picks a conflict-free path inside the attachments folder for a new file
+ * (created server-side, e.g. by Direct Editing `create`). Returns the DAV
+ * path and the sanitized, suffixed filename.
+ */
+export async function availableAttachmentPath(
+  account: FilesAccount,
+  filename: string,
+): Promise<{ path: string; filename: string }> {
+  await ensureFolder(account, `/${ATTACHMENTS_DIR}`);
+  const stored = await resolveConflict(account, `/${ATTACHMENTS_DIR}`, safeFilename(filename));
+  return { path: `/${ATTACHMENTS_DIR}/${stored}`, filename: stored };
+}
+
+/**
  * Uploads a file into the attachments folder, creating it if needed and
  * resolving name conflicts by suffixing (`name (2).ext`).
  */

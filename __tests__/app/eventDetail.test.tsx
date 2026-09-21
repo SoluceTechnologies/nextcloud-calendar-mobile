@@ -10,7 +10,7 @@ import {
   openAttachment,
   prepareAttachmentEdit,
 } from '../../src/features/event/utils/attachments';
-import { fetchDirectEditors } from '../../src/services/nextcloud/directEditing';
+import { fetchDirectEditing } from '../../src/services/nextcloud/directEditing';
 import { useAccountStore } from '../../src/stores/accountStore';
 import i18n from '../../src/utils/i18n';
 import type { Account, CalendarEvent, CalendarMeta } from '../../src/types';
@@ -100,9 +100,9 @@ jest.mock('../../src/features/event/hooks/useEventAttachments', () => ({
 }));
 
 jest.mock('../../src/services/nextcloud/directEditing', () => ({
-  fetchDirectEditors: jest.fn(async () => []),
-  editorForMime: jest.requireActual('../../src/services/nextcloud/directEditing')
-    .editorForMime,
+  ...jest.requireActual('../../src/services/nextcloud/directEditing'),
+  fetchDirectEditing: jest.fn(async () => ({ editors: [], creators: [] })),
+  createDirectEditingUrl: jest.fn(async () => 'https://cloud.example.com/de/tok'),
 }));
 
 jest.mock('expo-document-picker', () => ({
@@ -222,11 +222,9 @@ describe('EventDetailScreen attachments', () => {
       ],
     });
     mockEvent = event();
-    const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
-    const { getByLabelText } = render(<EventDetailScreen />, { wrapper });
+    const { getByLabelText, getByText } = render(<EventDetailScreen />, { wrapper });
     fireEvent.press(getByLabelText('Add attachment'));
-    const buttons = alertSpy.mock.calls[0][2] ?? [];
-    buttons.find((b) => b.text === 'From this device')?.onPress?.();
+    fireEvent.press(getByText('From this device'));
     await waitFor(() => expect(mockAttachments.add).toHaveBeenCalled());
     expect(FileSystem.readAsStringAsync).toHaveBeenCalledWith('file:///cache/doc.pdf', {
       encoding: 'base64',
@@ -241,11 +239,9 @@ describe('EventDetailScreen attachments', () => {
 
   it('does nothing when the picker is cancelled', async () => {
     mockEvent = event();
-    const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
-    const { getByLabelText } = render(<EventDetailScreen />, { wrapper });
+    const { getByLabelText, getByText } = render(<EventDetailScreen />, { wrapper });
     fireEvent.press(getByLabelText('Add attachment'));
-    const buttons = alertSpy.mock.calls[0][2] ?? [];
-    buttons.find((b) => b.text === 'From this device')?.onPress?.();
+    fireEvent.press(getByText('From this device'));
     await Promise.resolve();
     expect(mockAttachments.add).not.toHaveBeenCalled();
   });
@@ -281,9 +277,9 @@ describe('EventDetailScreen attachments', () => {
   });
 
   it('shows an edit button for own files covered by a direct editor', async () => {
-    (fetchDirectEditors as jest.Mock).mockResolvedValue([
+    (fetchDirectEditing as jest.Mock).mockResolvedValue({ creators: [], editors: [
       { id: 'text', name: 'Text', mimetypes: ['text/plain'], optionalMimetypes: [] },
-    ]);
+    ] });
     const att = {
       uri: 'https://cloud.example.com/remote.php/dav/files/alice/Calendar/note.txt',
       filename: 'note.txt',
@@ -297,9 +293,9 @@ describe('EventDetailScreen attachments', () => {
   });
 
   it('hides the edit button when no editor matches the MIME type', async () => {
-    (fetchDirectEditors as jest.Mock).mockResolvedValue([
+    (fetchDirectEditing as jest.Mock).mockResolvedValue({ creators: [], editors: [
       { id: 'text', name: 'Text', mimetypes: ['text/plain'], optionalMimetypes: [] },
-    ]);
+    ] });
     mockEvent = event({
       attachments: [
         {

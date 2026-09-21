@@ -23,13 +23,11 @@ const mockRouter = {
   canGoBack: jest.fn(() => true),
 };
 
+let mockParams: Record<string, string | undefined> = {};
+
 jest.mock('expo-router', () => ({
   ...jest.requireActual('expo-router'),
-  useLocalSearchParams: () => ({
-    path: '/Calendar/note.txt',
-    editorId: 'text',
-    name: 'note.txt',
-  }),
+  useLocalSearchParams: () => mockParams,
   useRouter: () => mockRouter,
   useNavigation: () => ({
     getState: () => ({
@@ -45,6 +43,7 @@ jest.mock('../../src/hooks/useAccounts', () => ({
 }));
 
 jest.mock('../../src/services/nextcloud/directEditing', () => ({
+  ...jest.requireActual('../../src/services/nextcloud/directEditing'),
   openDirectEditingUrl: jest.fn(),
 }));
 
@@ -74,6 +73,11 @@ describe('AttachmentEditorScreen', () => {
   beforeEach(async () => {
     jest.clearAllMocks();
     webviewProps = {};
+    mockParams = {
+      path: '/Calendar/note.txt',
+      editorId: 'text',
+      name: 'note.txt',
+    };
     await i18n.changeLanguage('en');
     (openDirectEditingUrl as jest.Mock).mockResolvedValue(
       'https://cloud.example.com/apps/files/directEditing/tok1',
@@ -117,6 +121,17 @@ describe('AttachmentEditorScreen', () => {
       expect(webviewProps.source).toEqual({ uri: 'https://cloud.example.com/tok2' }),
     );
     expect(openDirectEditingUrl).toHaveBeenCalledTimes(2);
+  });
+
+  it('loads a pre-minted URL without calling open (create flow)', async () => {
+    mockParams.url = 'https://cloud.example.com/apps/files/directEditing/premade';
+    render(<AttachmentEditorScreen />, { wrapper });
+    await waitFor(() =>
+      expect(webviewProps.source).toEqual({
+        uri: 'https://cloud.example.com/apps/files/directEditing/premade',
+      }),
+    );
+    expect(openDirectEditingUrl).not.toHaveBeenCalled();
   });
 
   it('shows an error with retry when the open request fails', async () => {

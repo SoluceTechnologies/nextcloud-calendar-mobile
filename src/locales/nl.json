@@ -199,7 +199,8 @@
     "errorUpdateFailed": "Bijwerken van afspraak mislukt",
     "errorDeleteFailed": "Verwijderen van afspraak mislukt",
     "alerts": "Herinneringen",
-    "editorLoadSlow": "De editor laadt langer dan verwacht…"
+    "editorLoadSlow": "De editor laadt langer dan verwacht…",
+    "attachNewDocumentHint": "Aanmaken en bewerken op Nextcloud"
   },
   "settings": {
     "title": "Instellingen",
