@@ -192,6 +192,65 @@ describe('openAttachment', () => {
     expect(mockedFetch).not.toHaveBeenCalled();
   });
 
+  it('never sends credentials to a same-host http URI on an https account', async () => {
+    const att: EventAttachment = { uri: 'http://cloud.example.com/f.pdf' };
+    await openAttachment(att, account());
+    expect(Linking.openURL).toHaveBeenCalledWith(att.uri);
+    expect(mockedFetch).not.toHaveBeenCalled();
+  });
+
+  it('attaches credentials to a same-origin http URI on an http account', async () => {
+    mockedFetch.mockResolvedValue(fetchOk());
+    const httpAccount = account({ baseUrl: 'http://nas.local' });
+    const att: EventAttachment = {
+      uri: 'http://nas.local/remote.php/dav/files/alice/doc.txt',
+      filename: 'doc.txt',
+    };
+    await openAttachment(att, httpAccount);
+    expect(mockedFetch).toHaveBeenCalledWith(
+      att.uri,
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          Authorization: expect.stringMatching(/^Basic /),
+        }),
+      })
+    );
+    expect(Linking.openURL).not.toHaveBeenCalled();
+  });
+
+  it('rejects an oversized download reported by HEAD without fetching the body', async () => {
+    mockedFetch.mockImplementation(((_url: string, init?: { method?: string }) =>
+      Promise.resolve(
+        init?.method === 'HEAD'
+          ? {
+              ok: true,
+              status: 200,
+              headers: { get: () => String(20 * 1024 * 1024) },
+              base64: () => Promise.resolve(''),
+            }
+          : fetchOk()
+      )) as typeof trustedFetch);
+    const att: EventAttachment = { uri: 'https://cloud.example.com/big.bin' };
+    await openAttachment(att, account());
+    expect(Alert.alert).toHaveBeenCalledWith('This attachment is too large to open');
+    expect(mockedFetch).toHaveBeenCalledTimes(1);
+    expect(mockedShare).not.toHaveBeenCalled();
+  });
+
+  it('still downloads when the HEAD preflight fails', async () => {
+    mockedFetch
+      .mockRejectedValueOnce(new Error('head-fail'))
+      .mockResolvedValueOnce(fetchOk());
+    const att: EventAttachment = {
+      uri: 'https://cloud.example.com/doc.txt',
+      filename: 'doc.txt',
+    };
+    await openAttachment(att, account());
+    expect(mockedFetch).toHaveBeenCalledTimes(2);
+    expect(mockedShare).toHaveBeenCalled();
+    expect(Alert.alert).not.toHaveBeenCalled();
+  });
+
   it('alerts when the download fails', async () => {
     mockedFetch.mockResolvedValue({
       ok: false,

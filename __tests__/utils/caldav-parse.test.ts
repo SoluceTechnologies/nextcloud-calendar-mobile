@@ -922,6 +922,44 @@ END:VCALENDAR`;
     }
   });
 
+  it('strips oversized embedded payloads from stored events but keeps an inline marker', () => {
+    const bigBase64 = 'A'.repeat(100 * 1024); // ~75 KB decoded, above the 64 KB threshold
+    const ics = `BEGIN:VCALENDAR
+VERSION:2.0
+BEGIN:VEVENT
+UID:attach-big
+DTSTART:20260601T140000Z
+DTEND:20260601T150000Z
+ATTACH;ENCODING=BASE64;VALUE=BINARY;FMTTYPE=application/octet-stream;FILENAME=big.bin:${bigBase64}
+END:VEVENT
+END:VCALENDAR`;
+    const [e] = parseIcsObjects([{ ics, href: '/c/big.ics' }], calMeta);
+    expect(e.attachments).toEqual([
+      {
+        filename: 'big.bin',
+        fmttype: 'application/octet-stream',
+        size: 76800,
+        base64: undefined,
+        inline: true,
+      },
+    ]);
+  });
+
+  it('strips oversized embedded payloads on VTODO too', () => {
+    const bigBase64 = 'A'.repeat(100 * 1024);
+    const ics = `BEGIN:VCALENDAR
+VERSION:2.0
+BEGIN:VTODO
+UID:todo-big
+DTSTART:20260601T140000Z
+ATTACH;ENCODING=BASE64;VALUE=BINARY;FILENAME=big.bin:${bigBase64}
+END:VTODO
+END:VCALENDAR`;
+    const [e] = parseIcsObjects([{ ics, href: '/c/t.ics' }], calMeta);
+    expect(e.attachments![0].base64).toBeUndefined();
+    expect(e.attachments![0].inline).toBe(true);
+  });
+
   it('keeps ATTACH lines out of the writer-managed set so updates preserve them', () => {
     const extra = extractExtraVeventLines(attachIcs);
     const attachLines = extra.filter((l) => /^ATTACH/i.test(l));

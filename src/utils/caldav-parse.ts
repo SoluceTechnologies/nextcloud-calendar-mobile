@@ -114,12 +114,17 @@ export function readAttachments(props: ICAL.Property[]): EventAttachment[] {
 }
 
 /**
- * Recurrence occurrences are expanded into one row each; copying an embedded
- * base64 payload into every row would multiply its storage. Keep only the
- * metadata plus an `inline` marker — the content is re-fetched on demand.
+ * Embedded payloads are kept out of WatermelonDB when they would bloat it:
+ * occurrence rows would duplicate the base64, and large embeds would slow the
+ * per-sync unchanged comparison. Small embeds stay inline so they can be
+ * opened offline; the rest is re-fetched via `href` on demand.
  */
-function stripInlineContent(att: EventAttachment): EventAttachment {
-  return att.base64 ? { ...att, base64: undefined, inline: true } : att;
+const MAX_STORED_ATTACHMENT_BYTES = 64 * 1024;
+
+function stripInlineContent(att: EventAttachment, force = false): EventAttachment {
+  if (!att.base64) return att;
+  if (!force && base64DecodedSize(att.base64) <= MAX_STORED_ATTACHMENT_BYTES) return att;
+  return { ...att, base64: undefined, inline: true };
 }
 
 /** All attachments declared by every VEVENT/VTODO of an ICS document. */
@@ -310,7 +315,9 @@ function parseVtodo(
     isRecurring: false,
     alarms: alarmMinutesList(vtodo),
     isTask: true,
-    attachments: readAttachments(vtodo.getAllProperties('attach')),
+    attachments: readAttachments(vtodo.getAllProperties('attach')).map((a) =>
+      stripInlineContent(a),
+    ),
   };
 }
 
@@ -353,7 +360,9 @@ export function parseIcsItem(
 
       const alarms = alarmMinutesList(vevent);
 
-      const attachments = readAttachments(vevent.getAllProperties('attach'));
+      const attachments = readAttachments(vevent.getAllProperties('attach')).map((a) =>
+        stripInlineContent(a),
+      );
 
       const rruleProp = vevent.getFirstProperty('rrule');
       const isRecurring = !!rruleProp;
@@ -403,8 +412,8 @@ export function parseIcsItem(
 
           const fieldOverrides =
             item && item.component !== vevent ? exceptionFields(item.component) : {};
-          const occAttachments = (fieldOverrides.attachments ?? base.attachments)?.map(
-            stripInlineContent,
+          const occAttachments = (fieldOverrides.attachments ?? base.attachments)?.map((a) =>
+            stripInlineContent(a, true),
           );
 
           events.push({
