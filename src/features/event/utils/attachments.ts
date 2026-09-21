@@ -78,17 +78,21 @@ export function isOpenableAttachment(att: EventAttachment): boolean {
   return !!att.base64 || !!att.inline || /^https?:/i.test(att.uri ?? '');
 }
 
-function hostOf(url: string): string {
-  return url.match(/^https?:\/\/([^/?#]+)/i)?.[1]?.toLowerCase() ?? '';
+function originOf(url: string): string {
+  const m = url.match(/^(https?):\/\/(?:[^@/?#]*@)?([^/?#]+)/i);
+  return m ? `${m[1].toLowerCase()}://${m[2].toLowerCase()}` : '';
 }
 
 function sanitizeFilename(name: string): string {
   return name.replace(/[^\p{L}\p{N}._-]+/gu, '_').slice(-80) || 'attachment';
 }
 
-function isSameHost(att: EventAttachment, account: Account | null): boolean {
-  const uriHost = hostOf(att.uri ?? '');
-  return !!uriHost && !!account && uriHost === hostOf(account.baseUrl);
+// Credentials are only attached on an exact origin match (scheme + host +
+// port): an http:// URI must never receive the credentials of an https://
+// account, even on the same host.
+function isSameOrigin(att: EventAttachment, account: Account | null): boolean {
+  const origin = originOf(att.uri ?? '');
+  return !!origin && !!account && origin === originOf(account.baseUrl);
 }
 
 function decodedBase64Bytes(b64: string): number {
@@ -176,17 +180,37 @@ async function openUriAttachment(
   }
 
   // Public/external links: hand off to the system browser.
-  if (!isSameHost(att, account)) {
+  if (!isSameOrigin(att, account)) {
     await Linking.openURL(uri);
     return;
   }
 
-  // Same-host (private Nextcloud) files need the app credentials — plain
+  // Same-origin (private Nextcloud) files need the app credentials — plain
   // browser links would get a 401 without a web session.
+  const authHeaders = {
+    Authorization: `Basic ${utf8ToBase64(`${account!.username}:${account!.appPassword}`)}`,
+  };
+
+  // A HEAD first avoids downloading a body we would reject anyway: the
+  // declared SIZE parameter can lie and the native fetch buffers the whole
+  // response before we can measure it.
+  try {
+    const head = await trustedFetch(uri, {
+      method: 'HEAD',
+      headers: authHeaders,
+      timeoutMs: 15000,
+    });
+    const len = Number(head.headers.get('content-length'));
+    if (head.ok && Number.isFinite(len) && len > MAX_ATTACHMENT_BYTES) {
+      Alert.alert(i18n.t('event.attachmentTooLarge'));
+      return;
+    }
+  } catch {
+    // HEAD unsupported or transient failure — fall through to the guarded GET.
+  }
+
   const res = await trustedFetch(uri, {
-    headers: {
-      Authorization: `Basic ${utf8ToBase64(`${account!.username}:${account!.appPassword}`)}`,
-    },
+    headers: authHeaders,
     timeoutMs: 30000,
   });
   if (!res.ok) {

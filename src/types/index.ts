@@ -45,7 +45,7 @@ export type RecurrenceEditScope = 'this' | 'thisAndFollowing' | 'all';
 export type EventAttachment = {
     uri?: string;
     base64?: string;
-    /** True when binary content exists in the server ICS but was stripped locally (recurrence occurrences). */
+    /** True when binary content exists in the server ICS but was stripped locally (occurrence rows, oversized embeds). */
     inline?: boolean;
     filename?: string;
     fmttype?: string;
