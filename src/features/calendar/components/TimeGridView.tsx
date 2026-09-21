@@ -178,6 +178,7 @@ function TimeGridViewImpl({
 
   const jumpInputs = useRef({ localAnchor, mode, weekStartsOn });
   jumpInputs.current = { localAnchor, mode, weekStartsOn };
+  const jumpTargetRef = useRef<number | null>(null);
   const firstJump = useRef(true);
   useEffect(() => {
     if (firstJump.current) {
@@ -191,6 +192,8 @@ function TimeGridViewImpl({
     if (target === from) return;
 
     if (Math.abs(target - from) <= MAX_ANIMATED_JUMP_PAGES) {
+      jumpTargetRef.current = target;
+      settledIndexRef.current = target;
       setSettledIndex(target);
       pagerRef.current?.setPage(target, { animated: true });
       return;
@@ -200,7 +203,14 @@ function TimeGridViewImpl({
 
   const handlePageChange = useCallback(
     (index: number) => {
+      const prev = settledIndexRef.current;
+      settledIndexRef.current = index;
       setSettledIndex(index);
+      if (jumpTargetRef.current !== null) {
+        if (index === jumpTargetRef.current) jumpTargetRef.current = null;
+        return;
+      }
+      if (index === prev) return;
       onPageChange(pageFocusDate(localAnchor, index, mode, weekStartsOn));
     },
     [localAnchor, mode, weekStartsOn, onPageChange]
