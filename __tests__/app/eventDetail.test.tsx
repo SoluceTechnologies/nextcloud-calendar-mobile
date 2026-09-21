@@ -292,6 +292,29 @@ describe('EventDetailScreen attachments', () => {
     expect(prepareAttachmentEdit).toHaveBeenCalledWith(att, account);
   });
 
+  it('opens the editor when tapping an editable attachment row', async () => {
+    (fetchDirectEditing as jest.Mock).mockResolvedValue({ creators: [], editors: [
+      { id: 'text', name: 'Text', mimetypes: ['text/plain'], optionalMimetypes: [] },
+    ] });
+    (prepareAttachmentEdit as jest.Mock).mockResolvedValue({
+      path: '/Calendar/note.txt',
+      editorId: 'text',
+      name: 'note.txt',
+    });
+    const att = {
+      uri: 'https://cloud.example.com/remote.php/dav/files/alice/Calendar/note.txt',
+      filename: 'note.txt',
+      fmttype: 'text/plain',
+    };
+    mockEvent = event({ attachments: [att] });
+    const { findByText } = render(<EventDetailScreen />, { wrapper });
+    fireEvent.press(await findByText('note.txt'));
+    await waitFor(() =>
+      expect(prepareAttachmentEdit).toHaveBeenCalledWith(att, account),
+    );
+    expect(openAttachment).not.toHaveBeenCalledWith(att, account, '/c/e1.ics');
+  });
+
   it('hides the edit button when no editor matches the MIME type', async () => {
     (fetchDirectEditing as jest.Mock).mockResolvedValue({ creators: [], editors: [
       { id: 'text', name: 'Text', mimetypes: ['text/plain'], optionalMimetypes: [] },
