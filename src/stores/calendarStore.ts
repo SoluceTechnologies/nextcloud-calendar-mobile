@@ -47,7 +47,7 @@ export const useCalendarStore = create<CalendarState>()(
       notifDisabledCalendarIds: [],
       widgetDisabledCalendarIds: [],
       monthWidgetFontSize: 'large',
-      monthWidgetFontWeight: 'light',
+      monthWidgetFontWeight: 'bold',
       monthWidgetTheme: 'system',
       monthWidgetCardStyle: 'card',
       monthWidgetDayTap: 'calendar',
