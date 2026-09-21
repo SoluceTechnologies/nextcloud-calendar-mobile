@@ -201,6 +201,20 @@ function MonthAndroidWidget({ snapshot, isDark }: { snapshot: MonthWidgetSnapsho
     black: '900',
   } as const)[settings.monthWidgetFontWeight];
 
+  const fontSizeSetting = settings.monthWidgetFontSize ?? 'large';
+  const fontScale = ({
+    small: 0.85,
+    normal: 1.0,
+    large: 1.25,
+    xlarge: 1.5,
+    huge: 1.75,
+  } as const)[fontSizeSetting] ?? 1.25;
+
+  const dowFontSize = Math.min(13, Math.round(11 * (0.6 + 0.4 * fontScale)));
+  const dayNumFontSize = Math.round(11 * fontScale);
+  const eventFontSize = Math.round(9.5 * fontScale * 2) / 2;
+  const moreFontSize = Math.round(8 * fontScale);
+
   const cardStyle = settings.monthWidgetCardStyle;
   const currentOffset = snapshot?.monthOffset ?? 0;
 
@@ -405,6 +419,8 @@ function MonthAndroidWidget({ snapshot, isDark }: { snapshot: MonthWidgetSnapsho
             key={dow.name}
             style={{
               flex: 1,
+              width: 0,
+              height: 'match_parent',
               justifyContent: 'center',
               alignItems: 'center',
             }}
@@ -412,7 +428,7 @@ function MonthAndroidWidget({ snapshot, isDark }: { snapshot: MonthWidgetSnapsho
             <TextWidget
               text={dow.name}
               style={{
-                fontSize: 11,
+                fontSize: dowFontSize,
                 fontWeight: '600',
                 color: dow.color,
               }}
@@ -431,13 +447,14 @@ function MonthAndroidWidget({ snapshot, isDark }: { snapshot: MonthWidgetSnapsho
           style={{
             width: 'match_parent',
             flex: 1,
+            height: 0,
             flexDirection: 'column',
           }}
         >
           {week > 0 && (
             <FlexWidget style={{ width: 'match_parent', height: 1, backgroundColor: palette.gridLine }} />
           )}
-          <FlexWidget style={{ width: 'match_parent', flex: 1, flexDirection: 'row' }}>
+          <FlexWidget style={{ width: 'match_parent', flex: 1, height: 0, flexDirection: 'row' }}>
             {snapshot.days.slice(week * 7, week * 7 + 7).map((day, colIdx) => {
               const isSunday = colIdx === 6;
               const dayNumColor = day.isToday
@@ -453,6 +470,7 @@ function MonthAndroidWidget({ snapshot, isDark }: { snapshot: MonthWidgetSnapsho
                   key={day.dateIso}
                   style={{
                     flex: 1,
+                    width: 0,
                     height: 'match_parent',
                     backgroundColor: day.isToday ? palette.todayBg : '#00000000',
                     borderRightWidth: colIdx < 6 ? 1 : 0,
@@ -467,7 +485,7 @@ function MonthAndroidWidget({ snapshot, isDark }: { snapshot: MonthWidgetSnapsho
                   <TextWidget
                     text={day.dayNumber}
                     style={{
-                      fontSize: 12,
+                      fontSize: dayNumFontSize,
                       fontWeight: day.isToday ? 'bold' : fontWeight,
                       color: dayNumColor,
                       paddingLeft: 2,
@@ -481,8 +499,9 @@ function MonthAndroidWidget({ snapshot, isDark }: { snapshot: MonthWidgetSnapsho
                         key={event.uid}
                         text={event.title}
                         maxLines={1}
+                        truncate="END"
                         style={{
-                          fontSize: 8.5,
+                          fontSize: eventFontSize,
                           fontWeight: '500',
                           color: day.isToday ? '#FFFFFF' : getEventColor(event.color, evIdx, colIdx, dark),
                           marginTop: 1,
@@ -493,7 +512,7 @@ function MonthAndroidWidget({ snapshot, isDark }: { snapshot: MonthWidgetSnapsho
                       <TextWidget
                         text={`+${(day.totalEvents ?? day.events.length) - 3}`}
                         style={{
-                          fontSize: 7.5,
+                          fontSize: moreFontSize,
                           fontWeight: 'bold',
                           color: day.isToday ? '#FFFFFF' : palette.moreText,
                         }}

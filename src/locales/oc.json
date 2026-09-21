@@ -230,10 +230,18 @@
       "month": {
         "title": "Month widget",
         "hint": "Controls the large month-grid widget on your home screen.",
+        "fontSizeLabel": "Font size",
         "fontWeightLabel": "Font weight",
         "themeLabel": "Theme",
         "cardStyleLabel": "Card style",
         "dayTapLabel": "Tap a day",
+        "fontSize": {
+          "small": "Small (85%)",
+          "normal": "Normal (100%)",
+          "large": "Large (125% - Recommended)",
+          "xlarge": "Extra Large (150%)",
+          "huge": "Huge (175%)"
+        },
         "fontWeight": {
           "light": "Light",
           "normal": "Normal",
