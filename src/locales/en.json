@@ -12,7 +12,8 @@
     "errorServer": "The server is temporarily unavailable. Please try again later.",
     "errorRateLimited": "Too many requests. Please wait a moment and try again.",
     "errorRateLimitedRetry": "Too many requests. Please try again in {{seconds}}s.",
-    "back": "Back"
+    "back": "Back",
+    "retry": "Retry"
   },
   "tabs": {
     "calendar": "Calendar",
@@ -197,7 +198,8 @@
     "errorCreateFailed": "Failed to create event",
     "errorUpdateFailed": "Failed to update event",
     "errorDeleteFailed": "Failed to delete event",
-    "alerts": "Alerts"
+    "alerts": "Alerts",
+    "editorLoadSlow": "The editor is taking longer than expected…"
   },
   "settings": {
     "title": "Settings",

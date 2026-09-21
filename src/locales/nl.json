@@ -12,7 +12,8 @@
     "errorServer": "De server is tijdelijk niet beschikbaar. Probeer het later opnieuw.",
     "errorRateLimited": "Te veel verzoeken. Wacht even en probeer het opnieuw.",
     "errorRateLimitedRetry": "Te veel verzoeken. Probeer het opnieuw over {{seconds}}s.",
-    "back": "Terug"
+    "back": "Terug",
+    "retry": "Opnieuw proberen"
   },
   "tabs": {
     "calendar": "Agenda",
@@ -197,7 +198,8 @@
     "errorCreateFailed": "Aanmaken van afspraak mislukt",
     "errorUpdateFailed": "Bijwerken van afspraak mislukt",
     "errorDeleteFailed": "Verwijderen van afspraak mislukt",
-    "alerts": "Herinneringen"
+    "alerts": "Herinneringen",
+    "editorLoadSlow": "De editor laadt langer dan verwacht…"
   },
   "settings": {
     "title": "Instellingen",
