@@ -37,6 +37,26 @@ export interface AgendaTimelineEntry {
   snapshot: AgendaSnapshot;
 }
 
+export interface MonthWidgetEvent {
+  uid: string;
+  title: string;
+  color: string;
+}
+
+export interface MonthWidgetDay {
+  dateIso: string;
+  dayNumber: string;
+  inMonth: boolean;
+  isToday: boolean;
+  events: MonthWidgetEvent[];
+}
+
+export interface MonthWidgetSnapshot {
+  monthLabel: string;
+  scheme: 'light' | 'dark';
+  days: MonthWidgetDay[];
+}
+
 export interface LiveEventState {
   uid: string;
   title: string;

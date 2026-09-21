@@ -1,7 +1,7 @@
-import { useCallback, useDeferredValue, useMemo, useRef } from 'react';
+import { useCallback, useDeferredValue, useEffect, useMemo, useRef } from 'react';
 import { View, StyleSheet } from 'react-native';
 import { useTranslation } from 'react-i18next';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import dayjs from 'dayjs';
 import isoWeek from 'dayjs/plugin/isoWeek';
@@ -36,6 +36,7 @@ dayjs.extend(isoWeek);
 
 export default function CalendarScreen() {
   const router = useRouter();
+  const { date: dateParam } = useLocalSearchParams<{ date?: string }>();
   const { t } = useTranslation();
 
   const calendarApp = useAccountStore((s) => s.capabilities.calendarApp);
@@ -48,6 +49,15 @@ export default function CalendarScreen() {
 
   const nav = useCalendarNavigation();
   const { viewMode, date, fetchDate, agendaVisibleDate } = nav;
+  const setViewMode = useCalendarStore((s) => s.setViewMode);
+
+  useEffect(() => {
+    if (!dateParam || Array.isArray(dateParam)) return;
+    const selected = new Date(dateParam);
+    if (Number.isNaN(selected.getTime())) return;
+    nav.setDate(selected);
+    setViewMode('month');
+  }, [dateParam, nav.setDate, setViewMode]);
 
   const deferredViewMode = useDeferredValue(viewMode);
   const deferredDate = useDeferredValue(date);
