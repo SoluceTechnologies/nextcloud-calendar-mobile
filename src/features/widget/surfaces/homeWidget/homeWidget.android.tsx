@@ -268,8 +268,7 @@ function MonthAndroidWidget({ snapshot }: { snapshot: MonthWidgetSnapshot | null
             justifyContent: 'center',
             paddingLeft: 6,
           }}
-          clickAction="OPEN_URI"
-          clickActionData={{ uri: 'nextcloud-calendar:///calendar' }}
+          clickAction="OPEN_APP"
         >
           <TextWidget
             text={snapshot.monthLabel}
@@ -378,8 +377,7 @@ function MonthAndroidWidget({ snapshot }: { snapshot: MonthWidgetSnapshot | null
           flexDirection: 'row',
           alignItems: 'center',
         }}
-        clickAction="OPEN_URI"
-        clickActionData={{ uri: 'nextcloud-calendar:///calendar' }}
+        clickAction="OPEN_APP"
       >
         {weekDays.map((dow) => (
           <FlexWidget
