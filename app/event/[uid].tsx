@@ -621,9 +621,13 @@ export default function EventDetailScreen() {
                           title={attachmentDisplayName(att)}
                           description={subtitle || undefined}
                           onPress={
-                            isOpenableAttachment(att)
-                              ? () => openAttachment(att, activeAccount, event.href)
-                              : undefined
+                            // Editable own-Files open the in-app editor (like
+                            // the web app); everything else downloads/shares.
+                            isEditable(att)
+                              ? () => void handleEditAttachment(att)
+                              : isOpenableAttachment(att)
+                                ? () => openAttachment(att, activeAccount, event.href)
+                                : undefined
                           }
                           trailing={
                             isEditable(att) || (canEdit && attachments.ready) ? (
