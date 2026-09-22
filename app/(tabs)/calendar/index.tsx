@@ -11,6 +11,7 @@ import { useSettingsStore } from '@/stores/settingsStore';
 import { ViewContainer, Spinner } from '@/ui/components';
 import { CalendarDrawer } from '@/features/calendar/components/CalendarDrawer';
 import { OfflineBanner } from '@/features/calendar/components/OfflineBanner';
+import { SyncErrorBanner } from '@/features/calendar/components/SyncErrorBanner';
 import { MonthDayView } from '@/features/calendar/components/MonthDayView';
 import { AgendaView } from '@/features/calendar/components/AgendaView';
 import { createNavigationGuard } from '@/utils/navigationGuard';
@@ -61,6 +62,7 @@ export default function CalendarScreen() {
   const { hourRowHeight, cellHeight, commitZoom } = useZoom();
   const {
     activeAccount, calendars, allEvents, agendaEvents, showFullOverlay, showSmallLoader,
+    syncFailed, retrySync,
   } = useCalendarData(fetchDate, viewMode === 'schedule');
   const insets = useSafeAreaInsets();
   const drawer = useCalendarDrawer();
@@ -152,6 +154,7 @@ export default function CalendarScreen() {
       />
 
       <OfflineBanner />
+      {syncFailed && <SyncErrorBanner onRetry={retrySync} />}
 
       <View style={styles.viewArea}>
         <ViewLayer visible={deferredViewMode === 'month'}>
