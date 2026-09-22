@@ -68,6 +68,7 @@
     "manageAccounts": "Manage accounts →",
     "drawerCalendars": "CALENDARS",
     "offlineBanner": "Offline — showing saved events",
+    "syncError": "Sync failed — tap to retry",
     "noEvents": "No events",
     "allDay": "All day",
     "noTitle": "(No title)",

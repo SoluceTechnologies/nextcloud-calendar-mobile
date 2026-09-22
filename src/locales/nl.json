@@ -68,6 +68,7 @@
     "manageAccounts": "Accounts beheren →",
     "drawerCalendars": "AGENDA'S",
     "offlineBanner": "Offline — opgeslagen afspraken worden getoond",
+    "syncError": "Synchronisatie mislukt — tik om opnieuw te proberen",
     "noEvents": "Geen afspraken",
     "allDay": "Hele dag",
     "noTitle": "(Geen titel)",
