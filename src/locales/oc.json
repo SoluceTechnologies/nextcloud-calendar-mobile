@@ -68,6 +68,7 @@
     "manageAccounts": "Gerir los comptes →",
     "drawerCalendars": "CALENDARS",
     "offlineBanner": "Fòra linha — afichatge dels eveniments salvats",
+    "syncError": "Fracàs de la sincronizacion — tocatz per tornar ensajar",
     "noEvents": "Pas d'eveniment",
     "allDay": "Jorn entièr",
     "noTitle": "(Sens títol)",
