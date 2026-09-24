@@ -9,6 +9,7 @@ import { TalkToggle } from './TalkToggle';
 import { AttendeesField } from './AttendeesField';
 import { requestAlertPermission } from '@/features/notifications/scheduleAlerts';
 import { useSettingsStore } from '@/stores/settingsStore';
+import { getNativePickerLocale } from '@/utils/i18n';
 import { AlertPicker } from './AlertPicker';
 import { RecurrencePicker } from './RecurrencePicker';
 import { Stack, Typography, TextField, DateField, Button, Chip, Toggle } from '@/ui/components';
@@ -53,6 +54,7 @@ export function EventForm({
   const theme = useTheme();
   const { t } = useTranslation();
   const twoColDates = useWindowDimensions().width >= 600;
+  const pickerLocale = getNativePickerLocale(useSettingsStore((s) => s.language));
 
   const [summary, setSummary] = useState(initialValues?.summary ?? '');
   const writableCalendars = calendars.filter(
@@ -205,6 +207,7 @@ export function EventForm({
             mode={allDay ? 'date' : 'datetime'}
             display="compact"
             accentColor={theme.colors.primary}
+            locale={pickerLocale}
             onChange={handleIosStartChange}
           />
         </View>
@@ -229,6 +232,7 @@ export function EventForm({
               mode={allDay ? 'date' : 'datetime'}
               display="compact"
               accentColor={theme.colors.primary}
+              locale={pickerLocale}
               onChange={handleIosEndChange}
             />
           </View>
