@@ -35,6 +35,12 @@ const config: ExpoConfig = {
         icon: './assets/icon-ios.icon',
         infoPlist: {
             CFBundleDisplayName: 'Nextcloud Calendar',
+            // Languages the app supports (kept in sync with LANGUAGES in
+            // src/utils/i18n.ts). Without this, iOS falls back to the
+            // development region for native UI (UIDatePicker, permission
+            // dialogs), showing e.g. English weekday names on a German device.
+            CFBundleLocalizations: ['en', 'fr', 'de', 'es', 'it', 'ru', 'pt', 'nl', 'oc'],
+            CFBundleAllowMixedLocalizations: true,
             LSApplicationQueriesSchemes: ['nextcloudtalk', 'comgooglemaps', 'waze'],
             ITSAppUsesNonExemptEncryption: false,
             NSAppTransportSecurity: {
