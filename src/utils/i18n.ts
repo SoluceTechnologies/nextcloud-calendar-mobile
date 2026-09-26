@@ -44,9 +44,6 @@ export function getInitialLanguage(): AppLanguage {
   return isSupported(code) ? code : 'en';
 }
 
-// Locale identifier for native pickers (UIDatePicker): the app language may
-// differ from the system locale, so combine the in-app language with the
-// device region (or the language's default region as fallback).
 export function getNativePickerLocale(language: AppLanguage): string {
   const region =
     getLocales()[0]?.regionCode ??
