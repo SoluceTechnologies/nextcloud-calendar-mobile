@@ -3,7 +3,7 @@ import { Appearance } from 'react-native';
 import { useSettingsStore } from '@/stores/settingsStore';
 import type { CalendarEvent } from '@/types';
 
-import { readWidgetEvents } from './readEvents';
+import { readContactBirthdayCalendarIds, readWidgetEvents } from './readEvents';
 import type { MonthWidgetDay, MonthWidgetSnapshot } from './types';
 
 const DAY_MS = 86_400_000;
@@ -29,6 +29,10 @@ function eventsByDay(events: CalendarEvent[]): Map<string, CalendarEvent[]> {
   return indexed;
 }
 
+export function formatMonthWidgetEventTitle(title: string, isContactBirthday: boolean): string {
+  return isContactBirthday ? title.replace(/\s*\(\d{4}\)\s*$/, '') : title;
+}
+
 export async function buildMonthWidgetSnapshot(
   now: Date = new Date(),
   monthOffset = 0,
@@ -37,7 +41,10 @@ export async function buildMonthWidgetSnapshot(
   const monthStart = new Date(target.getFullYear(), target.getMonth(), 1);
   const gridStart = mondayOnOrBefore(monthStart);
   const gridEnd = new Date(gridStart.getTime() + 42 * DAY_MS);
-  const events = await readWidgetEvents(gridStart, gridEnd);
+  const [events, contactBirthdayCalendarIds] = await Promise.all([
+    readWidgetEvents(gridStart, gridEnd),
+    readContactBirthdayCalendarIds(),
+  ]);
   const indexed = eventsByDay(events);
   const locale = useSettingsStore.getState().language;
   const today = dayKey(now);
@@ -51,7 +58,10 @@ export async function buildMonthWidgetSnapshot(
       isToday: dayKey(date) === today,
       events: dayEvents.slice(0, 4).map((event) => ({
         uid: event.uid,
-        title: event.summary || '(no title)',
+        title: formatMonthWidgetEventTitle(
+          event.summary || '(no title)',
+          contactBirthdayCalendarIds.has(event.calendarId),
+        ),
         color: event.color || '#0082C9',
       })),
       totalEvents: dayEvents.length,

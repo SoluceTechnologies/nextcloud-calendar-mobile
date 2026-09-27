@@ -24,6 +24,17 @@ import { useCalendarStore } from '@/stores/calendarStore';
 type Palette = ReturnType<typeof widgetPalette>;
 
 const WIDGET_NAMES = ['CalendarSmallWidget', 'CalendarMediumWidget', 'CalendarLargeWidget', 'CalendarMonthWidget'] as const;
+export const MONTH_WIDGET_LINKS = {
+  calendar: 'nextcloud-calendar:///calendar',
+  newEvent: 'nextcloud-calendar:///event/new',
+  settings: 'nextcloud-calendar:///settings/widgets',
+} as const;
+
+export function monthWidgetDayUri(date: string, action: 'calendar' | 'newEvent'): string {
+  return action === 'newEvent'
+    ? `${MONTH_WIDGET_LINKS.newEvent}?date=${encodeURIComponent(`${date}T09:00:00`)}`
+    : `${MONTH_WIDGET_LINKS.calendar}?date=${encodeURIComponent(date)}`;
+}
 
 function compactLimit(widgetName: string): number {
   return widgetName === 'CalendarSmallWidget' ? 2 : 3;
@@ -211,8 +222,12 @@ function MonthAndroidWidget({ snapshot, isDark }: { snapshot: MonthWidgetSnapsho
   const cardStyle = settings.monthWidgetCardStyle;
   const currentOffset = snapshot?.monthOffset ?? 0;
 
-  const darkBg = cardStyle === 'transparent' ? 'rgba(0, 0, 0, 0.70)' : 'rgba(0, 0, 0, 0.88)';
-  const lightBg = cardStyle === 'transparent' ? 'rgba(255, 255, 255, 0.70)' : 'rgba(255, 255, 255, 0.92)';
+  const darkBg = cardStyle === 'transparent'
+    ? 'rgba(0, 0, 0, 0.70)' as const
+    : 'rgba(0, 0, 0, 0.88)' as const;
+  const lightBg = cardStyle === 'transparent'
+    ? 'rgba(255, 255, 255, 0.70)' as const
+    : 'rgba(255, 255, 255, 0.92)' as const;
 
   const palette = dark
     ? {
@@ -270,10 +285,7 @@ function MonthAndroidWidget({ snapshot, isDark }: { snapshot: MonthWidgetSnapsho
   const eventFontSize = Math.round(9.5 * fontScale * 2) / 2;
   const moreFontSize = Math.round(8 * fontScale);
 
-  const dayUri = (date: string) =>
-    settings.monthWidgetDayTap === 'newEvent'
-      ? `nextcloud-calendar://event/new?date=${encodeURIComponent(`${date}T09:00:00`)}`
-      : `nextcloud-calendar://calendar?date=${encodeURIComponent(date)}`;
+  const dayUri = (date: string) => monthWidgetDayUri(date, settings.monthWidgetDayTap);
 
   if (!snapshot) {
     return (
@@ -287,7 +299,7 @@ function MonthAndroidWidget({ snapshot, isDark }: { snapshot: MonthWidgetSnapsho
           justifyContent: 'center',
         }}
         clickAction="OPEN_URI"
-        clickActionData={{ uri: 'nextcloud-calendar://calendar' }}
+        clickActionData={{ uri: MONTH_WIDGET_LINKS.calendar }}
       >
         <TextWidget text="Calendar" style={{ fontSize: widgetType.body, color: palette.dowWeekday }} />
       </FlexWidget>
@@ -335,7 +347,7 @@ function MonthAndroidWidget({ snapshot, isDark }: { snapshot: MonthWidgetSnapsho
             alignItems: 'center',
           }}
           clickAction="OPEN_URI"
-          clickActionData={{ uri: 'nextcloud-calendar://settings/widgets' }}
+          clickActionData={{ uri: MONTH_WIDGET_LINKS.settings }}
         >
           <TextWidget
             text="☰"
@@ -355,7 +367,6 @@ function MonthAndroidWidget({ snapshot, isDark }: { snapshot: MonthWidgetSnapsho
             justifyContent: 'center',
             paddingLeft: 6,
           }}
-          clickAction="OPEN_APP"
         >
           <TextWidget
             text={snapshot.monthLabel}
@@ -440,7 +451,7 @@ function MonthAndroidWidget({ snapshot, isDark }: { snapshot: MonthWidgetSnapsho
             alignItems: 'center',
           }}
           clickAction="OPEN_URI"
-          clickActionData={{ uri: 'nextcloud-calendar://event/new' }}
+          clickActionData={{ uri: MONTH_WIDGET_LINKS.newEvent }}
         >
           <TextWidget
             text="+"
@@ -464,7 +475,6 @@ function MonthAndroidWidget({ snapshot, isDark }: { snapshot: MonthWidgetSnapsho
           flexDirection: 'row',
           alignItems: 'center',
         }}
-        clickAction="OPEN_APP"
       >
         {weekDays.map((dow) => (
           <FlexWidget
