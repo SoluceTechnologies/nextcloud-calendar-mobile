@@ -113,3 +113,22 @@ describe('widgetTaskHandler (android)', () => {
     expect(props.renderWidget).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('month widget links', () => {
+  it('uses path-form Expo Router links for controls and calendar days', () => {
+    const {
+      MONTH_WIDGET_LINKS,
+      monthWidgetDayUri,
+    } = require('@/features/widget/surfaces/homeWidget/homeWidget.android');
+
+    expect(MONTH_WIDGET_LINKS).toEqual({
+      calendar: 'nextcloud-calendar:///calendar',
+      newEvent: 'nextcloud-calendar:///event/new',
+      settings: 'nextcloud-calendar:///settings/widgets',
+    });
+    expect(monthWidgetDayUri('2026-10-03', 'calendar'))
+      .toBe('nextcloud-calendar:///calendar?date=2026-10-03');
+    expect(monthWidgetDayUri('2026-10-03', 'newEvent'))
+      .toBe('nextcloud-calendar:///event/new?date=2026-10-03T09%3A00%3A00');
+  });
+});

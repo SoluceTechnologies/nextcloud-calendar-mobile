@@ -1,5 +1,6 @@
 import { buildAgendaSnapshot, buildAgendaTimeline } from '@/features/widget/core/agendaSnapshot';
 import { selectOngoingEvent, eventProgress, formatRemaining, remainingMinutes } from '@/features/widget/core/liveEvent';
+import { formatMonthWidgetEventTitle } from '@/features/widget/core/monthSnapshot';
 import type { CalendarEvent } from '@/types';
 
 function ev(partial: Partial<CalendarEvent> & { dtstart: Date; dtend: Date }): CalendarEvent {
@@ -12,6 +13,17 @@ function ev(partial: Partial<CalendarEvent> & { dtstart: Date; dtend: Date }): C
 }
 
 const TZ = 'Europe/Berlin';
+
+describe('formatMonthWidgetEventTitle', () => {
+  it('removes a trailing birth year from contact birthdays', () => {
+    expect(formatMonthWidgetEventTitle('Ada Lovelace (1815)', true)).toBe('Ada Lovelace');
+  });
+
+  it('keeps years on ordinary events and non-trailing years', () => {
+    expect(formatMonthWidgetEventTitle('Conference (2026)', false)).toBe('Conference (2026)');
+    expect(formatMonthWidgetEventTitle('(1980) Birthday lunch', true)).toBe('(1980) Birthday lunch');
+  });
+});
 
 describe('buildAgendaSnapshot', () => {
   const now = new Date('2026-08-01T09:00:00Z');
