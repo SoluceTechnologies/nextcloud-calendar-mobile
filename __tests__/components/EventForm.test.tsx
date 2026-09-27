@@ -84,9 +84,11 @@ describe('EventForm default calendar', () => {
   ];
   const account = {
     id: 'acc-1',
+    displayName: 'John',
     baseUrl: 'https://cloud.example.com',
     username: 'john',
     appPassword: 'x',
+    davUserId: 'john',
   };
 
   beforeEach(async () => {
