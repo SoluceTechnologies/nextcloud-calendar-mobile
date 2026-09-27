@@ -22,6 +22,11 @@ import { goBackOrHome } from '@/utils/navigationGuard';
 
 const LOAD_TIMEOUT_MS = 15 * 1000;
 
+/** Lower-cased host[:port] of an http(s) URL, '' for anything else. */
+function hostOf(u: string): string {
+  return u.match(/^https?:\/\/([^/?#]+)/i)?.[1]?.toLowerCase() ?? '';
+}
+
 /**
  * Polyfill of the `DirectEditingMobileInterface` contract that editor pages
  * (Nextcloud Text, richdocuments…) feature-detect. Each declared method
@@ -113,8 +118,13 @@ export default function AttachmentEditorScreen() {
       const target = values?.URL ?? values?.url;
       if (typeof target !== 'string') return;
       try {
-        // Export endpoints live on the same host; Basic auth works there.
+        // Export endpoints live on the same host; Basic auth works there —
+        // but never send credentials to a different host the page points at.
         const absolute = new URL(target, account.baseUrl).toString();
+        if (hostOf(absolute) !== hostOf(account.baseUrl)) {
+          console.warn('[editor] downloadAs refused: cross-host target', absolute);
+          return;
+        }
         const filename = typeof values?.filename === 'string' ? values.filename : undefined;
         const fmttype = typeof values?.Type === 'string' ? values.Type : undefined;
         await downloadAndShare(
@@ -187,8 +197,6 @@ export default function AttachmentEditorScreen() {
       const target = request.url;
       if (!/^https?:/i.test(target)) return false;
       if (!account) return true;
-      const hostOf = (u: string) =>
-        u.match(/^https?:\/\/([^/?#]+)/i)?.[1]?.toLowerCase() ?? '';
       if (hostOf(target) === hostOf(account.baseUrl)) return true;
       void Linking.openURL(target).catch(() => {});
       return false;
