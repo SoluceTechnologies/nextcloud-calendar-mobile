@@ -152,7 +152,8 @@ describe('FindTimeSuggestSheet', () => {
     expect(request!.attendees).toEqual(attendees);
     expect(request!.mode).toBe('strict');
     expect(onClose).toHaveBeenCalled();
-    expect(mockPush).toHaveBeenCalledWith('/event/find-time');
+    // Navigation is deferred a tick so the Sheet modal can unmount first.
+    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/event/find-time'));
   });
 
   it('marks the suggestion matching the current event time as Current', async () => {
