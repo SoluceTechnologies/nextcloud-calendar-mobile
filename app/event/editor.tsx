@@ -196,12 +196,13 @@ export default function AttachmentEditorScreen() {
     (request: ShouldStartLoadRequest) => {
       const target = request.url;
       if (!/^https?:/i.test(target)) return false;
-      if (!account) return true;
-      if (hostOf(target) === hostOf(account.baseUrl)) return true;
+      // The editor host is the loaded URL's — reliable even while the account
+      // store is still hydrating, and no wider than what was actually minted.
+      if (url && hostOf(target) === hostOf(url)) return true;
       void Linking.openURL(target).catch(() => {});
       return false;
     },
-    [account],
+    [url],
   );
 
   return (
