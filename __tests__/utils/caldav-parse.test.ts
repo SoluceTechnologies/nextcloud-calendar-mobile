@@ -1,4 +1,4 @@
-import { parseIcsObjects, parseIcsObjectsAsync, extractDtstartDtend, extractExtraVeventLines } from '@/utils/caldav-parse';
+import { parseIcsObjects, parseIcsObjectsAsync, extractDtstartDtend, extractExtraVeventLines, base64Fingerprint } from '@/utils/caldav-parse';
 import { buildAllDayIcs, buildIcs } from '@/utils/ics';
 
 const sampleIcs = `BEGIN:VCALENDAR
@@ -824,6 +824,9 @@ END:VCALENDAR`;
     );
     expect(Date.now() - started).toBeLessThan(3000);
     expect(events).toEqual([]);
+  });
+});
+
 describe('ATTACH parsing — event attachments', () => {
   const calMeta = { calendarId: 'cal-1', accountId: 'acc-1', color: '#0082c9' };
 
@@ -941,6 +944,7 @@ END:VCALENDAR`;
         size: 5,
         base64: undefined,
         inline: true,
+        digest: base64Fingerprint('aGVsbG8='),
       });
       const linked = e.attachments!.find((a) => a.filename === 'a.pdf');
       expect(linked?.uri).toBe('https://example.com/a.pdf');
@@ -967,6 +971,7 @@ END:VCALENDAR`;
         size: 76800,
         base64: undefined,
         inline: true,
+        digest: base64Fingerprint(bigBase64),
       },
     ]);
   });

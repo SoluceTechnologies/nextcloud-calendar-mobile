@@ -47,6 +47,8 @@ export type EventAttachment = {
     base64?: string;
     /** True when binary content exists in the server ICS but was stripped locally (occurrence rows, oversized embeds). */
     inline?: boolean;
+    /** Content fingerprint of a stripped base64 payload — lets a re-fetch pick the right ATTACH when metadata is ambiguous. */
+    digest?: string;
     filename?: string;
     fmttype?: string;
     size?: number;
