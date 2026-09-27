@@ -87,6 +87,7 @@ describe('EventForm default calendar', () => {
     baseUrl: 'https://cloud.example.com',
     username: 'john',
     appPassword: 'x',
+    davUserId: 'john',
   };
 
   beforeEach(async () => {
