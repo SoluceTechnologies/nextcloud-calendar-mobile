@@ -210,6 +210,23 @@ describe('AttachmentEditorScreen', () => {
     );
   });
 
+  it('refuses to send credentials to a cross-host downloadAs target', async () => {
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    const { downloadAndShare } = jest.requireMock(
+      '../../src/features/event/utils/attachments',
+    );
+    render(<AttachmentEditorScreen />, { wrapper });
+    await waitFor(() => expect(webviewProps.source).toBeTruthy());
+    sendMessage('downloadAs', { URL: 'https://evil.example.com/x' });
+    await waitFor(() =>
+      expect(warnSpy).toHaveBeenCalledWith(
+        '[editor] downloadAs refused: cross-host target',
+        'https://evil.example.com/x',
+      ),
+    );
+    expect(downloadAndShare).not.toHaveBeenCalled();
+  });
+
   it('opens hyperlinks externally', async () => {
     const linkSpy = jest
       .spyOn(require('react-native').Linking, 'openURL')
