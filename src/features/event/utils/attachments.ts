@@ -194,7 +194,7 @@ async function downloadAndShare(
   att: EventAttachment,
   auth?: string,
 ): Promise<void> {
-  const headers = auth ? { Authorization: auth } : {};
+  const headers: Record<string, string> = auth ? { Authorization: auth } : {};
 
   // A HEAD first avoids downloading a body we would reject anyway: the
   // declared SIZE parameter can lie.
