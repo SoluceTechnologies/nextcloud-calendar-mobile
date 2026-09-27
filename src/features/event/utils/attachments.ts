@@ -13,10 +13,14 @@ import {
   type LucideIcon,
 } from 'lucide-react-native';
 
-import { trustedFetch } from '@/services/shared/trustedFetch';
+import {
+  trustedFetch,
+  ResponseTooLargeError,
+  type TrustedResponse,
+} from '@/services/shared/trustedFetch';
 import { fetchEventIcs } from '@/services/nextcloud/caldav';
 import { utf8ToBase64 } from '@/services/shared/base64';
-import { extractEventAttachments } from '@/utils/caldav-parse';
+import { base64Fingerprint, extractEventAttachments } from '@/utils/caldav-parse';
 import i18n from '@/utils/i18n';
 import type { Account, EventAttachment } from '@/types';
 
@@ -192,8 +196,7 @@ async function openUriAttachment(
   };
 
   // A HEAD first avoids downloading a body we would reject anyway: the
-  // declared SIZE parameter can lie and the native fetch buffers the whole
-  // response before we can measure it.
+  // declared SIZE parameter can lie.
   try {
     const head = await trustedFetch(uri, {
       method: 'HEAD',
@@ -209,10 +212,22 @@ async function openUriAttachment(
     // HEAD unsupported or transient failure — fall through to the guarded GET.
   }
 
-  const res = await trustedFetch(uri, {
-    headers: authHeaders,
-    timeoutMs: 30000,
-  });
+  // maxBodyBytes makes the native layer abort the response instead of
+  // buffering an oversized body (e.g. a chunked reply with no Content-Length).
+  let res: TrustedResponse;
+  try {
+    res = await trustedFetch(uri, {
+      headers: authHeaders,
+      timeoutMs: 30000,
+      maxBodyBytes: MAX_ATTACHMENT_BYTES,
+    });
+  } catch (e) {
+    if (e instanceof ResponseTooLargeError) {
+      Alert.alert(i18n.t('event.attachmentTooLarge'));
+      return;
+    }
+    throw e;
+  }
   if (!res.ok) {
     throw new Error(`attachment-download-${res.status}`);
   }
@@ -253,7 +268,8 @@ async function openInlineAttachment(
       !!candidate.base64 &&
       (candidate.filename ?? '') === (att.filename ?? '') &&
       (candidate.fmttype ?? '') === (att.fmttype ?? '') &&
-      (candidate.size ?? 0) === (att.size ?? 0),
+      (candidate.size ?? 0) === (att.size ?? 0) &&
+      (!att.digest || base64Fingerprint(candidate.base64) === att.digest),
   );
   if (!match?.base64) throw new Error('inline-attachment-not-found');
   await openBase64Attachment({ ...att, base64: match.base64 });

@@ -8,8 +8,9 @@ import {
   isOpenableAttachment,
   openAttachment,
 } from '../../../src/features/event/utils/attachments';
-import { trustedFetch } from '../../../src/services/shared/trustedFetch';
+import { trustedFetch, ResponseTooLargeError } from '../../../src/services/shared/trustedFetch';
 import { fetchEventIcs } from '../../../src/services/nextcloud/caldav';
+import { base64Fingerprint } from '../../../src/utils/caldav-parse';
 import type { Account, EventAttachment } from '../../../src/types';
 
 jest.mock('expo-file-system/legacy', () => ({
@@ -28,6 +29,7 @@ jest.mock('expo-sharing', () => ({
 
 jest.mock('../../../src/services/shared/trustedFetch', () => ({
   trustedFetch: jest.fn(),
+  ResponseTooLargeError: class ResponseTooLargeError extends Error {},
 }));
 
 jest.mock('../../../src/services/nextcloud/caldav', () => ({
@@ -300,6 +302,28 @@ describe('openAttachment', () => {
     expect(mockedShare).not.toHaveBeenCalled();
   });
 
+  it('caps the download natively via maxBodyBytes and maps the abort to too-large', async () => {
+    mockedFetch.mockImplementation(((_url: string, init?: { method?: string; maxBodyBytes?: number }) => {
+      if (init?.method === 'HEAD') {
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          headers: { get: () => null },
+          base64: () => Promise.resolve(''),
+        });
+      }
+      expect(init?.maxBodyBytes).toBe(10 * 1024 * 1024);
+      return Promise.reject(new ResponseTooLargeError());
+    }) as typeof trustedFetch);
+    const att: EventAttachment = {
+      uri: 'https://cloud.example.com/f.bin',
+      filename: 'f.bin',
+    };
+    await openAttachment(att, account());
+    expect(Alert.alert).toHaveBeenCalledWith('This attachment is too large to open');
+    expect(mockedShare).not.toHaveBeenCalled();
+  });
+
   describe('inline (occurrence) attachments', () => {
     const inlineIcs = `BEGIN:VCALENDAR
 VERSION:2.0
@@ -329,6 +353,33 @@ END:VCALENDAR`;
       );
       expect(mockedShare).toHaveBeenCalled();
       expect(Alert.alert).not.toHaveBeenCalled();
+    });
+
+    it('uses the stored digest to pick the right payload among same-metadata attachments', async () => {
+      const ics = `BEGIN:VCALENDAR
+VERSION:2.0
+BEGIN:VEVENT
+UID:dup
+DTSTART:20260601T140000Z
+DTEND:20260601T150000Z
+ATTACH;ENCODING=BASE64;VALUE=BINARY;FMTTYPE=text/plain;FILENAME=same.txt:aGVsbG8=
+ATTACH;ENCODING=BASE64;VALUE=BINARY;FMTTYPE=text/plain;FILENAME=same.txt:d29ybGQ=
+END:VEVENT
+END:VCALENDAR`;
+      mockedFetchIcs.mockResolvedValue(ics);
+      const att: EventAttachment = {
+        inline: true,
+        filename: 'same.txt',
+        fmttype: 'text/plain',
+        size: 5,
+        digest: base64Fingerprint('d29ybGQ='),
+      };
+      await openAttachment(att, account(), '/cal/dup.ics');
+      expect(mockedWrite).toHaveBeenCalledWith(
+        expect.stringContaining('same.txt'),
+        'd29ybGQ=',
+        { encoding: 'base64' }
+      );
     });
 
     it('alerts when the attachment is missing from the fetched ICS', async () => {
