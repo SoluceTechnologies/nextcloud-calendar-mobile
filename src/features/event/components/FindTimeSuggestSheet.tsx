@@ -114,10 +114,11 @@ export function FindTimeSuggestSheet({
       mode: everyoneFree ? 'strict' : 'permissive',
       requiredAttendees,
     });
-    // The Sheet is an RN Modal: it must unmount before the route is pushed,
-    // otherwise the pushed screen renders underneath the modal on Android.
+    // The Sheet is an RN Modal: the state update must flush (and the modal
+    // start unmounting) before the route is pushed, otherwise the pushed
+    // screen renders underneath the modal on Android.
     onClose();
-    router.push('/event/find-time');
+    setTimeout(() => router.push('/event/find-time'), 0);
   }
 
   const hasData = !loading && !error && availabilities.length > 0;
