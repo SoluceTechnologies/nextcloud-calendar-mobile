@@ -2,6 +2,7 @@ import { Q } from '@nozbe/watermelondb';
 
 import type { CalendarEvent } from '@/types';
 import { database } from '@/database';
+import Calendar from '@/database/models/Calendar';
 import Event from '@/database/models/Event';
 import { mapEventToShared } from '@/database/mappers/event';
 import { useAccountStore } from '@/stores/accountStore';
@@ -52,6 +53,26 @@ export async function readWidgetEvents(rangeStart: Date, rangeEnd: Date): Promis
     rows
       .map(mapEventToShared)
       .filter((event) => !hidden.includes(event.calendarId) && !disabled.includes(event.calendarId)),
+  );
+}
+
+export async function readContactBirthdayCalendarIds(): Promise<Set<string>> {
+  const accountId = useAccountStore.getState().activeAccountId;
+  if (!accountId) return new Set();
+
+  const rows = await database
+    .get<Calendar>('calendars')
+    .query(Q.where('account_id', accountId))
+    .fetch();
+
+  return new Set(
+    rows
+      .filter((calendar) =>
+        [calendar.remoteId, calendar.slug, calendar.url]
+          .filter(Boolean)
+          .some((value) => value.toLowerCase().includes('contact_birthdays')),
+      )
+      .map((calendar) => calendar.remoteId),
   );
 }
 
