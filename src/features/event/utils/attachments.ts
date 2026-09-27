@@ -378,14 +378,19 @@ export async function pickDeviceAttachment(): Promise<PendingAttachment | null> 
     });
     if (result.canceled || !result.assets?.[0]) return null;
     const asset = result.assets[0];
-    if (asset.size && asset.size > MAX_ATTACHMENT_BYTES) {
+    // `asset.size` may be missing — stat the cached copy rather than buffering
+    // an oversized payload just to measure it.
+    const size =
+      asset.size ??
+      (await FileSystem.getInfoAsync(asset.uri).then((i) => (i.exists ? i.size : undefined)));
+    if (size !== undefined && size > MAX_ATTACHMENT_BYTES) {
       Alert.alert(i18n.t('event.attachmentTooLarge'));
       return null;
     }
     const contentBase64 = await FileSystem.readAsStringAsync(asset.uri, {
       encoding: FileSystem.EncodingType.Base64,
     });
-    // `asset.size` may be missing — re-check on the actual payload.
+    // A stale or picker-misreported size still gets caught on the payload.
     if (decodedBase64Bytes(contentBase64) > MAX_ATTACHMENT_BYTES) {
       Alert.alert(i18n.t('event.attachmentTooLarge'));
       return null;
@@ -394,7 +399,7 @@ export async function pickDeviceAttachment(): Promise<PendingAttachment | null> 
       name: asset.name,
       contentBase64,
       mimeType: asset.mimeType,
-      size: asset.size,
+      size,
     };
   } catch (error) {
     console.warn('[attachments] pick/read failed', error);
