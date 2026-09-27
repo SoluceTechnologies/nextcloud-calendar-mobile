@@ -81,6 +81,15 @@ function base64DecodedSize(b64: string): number {
   return Math.max(0, Math.floor(b64.length * 3 / 4) - padding);
 }
 
+/**
+ * Cheap content fingerprint for a base64 payload: length plus the first and
+ * last 64 chars. Stored on stripped attachments so a re-fetch can re-identify
+ * the exact ATTACH even when another one shares filename/fmttype/size.
+ */
+export function base64Fingerprint(b64: string): string {
+  return `${b64.length}:${b64.slice(0, 64)}${b64.slice(-64)}`;
+}
+
 function attachSize(prop: ICAL.Property, base64?: string): number | undefined {
   const raw = prop.getParameter('size');
   const n = typeof raw === 'number' ? raw : Number(raw);
@@ -124,7 +133,12 @@ const MAX_STORED_ATTACHMENT_BYTES = 64 * 1024;
 function stripInlineContent(att: EventAttachment, force = false): EventAttachment {
   if (!att.base64) return att;
   if (!force && base64DecodedSize(att.base64) <= MAX_STORED_ATTACHMENT_BYTES) return att;
-  return { ...att, base64: undefined, inline: true };
+  return {
+    ...att,
+    base64: undefined,
+    inline: true,
+    digest: base64Fingerprint(att.base64),
+  };
 }
 
 /** All attachments declared by every VEVENT/VTODO of an ICS document. */
