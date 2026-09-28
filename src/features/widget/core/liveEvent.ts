@@ -50,7 +50,7 @@ export function selectOngoingEvent(events: CalendarEvent[], now: Date = new Date
   if (!e) return null;
   return {
     uid: e.uid,
-    title: e.summary || '(no title)',
+    title: e.summary || i18n.t('calendar.noTitle'),
     startIso: e.dtstart.toISOString(),
     endIso: e.dtend.toISOString(),
     color: e.color,

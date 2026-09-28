@@ -49,7 +49,7 @@ function zonedKey(d: Date, tz: string): string {
 }
 
 function timeLabel(event: CalendarEvent, locale: string | undefined, tz: string, use24h?: boolean): string {
-  if (event.allDay) return 'All day';
+  if (event.allDay) return i18n.t('calendar.allDay');
   const f = fmt('time', locale, tz, use24h);
   return `${f.format(event.dtstart)} – ${f.format(event.dtend)}`;
 }
@@ -76,7 +76,7 @@ function indexEvents(events: CalendarEvent[], tz: string): EventIndex {
 function toItem(event: CalendarEvent, locale: string | undefined, tz: string, use24h?: boolean): AgendaEventItem {
   return {
     uid: event.uid,
-    title: event.summary || '(no title)',
+    title: event.summary || i18n.t('calendar.noTitle'),
     startIso: event.dtstart.toISOString(),
     endIso: event.dtend.toISOString(),
     allDay: event.allDay,
