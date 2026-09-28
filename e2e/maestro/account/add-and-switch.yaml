@@ -1,0 +1,28 @@
+appId: com.soluce.nextcloudcalendar
+---
+- runFlow:
+    file: ../shared/login-and-wait.yaml
+    env: { TITLE: "${A_TITLE}" }
+- runFlow: ../shared/open-settings.yaml
+- tapOn:
+    id: settings-accounts
+- tapOn:
+    id: accounts-add
+- runFlow:
+    file: ../shared/login.yaml
+    env: { NC_USER: "${B_USER}", NC_PASS: "${B_PASS}" }
+- runFlow: ../shared/open-calendar.yaml
+- extendedWaitUntil:
+    visible: ${B_TITLE}
+    timeout: 60000
+- assertNotVisible: ${A_TITLE}
+- runFlow: ../shared/open-settings.yaml
+- tapOn:
+    id: settings-accounts
+- tapOn:
+    id: account-card-activate-${NC_USER}
+- runFlow: ../shared/open-calendar.yaml
+- extendedWaitUntil:
+    visible: ${A_TITLE}
+    timeout: 60000
+- assertNotVisible: ${B_TITLE}

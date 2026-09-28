@@ -14,16 +14,19 @@ interface ChipProps {
   small?: boolean;
   activeColor?: string;
   children?: React.ReactNode;
+  testID?: string;
 }
 
 function Chip({
-  active = false, onPress, icon, disabled = false, fullWidth = false, rounded = false, small = false, activeColor, children,
+  active = false, onPress, icon, disabled = false, fullWidth = false, rounded = false, small = false, activeColor, children, testID,
 }: ChipProps) {
   const { colors, radius } = useTheme();
   const activeBg = activeColor ?? colors.chipActive;
 
   return (
     <AnimatedPressable
+      testID={testID}
+      accessibilityState={{ selected: active, disabled }}
       onPress={onPress}
       disabled={disabled}
       animated={!disabled}

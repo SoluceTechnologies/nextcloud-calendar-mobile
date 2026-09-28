@@ -131,6 +131,7 @@ export default function AccountDetailScreen() {
           onPress={() => Linking.openURL(`${account.baseUrl}/settings/user`)}
         />
         <Button
+          testID="account-delete"
           variant="ghost"
           color="danger"
           title={t('settings.account.delete')}

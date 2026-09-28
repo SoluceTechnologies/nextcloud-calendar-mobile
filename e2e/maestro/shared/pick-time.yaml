@@ -1,0 +1,24 @@
+appId: com.soluce.nextcloudcalendar
+---
+- tapOn:
+    id: ${FIELD}
+- tapOn: "OK"
+- tapOn:
+    id: android:id/toggle_mode
+- tapOn:
+    id: android:id/input_hour
+- eraseText: 2
+- inputText: ${HOUR}
+- tapOn:
+    id: android:id/input_minute
+- eraseText: 2
+- inputText: ${MINUTE}
+- runFlow:
+    when:
+      visible:
+        id: android:id/am_pm_spinner
+    commands:
+      - tapOn:
+          id: android:id/am_pm_spinner
+      - tapOn: ${MERIDIEM}
+- tapOn: "OK"

@@ -34,6 +34,7 @@ export default function AppearanceSettingsScreen() {
           {THEME_VALUES.map((value) => (
             <Chip
               key={value}
+              testID={`settings-theme-${value}`}
               fullWidth
               active={pendingTheme === value}
               onPress={() => { setPendingTheme(value); setThemePreference(value); }}

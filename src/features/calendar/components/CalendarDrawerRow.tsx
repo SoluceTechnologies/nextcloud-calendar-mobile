@@ -51,6 +51,7 @@ function CalendarDrawerRowImpl({
               : <BellOff size={20} color={bellColor} />}
           </IconButton>
           <Toggle
+            testID={`calendar-drawer-visibility-${calendar.displayName}`}
             value={visible}
             onValueChange={onToggleVisibility}
             accessibilityLabel={t('calendar.calendarVisibility', { name: calendar.displayName })}

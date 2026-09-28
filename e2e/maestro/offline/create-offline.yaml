@@ -1,0 +1,35 @@
+appId: com.soluce.nextcloudcalendar
+---
+- runFlow:
+    file: ../shared/home-and-wait.yaml
+    env: { TITLE: "E2E seed" }
+- setAirplaneMode: enabled
+- extendedWaitUntil:
+    visible:
+      id: calendar-offline-banner
+    timeout: 30000
+- tapOn:
+    id: calendar-fab-new
+- extendedWaitUntil:
+    visible:
+      id: event-form-title
+    timeout: 15000
+- tapOn:
+    id: event-form-title
+- inputText: ${TITLE}
+- tapOn:
+    id: event-form-all-day
+- scrollUntilVisible:
+    element:
+      id: event-form-save
+- tapOn:
+    id: event-form-save
+- extendedWaitUntil:
+    visible: ${TITLE}
+    timeout: 30000
+- setAirplaneMode: disabled
+- extendedWaitUntil:
+    notVisible:
+      id: calendar-offline-banner
+    timeout: 60000
+- assertVisible: ${TITLE}

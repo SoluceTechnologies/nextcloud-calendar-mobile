@@ -9,7 +9,7 @@ export function OfflineBanner() {
   const { t } = useTranslation();
   if (online) return null;
   return (
-    <Stack direction="horizontal" vAlign="center" hAlign="center" padding={[12, 4]} backgroundColor={colors.warning}>
+    <Stack testID="calendar-offline-banner" direction="horizontal" vAlign="center" hAlign="center" padding={[12, 4]} backgroundColor={colors.warning}>
       <Typography variant="caption" color="light" weight="600" nowrap style={{ fontSize: 12 }}>
         {t('calendar.offlineBanner')}
       </Typography>

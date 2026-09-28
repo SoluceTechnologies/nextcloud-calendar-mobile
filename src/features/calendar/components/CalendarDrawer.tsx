@@ -52,6 +52,7 @@ export function CalendarDrawer({
       <Animated.View
         style={[styles.overlay, { opacity: overlayAnim }]}
         pointerEvents={open ? 'auto' : 'none'}
+        testID="calendar-drawer-backdrop"
         onStartShouldSetResponder={() => true}
         onResponderRelease={onClose}
       />

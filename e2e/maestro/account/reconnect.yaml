@@ -1,0 +1,23 @@
+appId: com.soluce.nextcloudcalendar
+---
+- runFlow: ../shared/relaunch.yaml
+- runFlow: ../shared/open-settings.yaml
+- tapOn:
+    id: settings-active-account
+- scrollUntilVisible:
+    element:
+      id: account-reconnect-password
+- tapOn:
+    id: account-reconnect-password
+- inputText: ${NEW_PASS}
+- tapOn:
+    id: account-reconnect-submit
+- extendedWaitUntil:
+    visible:
+      id: account-reconnect-success
+    timeout: 30000
+- runFlow: ../shared/relaunch.yaml
+- extendedWaitUntil:
+    visible: ${AFTER_TITLE}
+    timeout: 60000
+- assertVisible: ${BEFORE_TITLE}

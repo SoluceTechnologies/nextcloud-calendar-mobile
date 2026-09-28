@@ -241,6 +241,7 @@ export function RecurrencePicker({ value, onChange, dtstart, allDay = false }: P
       <Text style={[styles.sectionLabel, { color: theme.colors.textSecondary }]}>{t('event.repeat')}</Text>
       <View style={styles.grow}>
         <Select
+          testID="event-form-recurrence"
           value={selectedFreq}
           options={FREQS}
           onChange={handleFreqSelect}

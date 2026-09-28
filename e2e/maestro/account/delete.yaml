@@ -1,0 +1,17 @@
+appId: com.soluce.nextcloudcalendar
+---
+- runFlow: ../shared/reset.yaml
+- runFlow: ../shared/login.yaml
+- runFlow: ../shared/open-settings.yaml
+- tapOn:
+    id: settings-active-account
+- scrollUntilVisible:
+    element:
+      id: account-delete
+- tapOn:
+    id: account-delete
+- tapOn: "Remove"
+- extendedWaitUntil:
+    visible:
+      id: setup-server-url
+    timeout: 30000

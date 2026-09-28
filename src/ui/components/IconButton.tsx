@@ -16,6 +16,7 @@ interface IconButtonProps extends AccessibilityProps {
   disabled?: boolean;
   children?: React.ReactNode;
   hapticFeedback?: Haptics.ImpactFeedbackStyle | null;
+  testID?: string;
 }
 
 function IconButton({

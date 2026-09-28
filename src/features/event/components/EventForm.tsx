@@ -205,6 +205,7 @@ export function EventForm({
         </View>
       ) : (
         <DateField
+          testID="event-form-start"
           label={t('event.start')}
           value={dayjs(dtstart).format('ddd ll')}
           time={allDay ? undefined : dayjs(dtstart).format('LT')}
@@ -233,6 +234,7 @@ export function EventForm({
         </>
       ) : (
         <DateField
+          testID="event-form-end"
           label={t('event.end')}
           value={dayjs(dtend).format('ddd ll')}
           time={allDay ? undefined : dayjs(dtend).format('LT')}
@@ -260,6 +262,7 @@ export function EventForm({
       <Stack gap={16}>
         <View onLayout={(e) => onFieldLayout('title', e)}>
           <TextField
+            testID="event-form-title"
             label={t('event.titleLabel')}
             value={summary}
             onChangeText={(v) => { setSummary(v); if (titleError) setTitleError(null); }}
@@ -274,7 +277,7 @@ export function EventForm({
           {writableCalendars.length === 0 && (
             <Typography variant="caption" color="danger">{t('event.noWritableCalendars')}</Typography>
           )}
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={styles.chipRow}>
             {writableCalendars.map((cal) => (
               <Chip
                 key={cal.id}
@@ -299,7 +302,7 @@ export function EventForm({
         <Stack direction="horizontal" vAlign="center" hAlign="center">
           <Typography variant="body2" color="secondary">{t('event.allDay')}</Typography>
           <View style={styles.pushRight}>
-            <Toggle value={allDay} onValueChange={(v) => { setAllDay(v); setEndError(null); }} />
+            <Toggle testID="event-form-all-day" value={allDay} onValueChange={(v) => { setAllDay(v); setEndError(null); }} />
           </View>
         </Stack>
 
@@ -333,6 +336,7 @@ export function EventForm({
 
         <View onLayout={(e) => onFieldLayout('location', e)}>
           <TextField
+            testID="event-form-location"
             label={t('event.location')}
             value={location}
             onChangeText={setLocation}
@@ -375,6 +379,7 @@ export function EventForm({
         />
 
         <Button
+          testID="event-form-save"
           variant="primary"
           title={loading ? t('event.saving') : (submitLabel ?? t('event.saveEvent'))}
           loading={loading}

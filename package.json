@@ -90,6 +90,7 @@
     "patch-package": "^8.0.1",
     "react-test-renderer": "19.2.3",
     "release-it": "^19.2.4",
+    "testcontainers": "^12.1.0",
     "typescript": "~6.0.3"
   },
   "jest": {
@@ -98,9 +99,11 @@
       "@testing-library/jest-native/extend-expect",
       "<rootDir>/jest.setup.js"
     ],
+    "testMatch": [
+      "<rootDir>/src/**/*.test.[jt]s?(x)"
+    ],
     "testPathIgnorePatterns": [
-      "/node_modules/",
-      "<rootDir>/__tests__/helpers/"
+      "/node_modules/"
     ],
     "moduleNameMapper": {
       "^@/(.*)$": "<rootDir>/src/$1",

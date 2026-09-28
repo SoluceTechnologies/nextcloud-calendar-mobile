@@ -1,0 +1,21 @@
+appId: com.soluce.nextcloudcalendar
+---
+- runFlow: ../shared/home-and-wait.yaml
+- tapOn:
+    id: calendar-drawer-open
+- tapOn:
+    id: calendar-drawer-visibility-${CAL_NAME}
+- tapOn:
+    id: calendar-drawer-backdrop
+    point: "90%,50%"
+- assertNotVisible: ${TITLE}
+- tapOn:
+    id: calendar-drawer-open
+- tapOn:
+    id: calendar-drawer-visibility-${CAL_NAME}
+- tapOn:
+    id: calendar-drawer-backdrop
+    point: "90%,50%"
+- extendedWaitUntil:
+    visible: ${TITLE}
+    timeout: 15000

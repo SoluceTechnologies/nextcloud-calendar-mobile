@@ -37,6 +37,7 @@ export default function SettingsScreen() {
         >
           <List>
             <Item
+              testID="settings-active-account"
               onPress={() => router.push(
                 activeAccountId
                   ? `/(tabs)/settings/account/${activeAccountId}`
@@ -61,6 +62,7 @@ export default function SettingsScreen() {
             <SectionHeader title={t('settings.sections.general')} />
             <List>
               <SettingsLink
+                testID="settings-appearance"
                 title={t('settings.appearance')}
                 icon={<Palette />}
                 onPress={() => router.push('/(tabs)/settings/appearance')}
@@ -103,6 +105,7 @@ export default function SettingsScreen() {
             <SectionHeader title={t('settings.sections.app')} />
             <List>
               <SettingsLink
+                testID="settings-accounts"
                 title={t('settings.accounts')}
                 icon={<UserRound />}
                 onPress={() => router.push('/(tabs)/settings/accounts')}

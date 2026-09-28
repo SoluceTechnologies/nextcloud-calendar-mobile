@@ -1,0 +1,18 @@
+appId: com.soluce.nextcloudcalendar
+---
+- runFlow: ../shared/ensure-home.yaml
+- runFlow: ../shared/open-event.yaml
+- tapOn:
+    id: event-detail-delete
+- tapOn: "All events"
+- tapOn: "Delete"
+- extendedWaitUntil:
+    visible:
+      id: calendar-fab-new
+    timeout: 30000
+- assertNotVisible: ${TITLE}
+- swipe:
+    direction: LEFT
+    duration: 400
+- waitForAnimationToEnd
+- assertNotVisible: ${TITLE}

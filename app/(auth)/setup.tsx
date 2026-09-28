@@ -191,6 +191,7 @@ export default function SetupScreen() {
             </Stack>
 
             <TextField
+              testID="setup-server-url"
               label={t('setup.serverUrl')}
               placeholder={t('setup.placeholders.serverUrl')}
               autoCapitalize="none"
@@ -201,6 +202,7 @@ export default function SetupScreen() {
             />
 
             <TextField
+              testID="setup-username"
               label={t('setup.username')}
               placeholder={t('setup.placeholders.username')}
               autoCapitalize="none"
@@ -210,6 +212,7 @@ export default function SetupScreen() {
             />
 
             <TextField
+              testID="setup-app-password"
               label={t('setup.appPassword')}
               placeholder={t('setup.placeholders.appPassword')}
               secureTextEntry={!showPassword}
@@ -226,9 +229,10 @@ export default function SetupScreen() {
               }
             />
 
-            {error ? <Typography variant="caption" color="danger">{error}</Typography> : null}
+            {error ? <Typography testID="setup-error" variant="caption" color="danger">{error}</Typography> : null}
 
             <Button
+              testID="setup-connect"
               variant="primary"
               title={t('setup.connect')}
               loading={loading}

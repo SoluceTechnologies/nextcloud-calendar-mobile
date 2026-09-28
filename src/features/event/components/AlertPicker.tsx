@@ -23,12 +23,13 @@ export function AlertPicker({ value, onChange }: Props) {
   return (
     <View style={styles.container}>
       <Text style={[styles.sectionLabel, { color: theme.colors.textSecondary }]}>{t('event.alert')}</Text>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.pillRow}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={styles.pillRow}>
         {OFFSETS.map(({ label, value: minutes }) => {
           const active = value === minutes;
           return (
             <TouchableOpacity
               key={label}
+              testID={`event-form-alert-${minutes ?? 'default'}`}
               style={[
                 styles.pill,
                 { backgroundColor: active ? theme.colors.primary : theme.colors.chip },

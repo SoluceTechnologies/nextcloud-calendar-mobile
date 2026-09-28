@@ -1,0 +1,15 @@
+appId: com.soluce.nextcloudcalendar
+---
+- runFlow:
+    file: ../shared/home-and-wait.yaml
+    env: { TITLE: "E2E seed" }
+- repeat:
+    times: 10
+    commands:
+      - swipe: { direction: LEFT, duration: 150 }
+- repeat:
+    times: 10
+    commands:
+      - swipe: { direction: RIGHT, duration: 150 }
+- waitForAnimationToEnd
+- extendedWaitUntil: { visible: "E2E seed", timeout: 15000 }

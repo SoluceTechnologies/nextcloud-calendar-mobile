@@ -1,0 +1,7 @@
+appId: com.soluce.nextcloudcalendar
+name: login
+---
+- runFlow: ../shared/reset.yaml
+- runFlow: ../shared/login.yaml
+- assertVisible:
+    id: calendar-fab-new

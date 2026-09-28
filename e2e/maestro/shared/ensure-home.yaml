@@ -1,0 +1,20 @@
+appId: com.soluce.nextcloudcalendar
+---
+- launchApp:
+    permissions:
+      all: allow
+- extendedWaitUntil:
+    visible:
+      id: "setup-server-url|calendar-fab-new"
+    timeout: 30000
+- runFlow:
+    when:
+      visible:
+        id: setup-server-url
+    commands:
+      - runFlow: login.yaml
+      - extendedWaitUntil:
+          visible: "E2E seed"
+          timeout: 60000
+- tapOn:
+    id: calendar-mode-week

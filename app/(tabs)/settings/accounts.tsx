@@ -33,6 +33,7 @@ export default function AccountSettingsScreen() {
       ))}
       <Stack padding={[16, 8]}>
         <Button
+          testID="accounts-add"
           variant="ghost"
           dashed
           title={t('settings.addAccount')}

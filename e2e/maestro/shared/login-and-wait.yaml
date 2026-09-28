@@ -1,0 +1,7 @@
+appId: com.soluce.nextcloudcalendar
+---
+- runFlow: reset.yaml
+- runFlow: login.yaml
+- extendedWaitUntil:
+    visible: ${TITLE}
+    timeout: 60000

@@ -213,7 +213,7 @@ export default function EventDetailScreen() {
         <ScreenHeader
           onBack={() => goBackOrHome(router)}
           right={canEdit ? (
-            <IconButton glass round size={40} onPress={handleEdit} accessibilityLabel={t('event.edit')}>
+            <IconButton testID="event-detail-edit" glass round size={40} onPress={handleEdit} accessibilityLabel={t('event.edit')}>
               <Pencil size={20} color={theme.colors.primary} />
             </IconButton>
           ) : undefined}
@@ -302,6 +302,7 @@ export default function EventDetailScreen() {
 
             {event.talkUrl && (
               <Button
+                testID="event-detail-join"
                 variant="primary"
                 title={t('event.joinTalkRoom')}
                 icon={<Video size={18} color="#fff" />}
@@ -346,6 +347,7 @@ export default function EventDetailScreen() {
             style={[styles.footer, { paddingBottom: insets.bottom + 12, borderTopColor: theme.colors.border }]}
           >
             <Button
+              testID="event-detail-delete"
               variant="ghost" color="danger"
               title={t('event.deleteEvent')}
               icon={<Trash2 size={18} color={theme.colors.danger} />}

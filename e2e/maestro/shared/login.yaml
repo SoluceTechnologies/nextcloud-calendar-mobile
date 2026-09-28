@@ -1,0 +1,21 @@
+appId: com.soluce.nextcloudcalendar
+---
+- extendedWaitUntil:
+    visible:
+      id: setup-server-url
+    timeout: 30000
+- tapOn:
+    id: setup-server-url
+- inputText: ${NC_URL}
+- tapOn:
+    id: setup-username
+- inputText: ${NC_USER}
+- tapOn:
+    id: setup-app-password
+- inputText: ${NC_PASS}
+- tapOn:
+    id: setup-connect
+- extendedWaitUntil:
+    visible:
+      id: calendar-fab-new
+    timeout: 60000

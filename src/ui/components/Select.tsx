@@ -32,6 +32,7 @@ interface SelectProps<T> {
   trigger?: ReactNode;
   /** Rendered pinned below the option list; receives a close callback. */
   footer?: (close: () => void) => ReactNode;
+  testID?: string;
 }
 
 const ROW_HEIGHT = 58;
@@ -43,7 +44,7 @@ type Anchor = { x: number; y: number; width: number; height: number };
 
 function Select<T>({
   value, options, onChange, variant = 'row', icon, glass = false, busy, accessibilityLabel, disabled,
-  trigger, footer,
+  trigger, footer, testID,
 }: SelectProps<T>) {
   const { colors } = useTheme();
   const onGlass = glass && LIQUID_GLASS;
@@ -86,6 +87,7 @@ function Select<T>({
             accessibilityLabel={accessibilityLabel}
             accessibilityState={{ expanded: open, disabled }}
             disabled={disabled}
+            testID={testID}
             onPress={toggle}
           >
             {trigger}
@@ -96,6 +98,7 @@ function Select<T>({
             accessibilityLabel={accessibilityLabel}
             accessibilityState={{ expanded: open }}
             hitSlop={10}
+            testID={testID}
             onPress={toggle}
           >
             <View
@@ -124,6 +127,7 @@ function Select<T>({
               styles.trigger,
               { backgroundColor: colors.surface, borderColor: open ? colors.primary : colors.border },
             ]}
+            testID={testID}
             onPress={toggle}
           >
             {active?.leading?.(26)}
@@ -150,6 +154,7 @@ function Select<T>({
             {options.map((option, i) => (
               <AnimatedPressable
                 key={String(option.value)}
+                testID={testID ? `${testID}-${String(option.value)}` : undefined}
                 accessibilityRole="button"
                 accessibilityState={{ selected: option.value === value }}
                 style={[

@@ -1,0 +1,6 @@
+appId: com.soluce.nextcloudcalendar
+---
+- runFlow: ../shared/relaunch.yaml
+- extendedWaitUntil:
+    visible: ${TITLE}
+    timeout: 60000

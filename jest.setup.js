@@ -91,3 +91,78 @@ jest.mock('react-native-reanimated', () => {
     LinearTransition: {},
   };
 });
+
+jest.mock('@testing-library/react-native', () => {
+  const React = require('react');
+  const { ThemeProvider } = require('expo-router');
+  const { lightTheme } = require('@/theme');
+  const actual = jest.requireActual('@testing-library/react-native');
+
+  const withTheme = (Inner) =>
+    function ThemedWrapper({ children }) {
+      const content = Inner ? React.createElement(Inner, null, children) : children;
+      return React.createElement(ThemeProvider, { value: lightTheme }, content);
+    };
+
+  const descriptors = Object.getOwnPropertyDescriptors(actual);
+  delete descriptors.render;
+  delete descriptors.renderHook;
+  return Object.defineProperties(
+    {
+      render: (ui, opts = {}) => actual.render(ui, { ...opts, wrapper: withTheme(opts.wrapper) }),
+      renderHook: (cb, opts = {}) => actual.renderHook(cb, { ...opts, wrapper: withTheme(opts.wrapper) }),
+    },
+    descriptors,
+  );
+});
+
+jest.mock('react-native-mmkv', () => {
+  class MMKV {
+    constructor() {
+      this.store = new Map();
+    }
+    getString(key) {
+      return this.store.has(key) ? this.store.get(key) : undefined;
+    }
+    getBoolean(key) {
+      const value = this.store.get(key);
+      return typeof value === 'boolean' ? value : false;
+    }
+    getNumber(key) {
+      const value = this.store.get(key);
+      return typeof value === 'number' ? value : 0;
+    }
+    set(key, value) {
+      this.store.set(key, value);
+    }
+    contains(key) {
+      return this.store.has(key);
+    }
+    remove(key) {
+      return this.store.delete(key);
+    }
+    clearAll() {
+      this.store.clear();
+    }
+    getAllKeys() {
+      return Array.from(this.store.keys());
+    }
+  }
+  return { MMKV, createMMKV: () => new MMKV() };
+});
+
+jest.mock('expo-widgets', () => ({
+  createWidget: () => ({
+    updateSnapshot: jest.fn(),
+    reload: jest.fn(),
+  }),
+  createLiveActivity: () => ({
+    start: jest.fn(() => ({
+      update: jest.fn().mockResolvedValue(undefined),
+      end: jest.fn().mockResolvedValue(undefined),
+      getPushToken: jest.fn().mockResolvedValue(null),
+    })),
+    getInstances: jest.fn(() => []),
+  }),
+  after: (date) => date,
+}));

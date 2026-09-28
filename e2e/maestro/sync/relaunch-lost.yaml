@@ -1,0 +1,7 @@
+appId: com.soluce.nextcloudcalendar
+---
+- runFlow: ../shared/relaunch.yaml
+- extendedWaitUntil:
+    visible: "E2E seed"
+    timeout: 60000
+- assertNotVisible: ${TITLE}

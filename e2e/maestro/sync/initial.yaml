@@ -1,0 +1,8 @@
+appId: com.soluce.nextcloudcalendar
+name: sync-initial
+---
+- runFlow: ../shared/reset.yaml
+- runFlow: ../shared/login.yaml
+- extendedWaitUntil:
+    visible: "E2E seed"
+    timeout: 60000

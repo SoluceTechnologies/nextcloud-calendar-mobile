@@ -1,0 +1,10 @@
+appId: com.soluce.nextcloudcalendar
+---
+- extendedWaitUntil:
+    visible: ${TITLE}
+    timeout: 60000
+- tapOn: ${TITLE}
+- extendedWaitUntil:
+    visible:
+      id: event-detail-delete
+    timeout: 15000

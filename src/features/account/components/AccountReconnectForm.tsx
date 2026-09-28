@@ -49,8 +49,6 @@ export function AccountReconnectForm({ account, style }: Props) {
           return true;
         }),
       );
-      // Untrusted certificate or unconsented cleartext: a sheet is now shown;
-      // wait for the user.
       if (!ok) return;
       setAppPassword('');
       setDone(true);
@@ -117,6 +115,7 @@ export function AccountReconnectForm({ account, style }: Props) {
       </Typography>
 
       <TextField
+        testID="account-reconnect-password"
         label={t('settings.account.appPassword')}
         value={appPassword}
         onChangeText={(value) => { setAppPassword(value); setDone(false); }}
@@ -135,10 +134,11 @@ export function AccountReconnectForm({ account, style }: Props) {
 
       {formError ? <Typography variant="caption" color="danger">{formError}</Typography> : null}
       {done ? (
-        <Typography variant="caption" color="primary">{t('settings.account.reconnected')}</Typography>
+        <Typography testID="account-reconnect-success" variant="caption" color="primary">{t('settings.account.reconnected')}</Typography>
       ) : null}
 
       <Button
+        testID="account-reconnect-submit"
         variant="primary"
         title={t('settings.account.reconnect')}
         loading={busy}

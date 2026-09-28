@@ -75,6 +75,7 @@ function JsTabsLayout() {
                 options={{
                   title: t(labelKey),
                   tabBarLabel: t(labelKey),
+                  tabBarButtonTestID: `tab-${name.split('/')[0]}`,
                   tabBarIcon: ({ color, focused }) => (
                       <Icon size={focused ? 26 : 24} color={color} strokeWidth={focused ? 2.5 : 2} />
                   ),

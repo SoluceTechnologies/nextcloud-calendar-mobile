@@ -1,0 +1,28 @@
+appId: com.soluce.nextcloudcalendar
+---
+- runFlow: ../shared/reset.yaml
+- extendedWaitUntil:
+    visible:
+      id: setup-server-url
+    timeout: 30000
+- tapOn:
+    id: setup-server-url
+- inputText: ${NC_URL}
+- tapOn:
+    id: setup-username
+- inputText: ${NC_USER}
+- tapOn:
+    id: setup-app-password
+- inputText: ${NC_PASS}
+- tapOn:
+    id: setup-connect
+- extendedWaitUntil:
+    visible:
+      id: setup-error
+    timeout: 60000
+- stopApp
+- launchApp
+- extendedWaitUntil:
+    visible:
+      id: setup-server-url
+    timeout: 30000
