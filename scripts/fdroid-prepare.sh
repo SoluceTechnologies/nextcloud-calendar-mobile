@@ -18,6 +18,18 @@ if grep -q 'com.google.firebase' "$NOTIF_ANDROID/build.gradle"; then
 fi
 cp -a "$STUB_DIR/firebase-messaging/src" "$NOTIF_ANDROID/"
 
+for SRC_ROOT in "$NOTIF_ANDROID"/src/main/java "$NOTIF_ANDROID"/src/main/kotlin; do
+  if [ -d "$SRC_ROOT/com/google/firebase/messaging" ]; then
+    mkdir -p "$SRC_ROOT/org/fdroid/stub/firebase"
+    mv "$SRC_ROOT/com/google/firebase/messaging" "$SRC_ROOT/org/fdroid/stub/firebase/messaging"
+  fi
+done
+grep -rlE 'com\.google\.firebase\.messaging' "$NOTIF_ANDROID/src" \
+  | xargs -r sed -i 's/com\.google\.firebase\.messaging/org.fdroid.stub.firebase.messaging/g'
+
+sed -i '/<service/{N;/ExpoFirebaseMessagingService/{:a;N;/<\/service>/!ba;d}}' \
+  "$NOTIF_ANDROID/src/main/AndroidManifest.xml"
+
 APP_ANDROID="$ROOT/node_modules/expo-application/android"
 APP_MODULE="$APP_ANDROID/src/main/java/expo/modules/application/ApplicationModule.kt"
 if grep -q installreferrer "$APP_ANDROID/build.gradle"; then
