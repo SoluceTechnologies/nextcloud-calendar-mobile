@@ -1,3 +1,4 @@
+import { useRef } from 'react';
 import { StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -9,7 +10,7 @@ import { useUpdateEvent } from '@/features/event/hooks/useMutateEvent';
 import { resolveOrganizer } from '@/features/event/utils/organizer';
 import { parseRrule } from '@/features/calendar/utils/parseRrule';
 import { useAccountStore } from '@/stores/accountStore';
-import { EventForm } from '@/features/event/components/EventForm';
+import { EventForm, type EventFormHandle } from '@/features/event/components/EventForm';
 import {
   ViewContainer, Stack, Typography, Button, Spinner, ScreenHeader,
 } from '@/ui/components';
@@ -35,6 +36,7 @@ export default function EditEventScreen() {
     : 'all';
 
   const updateMutation = useUpdateEvent(activeAccount!, calendars);
+  const formRef = useRef<EventFormHandle>(null);
 
   async function handleSubmit(input: CreateEventInput) {
     if (!activeAccount || !event) return;
@@ -88,15 +90,27 @@ export default function EditEventScreen() {
   return (
     <ViewContainer>
       <SafeAreaView style={styles.flex}>
-        <ScreenHeader title={`${t('event.editEvent')}${scopeLabel}`} onBack={() => router.back()} />
+        <ScreenHeader
+          title={`${t('event.editEvent')}${scopeLabel}`}
+          onBack={() => router.back()}
+          right={
+            <Button
+              variant="link"
+              size="small"
+              inline
+              title={updateMutation.isPending ? t('event.saving') : t('event.updateEvent')}
+              loading={updateMutation.isPending}
+              onPress={() => formRef.current?.submit()}
+            />
+          }
+        />
         <EventForm
+          ref={formRef}
           calendars={calendars}
           organizerEmail={organizerEmail}
           organizerName={organizerName}
           onSubmit={handleSubmit}
-          loading={updateMutation.isPending}
           initialValues={initialValues}
-          submitLabel={t('event.updateEvent')}
           disableCalendarChange={event.isRecurring}
           account={activeAccount}
         />
