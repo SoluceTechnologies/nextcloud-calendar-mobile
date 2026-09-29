@@ -47,7 +47,9 @@ async function runSync(now: Date): Promise<void> {
       else if (shouldClearLiveEvent(readLiveEvent(), liveEvents.length, now)) await liveActivity.clear();
     }
   } catch (error) {
-    if (__DEV__) console.warn('[widget] sync failed', error);
+    // Always log — a swallowed failure here leaves a stale widget timeline
+    // on the home screen with no visible symptom (see #327).
+    console.warn('[widget] sync failed', error);
   }
 }
 
