@@ -110,6 +110,7 @@ export async function syncCalendars(account: Account): Promise<CalendarMeta[]> {
   const remote = await fetchCalendars(account);
   const db = getDatabaseInstance();
   const calendars = db.get<Calendar>('calendars');
+  const events = db.get<Event>('events');
 
   await safeWrite(db, async () => {
     const existing = await calendars.query(Q.where('account_id', account.id)).fetch();
@@ -126,7 +127,19 @@ export async function syncCalendars(account: Account): Promise<CalendarMeta[]> {
         ops.push(found.prepareUpdate((r: Calendar) => writeCalendar(r, c, account.id)));
       }
     }
-    for (const r of existing) if (!seen.has(r.remoteId)) ops.push(r.prepareMarkAsDeleted());
+
+    const removed = existing.filter((r) => !seen.has(r.remoteId));
+    for (const r of removed) ops.push(r.prepareMarkAsDeleted());
+
+    if (removed.length > 0) {
+      const orphans = await events
+        .query(
+          Q.where('account_id', account.id),
+          Q.where('calendar_id', Q.oneOf(removed.map((r) => r.remoteId))),
+        )
+        .fetch();
+      for (const ev of orphans) ops.push(ev.prepareMarkAsDeleted());
+    }
 
     if (ops.length > 0) await db.batch(ops);
   }, 20000, 'syncCalendars');
