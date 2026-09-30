@@ -83,3 +83,12 @@ export function observeTodayEventsQuery(accountId: string, now: Date = new Date(
 export function observeAgendaEventsQuery(accountId: string, days: number, now: Date = new Date()) {
   return eventsInRangeQuery(accountId, startOfDay(now), endOfDayAfter(now, days));
 }
+
+// The month widget grid covers up to ~41 days back (week-start padding at the
+// end of a month) and ~42 days ahead, so a ±45-day rolling window around today
+// catches edits anywhere on the currently displayed month regardless of the
+// configured first day of week.
+export function observeMonthWidgetEventsQuery(accountId: string, now: Date = new Date()) {
+  const pad = 45 * 86_400_000;
+  return eventsInRangeQuery(accountId, startOfDay(now) - pad, endOfDayAfter(now, 45));
+}

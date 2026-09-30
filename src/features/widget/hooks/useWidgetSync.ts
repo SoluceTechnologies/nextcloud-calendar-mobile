@@ -6,7 +6,7 @@ import { useCalendarStore } from '@/stores/calendarStore';
 import { useSettingsStore } from '@/stores/settingsStore';
 import { EVENT_OBSERVED_COLUMNS } from '@/database/observedColumns';
 
-import { observeAgendaEventsQuery } from '../core/readEvents';
+import { observeAgendaEventsQuery, observeMonthWidgetEventsQuery } from '../core/readEvents';
 import { AGENDA_DAYS } from '../core/buildTimeline';
 import { liveActivity } from '../surfaces/liveActivity';
 import { registerWidgetBackgroundSync, unregisterWidgetBackgroundSync } from '../sync/backgroundSync';
@@ -22,11 +22,12 @@ export function useWidgetSync(): void {
   const widgetDisabledCalendarIds = useCalendarStore((s) => s.widgetDisabledCalendarIds);
   const timeFormat = useSettingsStore((s) => s.timeFormat);
   const language = useSettingsStore((s) => s.language);
+  const weekStartsOn = useSettingsStore((s) => s.weekStartsOn);
   const prevAccountRef = useRef<string | null | undefined>(undefined);
 
   useEffect(() => {
     if (activeAccountId) void syncWidget();
-  }, [hiddenCalendarIds, notifDisabledCalendarIds, widgetDisabledCalendarIds, activeAccountId, calendarApp, timeFormat, language]);
+  }, [hiddenCalendarIds, notifDisabledCalendarIds, widgetDisabledCalendarIds, activeAccountId, calendarApp, timeFormat, language, weekStartsOn]);
 
   useEffect(() => {
     const prevAccount = prevAccountRef.current;
@@ -55,6 +56,12 @@ export function useWidgetSync(): void {
         void syncWidget();
       });
 
+    const monthSub = observeMonthWidgetEventsQuery(activeAccountId)
+      .observeWithColumns(EVENT_OBSERVED_COLUMNS)
+      .subscribe(() => {
+        void syncWidget();
+      });
+
     const tick = setInterval(() => {
       void syncWidget();
     }, REFRESH_MS);
@@ -66,6 +73,7 @@ export function useWidgetSync(): void {
 
     return () => {
       sub.unsubscribe();
+      monthSub.unsubscribe();
       clearInterval(tick);
       appSub.remove();
     };
