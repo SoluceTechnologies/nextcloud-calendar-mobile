@@ -21,10 +21,12 @@ cp -a "$STUB_DIR/firebase-messaging/src" "$NOTIF_ANDROID/"
 for SRC_ROOT in "$NOTIF_ANDROID"/src/main/java "$NOTIF_ANDROID"/src/main/kotlin; do
   if [ -d "$SRC_ROOT/com/google/firebase/messaging" ]; then
     mkdir -p "$SRC_ROOT/org/fdroid/stub/firebase"
+    rm -rf "$SRC_ROOT/org/fdroid/stub/firebase/messaging"
     mv "$SRC_ROOT/com/google/firebase/messaging" "$SRC_ROOT/org/fdroid/stub/firebase/messaging"
+    find "$SRC_ROOT/com" -type d -empty -delete
   fi
 done
-grep -rlE 'com\.google\.firebase\.messaging' "$NOTIF_ANDROID/src" \
+{ grep -rlE 'com\.google\.firebase\.messaging' "$NOTIF_ANDROID/src" || true; } \
   | xargs -r sed -i 's/com\.google\.firebase\.messaging/org.fdroid.stub.firebase.messaging/g'
 
 sed -i '/<service/{N;/ExpoFirebaseMessagingService/{:a;N;/<\/service>/!ba;d}}' \
