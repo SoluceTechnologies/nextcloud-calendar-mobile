@@ -42,7 +42,11 @@ export function readMonthWidgetSnapshot(): MonthWidgetSnapshot | null {
   if (!raw) return null;
   try {
     const snapshot = JSON.parse(raw) as MonthWidgetSnapshot;
-    return Array.isArray(snapshot.days) && snapshot.days.length === 42 ? snapshot : null;
+    if (!Array.isArray(snapshot.days) || snapshot.days.length !== 42) return null;
+    if (typeof snapshot.monthOffset !== 'number' || !Number.isFinite(snapshot.monthOffset)) {
+      snapshot.monthOffset = 0;
+    }
+    return snapshot;
   } catch {
     return null;
   }
