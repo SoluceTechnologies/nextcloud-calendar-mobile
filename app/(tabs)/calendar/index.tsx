@@ -1,5 +1,5 @@
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef } from 'react';
-import { Linking, View, StyleSheet } from 'react-native';
+import { View, StyleSheet } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -66,22 +66,6 @@ export default function CalendarScreen() {
       applySelectedDate(dateParam);
     }
   }, [dateParam, applySelectedDate]);
-
-  useEffect(() => {
-    const parseAndApplyUrl = (urlString: string | null) => {
-      if (!urlString) return;
-      try {
-        const match = urlString.match(/[?&]date=([^&]+)/);
-        if (match?.[1]) {
-          applySelectedDate(decodeURIComponent(match[1]));
-        }
-      } catch {}
-    };
-
-    void Linking.getInitialURL().then(parseAndApplyUrl);
-    const sub = Linking.addEventListener('url', (e) => parseAndApplyUrl(e.url));
-    return () => sub.remove();
-  }, [applySelectedDate]);
 
   const deferredViewMode = useDeferredValue(viewMode);
   const deferredDate = useDeferredValue(date);
