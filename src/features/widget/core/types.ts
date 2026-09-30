@@ -46,6 +46,7 @@ export interface MonthWidgetEvent {
 export interface MonthWidgetDay {
   dateIso: string;
   dayNumber: string;
+  dayOfWeek: number;
   inMonth: boolean;
   isToday: boolean;
   events: MonthWidgetEvent[];

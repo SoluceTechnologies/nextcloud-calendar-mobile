@@ -7,7 +7,7 @@ import dayjs from 'dayjs';
 import localizedFormat from 'dayjs/plugin/localizedFormat';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from 'expo-router';
-import { dayKey } from '../utils/grid';
+import { eventCoversDay, eventDayKeys } from '../utils/eventDays';
 import InfinitePager, { type InfinitePagerImperativeApi } from 'react-native-infinite-pager';
 import { useSettingsStore } from '@/stores/settingsStore';
 import { useTimeFormat } from '@/hooks/useTimeFormat';
@@ -49,65 +49,7 @@ export function buildMonthGrid(year: number, month: number, weekStartsOn: 0 | 1)
   return rows;
 }
 
-const START_OF_DAY_MS = 86400000;
-
-function startOfDay(d: Date): Date {
-  return new Date(d.getFullYear(), d.getMonth(), d.getDate());
-}
-
-function lastDayOf(e: CalendarEvent): Date {
-  const end = startOfDay(e.dtend);
-  if (e.allDay) return end;
-  const exactMidnight =
-    e.dtend.getHours() === 0 &&
-    e.dtend.getMinutes() === 0 &&
-    e.dtend.getSeconds() === 0 &&
-    e.dtend.getMilliseconds() === 0;
-  if (exactMidnight) {
-    return new Date(end.getTime() - 1);
-  }
-  return end;
-}
-
-const EVENT_DAY_KEYS_CACHE = new Map<string, string[]>();
-const EVENT_DAY_KEYS_CACHE_LIMIT = 200;
-
-function cacheKeyFor(e: CalendarEvent): string {
-  return `${e.uid}:${e.calendarId}:${e.dtstart.getTime()}:${e.dtend.getTime()}:${e.allDay}`;
-}
-
-export function eventDayKeys(e: CalendarEvent): string[] {
-  const key = cacheKeyFor(e);
-  const cached = EVENT_DAY_KEYS_CACHE.get(key);
-  if (cached) return cached;
-
-  const start = startOfDay(e.dtstart);
-  const end = lastDayOf(e);
-  const keys: string[] = [];
-  let cur = start;
-  const limit = 366;
-  while (cur.getTime() <= end.getTime() && keys.length <= limit) {
-    keys.push(dayKey(cur));
-    cur = new Date(cur.getFullYear(), cur.getMonth(), cur.getDate() + 1);
-  }
-
-  const result = keys.length ? keys : [dayKey(start)];
-
-  if (EVENT_DAY_KEYS_CACHE.size >= EVENT_DAY_KEYS_CACHE_LIMIT) {
-    const first = EVENT_DAY_KEYS_CACHE.keys().next().value;
-    if (first !== undefined) EVENT_DAY_KEYS_CACHE.delete(first);
-  }
-  EVENT_DAY_KEYS_CACHE.set(key, result);
-
-  return result;
-}
-
-export function eventCoversDay(e: CalendarEvent, key: string): boolean {
-  const startKey = dayKey(startOfDay(e.dtstart));
-  const end = lastDayOf(e);
-  const endKey = dayKey(end);
-  return key >= startKey && key <= (endKey < startKey ? startKey : endKey);
-}
+export { eventCoversDay, eventDayKeys };
 
 function monthDiff(from: Date, to: Date): number {
   return (dayjs(to).year() - dayjs(from).year()) * 12 + (dayjs(to).month() - dayjs(from).month());
