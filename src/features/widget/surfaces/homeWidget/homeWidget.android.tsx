@@ -20,6 +20,7 @@ import {
 import { buildFreshTimeline } from '../../core/buildTimeline';
 import { buildMonthWidgetSnapshot } from '../../core/monthSnapshot';
 import { useCalendarStore } from '@/stores/calendarStore';
+import { useSettingsStore } from '@/stores/settingsStore';
 
 type Palette = ReturnType<typeof widgetPalette>;
 
@@ -38,6 +39,15 @@ export function monthWidgetDayUri(date: string, action: 'calendar' | 'newEvent')
 
 function compactLimit(widgetName: string): number {
   return widgetName === 'CalendarSmallWidget' ? 2 : 3;
+}
+
+function localDate(dateIso: string): Date | null {
+  const [y, m, d] = dateIso.split('-').map(Number);
+  return y && m && d ? new Date(y, m - 1, d) : null;
+}
+
+function dayOfWeekOf(day: { dateIso: string; dayOfWeek?: number }): number {
+  return day.dayOfWeek ?? localDate(day.dateIso)?.getDay() ?? 0;
 }
 
 function EventRow({ event }: { event: AgendaEventItem }) {
@@ -306,15 +316,15 @@ function MonthAndroidWidget({ snapshot, isDark }: { snapshot: MonthWidgetSnapsho
     );
   }
 
-  const weekDays = [
-    { name: 'Mon', color: palette.dowWeekday },
-    { name: 'Tue', color: palette.dowWeekday },
-    { name: 'Wed', color: palette.dowWeekday },
-    { name: 'Thu', color: palette.dowWeekday },
-    { name: 'Fri', color: palette.dowWeekday },
-    { name: 'Sat', color: palette.dowSat },
-    { name: 'Sun', color: palette.dowSun },
-  ];
+  const dowFormatter = new Intl.DateTimeFormat(useSettingsStore.getState().language, { weekday: 'short' });
+  const weekDays = snapshot.days.slice(0, 7).map((day) => {
+    const dow = dayOfWeekOf(day);
+    const date = localDate(day.dateIso);
+    return {
+      name: date ? dowFormatter.format(date) : '',
+      color: dow === 0 ? palette.dowSun : dow === 6 ? palette.dowSat : palette.dowWeekday,
+    };
+  });
 
   return (
     <FlexWidget
@@ -400,7 +410,7 @@ function MonthAndroidWidget({ snapshot, isDark }: { snapshot: MonthWidgetSnapsho
           />
         </FlexWidget>
 
-        {/* Today (⚲) */}
+        {/* Today (↺) */}
         <FlexWidget
           style={{
             width: 34,
@@ -412,7 +422,7 @@ function MonthAndroidWidget({ snapshot, isDark }: { snapshot: MonthWidgetSnapsho
           clickActionData={{ offset: 0 }}
         >
           <TextWidget
-            text="⚲"
+            text="↺"
             style={{
               fontSize: 17,
               fontWeight: 'bold',
@@ -518,7 +528,7 @@ function MonthAndroidWidget({ snapshot, isDark }: { snapshot: MonthWidgetSnapsho
           )}
           <FlexWidget style={{ width: 'match_parent', flex: 1, height: 0, flexDirection: 'row' }}>
             {snapshot.days.slice(week * 7, week * 7 + 7).map((day, colIdx) => {
-              const isSunday = colIdx === 6;
+              const isSunday = dayOfWeekOf(day) === 0;
               const dayNumColor = day.isToday
                 ? palette.todayText
                 : !day.inMonth
@@ -639,6 +649,7 @@ export const widgetTaskHandler = async (props: WidgetTaskHandlerProps) => {
       props.clickAction === 'MONTH_TODAY'
     ) {
       const targetOffset = typeof props.clickActionData?.offset === 'number'
+        && Number.isFinite(props.clickActionData.offset)
         ? props.clickActionData.offset
         : 0;
 
@@ -682,6 +693,9 @@ export const widgetTaskHandler = async (props: WidgetTaskHandlerProps) => {
         );
       } else if (monthSnapshot) {
         writeMonthWidgetSnapshot(monthSnapshot);
+        props.renderWidget(
+          getWidgetRepresentation(props.widgetInfo.widgetName, cachedSnapshot, monthSnapshot),
+        );
       }
     } catch (error) {
       if (__DEV__) console.warn('[widget] handler refresh failed', error);
@@ -693,13 +707,15 @@ export const homeWidget: WidgetSurface<AgendaTimelineEntry[]> = {
   id: 'homeWidget',
   isSupported: () => true,
   update: async (entries) => {
-    if (entries.length === 0) return;
-    writeAgendaTimeline(entries);
-    const snapshot = entries[0].snapshot;
-    const currentMonthSnapshot = readMonthWidgetSnapshot();
-    const currentOffset = currentMonthSnapshot?.monthOffset ?? 0;
+    const currentOffset = readMonthWidgetSnapshot()?.monthOffset ?? 0;
     const monthSnapshot = await buildMonthWidgetSnapshot(new Date(), currentOffset);
     writeMonthWidgetSnapshot(monthSnapshot);
+
+    let snapshot = readAgendaSnapshot();
+    if (entries.length > 0) {
+      writeAgendaTimeline(entries);
+      snapshot = entries[0].snapshot;
+    }
     await Promise.all(
       WIDGET_NAMES.map((widgetName) =>
         requestWidgetUpdate({
