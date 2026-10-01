@@ -282,6 +282,7 @@ export const EventForm = forwardRef<EventFormHandle, Props>(function EventForm({
       contentContainerStyle={styles.scrollContent}
       keyboardShouldPersistTaps="handled"
       keyboardDismissMode="none"
+      contentInsetAdjustmentBehavior="automatic"
     >
       <Stack gap={16}>
         <View onLayout={(e) => onFieldLayout('title', e)}>
