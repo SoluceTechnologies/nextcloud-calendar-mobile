@@ -9,7 +9,9 @@ jest.mock('react-native-android-widget', () => ({
 }));
 
 jest.mock('@/features/widget/storage/widgetStore', () => ({
+  cacheMonthWidgetSnapshot: jest.fn(),
   readAgendaSnapshot: jest.fn((): AgendaSnapshot | null => null),
+  readCachedMonthWidgetSnapshot: jest.fn(() => null),
   writeAgendaTimeline: jest.fn(),
   readMonthWidgetSnapshot: jest.fn(() => null),
   writeMonthWidgetSnapshot: jest.fn(),
@@ -61,6 +63,8 @@ describe('widgetTaskHandler (android)', () => {
     mockBuildMonthWidgetSnapshot.mockResolvedValue(null);
     const store = require('@/features/widget/storage/widgetStore');
     store.readAgendaSnapshot.mockReset();
+    store.readCachedMonthWidgetSnapshot.mockReset();
+    store.readCachedMonthWidgetSnapshot.mockReturnValue(null);
     store.writeAgendaTimeline.mockReset();
     store.readMonthWidgetSnapshot.mockReset();
     store.writeMonthWidgetSnapshot.mockReset();
@@ -138,6 +142,8 @@ describe('month widget navigation', () => {
     mockBuildMonthWidgetSnapshot.mockReset();
     const store = require('@/features/widget/storage/widgetStore');
     store.readAgendaSnapshot.mockReset();
+    store.readCachedMonthWidgetSnapshot.mockReset();
+    store.readCachedMonthWidgetSnapshot.mockReturnValue(null);
     store.readMonthWidgetSnapshot.mockReset();
     store.writeMonthWidgetSnapshot.mockReset();
   });
@@ -152,6 +158,22 @@ describe('month widget navigation', () => {
     expect(mockBuildMonthWidgetSnapshot).toHaveBeenCalledWith(expect.any(Date), -1);
     expect(store.writeMonthWidgetSnapshot).toHaveBeenCalledTimes(1);
     expect(props.renderWidget).toHaveBeenCalledTimes(1);
+  });
+
+  it('renders a cached adjacent month without rebuilding it', async () => {
+    const store = require('@/features/widget/storage/widgetStore');
+    const cached = { monthLabel: 'September 2026', monthOffset: -1, scheme: 'light', days: [] };
+    store.readCachedMonthWidgetSnapshot.mockReturnValue(cached);
+    const { widgetTaskHandler } = require('@/features/widget/surfaces/homeWidget/homeWidget.android');
+    const props = monthClickProps('MONTH_PREV', -1);
+    await widgetTaskHandler(props);
+
+    expect(store.readCachedMonthWidgetSnapshot).toHaveBeenCalledWith(-1);
+    expect(mockBuildMonthWidgetSnapshot).toHaveBeenCalledTimes(2);
+    expect(mockBuildMonthWidgetSnapshot).toHaveBeenCalledWith(expect.any(Date), -4);
+    expect(mockBuildMonthWidgetSnapshot).toHaveBeenCalledWith(expect.any(Date), 2);
+    expect(store.writeMonthWidgetSnapshot).toHaveBeenCalledWith(cached);
+    expect(props.renderWidget).toHaveBeenCalledTimes(3);
   });
 
   it('defaults to offset 0 on MONTH_TODAY without clickActionData', async () => {

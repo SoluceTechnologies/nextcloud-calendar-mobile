@@ -13,6 +13,38 @@ function store(): MMKV {
 const AGENDA_KEY = 'widget.agenda.v1';
 const LIVE_KEY = 'widget.live.v1';
 const MONTH_KEY = 'widget.month.v1';
+const MONTH_CACHE_KEY = 'widget.month.cache.v1';
+
+interface MonthWidgetCache {
+  baseMonth: string;
+  snapshots: Record<string, MonthWidgetSnapshot>;
+}
+
+function baseMonth(now: Date): string {
+  return `${now.getFullYear()}-${now.getMonth()}`;
+}
+
+function validMonthSnapshot(snapshot: MonthWidgetSnapshot): boolean {
+  return Array.isArray(snapshot.days)
+    && snapshot.days.length === 42
+    && typeof snapshot.monthOffset === 'number'
+    && Number.isFinite(snapshot.monthOffset);
+}
+
+function readMonthCache(now: Date): MonthWidgetCache {
+  const raw = store().getString(MONTH_CACHE_KEY);
+  if (raw) {
+    try {
+      const cache = JSON.parse(raw) as MonthWidgetCache;
+      if (cache.baseMonth === baseMonth(now) && cache.snapshots && typeof cache.snapshots === 'object') {
+        return cache;
+      }
+    } catch {
+      // Replace malformed or stale cache data below.
+    }
+  }
+  return { baseMonth: baseMonth(now), snapshots: {} };
+}
 
 export function writeAgendaTimeline(entries: AgendaTimelineEntry[]): void {
   store().set(AGENDA_KEY, JSON.stringify(entries));
@@ -33,8 +65,13 @@ export function readAgendaSnapshot(now: Date = new Date()): AgendaSnapshot | nul
 }
 
 export function writeMonthWidgetSnapshot(snapshot: MonthWidgetSnapshot | null): void {
-  if (snapshot) store().set(MONTH_KEY, JSON.stringify(snapshot));
-  else store().remove(MONTH_KEY);
+  if (snapshot) {
+    store().set(MONTH_KEY, JSON.stringify(snapshot));
+    cacheMonthWidgetSnapshot(snapshot);
+  } else {
+    store().remove(MONTH_KEY);
+    store().remove(MONTH_CACHE_KEY);
+  }
 }
 
 export function readMonthWidgetSnapshot(): MonthWidgetSnapshot | null {
@@ -50,6 +87,24 @@ export function readMonthWidgetSnapshot(): MonthWidgetSnapshot | null {
   } catch {
     return null;
   }
+}
+
+export function cacheMonthWidgetSnapshot(
+  snapshot: MonthWidgetSnapshot | null,
+  now: Date = new Date(),
+): void {
+  if (!snapshot || !validMonthSnapshot(snapshot)) return;
+  const cache = readMonthCache(now);
+  cache.snapshots[String(snapshot.monthOffset)] = snapshot;
+  store().set(MONTH_CACHE_KEY, JSON.stringify(cache));
+}
+
+export function readCachedMonthWidgetSnapshot(
+  monthOffset: number,
+  now: Date = new Date(),
+): MonthWidgetSnapshot | null {
+  const snapshot = readMonthCache(now).snapshots[String(monthOffset)];
+  return snapshot && validMonthSnapshot(snapshot) ? snapshot : null;
 }
 
 export function writeLiveEvent(state: LiveEventState | null): void {

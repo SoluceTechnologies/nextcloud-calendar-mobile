@@ -1,26 +1,167 @@
+diff --git a/node_modules/react-native-android-widget/android/src/main/java/com/reactnativeandroidwidget/RNWidget.java b/node_modules/react-native-android-widget/android/src/main/java/com/reactnativeandroidwidget/RNWidget.java
+index a7079f9..0c68237 100644
 --- a/node_modules/react-native-android-widget/android/src/main/java/com/reactnativeandroidwidget/RNWidget.java
 +++ b/node_modules/react-native-android-widget/android/src/main/java/com/reactnativeandroidwidget/RNWidget.java
-@@ -170,12 +170,17 @@
+@@ -3,6 +3,7 @@ package com.reactnativeandroidwidget;
+ import android.app.PendingIntent;
+ import android.appwidget.AppWidgetManager;
+ import android.content.ComponentName;
++import android.content.Context;
+ import android.content.Intent;
+ import android.graphics.Bitmap;
+ import android.graphics.Canvas;
+@@ -32,6 +33,7 @@ import com.reactnativeandroidwidget.builder.WidgetWithViews;
+ import java.io.ByteArrayOutputStream;
+ import java.util.ArrayList;
+ import java.util.List;
++import java.util.concurrent.ConcurrentHashMap;
+ 
+ public class RNWidget {
+     private final ReactApplicationContext appContext;
+@@ -40,6 +42,10 @@ public class RNWidget {
+ 
+     private static final int[] listWrappers = {R.id.rn_widget_list_0_wrapper, R.id.rn_widget_list_1_wrapper};
+     private static final int[] lists = {R.id.rn_widget_list_0, R.id.rn_widget_list_1};
++    private static final String MONTH_CACHE_PREFIX = "__RNW_MONTH_";
++    private static final String MONTH_TARGET_PREFERENCES = "RNW_MONTH_TARGETS";
++    private static final ConcurrentHashMap<String, RemoteViews> monthWidgetCache =
++        new ConcurrentHashMap<>();
+ 
+     public RNWidget(ReactApplicationContext context, ReadableMap config, String widgetName) {
+         this.appContext = context;
+@@ -72,12 +78,17 @@ public class RNWidget {
+             RNWidgetUtil.getWidgetWidth(appContext, widgetId),
+             RNWidgetUtil.getWidgetHeight(appContext, widgetId)
+         );
++        MonthCacheDirective monthCacheDirective =
++            parseMonthCacheDirective(widgetWithViews.getRootAccessibilityLabel());
++        String lightImageMode = monthCacheDirective == null
++            ? "light"
++            : "light_month_" + monthCacheDirective.monthOffset;
+ 
+         Bitmap bitmap = drawViewToBitmap(widgetWithViews.getRootView());
+-        Uri bitmapUri = saveBitmapToDisk(widgetId, "light", bitmap);
++        Uri bitmapUri = saveBitmapToDisk(widgetId, lightImageMode, bitmap);
+         remoteWidgetView.setImageViewUri(R.id.rn_widget_image_light, bitmapUri);
+ 
+-        if (widgetWithViews.getRootAccessibilityLabel() != null) {
++        if (widgetWithViews.getRootAccessibilityLabel() != null && monthCacheDirective == null) {
+             remoteWidgetView.setContentDescription(R.id.rn_widget_clickable_container, widgetWithViews.getRootAccessibilityLabel());
+         }
+ 
+@@ -90,7 +101,10 @@ public class RNWidget {
+             );
+ 
+             Bitmap darkBitmap = drawViewToBitmap(darkWidgetWithViews.getRootView());
+-            Uri darkBitmapUri = saveBitmapToDisk(widgetId, "dark", darkBitmap);
++            String darkImageMode = monthCacheDirective == null
++                ? "dark"
++                : "dark_month_" + monthCacheDirective.monthOffset;
++            Uri darkBitmapUri = saveBitmapToDisk(widgetId, darkImageMode, darkBitmap);
+             remoteWidgetView.setImageViewUri(R.id.rn_widget_image_dark, darkBitmapUri);
+ 
+             List<CollectionView> lightCollectionViews = widgetWithViews.getCollectionViews();
+@@ -116,10 +130,67 @@ public class RNWidget {
+         }
+         addCollectionViews(widgetId, remoteWidgetView, widgetWithViews);
+ 
++        if (monthCacheDirective != null) {
++            monthWidgetCache.put(monthCacheKey(widgetId, monthCacheDirective.monthOffset), remoteWidgetView);
++            if (monthCacheDirective.cacheOnly) {
++                return;
++            }
++            int latestTarget = appContext
++                .getSharedPreferences(MONTH_TARGET_PREFERENCES, Context.MODE_PRIVATE)
++                .getInt(String.valueOf(widgetId), monthCacheDirective.monthOffset);
++            if (latestTarget != monthCacheDirective.monthOffset) {
++                return;
++            }
++        }
++
+         AppWidgetManager.getInstance(appContext)
+             .updateAppWidget(widgetId, remoteWidgetView);
+     }
+ 
++    static boolean showCachedMonthWidget(Context context, int widgetId, int monthOffset) {
++        context
++            .getSharedPreferences(MONTH_TARGET_PREFERENCES, Context.MODE_PRIVATE)
++            .edit()
++            .putInt(String.valueOf(widgetId), monthOffset)
++            .apply();
++        RemoteViews cached = monthWidgetCache.get(monthCacheKey(widgetId, monthOffset));
++        if (cached == null) {
++            return false;
++        }
++        AppWidgetManager.getInstance(context).updateAppWidget(widgetId, cached);
++        return true;
++    }
++
++    private static String monthCacheKey(int widgetId, int monthOffset) {
++        return widgetId + ":" + monthOffset;
++    }
++
++    private static MonthCacheDirective parseMonthCacheDirective(String label) {
++        if (label == null || !label.startsWith(MONTH_CACHE_PREFIX)) {
++            return null;
++        }
++        int separator = label.lastIndexOf(':');
++        if (separator < 0 || separator == label.length() - 1) {
++            return null;
++        }
++        try {
++            int monthOffset = Integer.parseInt(label.substring(separator + 1));
++            return new MonthCacheDirective(label.contains("_CACHE__:"), monthOffset);
++        } catch (NumberFormatException error) {
++            return null;
++        }
++    }
++
++    private static final class MonthCacheDirective {
++        final boolean cacheOnly;
++        final int monthOffset;
++
++        MonthCacheDirective(boolean cacheOnly, int monthOffset) {
++            this.cacheOnly = cacheOnly;
++            this.monthOffset = monthOffset;
++        }
++    }
++
+     public WritableMap createPreview(int width, int height) throws Exception {
+         ReadableMap configClone = Arguments.makeNativeMap(config.toHashMap());
+ 
+@@ -169,16 +240,27 @@ public class RNWidget {
+         clickableWidget.getDrawingRect(offsetViewBounds);
          rootWidget.offsetDescendantRectToMyCoords(clickableWidget, offsetViewBounds);
          RemoteViews clickableRemoteView = new RemoteViews(appContext.getPackageName(), R.layout.rn_widget_clickable);
++        float coordinateScale = (float) android.util.DisplayMetrics.DENSITY_DEVICE_STABLE
++            / appContext.getResources().getDisplayMetrics().densityDpi;
  
-+        int rootWidth = rootWidget.getWidth() > 0 ? rootWidget.getWidth() : RNWidgetUtil.dpToPx(appContext, RNWidgetUtil.getWidgetWidth(appContext, widgetId));
-+        int rootHeight = rootWidget.getHeight() > 0 ? rootWidget.getHeight() : RNWidgetUtil.dpToPx(appContext, RNWidgetUtil.getWidgetHeight(appContext, widgetId));
-+        int rightPadding = Math.max(0, rootWidth - offsetViewBounds.right);
-+        int bottomPadding = Math.max(0, rootHeight - offsetViewBounds.bottom);
-+
          clickableRemoteView.setViewPadding(
              R.id.rn_widget_clickable_positioner,
-             offsetViewBounds.left,
-             offsetViewBounds.top,
+-            offsetViewBounds.left,
+-            offsetViewBounds.top,
 -            RNWidgetUtil.dpToPx(appContext, RNWidgetUtil.getWidgetWidth(appContext, widgetId)) - offsetViewBounds.right,
--            0
-+            rightPadding,
-+            bottomPadding
++            Math.round(offsetViewBounds.left * coordinateScale),
++            Math.round(offsetViewBounds.top * coordinateScale),
++            0,
+             0
          );
  
-         clickableRemoteView.setInt(R.id.rn_widget_clickable_area, "setMinimumHeight", offsetViewBounds.height());
-@@ -199,17 +204,59 @@
+-        clickableRemoteView.setInt(R.id.rn_widget_clickable_area, "setMinimumHeight", offsetViewBounds.height());
++        clickableRemoteView.setInt(
++            R.id.rn_widget_clickable_area,
++            "setMinimumWidth",
++            Math.max(1, Math.round(offsetViewBounds.width() * coordinateScale))
++        );
++        clickableRemoteView.setInt(
++            R.id.rn_widget_clickable_area,
++            "setMinimumHeight",
++            Math.max(1, Math.round(offsetViewBounds.height() * coordinateScale))
++        );
+ 
+         // The clickable overlay draws its own ripple, so match it to the view's radius when supported
+         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && clickableView.getBorderRadius() > 0f) {
+@@ -199,17 +281,59 @@ public class RNWidget {
          widgetView.addView(R.id.rn_widget_clickable_container, clickableRemoteView);
      }
  
@@ -84,3 +225,200 @@
                  | PendingIntent.FLAG_MUTABLE
          );
          widgetView.setOnClickPendingIntent(button, pendingIntent);
+diff --git a/node_modules/react-native-android-widget/android/src/main/java/com/reactnativeandroidwidget/RNWidgetImageProvider.java b/node_modules/react-native-android-widget/android/src/main/java/com/reactnativeandroidwidget/RNWidgetImageProvider.java
+index 0f963f0..826dd9f 100644
+--- a/node_modules/react-native-android-widget/android/src/main/java/com/reactnativeandroidwidget/RNWidgetImageProvider.java
++++ b/node_modules/react-native-android-widget/android/src/main/java/com/reactnativeandroidwidget/RNWidgetImageProvider.java
+@@ -35,7 +35,7 @@ public class RNWidgetImageProvider extends ContentProvider {
+         }
+ 
+         File folder = getFolderWithImages(getContext());
+-        File file = new File(folder, fileName.replaceAll("\\?.*", ""));
++        File file = new File(folder, fileName.replaceAll("(?i)(%3F|\\?).*", ""));
+ 
+         // Verify the file exists and is actually inside our folder (Path Traversal check)
+         try {
+@@ -114,8 +114,8 @@ public class RNWidgetImageProvider extends ContentProvider {
+         return new Uri.Builder()
+             .scheme("content")
+             .authority(authority)
+-            // Add cacheKey since the uri is cached and returns old images
+-            .appendPath(fileName + "?cacheKey=" + System.currentTimeMillis())
++            .appendPath(fileName)
++            .appendQueryParameter("cacheKey", String.valueOf(System.currentTimeMillis()))
+             .build();
+     }
+ 
+diff --git a/node_modules/react-native-android-widget/android/src/main/java/com/reactnativeandroidwidget/RNWidgetJsCommunication.java b/node_modules/react-native-android-widget/android/src/main/java/com/reactnativeandroidwidget/RNWidgetJsCommunication.java
+index fc4ee86..27688c6 100644
+--- a/node_modules/react-native-android-widget/android/src/main/java/com/reactnativeandroidwidget/RNWidgetJsCommunication.java
++++ b/node_modules/react-native-android-widget/android/src/main/java/com/reactnativeandroidwidget/RNWidgetJsCommunication.java
+@@ -9,6 +9,17 @@ import androidx.work.OneTimeWorkRequest;
+ import androidx.work.OutOfQuotaPolicy;
+ import androidx.work.WorkManager;
+ 
++import com.facebook.react.ReactApplication;
++import com.facebook.react.ReactHost;
++import com.facebook.react.ReactInstanceEventListener;
++import com.facebook.react.bridge.Arguments;
++import com.facebook.react.bridge.ReactContext;
++import com.facebook.react.bridge.UiThreadUtil;
++import com.facebook.react.jstasks.HeadlessJsTaskConfig;
++import com.facebook.react.jstasks.HeadlessJsTaskContext;
++
++import java.util.HashMap;
++import java.util.Map;
+ import java.util.concurrent.TimeUnit;
+ 
+ public class RNWidgetJsCommunication {
+@@ -39,6 +50,50 @@ public class RNWidgetJsCommunication {
+             .enqueue(builder.build());
+     }
+ 
++    protected static void startImmediateBackgroundTask(Context context, Data data) {
++        try {
++            ReactHost reactHost =
++                ((ReactApplication) context.getApplicationContext()).getReactHost();
++            Map<String, Object> arguments = new HashMap<>(data.getKeyValueMap());
++            arguments.put(
++                "screenInfo",
++                RNWidgetUtil.getScreenInfo(context.getApplicationContext()).toHashMap()
++            );
++            HeadlessJsTaskConfig taskConfig = new HeadlessJsTaskConfig(
++                "RNWidgetBackgroundTask",
++                Arguments.makeNativeMap(arguments),
++                30 * 1000,
++                true
++            );
++            ReactContext reactContext = reactHost.getCurrentReactContext();
++
++            if (reactContext != null) {
++                invokeStartTask(reactContext, taskConfig);
++                return;
++            }
++
++            reactHost.addReactInstanceEventListener(new ReactInstanceEventListener() {
++                @Override
++                public void onReactContextInitialized(ReactContext initializedContext) {
++                    invokeStartTask(initializedContext, taskConfig);
++                    reactHost.removeReactInstanceEventListener(this);
++                }
++            });
++            reactHost.start();
++        } catch (RuntimeException error) {
++            startBackgroundTask(context, data);
++        }
++    }
++
++    private static void invokeStartTask(
++        ReactContext reactContext,
++        HeadlessJsTaskConfig taskConfig
++    ) {
++        UiThreadUtil.runOnUiThread(() ->
++            HeadlessJsTaskContext.getInstance(reactContext).startTask(taskConfig)
++        );
++    }
++
+     // `APPWIDGET_UPDATE` (`onUpdate`) method is called when the WorkManager queue is empty.
+     // Since we enqueue only on WorkRequest, the queue will be empty after every execution of the
+     // widgetTaskHandler.
+diff --git a/node_modules/react-native-android-widget/android/src/main/java/com/reactnativeandroidwidget/RNWidgetProvider.java b/node_modules/react-native-android-widget/android/src/main/java/com/reactnativeandroidwidget/RNWidgetProvider.java
+index 647d8f4..81a01ce 100644
+--- a/node_modules/react-native-android-widget/android/src/main/java/com/reactnativeandroidwidget/RNWidgetProvider.java
++++ b/node_modules/react-native-android-widget/android/src/main/java/com/reactnativeandroidwidget/RNWidgetProvider.java
+@@ -141,16 +141,31 @@ public class RNWidgetProvider extends AppWidgetProvider {
+ 
+     private void handleWidgetClick(Context context, Intent incomingIntent, int widgetId) {
+         Data additionalData = Data.EMPTY;
++        Bundle clickActionData = incomingIntent.getBundleExtra("clickActionData");
++        String clickAction = incomingIntent.getStringExtra("clickAction");
+ 
+         if (incomingIntent.hasExtra("clickAction")) {
+-            Bundle clickActionData = incomingIntent.getBundleExtra("clickActionData");
++            JSONObject dataJson = clickActionData != null
++                ? new JSONObject(Arguments.fromBundle(clickActionData).toHashMap())
++                : new JSONObject();
+             additionalData = new Data.Builder()
+-                .putString("clickAction", incomingIntent.getStringExtra("clickAction"))
+-                .putString("clickActionData", new JSONObject(Arguments.fromBundle(clickActionData).toHashMap()).toString())
++                .putString("clickAction", clickAction)
++                .putString("clickActionData", dataJson.toString())
+                 .build();
+         }
+ 
++        if (clickAction != null && clickAction.startsWith("MONTH_") && clickActionData != null) {
++            Object rawOffset = clickActionData.get("offset");
++            if (rawOffset instanceof Number) {
++                RNWidget.showCachedMonthWidget(
++                    context,
++                    widgetId,
++                    ((Number) rawOffset).intValue()
++                );
++            }
++        }
++
+         Data data = RNWidgetJsCommunication.buildData(context, getClass().getSimpleName(), widgetId, "WIDGET_CLICK", additionalData);
+-        RNWidgetJsCommunication.startBackgroundTask(context, data);
++        RNWidgetJsCommunication.startImmediateBackgroundTask(context, data);
+     }
+ }
+diff --git a/node_modules/react-native-android-widget/android/src/main/res/layout-night/rn_widget.xml b/node_modules/react-native-android-widget/android/src/main/res/layout-night/rn_widget.xml
+index e00a8c1..d4ffaaf 100644
+--- a/node_modules/react-native-android-widget/android/src/main/res/layout-night/rn_widget.xml
++++ b/node_modules/react-native-android-widget/android/src/main/res/layout-night/rn_widget.xml
+@@ -8,7 +8,7 @@
+         android:layout_width="match_parent"
+         android:layout_height="match_parent"
+         android:background="@android:color/transparent"
+-        android:scaleType="matrix"
++        android:scaleType="fitXY"
+         android:visibility="gone" />
+ 
+     <ImageView
+@@ -16,7 +16,7 @@
+         android:layout_width="match_parent"
+         android:layout_height="match_parent"
+         android:background="@android:color/transparent"
+-        android:scaleType="matrix"
++        android:scaleType="fitXY"
+         android:visibility="visible" />
+ 
+     <FrameLayout
+diff --git a/node_modules/react-native-android-widget/android/src/main/res/layout/rn_widget.xml b/node_modules/react-native-android-widget/android/src/main/res/layout/rn_widget.xml
+index 870d18b..e2c0661 100644
+--- a/node_modules/react-native-android-widget/android/src/main/res/layout/rn_widget.xml
++++ b/node_modules/react-native-android-widget/android/src/main/res/layout/rn_widget.xml
+@@ -8,7 +8,7 @@
+         android:layout_width="match_parent"
+         android:layout_height="match_parent"
+         android:background="@android:color/transparent"
+-        android:scaleType="matrix"
++        android:scaleType="fitXY"
+         android:visibility="visible" />
+ 
+     <ImageView
+@@ -16,7 +16,7 @@
+         android:layout_width="match_parent"
+         android:layout_height="match_parent"
+         android:background="@android:color/transparent"
+-        android:scaleType="matrix"
++        android:scaleType="fitXY"
+         android:visibility="gone" />
+ 
+     <FrameLayout
+diff --git a/node_modules/react-native-android-widget/android/src/main/res/layout/rn_widget_clickable.xml b/node_modules/react-native-android-widget/android/src/main/res/layout/rn_widget_clickable.xml
+index 92b8853..8fe844e 100644
+--- a/node_modules/react-native-android-widget/android/src/main/res/layout/rn_widget_clickable.xml
++++ b/node_modules/react-native-android-widget/android/src/main/res/layout/rn_widget_clickable.xml
+@@ -5,9 +5,7 @@
+ 
+     <FrameLayout
+         android:id="@+id/rn_widget_clickable_area"
+-        android:layout_width="match_parent"
++        android:layout_width="wrap_content"
+         android:layout_height="wrap_content"
+-        android:background="?android:attr/selectableItemBackground"
+-        android:clickable="true"
+-        android:focusable="true" />
++        android:layout_gravity="top|left"
+ </FrameLayout>
