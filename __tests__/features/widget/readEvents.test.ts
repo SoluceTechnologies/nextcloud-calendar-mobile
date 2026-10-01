@@ -24,9 +24,6 @@ describe('eventsInRangeQuery', () => {
   beforeEach(() => mockQuery.mockClear());
 
   it('includes events whose end is exactly the range start (inclusive all-day ends)', () => {
-    // All-day events store an inclusive end (midnight of their last covered
-    // day), so a strict `gt` bound drops every all-day event on the first day
-    // of the window — e.g. today's all-day events in the agenda widget.
     const now = new Date(2026, 9, 1, 15, 30);
     observeTodayEventsQuery('a1', now);
     expect(endClause()?.comparison?.operator).toBe('gte');

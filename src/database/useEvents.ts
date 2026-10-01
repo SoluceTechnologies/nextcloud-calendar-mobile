@@ -52,8 +52,6 @@ export function useEventsForRange(accountId: string, start: Date, end: Date, ref
     const query = database.get<Event>('events').query(
       Q.where('account_id', accountId),
       Q.where('start', Q.lt(end.getTime())),
-      // All-day events store an inclusive end (midnight of their last day), so
-      // the bound must include events whose last day is the range's first day.
       Q.where('end', Q.gte(start.getTime())),
     );
     const subscription = query.observeWithColumns(EVENT_OBSERVED_COLUMNS).subscribe((rows) => {

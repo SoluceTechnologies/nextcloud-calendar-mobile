@@ -22,8 +22,6 @@ function eventsInRangeQuery(accountId: string, rangeStart: number, rangeEnd: num
     .query(
       Q.where('account_id', accountId),
       Q.where('start', Q.lt(rangeEnd)),
-      // All-day events store an inclusive end (midnight of their last day), so
-      // the bound must include events whose last day is the range's first day.
       Q.where('end', Q.gte(rangeStart)),
     );
 }
