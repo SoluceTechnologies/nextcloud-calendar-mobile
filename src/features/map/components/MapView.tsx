@@ -1,6 +1,7 @@
 import React, { useCallback, useMemo } from 'react';
 import { StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
 import { useTheme } from 'expo-router';
+import { useTranslation } from 'react-i18next';
 import WebView from 'react-native-webview';
 import { Spinner } from '@/ui/components';
 import { buildMapHtml } from '../utils/mapHtml';
@@ -30,6 +31,7 @@ export function MapView({
   onOpenMaps,
 }: MapViewProps) {
   const theme = useTheme();
+  const { t } = useTranslation();
   const mapBackground = theme.colors.surface;
 
   const html = useMemo(
@@ -46,8 +48,10 @@ export function MapView({
         bottomInset,
         showChrome,
         textColor: theme.colors.text,
+        closeLabel: t('common.close'),
+        openInMapsLabel: t('event.openInMaps'),
       }),
-    [coordinates, interactive, label, mapBackground, theme.colors.primary, theme.dark, bottomInset, showChrome, theme.colors.text],
+    [coordinates, interactive, label, mapBackground, theme.colors.primary, theme.dark, bottomInset, showChrome, theme.colors.text, t],
   );
 
   const handleMessage = useCallback(
