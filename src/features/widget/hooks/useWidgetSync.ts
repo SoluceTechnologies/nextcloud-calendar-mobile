@@ -20,6 +20,11 @@ export function useWidgetSync(): void {
   const hiddenCalendarIds = useCalendarStore((s) => s.hiddenCalendarIds);
   const notifDisabledCalendarIds = useCalendarStore((s) => s.notifDisabledCalendarIds);
   const widgetDisabledCalendarIds = useCalendarStore((s) => s.widgetDisabledCalendarIds);
+  const monthWidgetFontSize = useCalendarStore((s) => s.monthWidgetFontSize);
+  const monthWidgetFontWeight = useCalendarStore((s) => s.monthWidgetFontWeight);
+  const monthWidgetTheme = useCalendarStore((s) => s.monthWidgetTheme);
+  const monthWidgetCardStyle = useCalendarStore((s) => s.monthWidgetCardStyle);
+  const monthWidgetDayTap = useCalendarStore((s) => s.monthWidgetDayTap);
   const timeFormat = useSettingsStore((s) => s.timeFormat);
   const language = useSettingsStore((s) => s.language);
   const weekStartsOn = useSettingsStore((s) => s.weekStartsOn);
@@ -27,7 +32,21 @@ export function useWidgetSync(): void {
 
   useEffect(() => {
     if (activeAccountId) void syncWidget();
-  }, [hiddenCalendarIds, notifDisabledCalendarIds, widgetDisabledCalendarIds, activeAccountId, calendarApp, timeFormat, language, weekStartsOn]);
+  }, [
+    hiddenCalendarIds,
+    notifDisabledCalendarIds,
+    widgetDisabledCalendarIds,
+    monthWidgetFontSize,
+    monthWidgetFontWeight,
+    monthWidgetTheme,
+    monthWidgetCardStyle,
+    monthWidgetDayTap,
+    activeAccountId,
+    calendarApp,
+    timeFormat,
+    language,
+    weekStartsOn,
+  ]);
 
   useEffect(() => {
     const prevAccount = prevAccountRef.current;
