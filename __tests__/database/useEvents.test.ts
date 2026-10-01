@@ -53,6 +53,30 @@ describe('useEventsForRange', () => {
     (useDatabase as jest.Mock).mockReturnValue(mockDatabase);
   });
 
+  it('queries events whose end is on or after the range start (inclusive all-day ends)', () => {
+    const start = new Date('2026-08-25T00:00:00.000Z');
+    const end = new Date('2026-08-26T00:00:00.000Z');
+    const mockCollection = {
+      query: jest.fn(() => ({
+        observeWithColumns: jest.fn(() => new Subject<unknown[]>().asObservable()),
+      })),
+    };
+    (useDatabase as jest.Mock).mockReturnValue({ get: jest.fn(() => mockCollection) });
+
+    renderHook(() => useEventsForRange('a1', start, end));
+
+    const conditions = mockCollection.query.mock.calls[0] as Array<{
+      type: string;
+      left?: string;
+      comparison?: { operator: string; right: { value: number } };
+    }>;
+    const endClause = conditions.find((c) => c.type === 'where' && c.left === 'end');
+    // All-day events store an inclusive end (midnight of their last day); a
+    // strict `gt` would drop every all-day event on the range's first day.
+    expect(endClause?.comparison?.operator).toBe('gte');
+    expect(endClause?.comparison?.right.value).toBe(start.getTime());
+  });
+
   it('maps events on first emission', async () => {
     const start = new Date('2026-08-25T08:00:00.000Z');
     const end = new Date('2026-08-25T20:00:00.000Z');
