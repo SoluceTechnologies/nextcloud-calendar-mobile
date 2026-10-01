@@ -5,8 +5,6 @@ import { useCalendarStore } from '@/stores/calendarStore';
 import { useSettingsStore } from '@/stores/settingsStore';
 import type { CalendarEvent } from '@/types';
 
-// --- Fake DB layer: return rows verbatim so the real readUpcomingEvents
-// applies its hidden-calendar filter on them.
 let mockRows: CalendarEvent[] = [];
 
 jest.mock('@/database', () => ({
