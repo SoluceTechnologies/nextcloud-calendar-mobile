@@ -420,5 +420,5 @@ index 92b8853..8fe844e 100644
 -        android:background="?android:attr/selectableItemBackground"
 -        android:clickable="true"
 -        android:focusable="true" />
-+        android:layout_gravity="top|left"
++        android:layout_gravity="top|left" />
  </FrameLayout>
