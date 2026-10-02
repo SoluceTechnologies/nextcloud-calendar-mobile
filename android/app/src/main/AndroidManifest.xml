@@ -53,5 +53,12 @@
       </intent-filter>
       <meta-data android:name="android.appwidget.provider" android:resource="@xml/widgetprovider_calendarlargewidget"/>
     </receiver>
+    <receiver android:name=".widget.CalendarMonthWidget" android:exported="false" android:label="Nextcloud Calendar month">
+      <intent-filter>
+        <action android:name="android.appwidget.action.APPWIDGET_UPDATE"/>
+        <action android:name="com.soluce.nextcloudcalendar.WIDGET_CLICK"/>
+      </intent-filter>
+      <meta-data android:name="android.appwidget.provider" android:resource="@xml/widgetprovider_calendarmonthwidget"/>
+    </receiver>
   </application>
 </manifest>

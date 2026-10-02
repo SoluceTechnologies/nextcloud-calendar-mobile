@@ -8,18 +8,48 @@ import {
   TextWidget,
 } from 'react-native-android-widget';
 
-import type { AgendaEventItem, AgendaSnapshot, AgendaTimelineEntry, WidgetSurface } from '../../core/types';
+import type { AgendaEventItem, AgendaSnapshot, AgendaTimelineEntry, MonthWidgetSnapshot, WidgetSurface } from '../../core/types';
 import { type AgendaGroup, agendaGroups, agendaHeader, agendaPalette, compactEvents, emptyLabel } from '../../core/agendaView';
 import { onEventColor, widgetPalette, widgetRadius, widgetSpacing, widgetType } from '../../core/theme';
-import { readAgendaSnapshot, writeAgendaTimeline } from '../../storage/widgetStore';
+import {
+  cacheMonthWidgetSnapshot,
+  readAgendaSnapshot,
+  readCachedMonthWidgetSnapshot,
+  readMonthWidgetSnapshot,
+  writeAgendaTimeline,
+  writeMonthWidgetSnapshot,
+} from '../../storage/widgetStore';
 import { buildFreshTimeline } from '../../core/buildTimeline';
+import { buildMonthWidgetSnapshot } from '../../core/monthSnapshot';
+import { useCalendarStore } from '@/stores/calendarStore';
+import { useSettingsStore } from '@/stores/settingsStore';
 
 type Palette = ReturnType<typeof widgetPalette>;
 
-const WIDGET_NAMES = ['CalendarSmallWidget', 'CalendarMediumWidget', 'CalendarLargeWidget'] as const;
+const WIDGET_NAMES = ['CalendarSmallWidget', 'CalendarMediumWidget', 'CalendarLargeWidget', 'CalendarMonthWidget'] as const;
+export const MONTH_WIDGET_LINKS = {
+  calendar: 'nextcloud-calendar:///calendar',
+  newEvent: 'nextcloud-calendar:///event/new',
+  settings: 'nextcloud-calendar:///settings/widgets',
+} as const;
+
+export function monthWidgetDayUri(date: string, action: 'calendar' | 'newEvent'): string {
+  return action === 'newEvent'
+    ? `${MONTH_WIDGET_LINKS.newEvent}?date=${encodeURIComponent(`${date}T09:00:00`)}`
+    : `${MONTH_WIDGET_LINKS.calendar}?date=${encodeURIComponent(date)}`;
+}
 
 function compactLimit(widgetName: string): number {
   return widgetName === 'CalendarSmallWidget' ? 2 : 3;
+}
+
+function localDate(dateIso: string): Date | null {
+  const [y, m, d] = dateIso.split('-').map(Number);
+  return y && m && d ? new Date(y, m - 1, d) : null;
+}
+
+function dayOfWeekOf(day: { dateIso: string; dayOfWeek?: number }): number {
+  return day.dayOfWeek ?? localDate(day.dateIso)?.getDay() ?? 0;
 }
 
 function EventRow({ event }: { event: AgendaEventItem }) {
@@ -126,24 +156,624 @@ function CompactAndroidWidget({ snapshot, limit }: { snapshot: AgendaSnapshot | 
   );
 }
 
-function AndroidWidget({ widgetName, snapshot }: { widgetName: string; snapshot: AgendaSnapshot | null }) {
+function getEventColor(eventColor: string | undefined, evIdx: number, dayIdx: number, dark: boolean): `#${string}` {
+  if (eventColor && eventColor !== '#0082C9' && eventColor.startsWith('#') && eventColor.length === 7) {
+    return eventColor as `#${string}`;
+  }
+  const mod = (evIdx + dayIdx) % 3;
+  if (dark) {
+    if (mod === 0) return '#FFEB3B'; // Bright Yellow
+    if (mod === 1) return '#4DD0E1'; // Cyan
+    return '#FFFFFF';
+  } else {
+    if (mod === 0) return '#0284C7'; // Sky Blue
+    if (mod === 1) return '#0D9488'; // Teal
+    return '#6D28D9'; // Purple
+  }
+}
+
+function getDayEventLines(
+  events: Array<{ uid: string; title: string; color: string }>,
+  totalCount: number,
+  eventFontSize: number,
+) {
+  const charsPerLine = Math.max(7, Math.floor(48 / (eventFontSize * 0.55)));
+  const estLines = (text: string) => Math.max(1, Math.ceil(text.length / charsPerLine));
+
+  if (events.length === 0) {
+    return { items: [], moreCount: 0 };
+  }
+
+  // If only 1 event, let it wrap up to 4 lines to fill the day box
+  if (events.length === 1) {
+    return {
+      items: [{ ...events[0], maxLines: 4 }],
+      moreCount: totalCount > 1 ? totalCount - 1 : 0,
+    };
+  }
+
+  // If 2 events: check if both can wrap without spilling out of the box (max 4 lines)
+  if (events.length === 2) {
+    const l1 = estLines(events[0].title);
+    const l2 = estLines(events[1].title);
+    if (l1 + l2 <= 4 && totalCount <= 2) {
+      const m1 = Math.min(3, Math.max(1, l1));
+      const m2 = Math.min(3, Math.max(1, 4 - m1));
+      return {
+        items: [
+          { ...events[0], maxLines: m1 },
+          { ...events[1], maxLines: m2 },
+        ],
+        moreCount: 0,
+      };
+    }
+    // If text spills out (>4 lines) or there are more events:
+    // limit each event to one line
+    return {
+      items: events.slice(0, 2).map((e) => ({ ...e, maxLines: 1 })),
+      moreCount: totalCount > 2 ? totalCount - 2 : 0,
+    };
+  }
+
+  // 3 or more events: strictly 1 line per event
+  const items = events.slice(0, 3).map((e) => ({ ...e, maxLines: 1 }));
+  const moreCount = totalCount > 3 ? totalCount - 3 : 0;
+  return { items, moreCount };
+}
+
+function MonthAndroidWidget({
+  snapshot,
+  isDark,
+  cacheOnly = false,
+}: {
+  snapshot: MonthWidgetSnapshot | null;
+  isDark?: boolean;
+  cacheOnly?: boolean;
+}) {
+  const settings = useCalendarStore.getState();
+  const dark = settings.monthWidgetTheme === 'dark'
+    ? true
+    : settings.monthWidgetTheme === 'light'
+    ? false
+    : (isDark ?? true);
+
+  const cardStyle = settings.monthWidgetCardStyle;
+  const currentOffset = snapshot?.monthOffset ?? 0;
+
+  const darkBg = cardStyle === 'transparent'
+    ? 'rgba(0, 0, 0, 0.70)' as const
+    : 'rgba(0, 0, 0, 0.88)' as const;
+  const lightBg = cardStyle === 'transparent'
+    ? 'rgba(255, 255, 255, 0.70)' as const
+    : 'rgba(255, 255, 255, 0.92)' as const;
+
+  const palette = dark
+    ? {
+        cardBg: darkBg,
+        cardBorder: '#444752' as const,
+        gridLine: '#40434E' as const,
+        titleText: '#FFFFFF' as const,
+        icon: '#D0D0D5' as const,
+        menuIcon: '#E0E0E0' as const,
+        dowWeekday: '#9E9EA5' as const,
+        dowSat: '#D8D8DC' as const,
+        dowSun: '#FF6B6B' as const,
+        dayCurMonth: '#FFFFFF' as const,
+        dayOtherMonth: '#55555A' as const,
+        todayBg: '#0082C9' as const,
+        todayText: '#FFFFFF' as const,
+        moreText: '#9E9EA5' as const,
+      }
+    : {
+        cardBg: lightBg,
+        cardBorder: '#CBD5E1' as const,
+        gridLine: '#E2E8F0' as const,
+        titleText: '#111827' as const,
+        icon: '#374151' as const,
+        menuIcon: '#4B5563' as const,
+        dowWeekday: '#4B5563' as const,
+        dowSat: '#1F2937' as const,
+        dowSun: '#DC2626' as const,
+        dayCurMonth: '#111827' as const,
+        dayOtherMonth: '#9CA3AF' as const,
+        todayBg: '#0082C9' as const,
+        todayText: '#FFFFFF' as const,
+        moreText: '#6B7280' as const,
+      };
+
+  const fontConfig = ({
+    light: { fontFamily: 'sans-serif-light', fontWeight: '300' as const },
+    normal: { fontFamily: 'sans-serif', fontWeight: '400' as const },
+    medium: { fontFamily: 'sans-serif-medium', fontWeight: '500' as const },
+    bold: { fontFamily: 'sans-serif', fontWeight: '700' as const },
+    black: { fontFamily: 'sans-serif-black', fontWeight: '900' as const },
+  } as const)[settings.monthWidgetFontWeight] ?? { fontFamily: 'sans-serif', fontWeight: '700' as const };
+
+  const fontSizeSetting = settings.monthWidgetFontSize ?? 'large';
+  const fontScale = ({
+    small: 0.85,
+    normal: 1.0,
+    large: 1.25,
+    xlarge: 1.5,
+    huge: 1.75,
+  } as const)[fontSizeSetting] ?? 1.25;
+
+  const dowFontSize = Math.min(13, Math.round(11 * (0.6 + 0.4 * fontScale)));
+  const dayNumFontSize = Math.round(11 * fontScale);
+  const eventFontSize = Math.round(9.5 * fontScale * 2) / 2;
+  const moreFontSize = Math.round(8 * fontScale);
+
+  const dayUri = (date: string) => monthWidgetDayUri(date, settings.monthWidgetDayTap);
+
+  if (!snapshot) {
+    return (
+      <FlexWidget
+        style={{
+          height: 'match_parent',
+          width: 'match_parent',
+          padding: widgetSpacing.md,
+          backgroundColor: palette.cardBg,
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+        clickAction="OPEN_URI"
+        clickActionData={{ uri: MONTH_WIDGET_LINKS.calendar }}
+      >
+        <TextWidget text="Calendar" style={{ fontSize: widgetType.body, color: palette.dowWeekday }} />
+      </FlexWidget>
+    );
+  }
+
+  const dowFormatter = new Intl.DateTimeFormat(useSettingsStore.getState().language, { weekday: 'short' });
+  const weekDays = snapshot.days.slice(0, 7).map((day) => {
+    const dow = dayOfWeekOf(day);
+    const date = localDate(day.dateIso);
+    return {
+      name: date ? dowFormatter.format(date) : '',
+      color: dow === 0 ? palette.dowSun : dow === 6 ? palette.dowSat : palette.dowWeekday,
+    };
+  });
+
+  return (
+    <FlexWidget
+      accessibilityLabel={`__RNW_MONTH_${cacheOnly ? 'CACHE' : 'VISIBLE'}__:${snapshot.monthOffset}`}
+      style={{
+        height: 'match_parent',
+        width: 'match_parent',
+        flexDirection: 'column',
+        backgroundColor: palette.cardBg,
+        borderRadius: cardStyle === 'card' ? 20 : 0,
+        borderWidth: cardStyle === 'card' ? 1 : 0,
+        borderColor: cardStyle === 'card' ? palette.cardBorder : '#00000000',
+      }}
+    >
+      {/* 1. Header Bar */}
+      <FlexWidget
+        style={{
+          width: 'match_parent',
+          height: 48,
+          flexDirection: 'row',
+          alignItems: 'center',
+          paddingHorizontal: 8,
+        }}
+      >
+        {/* Menu (☰) -> Settings */}
+        <FlexWidget
+          style={{
+            width: 36,
+            height: 38,
+            justifyContent: 'center',
+            alignItems: 'center',
+          }}
+          clickAction="OPEN_URI"
+          clickActionData={{ uri: MONTH_WIDGET_LINKS.settings }}
+        >
+          <TextWidget
+            text="☰"
+            style={{
+              fontSize: 19,
+              fontWeight: 'bold',
+              color: palette.menuIcon,
+            }}
+          />
+        </FlexWidget>
+
+        {/* Month Title -> Calendar App */}
+        <FlexWidget
+          style={{
+            flex: 1,
+            height: 38,
+            justifyContent: 'center',
+            paddingLeft: 6,
+          }}
+        >
+          <TextWidget
+            text={snapshot.monthLabel}
+            maxLines={1}
+            style={{
+              fontSize: 16,
+              fontWeight: 'bold',
+              color: palette.titleText,
+            }}
+          />
+        </FlexWidget>
+
+        {/* Prev (❮) */}
+        <FlexWidget
+          style={{
+            width: 44,
+            height: 44,
+            marginHorizontal: 4,
+            justifyContent: 'center',
+            alignItems: 'center',
+          }}
+          clickAction="MONTH_PREV"
+          clickActionData={{ offset: currentOffset - 1 }}
+        >
+          <TextWidget
+            text="❮"
+            style={{
+              fontSize: 15,
+              fontWeight: 'bold',
+              color: palette.icon,
+            }}
+          />
+        </FlexWidget>
+
+        {/* Today (↺) */}
+        <FlexWidget
+          style={{
+            width: 44,
+            height: 44,
+            marginHorizontal: 4,
+            justifyContent: 'center',
+            alignItems: 'center',
+          }}
+          clickAction="MONTH_TODAY"
+          clickActionData={{ offset: 0 }}
+        >
+          <TextWidget
+            text="↺"
+            style={{
+              fontSize: 17,
+              fontWeight: 'bold',
+              color: palette.icon,
+            }}
+          />
+        </FlexWidget>
+
+        {/* Next (❯) */}
+        <FlexWidget
+          style={{
+            width: 44,
+            height: 44,
+            marginHorizontal: 4,
+            justifyContent: 'center',
+            alignItems: 'center',
+          }}
+          clickAction="MONTH_NEXT"
+          clickActionData={{ offset: currentOffset + 1 }}
+        >
+          <TextWidget
+            text="❯"
+            style={{
+              fontSize: 15,
+              fontWeight: 'bold',
+              color: palette.icon,
+            }}
+          />
+        </FlexWidget>
+
+        {/* Add (+) */}
+        <FlexWidget
+          style={{
+            width: 44,
+            height: 44,
+            marginHorizontal: 4,
+            justifyContent: 'center',
+            alignItems: 'center',
+          }}
+          clickAction="OPEN_URI"
+          clickActionData={{ uri: MONTH_WIDGET_LINKS.newEvent }}
+        >
+          <TextWidget
+            text="+"
+            style={{
+              fontSize: 22,
+              fontWeight: 'bold',
+              color: palette.todayBg,
+            }}
+          />
+        </FlexWidget>
+      </FlexWidget>
+
+      {/* Header divider */}
+      <FlexWidget style={{ width: 'match_parent', height: 1, backgroundColor: palette.gridLine }} />
+
+      {/* 2. DOW Bar */}
+      <FlexWidget
+        style={{
+          width: 'match_parent',
+          height: 24,
+          flexDirection: 'row',
+          alignItems: 'center',
+        }}
+      >
+        {weekDays.map((dow) => (
+          <FlexWidget
+            key={dow.name}
+            style={{
+              flex: 1,
+              width: 0,
+              height: 'match_parent',
+              justifyContent: 'center',
+              alignItems: 'center',
+            }}
+          >
+            <TextWidget
+              text={dow.name}
+              style={{
+                fontSize: dowFontSize,
+                fontWeight: '600',
+                color: dow.color,
+              }}
+            />
+          </FlexWidget>
+        ))}
+      </FlexWidget>
+
+      {/* DOW divider */}
+      <FlexWidget style={{ width: 'match_parent', height: 1, backgroundColor: palette.gridLine }} />
+
+      {/* 3. 6-Week Month Grid */}
+      {Array.from({ length: 6 }, (_, week) => (
+        <FlexWidget
+          key={week}
+          style={{
+            width: 'match_parent',
+            flex: 1,
+            height: 0,
+            flexDirection: 'column',
+          }}
+        >
+          {week > 0 && (
+            <FlexWidget style={{ width: 'match_parent', height: 1, backgroundColor: palette.gridLine }} />
+          )}
+          <FlexWidget style={{ width: 'match_parent', flex: 1, height: 0, flexDirection: 'row' }}>
+            {snapshot.days.slice(week * 7, week * 7 + 7).map((day, colIdx) => {
+              const isSunday = dayOfWeekOf(day) === 0;
+              const dayNumColor = day.isToday
+                ? palette.todayText
+                : !day.inMonth
+                ? palette.dayOtherMonth
+                : isSunday
+                ? palette.dowSun
+                : palette.dayCurMonth;
+
+              const dayLayout = getDayEventLines(day.events, day.totalEvents ?? day.events.length, eventFontSize);
+
+              return (
+                <FlexWidget
+                  key={day.dateIso}
+                  style={{
+                    flex: 1,
+                    width: 0,
+                    height: 'match_parent',
+                    backgroundColor: day.isToday ? palette.todayBg : '#00000000',
+                    borderRightWidth: colIdx < 6 ? 1 : 0,
+                    borderColor: palette.gridLine,
+                    padding: 2,
+                    flexDirection: 'column',
+                  }}
+                  clickAction="OPEN_URI"
+                  clickActionData={{ uri: dayUri(day.dateIso) }}
+                >
+                  {/* Day Number */}
+                  <TextWidget
+                    text={day.dayNumber}
+                    style={{
+                      fontSize: dayNumFontSize,
+                      fontFamily: day.isToday ? 'sans-serif' : fontConfig.fontFamily,
+                      fontWeight: day.isToday ? 'bold' : fontConfig.fontWeight,
+                      color: dayNumColor,
+                      paddingLeft: 2,
+                    }}
+                  />
+
+                  {/* Events */}
+                  <FlexWidget style={{ width: 'match_parent', flex: 1, flexDirection: 'column', marginTop: 1 }}>
+                    {dayLayout.items.map((event, evIdx) => (
+                      <TextWidget
+                        key={event.uid}
+                        text={event.title}
+                        maxLines={event.maxLines}
+                        truncate="END"
+                        style={{
+                          fontSize: eventFontSize,
+                          fontFamily: fontConfig.fontFamily,
+                          fontWeight: fontConfig.fontWeight,
+                          color: day.isToday ? '#FFFFFF' : getEventColor(event.color, evIdx, colIdx, dark),
+                          marginTop: 1,
+                        }}
+                      />
+                    ))}
+                    {dayLayout.moreCount > 0 && (
+                      <TextWidget
+                        text={`+${dayLayout.moreCount} more`}
+                        style={{
+                          fontSize: moreFontSize,
+                          fontFamily: fontConfig.fontFamily,
+                          fontWeight: 'bold',
+                          color: day.isToday ? '#FFFFFF' : palette.moreText,
+                          marginTop: 1,
+                        }}
+                      />
+                    )}
+                  </FlexWidget>
+                </FlexWidget>
+              );
+            })}
+          </FlexWidget>
+        </FlexWidget>
+      ))}
+    </FlexWidget>
+  );
+}
+
+function AndroidWidget({
+  widgetName,
+  snapshot,
+  monthSnapshot,
+  isDark,
+  cacheOnly,
+}: {
+  widgetName: string;
+  snapshot: AgendaSnapshot | null;
+  monthSnapshot: MonthWidgetSnapshot | null;
+  isDark?: boolean;
+  cacheOnly?: boolean;
+}) {
+  if (widgetName === 'CalendarMonthWidget') {
+    return <MonthAndroidWidget snapshot={monthSnapshot} isDark={isDark} cacheOnly={cacheOnly} />;
+  }
   if (widgetName === 'CalendarLargeWidget') {
     return <LargeAndroidWidget snapshot={snapshot} />;
   }
   return <CompactAndroidWidget snapshot={snapshot} limit={compactLimit(widgetName)} />;
 }
 
+function getWidgetRepresentation(
+  widgetName: string,
+  snapshot: AgendaSnapshot | null,
+  monthSnapshot: MonthWidgetSnapshot | null,
+  cacheOnly = false,
+) {
+  return {
+    light: <AndroidWidget widgetName={widgetName} snapshot={snapshot} monthSnapshot={monthSnapshot} isDark={false} cacheOnly={cacheOnly} />,
+    dark: <AndroidWidget widgetName={widgetName} snapshot={snapshot} monthSnapshot={monthSnapshot} isDark={true} cacheOnly={cacheOnly} />,
+  };
+}
+
+const MONTH_NATIVE_CACHE_RADIUS = 3;
+
+async function buildMonthCacheEdges(targetOffset: number): Promise<MonthWidgetSnapshot[]> {
+  const snapshots = await Promise.all([
+    buildMonthWidgetSnapshot(new Date(), targetOffset - MONTH_NATIVE_CACHE_RADIUS),
+    buildMonthWidgetSnapshot(new Date(), targetOffset + MONTH_NATIVE_CACHE_RADIUS),
+  ]);
+  return snapshots.filter((snapshot): snapshot is MonthWidgetSnapshot => snapshot !== null);
+}
+
 export const widgetTaskHandler = async (props: WidgetTaskHandlerProps) => {
   const cachedSnapshot = readAgendaSnapshot();
-  props.renderWidget(<AndroidWidget widgetName={props.widgetInfo.widgetName} snapshot={cachedSnapshot} />);
+  let cachedMonthSnapshot = readMonthWidgetSnapshot();
 
-  if (props.widgetAction === 'WIDGET_ADDED' || props.widgetAction === 'WIDGET_UPDATE') {
+  if (props.widgetAction === 'WIDGET_CLICK') {
+    if (
+      props.clickAction === 'MONTH_PREV' ||
+      props.clickAction === 'MONTH_NEXT' ||
+      props.clickAction === 'MONTH_TODAY'
+    ) {
+      const targetOffset = typeof props.clickActionData?.offset === 'number'
+        && Number.isFinite(props.clickActionData.offset)
+        ? props.clickActionData.offset
+        : 0;
+
+      const cachedTarget = readCachedMonthWidgetSnapshot(targetOffset);
+      if (cachedTarget) {
+        writeMonthWidgetSnapshot(cachedTarget);
+        props.renderWidget(
+          getWidgetRepresentation(props.widgetInfo.widgetName, cachedSnapshot, cachedTarget),
+        );
+        const edgeSnapshots = await buildMonthCacheEdges(targetOffset);
+        for (const edgeSnapshot of edgeSnapshots) {
+          cacheMonthWidgetSnapshot(edgeSnapshot);
+          props.renderWidget(
+            getWidgetRepresentation(
+              props.widgetInfo.widgetName,
+              cachedSnapshot,
+              edgeSnapshot,
+              true,
+            ),
+          );
+        }
+        return;
+      }
+
+      const newMonthSnapshot = await buildMonthWidgetSnapshot(new Date(), targetOffset);
+      if (newMonthSnapshot) {
+        writeMonthWidgetSnapshot(newMonthSnapshot);
+        props.renderWidget(
+          getWidgetRepresentation(props.widgetInfo.widgetName, cachedSnapshot, newMonthSnapshot),
+        );
+        return;
+      }
+    }
+  }
+
+  props.renderWidget(
+    getWidgetRepresentation(props.widgetInfo.widgetName, cachedSnapshot, cachedMonthSnapshot),
+  );
+
+  if (
+    props.widgetAction === 'WIDGET_ADDED' ||
+    props.widgetAction === 'WIDGET_UPDATE' ||
+    props.widgetAction === 'WIDGET_RESIZED'
+  ) {
     try {
-      const timeline = await buildFreshTimeline();
+      const currentOffset = cachedMonthSnapshot?.monthOffset ?? 0;
+      const [timeline, monthSnapshot] = await Promise.all([
+        buildFreshTimeline(),
+        buildMonthWidgetSnapshot(new Date(), currentOffset),
+      ]);
       if (timeline && timeline.length > 0) {
         writeAgendaTimeline(timeline);
-        const snapshot = timeline[0].snapshot;
-        props.renderWidget(<AndroidWidget widgetName={props.widgetInfo.widgetName} snapshot={snapshot} />);
+        if (monthSnapshot) {
+          writeMonthWidgetSnapshot(monthSnapshot);
+        }
+        props.renderWidget(
+          getWidgetRepresentation(
+            props.widgetInfo.widgetName,
+            timeline[0].snapshot,
+            monthSnapshot ?? cachedMonthSnapshot,
+          ),
+        );
+      } else if (monthSnapshot) {
+        writeMonthWidgetSnapshot(monthSnapshot);
+        props.renderWidget(
+          getWidgetRepresentation(props.widgetInfo.widgetName, cachedSnapshot, monthSnapshot),
+        );
+      }
+      if (props.widgetInfo.widgetName === 'CalendarMonthWidget' && monthSnapshot) {
+        const resolvedMonthOffset = monthSnapshot.monthOffset ?? currentOffset;
+        const adjacentSnapshots = await Promise.all(
+          Array.from(
+            { length: MONTH_NATIVE_CACHE_RADIUS * 2 },
+            (_, index) => {
+              const relativeOffset = index < MONTH_NATIVE_CACHE_RADIUS
+                ? index - MONTH_NATIVE_CACHE_RADIUS
+                : index - MONTH_NATIVE_CACHE_RADIUS + 1;
+              return buildMonthWidgetSnapshot(
+                new Date(),
+                resolvedMonthOffset + relativeOffset,
+              );
+            },
+          ),
+        );
+        const agendaSnapshot = timeline?.[0]?.snapshot ?? cachedSnapshot;
+        for (const adjacentSnapshot of adjacentSnapshots) {
+          if (adjacentSnapshot) {
+            cacheMonthWidgetSnapshot(adjacentSnapshot);
+            props.renderWidget(
+              getWidgetRepresentation(
+                props.widgetInfo.widgetName,
+                agendaSnapshot,
+                adjacentSnapshot,
+                true,
+              ),
+            );
+          }
+        }
       }
     } catch (error) {
       if (__DEV__) console.warn('[widget] handler refresh failed', error);
@@ -155,23 +785,59 @@ export const homeWidget: WidgetSurface<AgendaTimelineEntry[]> = {
   id: 'homeWidget',
   isSupported: () => true,
   update: async (entries) => {
-    if (entries.length === 0) return;
-    writeAgendaTimeline(entries);
-    const snapshot = entries[0].snapshot;
+    const currentOffset = readMonthWidgetSnapshot()?.monthOffset ?? 0;
+    const now = new Date();
+    const monthWindow = await Promise.all(
+      Array.from(
+        { length: MONTH_NATIVE_CACHE_RADIUS * 2 + 1 },
+        (_, index) => buildMonthWidgetSnapshot(
+          now,
+          currentOffset + index - MONTH_NATIVE_CACHE_RADIUS,
+        ),
+      ),
+    );
+    const monthSnapshot = monthWindow[MONTH_NATIVE_CACHE_RADIUS];
+    for (const snapshotToCache of monthWindow) {
+      cacheMonthWidgetSnapshot(snapshotToCache);
+    }
+    writeMonthWidgetSnapshot(monthSnapshot);
+
+    let snapshot = readAgendaSnapshot();
+    if (entries.length > 0) {
+      writeAgendaTimeline(entries);
+      snapshot = entries[0].snapshot;
+    }
+    for (const adjacentSnapshot of monthWindow) {
+      if (adjacentSnapshot && adjacentSnapshot.monthOffset !== currentOffset) {
+        await requestWidgetUpdate({
+          widgetName: 'CalendarMonthWidget',
+          renderWidget: () => getWidgetRepresentation(
+            'CalendarMonthWidget',
+            snapshot,
+            adjacentSnapshot,
+            true,
+          ),
+        });
+      }
+    }
     await Promise.all(
       WIDGET_NAMES.map((widgetName) =>
         requestWidgetUpdate({
           widgetName,
-          renderWidget: () => <AndroidWidget widgetName={widgetName} snapshot={snapshot} />,
+          renderWidget: () => getWidgetRepresentation(widgetName, snapshot, monthSnapshot),
         }),
       ),
     );
   },
   clear: async () => {
     writeAgendaTimeline([]);
+    writeMonthWidgetSnapshot(null);
     await Promise.all(
       WIDGET_NAMES.map((widgetName) =>
-        requestWidgetUpdate({ widgetName, renderWidget: () => <AndroidWidget widgetName={widgetName} snapshot={null} /> }),
+        requestWidgetUpdate({
+          widgetName,
+          renderWidget: () => getWidgetRepresentation(widgetName, null, null),
+        }),
       ),
     );
   },
