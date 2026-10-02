@@ -73,7 +73,15 @@
     "noTitle": "(Без названия)",
     "drawerNoCalendars": "Нет календарей",
     "calendarNotifications": "Уведомления календаря «{{name}}»",
-    "calendarVisibility": "Показывать «{{name}}»"
+    "calendarVisibility": "Показывать «{{name}}»",
+    "showCompletedTasks": "Показывать завершённые задачи"
+  },
+  "task": {
+    "pending": "Задача",
+    "completed": "Завершена",
+    "completedWithDate": "Завершена {{date}}",
+    "markCompleted": "Отметить как завершённую",
+    "markNotCompleted": "Отметить как незавершённую"
   },
   "event": {
     "titleLabel": "Название *",

@@ -1,7 +1,7 @@
 import { appSchema, tableSchema } from '@nozbe/watermelondb';
 
 export const mySchema = appSchema({
-  version: 7,
+  version: 8,
   tables: [
     tableSchema({
       name: 'events',
@@ -26,6 +26,9 @@ export const mySchema = appSchema({
         { name: 'alarm_minutes', type: 'number', isOptional: true },
         { name: 'alarms', type: 'string', isOptional: true },
         { name: 'is_task', type: 'boolean', isOptional: true },
+        { name: 'task_status', type: 'string', isOptional: true },
+        { name: 'task_completed_at', type: 'number', isOptional: true },
+        { name: 'task_percent', type: 'number', isOptional: true },
       ],
     }),
     tableSchema({

@@ -1,5 +1,6 @@
 import type { Attendee, CalendarEvent } from '@/types';
 import { dedupeAttendees } from '@/utils/attendees';
+import { taskIsCompleted } from '@/utils/vtodo';
 
 import Event from '../models/Event';
 
@@ -48,5 +49,9 @@ export function mapEventToShared(event: Event): CalendarEvent {
     recurrenceId: event.recurrenceId != null ? new Date(event.recurrenceId) : undefined,
     alarms: parseAlarms(event.alarms ?? undefined, event.alarmMinutes ?? undefined),
     isTask: !!event.isTask,
+    taskStatus: event.taskStatus ?? undefined,
+    taskCompletedAt: event.taskCompletedAt != null ? new Date(event.taskCompletedAt) : undefined,
+    taskPercent: event.taskPercent ?? undefined,
+    taskCompleted: taskIsCompleted(event.taskStatus, event.taskCompletedAt, event.taskPercent),
   };
 }
