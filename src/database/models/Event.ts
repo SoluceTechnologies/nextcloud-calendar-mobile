@@ -30,4 +30,5 @@ export default class Event extends Model {
   @field('alarm_minutes') alarmMinutes?: number;
   @field('alarms') alarms?: string;
   @field('is_task') isTask?: boolean;
+  @field('attachments') attachments?: string;
 }
