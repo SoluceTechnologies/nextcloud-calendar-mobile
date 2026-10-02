@@ -65,6 +65,8 @@ export type CalendarEvent = {
     rrule?: string;
     recurrenceId?: Date;
     alarms?: number[];
+    /** IANA TZID of DTSTART/DTEND; undefined for all-day (floating) events. */
+    timezone?: string;
     isTask?: boolean;
     readOnly?: boolean;
 };
@@ -75,6 +77,8 @@ export type CreateEventInput = {
     dtstart: Date;
     dtend: Date;
     allDay: boolean;
+    /** Per-event IANA TZID override; defaults to the account/device zone. */
+    timezone?: string;
     description?: string;
     location?: string;
     attendees: Attendee[];

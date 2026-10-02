@@ -48,5 +48,6 @@ export function mapEventToShared(event: Event): CalendarEvent {
     recurrenceId: event.recurrenceId != null ? new Date(event.recurrenceId) : undefined,
     alarms: parseAlarms(event.alarms ?? undefined, event.alarmMinutes ?? undefined),
     isTask: !!event.isTask,
+    timezone: event.timezone ?? undefined,
   };
 }

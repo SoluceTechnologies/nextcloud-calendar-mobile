@@ -14,7 +14,9 @@ import { useTimeFormat } from '@/hooks/useTimeFormat';
 import { getNativePickerLocale } from '@/utils/i18n';
 import { AlertPicker } from './AlertPicker';
 import { RecurrencePicker } from './RecurrencePicker';
-import { Stack, Typography, TextField, DateField, Chip, Toggle } from '@/ui/components';
+import { TimezonePicker } from './TimezonePicker';
+import { isValidTimeZone, resolveAccountTimezone, wallDateToUtc, zonedUtcToWallDate } from '@/utils/timezone';
+import { Stack, Typography, TextField, DateField, Button, Chip, Toggle } from '@/ui/components';
 import type { CalendarMeta, Attendee, CreateEventInput, RecurrenceRule, TalkRoomType, Account } from '@/types';
 
 dayjs.extend(localizedFormat);
@@ -30,6 +32,7 @@ interface InitialValues {
   attendees?: Attendee[];
   rrule?: RecurrenceRule;
   alarms?: number[];
+  timezone?: string;
 }
 
 interface Props {
@@ -40,7 +43,7 @@ interface Props {
   onSubmit: (input: CreateEventInput) => void;
   initialValues?: InitialValues;
   disableCalendarChange?: boolean;
-  account?: Pick<Account, 'id' | 'baseUrl' | 'username' | 'appPassword'> | null;
+  account?: Pick<Account, 'id' | 'baseUrl' | 'username' | 'appPassword' | 'timezone'> | null;
 }
 
 export interface EventFormHandle {
@@ -81,9 +84,26 @@ export const EventForm = forwardRef<EventFormHandle, Props>(function EventForm({
     writableCalendars[0]?.id ?? '';
   const [calendarId, setCalendarId] = useState(defaultCalendarId);
   const [allDay, setAllDay] = useState(initialValues?.allDay ?? false);
-  const [dtstart, setDtstart] = useState(initialValues?.dtstart ?? defaultDate ?? new Date());
+
+  // Timed events are edited as wall-clock times in the event's own zone:
+  // dtstart/dtend below hold the zone's wall time as a device-local Date, and
+  // are converted back to real instants on submit. The zone defaults to the
+  // event's TZID, else the effective account/device zone — never a raw
+  // `account.timezone`, which may be '' and would desync fields from zone.
+  const initialTimezone = (() => {
+    const fromEvent = initialValues?.timezone;
+    return fromEvent && isValidTimeZone(fromEvent) ? fromEvent : resolveAccountTimezone(account);
+  })();
+  const [timezone, setTimezone] = useState(initialTimezone);
+  const asWallDate = (d: Date) =>
+    initialValues?.allDay ? d : zonedUtcToWallDate(d, initialTimezone);
+  const [dtstart, setDtstart] = useState(
+    initialValues?.dtstart ? asWallDate(initialValues.dtstart) : (defaultDate ?? new Date())
+  );
   const [dtend, setDtend] = useState(
-    initialValues?.dtend ?? (defaultDate ? dayjs(defaultDate).add(1, 'hour').toDate() : dayjs().add(1, 'hour').toDate())
+    initialValues?.dtend
+      ? asWallDate(initialValues.dtend)
+      : (defaultDate ? dayjs(defaultDate).add(1, 'hour').toDate() : dayjs().add(1, 'hour').toDate())
   );
   const [description, setDescription] = useState(initialValues?.description ?? '');
   const [location, setLocation] = useState(initialValues?.location ?? '');
@@ -206,9 +226,13 @@ export const EventForm = forwardRef<EventFormHandle, Props>(function EventForm({
     if (willAlert) void requestAlertPermission();
 
     onSubmit({
-      summary: summary.trim(), calendarId, dtstart, dtend, allDay,
+      summary: summary.trim(), calendarId,
+      dtstart: allDay ? dtstart : wallDateToUtc(dtstart, timezone),
+      dtend: allDay ? dtend : wallDateToUtc(dtend, timezone),
+      allDay,
       description, location, attendees, withTalkRoom, talkRoomType,
       organizerEmail, organizerName, rrule, alarms,
+      timezone: allDay ? undefined : timezone,
     });
   }
 
@@ -334,6 +358,10 @@ export const EventForm = forwardRef<EventFormHandle, Props>(function EventForm({
           {startBlock}
           {endBlock}
         </Stack>
+
+        {!allDay && (
+          <TimezonePicker value={timezone} onChange={setTimezone} />
+        )}
 
         {Platform.OS === 'android' && androidStep !== null && (
           <DateTimePicker

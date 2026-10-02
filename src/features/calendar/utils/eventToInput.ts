@@ -18,5 +18,6 @@ export function eventToInput(event: CalendarEvent, account: Account): CreateEven
     organizerName,
     rrule: parseRrule(event.rrule),
     alarms: event.alarms,
+    timezone: event.timezone,
   };
 }

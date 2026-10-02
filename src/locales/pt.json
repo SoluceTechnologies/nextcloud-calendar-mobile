@@ -84,6 +84,8 @@
     "allDay": "Dia inteiro",
     "start": "Início",
     "end": "Fim",
+    "timezone": "Fuso horário",
+    "timezoneSearch": "Pesquisar fuso horário",
     "location": "Localização",
     "locationPlaceholder": "Sala ou morada",
     "openInMaps": "Open in Maps",

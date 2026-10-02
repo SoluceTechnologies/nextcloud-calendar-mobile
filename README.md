@@ -104,6 +104,7 @@ Add and switch between multiple Nextcloud accounts. Each account's calendars are
 Create, view, and edit calendar events with support for:
 - Title, description, location
 - All-day and timed events
+- Per-event timezone override (IANA zone picker, `TZID` + `VTIMEZONE` in the ICS)
 - Attendee lists with display names
 - Recurring event detection
 - Multiple reminders per event, configurable defaults, and custom offsets
