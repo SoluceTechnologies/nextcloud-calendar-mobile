@@ -3,6 +3,7 @@ import { AppState, type AppStateStatus } from 'react-native';
 
 import { useAccountStore } from '@/stores/accountStore';
 import { useCalendarStore } from '@/stores/calendarStore';
+import { useSettingsStore } from '@/stores/settingsStore';
 import { EVENT_OBSERVED_COLUMNS } from '@/database/observedColumns';
 
 import { observeAgendaEventsQuery } from '../core/readEvents';
@@ -19,11 +20,13 @@ export function useWidgetSync(): void {
   const hiddenCalendarIds = useCalendarStore((s) => s.hiddenCalendarIds);
   const notifDisabledCalendarIds = useCalendarStore((s) => s.notifDisabledCalendarIds);
   const widgetDisabledCalendarIds = useCalendarStore((s) => s.widgetDisabledCalendarIds);
+  const timeFormat = useSettingsStore((s) => s.timeFormat);
+  const language = useSettingsStore((s) => s.language);
   const prevAccountRef = useRef<string | null | undefined>(undefined);
 
   useEffect(() => {
     if (activeAccountId) void syncWidget();
-  }, [hiddenCalendarIds, notifDisabledCalendarIds, widgetDisabledCalendarIds, activeAccountId, calendarApp]);
+  }, [hiddenCalendarIds, notifDisabledCalendarIds, widgetDisabledCalendarIds, activeAccountId, calendarApp, timeFormat, language]);
 
   useEffect(() => {
     const prevAccount = prevAccountRef.current;

@@ -1,7 +1,7 @@
 import * as BackgroundTask from 'expo-background-task';
 import * as TaskManager from 'expo-task-manager';
 
-import { syncCalendars, syncEvents } from '@/database/sync';
+import { syncCalendars, syncVisibleRange } from '@/database/sync';
 import { scheduleEventAlerts } from '@/features/notifications/scheduleAlerts';
 import { getActiveAccountId, loadAccounts } from '@/services/nextcloud/auth';
 
@@ -24,7 +24,7 @@ export async function runBackgroundWidgetSync(now: Date = new Date()): Promise<v
   if (calendars.length > 0) {
     const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const end = new Date(now.getFullYear(), now.getMonth(), now.getDate() + WINDOW_DAYS);
-    await syncEvents(account, calendars, start, end, false);
+    await syncVisibleRange(account, calendars, start, end, false);
   }
 
   await syncWidget(now);

@@ -1,0 +1,1 @@
+export { QrScannerView } from './ExpoCameraQrScannerView';

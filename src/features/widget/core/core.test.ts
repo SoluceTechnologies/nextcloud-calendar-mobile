@@ -43,6 +43,18 @@ describe('buildAgendaSnapshot', () => {
     expect(snap.events[0].color).toBe('#3b82f6');
   });
 
+  it('honours use24h in time labels', () => {
+    const events = [
+      ev({ uid: 'e', dtstart: new Date('2026-08-01T12:00:00Z'), dtend: new Date('2026-08-01T13:00:00Z') }),
+    ];
+    const label = (use24h: boolean) =>
+      buildAgendaSnapshot(events, { now, timeZone: TZ, locale: 'en-US', use24h })
+        .events[0].timeLabel.replace(/[  ]/g, ' ');
+
+    expect(label(true)).toBe('14:00 – 15:00');
+    expect(label(false)).toBe('02:00 PM – 03:00 PM');
+  });
+
   it('respects maxEvents', () => {
     const events = [1, 2, 3, 4].map((h) =>
       ev({ uid: `e${h}`, dtstart: new Date(`2026-08-01T1${h}:00:00Z`), dtend: new Date(`2026-08-01T1${h}:30:00Z`) }),

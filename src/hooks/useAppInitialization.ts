@@ -21,14 +21,6 @@ import { pushPinsToNative } from '@/services/shared/certPins';
 
 SplashScreen.preventAutoHideAsync();
 
-// Reading the accounts can fail when the OS relaunched us in the background:
-// the iOS keychain is unreachable while the device is locked (SecureStore
-// stores accounts as `whenUnlocked` by default), and Android's keystore and
-// credential-encrypted preferences have their own transient failures. Such a
-// boot must not report "ready" with an empty account list — the router reads
-// that as "no account configured" and shows the setup screen, and because the
-// boot only runs once per JS runtime the user keeps seeing it until the
-// process is killed, even though the credentials are still on disk.
 const MAX_BOOT_ATTEMPTS = 3;
 
 export function useAppInitialization() {
@@ -52,8 +44,6 @@ export function useAppInitialization() {
       running = true;
       try {
         await migrateFromAsyncStorage();
-        // Load trusted self-signed cert pins into the native layer before any
-        // network call so pinned hosts connect without a prompt.
         pushPinsToNative();
         await Promise.all([
           useAccountStore.persist.rehydrate(),

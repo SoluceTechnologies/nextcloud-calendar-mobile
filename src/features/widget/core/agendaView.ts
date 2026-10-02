@@ -1,3 +1,4 @@
+import i18n from '@/utils/i18n';
 import type { AgendaEventItem, AgendaSnapshot } from './types';
 import { type WidgetPalette, type WidgetScheme, widgetPalette } from './theme';
 
@@ -12,8 +13,6 @@ export interface AgendaHeader {
   dayLabel: string;
   dayNumber: string;
 }
-
-export const AGENDA_EMPTY_LABEL = 'No upcoming event';
 
 export function agendaScheme(snapshot: AgendaSnapshot | null): WidgetScheme {
   return snapshot?.scheme ?? 'light';
@@ -31,7 +30,7 @@ export function agendaHeader(snapshot: AgendaSnapshot | null): AgendaHeader {
 }
 
 export function emptyLabel(snapshot: AgendaSnapshot | null): string {
-  return snapshot?.relativeLabel ?? AGENDA_EMPTY_LABEL;
+  return snapshot?.relativeLabel ?? i18n.t('widget.emptyAgenda');
 }
 
 export function compactEvents(snapshot: AgendaSnapshot | null, limit: number): AgendaEventItem[] {

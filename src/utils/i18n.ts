@@ -44,6 +44,14 @@ export function getInitialLanguage(): AppLanguage {
   return isSupported(code) ? code : 'en';
 }
 
+export function getNativePickerLocale(language: AppLanguage): string {
+  const region =
+    getLocales()[0]?.regionCode ??
+    LANGUAGES.find((l) => l.code === language)?.region ??
+    'US';
+  return `${language}-${region}`;
+}
+
 const MONDAY_START_REGIONS = new Set([
   // Europe
   'AD', 'AL', 'AT', 'AX', 'BA', 'BE', 'BG', 'BO', 'BR', 'BY', 'CH', 'CL', 'CN', 'CO', 'CR', 'CZ', 'DE',

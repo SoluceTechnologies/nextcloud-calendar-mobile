@@ -22,7 +22,7 @@ function eventsInRangeQuery(accountId: string, rangeStart: number, rangeEnd: num
     .query(
       Q.where('account_id', accountId),
       Q.where('start', Q.lt(rangeEnd)),
-      Q.where('end', Q.gt(rangeStart)),
+      Q.where('end', Q.gte(rangeStart)),
     );
 }
 

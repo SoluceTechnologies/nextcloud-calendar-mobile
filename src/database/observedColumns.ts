@@ -14,6 +14,7 @@ export const EVENT_OBSERVED_COLUMNS = [
   'is_recurring',
   'rrule',
   'alarm_minutes',
+  'alarms',
   'is_task',
 ];
 

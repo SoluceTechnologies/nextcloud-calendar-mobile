@@ -4,6 +4,7 @@ import dayjs from 'dayjs';
 import { Typography } from '@/ui/components';
 import type { GridEvent } from '../utils/toGridEvents';
 import { contrastFor } from '../utils/eventInk';
+import { useTimeFormat } from '@/hooks/useTimeFormat';
 import { LONG_PRESS_MS } from '../constants';
 
 interface Props {
@@ -25,6 +26,7 @@ function TimeGridEventImpl({ event, top, height, leftPct, widthPct, zIndex, hour
   const pad = Math.round(2 + scale * 4);
   const color = event.color;
   const ink = contrastFor(color);
+  const { formatTime } = useTimeFormat();
   const durationMin = dayjs(event.end).diff(event.start, 'minute');
 
   // A finger that rested here for the long-press window was grabbing the event,
@@ -84,7 +86,7 @@ function TimeGridEventImpl({ event, top, height, leftPct, widthPct, zIndex, hour
               {event.title}
             </Typography>
             <Typography color={ink.subtext} weight="400" style={{ fontSize: timeSize, lineHeight: Math.round(timeSize * 1.25) }} numberOfLines={1}>
-              {dayjs(event.start).format('H:mm')}–{dayjs(event.end).format('H:mm')}
+              {formatTime(event.start)}–{formatTime(event.end)}
             </Typography>
           </>
         )}

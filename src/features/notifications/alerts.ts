@@ -1,4 +1,7 @@
 import type { CalendarEvent } from '@/types';
+import i18n from '@/utils/i18n';
+
+export const NO_ALARM_PROP = 'X-NCM-ALARM-NONE';
 
 export type TimedAlert = 0 | 5 | 10 | 15 | 30 | 60 | 120 | 1440 | 2880 | 10080 | null;
 
@@ -13,6 +16,23 @@ export function timedAlertLabelKey(value: TimedAlert): string {
   if (value === null) return 'settings.alerts.none';
   if (value === 0) return 'settings.alerts.atTime';
   return `settings.alerts.before.${value}`;
+}
+
+export function alertMinutesLabel(minutes: number): string {
+  if (minutes === 0) return i18n.t('settings.alerts.atTime');
+  const abs = Math.abs(minutes);
+  const direction = minutes > 0 ? 'before' : 'after';
+  if (abs % 1440 === 0) {
+    return i18n.t(`settings.alerts.custom.${direction}.days`, { value: abs / 1440 });
+  }
+  if (abs % 60 === 0) {
+    return i18n.t(`settings.alerts.custom.${direction}.hours`, { value: abs / 60 });
+  }
+  return i18n.t(`settings.alerts.custom.${direction}.minutes`, { value: abs });
+}
+
+export function allDayAlarmMinutes(days: number): number {
+  return days * 1440 - ALL_DAY_HOUR * 60;
 }
 
 export function allDayAlertLabelKey(value: AllDayAlert): string {
@@ -44,19 +64,23 @@ export function triggerToMinutes(trigger: string): number | null {
   return sign === '-' ? total : -total;
 }
 
-export function alertTime(
-  event: Pick<CalendarEvent, 'dtstart' | 'allDay' | 'alarmMinutes'>,
-  timed: TimedAlert,
-  allDay: AllDayAlert,
-): Date | null {
-  if (event.alarmMinutes !== undefined) {
-    return new Date(event.dtstart.getTime() - event.alarmMinutes * 60_000);
+export function alertTimes(
+  event: Pick<CalendarEvent, 'dtstart' | 'allDay' | 'alarms'>,
+  timed: number[],
+  allDay: number[],
+): Date[] {
+  if (event.alarms !== undefined) {
+    return [...new Set(event.alarms)].map(
+      (m) => new Date(event.dtstart.getTime() - m * 60_000),
+    );
   }
   if (event.allDay) {
-    if (allDay === null) return null;
     const d = event.dtstart;
-    return new Date(d.getFullYear(), d.getMonth(), d.getDate() - allDay, ALL_DAY_HOUR, 0, 0);
+    return [...new Set(allDay)].map(
+      (days) => new Date(d.getFullYear(), d.getMonth(), d.getDate() - days, ALL_DAY_HOUR, 0, 0),
+    );
   }
-  if (timed === null) return null;
-  return new Date(event.dtstart.getTime() - timed * 60_000);
+  return [...new Set(timed)].map(
+    (m) => new Date(event.dtstart.getTime() - m * 60_000),
+  );
 }

@@ -22,6 +22,7 @@ import { EventMapPreview, EventMapSheet } from '@/features/map/components';
 import { openMaps } from '@/features/map/utils/mapLinks';
 import { useAccountStore } from '@/stores/accountStore';
 import { useSettingsStore } from '@/stores/settingsStore';
+import { useTimeFormat } from '@/hooks/useTimeFormat';
 import {
   ViewContainer, Stack, Typography, Button, Chip, Icon, List, Item,
   SectionHeader, Avatar, Spinner, ScreenHeader,
@@ -32,7 +33,8 @@ import { openTalkRoom, promptTalkRoomOpen } from '@/features/event/utils/openTal
 import { askRecurrenceScope, type RecurrenceScopeStrings } from '@/features/event/recurrenceScope';
 import { decideMoveEventScope } from '@/features/calendar/utils/moveEventScope';
 import {
-  TIMED_ALERTS, ALL_DAY_ALERTS, timedAlertLabelKey, allDayAlertLabelKey,
+  TIMED_ALERTS, ALL_DAY_ALERTS, ALL_DAY_HOUR, timedAlertLabelKey, allDayAlertLabelKey,
+  alertMinutesLabel,
   type TimedAlert, type AllDayAlert,
 } from '@/features/notifications/alerts';
 import { goBackOrHome } from '@/utils/navigationGuard';
@@ -52,6 +54,7 @@ export default function EventDetailScreen() {
 
   const event = useEventByUid(activeAccountId, uid);
   const talkOpenMode = useSettingsStore((s) => s.talkOpenMode);
+  const { formatTime } = useTimeFormat();
 
   const navigation = useNavigation();
   useEffect(() => {
@@ -191,20 +194,25 @@ export default function EventDetailScreen() {
     ? (dayjs(event.dtstart).isSame(event.dtend, 'day')
         ? t('event.allDayTime')
         : `${dayjs(event.dtstart).format('ll')} – ${dayjs(event.dtend).format('ll')}`)
-    : `${dayjs(event.dtstart).format('lll')} – ${dayjs(event.dtend).format('LT')}`;
+    : `${dayjs(event.dtstart).format('ll')} ${formatTime(event.dtstart)} – ${formatTime(event.dtend)}`;
 
   const reminderLabel = (() => {
-    if (event.alarmMinutes === undefined) return null;
-    const m = event.alarmMinutes;
-    if (event.allDay) {
-      const days = m / 1440;
-      return (ALL_DAY_ALERTS as (number | null)[]).includes(days)
-        ? t(allDayAlertLabelKey(days as AllDayAlert))
-        : t('event.alert');
-    }
-    return (TIMED_ALERTS as (number | null)[]).includes(m)
-      ? t(timedAlertLabelKey(m as TimedAlert))
-      : t('event.reminder');
+    if (event.alarms === undefined || event.alarms.length === 0) return null;
+    const labels = event.alarms.map((m) => {
+      if (event.allDay) {
+        const days = (m + ALL_DAY_HOUR * 60) / 1440;
+        if (Number.isInteger(days)) {
+          return (ALL_DAY_ALERTS as (number | null)[]).includes(days)
+            ? t(allDayAlertLabelKey(days as AllDayAlert))
+            : t('settings.alerts.allDayOpts.custom', { value: days });
+        }
+        return alertMinutesLabel(m);
+      }
+      return (TIMED_ALERTS as (number | null)[]).includes(m)
+        ? t(timedAlertLabelKey(m as TimedAlert))
+        : alertMinutesLabel(m);
+    });
+    return labels.join(' · ');
   })();
 
   return (

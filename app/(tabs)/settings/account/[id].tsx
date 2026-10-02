@@ -1,4 +1,4 @@
-import { Alert, Linking } from 'react-native';
+import { Alert, Linking, View } from 'react-native';
 import { useLocalSearchParams, useRouter, useTheme } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { CircleCheck, SquareArrowOutUpRight } from 'lucide-react-native';
@@ -7,13 +7,16 @@ import { setActiveAccountId, clearActiveAccountId } from '@/services/nextcloud/a
 import { describeMutationError } from '@/services/shared/errors';
 import { useAccounts } from '@/hooks/useAccounts';
 import { useAccountStore } from '@/stores/accountStore';
+import { useSettingsStore } from '@/stores/settingsStore';
+import { useCalendarsFromDb } from '@/database/useCalendars';
+import { isWritableCalendar } from '@/utils/calendars';
 import { AvatarImage } from '@/components/AvatarImage';
 import { SettingsPage } from '@/features/settings/components/SettingsPage';
 import { AccountReconnectForm } from '@/features/account/components/AccountReconnectForm';
 import { useDeleteAccount } from '@/features/account/hooks/useMutateAccount';
 import { useAccountAuthStatus } from '@/features/account/hooks/useAccountAuthStatus';
 import { hostnameOf } from '@/features/account/utils/account';
-import { Button, Icon, Item, List, SectionHeader, Stack, Typography } from '@/ui/components';
+import { Button, Icon, Item, List, SectionHeader, Select, Stack, Typography, type SelectOption } from '@/ui/components';
 
 const cardOuter = { marginHorizontal: 16, marginBottom: 12 };
 
@@ -29,6 +32,11 @@ export default function AccountDetailScreen() {
   const setStoreId = useAccountStore((s) => s.setActiveAccountId);
   const remove = useDeleteAccount();
   const authStatus = useAccountAuthStatus(account);
+  const calendars = useCalendarsFromDb(account?.id ?? null);
+  const storedDefaultId = useSettingsStore((s) =>
+    account ? s.defaultCalendarByAccount[account.id] : undefined,
+  );
+  const setDefaultCalendar = useSettingsStore((s) => s.setDefaultCalendar);
 
   if (!account) {
     return (
@@ -43,6 +51,29 @@ export default function AccountDetailScreen() {
   }
 
   const isActive = account.id === activeAccountId;
+
+  const writableCalendars = calendars.filter(isWritableCalendar);
+  const defaultCalendarOptions: SelectOption<string>[] = [
+    { value: 'auto', label: t('settings.account.defaultCalendarAuto') },
+    ...writableCalendars.map((cal) => ({
+      value: cal.id,
+      label: cal.displayName,
+      leading: (size: number) => (
+        <View
+          style={{
+            width: size * 0.5,
+            height: size * 0.5,
+            borderRadius: size,
+            backgroundColor: cal.color,
+          }}
+        />
+      ),
+    })),
+  ];
+  const defaultCalendarValue =
+    storedDefaultId && writableCalendars.some((c) => c.id === storedDefaultId)
+      ? storedDefaultId
+      : 'auto';
 
   const handleSetActive = async () => {
     await setActiveAccountId(account.id);
@@ -109,6 +140,21 @@ export default function AccountDetailScreen() {
             description={account.username}
           />
         </List>
+      </Stack>
+
+      <Stack card gap={12} padding={16} hAlign="stretch" style={cardOuter}>
+        <Stack gap={2}>
+          <Typography variant="body1">{t('settings.account.defaultCalendar')}</Typography>
+          <Typography variant="caption" color="secondary">
+            {t('settings.account.defaultCalendarHint')}
+          </Typography>
+        </Stack>
+        <Select<string>
+          value={defaultCalendarValue}
+          options={defaultCalendarOptions}
+          accessibilityLabel={t('settings.account.defaultCalendar')}
+          onChange={(v) => setDefaultCalendar(account.id, v === 'auto' ? undefined : v)}
+        />
       </Stack>
 
       {authStatus === 'lost' ? (

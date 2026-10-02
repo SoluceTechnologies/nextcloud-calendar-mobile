@@ -1,43 +1,43 @@
 export type Account = {
-  id: string;
-  displayName: string;
-  baseUrl: string;
-  username: string;
-  appPassword: string;
-  davUserId: string;
-  timezone?: string;
-  email?: string;
+    id: string;
+    displayName: string;
+    baseUrl: string;
+    username: string;
+    appPassword: string;
+    davUserId: string;
+    timezone?: string;
+    email?: string;
 };
 
 export type CalendarMeta = {
-  id: string;
-  accountId: string;
-  displayName: string;
-  color: string;
-  ctag: string;
-  url: string;
-  slug: string;
-  isSubscribed?: boolean;
-  isReadOnly?: boolean;
-  sourceUrl?: string;
-  supportsEvents?: boolean;
+    id: string;
+    accountId: string;
+    displayName: string;
+    color: string;
+    ctag: string;
+    url: string;
+    slug: string;
+    isSubscribed?: boolean;
+    isReadOnly?: boolean;
+    sourceUrl?: string;
+    supportsEvents?: boolean;
 };
 
 export type Attendee = {
-  email: string;
-  displayName?: string;
+    email: string;
+    displayName?: string;
 };
 
 export type RecurrenceFreq = 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'YEARLY';
 
 export type RecurrenceRule = {
-  freq: RecurrenceFreq;
-  interval?: number;
-  count?: number;
-  until?: Date;
-  byDay?: string[];
-  byMonth?: number[];
-  byWeekNo?: number[];
+    freq: RecurrenceFreq;
+    interval?: number;
+    count?: number;
+    until?: Date;
+    byDay?: string[];
+    byMonth?: number[];
+    byWeekNo?: number[];
 };
 
 export type RecurrenceEditScope = 'this' | 'thisAndFollowing' | 'all';
@@ -47,50 +47,50 @@ export type TalkRoomType = 'public' | 'private';
 export type TalkOpenMode = 'app' | 'browser' | 'ask';
 
 export type CalendarEvent = {
-  uid: string;
-  href: string;
-  calendarId: string;
-  accountId: string;
-  summary: string;
-  description?: string;
-  location?: string;
-  dtstart: Date;
-  dtend: Date;
-  allDay: boolean;
-  color: string;
-  attendees: Attendee[];
-  organizerEmail?: string;
-  talkUrl?: string;
-  isRecurring: boolean;
-  rrule?: string;
-  recurrenceId?: Date;
-  alarmMinutes?: number;
-  isTask?: boolean;
-  readOnly?: boolean;
+    uid: string;
+    href: string;
+    calendarId: string;
+    accountId: string;
+    summary: string;
+    description?: string;
+    location?: string;
+    dtstart: Date;
+    dtend: Date;
+    allDay: boolean;
+    color: string;
+    attendees: Attendee[];
+    organizerEmail?: string;
+    talkUrl?: string;
+    isRecurring: boolean;
+    rrule?: string;
+    recurrenceId?: Date;
+    alarms?: number[];
+    isTask?: boolean;
+    readOnly?: boolean;
 };
 
 export type CreateEventInput = {
-  summary: string;
-  calendarId: string;
-  dtstart: Date;
-  dtend: Date;
-  allDay: boolean;
-  description?: string;
-  location?: string;
-  attendees: Attendee[];
-  withTalkRoom: boolean;
-  talkRoomType?: TalkRoomType;
-  organizerEmail: string;
-  organizerName: string;
-  rrule?: RecurrenceRule;
-  alarmMinutes?: number;
+    summary: string;
+    calendarId: string;
+    dtstart: Date;
+    dtend: Date;
+    allDay: boolean;
+    description?: string;
+    location?: string;
+    attendees: Attendee[];
+    withTalkRoom: boolean;
+    talkRoomType?: TalkRoomType;
+    organizerEmail: string;
+    organizerName: string;
+    rrule?: RecurrenceRule;
+    alarms?: number[];
 };
 
 export type CalendarAppStatus = 'unknown' | 'available' | 'unconfigured';
 
 export type ServerCapabilities = {
-  talkEnabled: boolean;
-  calendarApp: CalendarAppStatus;
+    talkEnabled: boolean;
+    calendarApp: CalendarAppStatus;
 };
 
 export type ViewMode = 'month' | 'week' | '3days' | 'day' | 'schedule';

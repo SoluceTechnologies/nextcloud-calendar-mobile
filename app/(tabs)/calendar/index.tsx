@@ -59,7 +59,9 @@ export default function CalendarScreen() {
   const calMode: CalMode = lastCalModeRef.current;
 
   const { hourRowHeight, cellHeight, commitZoom } = useZoom();
-  const { activeAccount, calendars, allEvents, showFullOverlay, showSmallLoader } = useCalendarData(fetchDate);
+  const {
+    activeAccount, calendars, allEvents, agendaEvents, showFullOverlay, showSmallLoader,
+  } = useCalendarData(fetchDate, viewMode === 'schedule');
   const insets = useSafeAreaInsets();
   const drawer = useCalendarDrawer();
 
@@ -168,7 +170,7 @@ export default function CalendarScreen() {
         <ViewLayer visible={deferredViewMode === 'schedule'}>
           <AgendaView
             ref={nav.agendaRef}
-            events={allEvents}
+            events={agendaEvents}
             date={date}
             onPressEvent={handlePressEventFromMonth}
             onPressCell={handlePressCell}
@@ -186,6 +188,7 @@ export default function CalendarScreen() {
             hourRowHeight={hourRowHeight}
             cellHeight={cellHeight}
             weekStartsOn={deferredWeekStartsOn}
+            active={deferredIsCalendarMode}
             jump={nav.jump}
             commitZoom={commitZoom}
             initialScrollHour={nowHour}

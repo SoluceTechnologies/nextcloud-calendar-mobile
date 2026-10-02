@@ -2,10 +2,11 @@ import React from 'react';
 import { HStack, Image, ProgressView, RoundedRectangle, Spacer, Text, VStack, ZStack } from '@expo/ui/swift-ui';
 import { clipShape, font, foregroundStyle, frame, opacity, padding, progressViewStyle, tint, widgetURL } from '@expo/ui/swift-ui/modifiers';
 import { after, createLiveActivity, type LiveActivity } from 'expo-widgets';
-import dayjs from 'dayjs';
 
 import type { LiveEventState, WidgetSurface } from '../../core/types';
 import { readLiveEvent, writeLiveEvent } from '../../storage/widgetStore';
+import { useSettingsStore } from '@/stores/settingsStore';
+import { formatTime, resolveUse24h } from '@/utils/timeFormat';
 
 const ACTIVITY_NAME = 'NextcloudCalendarLiveActivity';
 
@@ -21,10 +22,12 @@ interface ActivityProps {
 }
 
 function toProps(state: LiveEventState): ActivityProps {
+  const { timeFormat, language } = useSettingsStore.getState();
+  const use24h = resolveUse24h(timeFormat, language);
   return {
     title: state.title,
-    timeRange: `${dayjs(state.startIso).format('LT')} – ${dayjs(state.endIso).format('LT')}`,
-    startLabel: dayjs(state.startIso).format('LT'),
+    timeRange: `${formatTime(state.startIso, use24h)} – ${formatTime(state.endIso, use24h)}`,
+    startLabel: formatTime(state.startIso, use24h),
     location: state.location,
     color: state.color,
     startMs: new Date(state.startIso).getTime(),

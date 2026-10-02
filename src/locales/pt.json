@@ -168,7 +168,7 @@
     "errorCreateFailed": "Falha ao criar o evento",
     "errorUpdateFailed": "Falha ao atualizar o evento",
     "errorDeleteFailed": "Falha ao eliminar o evento",
-    "alert": "Alerta"
+    "alerts": "Alertas"
   },
   "settings": {
     "title": "Definições",
@@ -200,6 +200,12 @@
       "normal": "Normal",
       "expanded": "Expandido",
       "large": "Grande"
+    },
+    "timeFormat": {
+      "title": "Formato de hora",
+      "auto": "Auto",
+      "h24": "24 horas",
+      "h12": "12 horas"
     },
     "accounts": "Contas",
     "addAccount": "+ Adicionar conta",
@@ -247,11 +253,33 @@
         "1": "1 dia antes (9:00)",
         "2": "2 dias antes (9:00)",
         "7": "1 semana antes (9:00)",
-        "sameDay": "No próprio dia (9:00)"
+        "sameDay": "No próprio dia (9:00)",
+        "custom": "{{value}} dias antes (9:00)"
       },
       "useDefault": "Predefinido",
-      "timedHint": "Lembrete padrão para eventos sem um próprio. Os que já têm lembrete mantêm o seu.",
-      "allDayHint": "Lembrete padrão para eventos de dia inteiro sem um próprio, às 9:00 do dia escolhido."
+      "timedHint": "Lembretes predefinidos para eventos novos e para os que não têm lembrete próprio.",
+      "allDayHint": "Lembretes predefinidos para eventos de dia inteiro, às 9:00 do dia escolhido.",
+      "addCustom": "Personalizado…",
+      "customTitle": "Lembrete personalizado",
+      "customAmount": "Valor",
+      "addReminder": "Adicionar lembrete",
+      "units": {
+        "minutes": "minutos",
+        "hours": "horas",
+        "days": "dias"
+      },
+      "custom": {
+        "before": {
+          "minutes": "{{value}} minutos antes",
+          "hours": "{{value}} horas antes",
+          "days": "{{value}} dias antes"
+        },
+        "after": {
+          "minutes": "{{value}} minutos após o início",
+          "hours": "{{value}} horas após o início",
+          "days": "{{value}} dias após o início"
+        }
+      }
     },
     "account": {
       "title": "Conta",
@@ -279,7 +307,10 @@
       },
       "connectionLost": "A ligação a este servidor expirou. Volte a ligar-se para continuar a sincronizar.",
       "use": "Usar",
-      "editOnNextcloud": "Editar no Nextcloud"
+      "editOnNextcloud": "Editar no Nextcloud",
+      "defaultCalendar": "Calendário padrão",
+      "defaultCalendarHint": "Pré-selecionado ao criar um evento.",
+      "defaultCalendarAuto": "Automático"
     },
     "accountActive": "Ativa",
     "talk": {

@@ -1,0 +1,33 @@
+plugins {
+  id 'com.android.library'
+  id 'expo-module-gradle-plugin'
+}
+
+group = 'expo.modules.zxingscanner'
+version = '0.1.0'
+
+android {
+  namespace "expo.modules.zxingscanner"
+  defaultConfig {
+    versionCode 1
+    versionName "0.1.0"
+  }
+  lintOptions {
+    abortOnError false
+  }
+}
+
+configurations.configureEach {
+  resolutionStrategy.force "com.google.guava:listenablefuture:1.0"
+}
+
+dependencies {
+  def camerax_version = "1.6.0"
+
+  implementation "androidx.camera:camera-core:${camerax_version}"
+  implementation "androidx.camera:camera-camera2:${camerax_version}"
+  implementation "androidx.camera:camera-lifecycle:${camerax_version}"
+  implementation "androidx.camera:camera-view:${camerax_version}"
+
+  implementation "com.google.zxing:core:3.5.3"
+}

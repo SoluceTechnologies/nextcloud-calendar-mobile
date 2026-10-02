@@ -2,12 +2,14 @@ import { useEffect, useRef, useState } from 'react';
 import {
   Modal, View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Linking,
 } from 'react-native';
-import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from 'expo-router';
 import { X } from 'lucide-react-native';
 
 import { IconButton, ScreenHeader } from '@/ui/components';
+
+import { QrScannerView } from '../../../../modules/zxing-scanner/src/QrScannerView';
+import { useQrCameraPermissions } from '../../../../modules/zxing-scanner/src/useQrCameraPermissions';
 
 import { parseNcLoginUrl } from '../utils/ncLoginUrl';
 import type { NcLoginData } from '../utils/ncLoginUrl';
@@ -23,7 +25,7 @@ interface Props {
 export function QrLoginScanner({ visible, onClose, onScanned }: Props) {
   const theme = useTheme();
   const { t } = useTranslation();
-  const [permission, requestPermission] = useCameraPermissions();
+  const [permission, requestPermission] = useQrCameraPermissions();
   const [scanned, setScanned] = useState(false);
   const [parseError, setParseError] = useState<string | null>(null);
   const scannedRef = useRef(false);
@@ -42,7 +44,7 @@ export function QrLoginScanner({ visible, onClose, onScanned }: Props) {
     }
   }, [visible, permission, requestPermission]);
 
-  function handleBarCodeScanned({ data }: { data: string }) {
+  function handleBarCodeScanned(data: string) {
     if (scannedRef.current) return;
     scannedRef.current = true;
     setScanned(true);
@@ -99,11 +101,10 @@ export function QrLoginScanner({ visible, onClose, onScanned }: Props) {
   return (
     <Modal visible animationType="slide" onRequestClose={onClose}>
       <View style={styles.root}>
-        <CameraView
+        <QrScannerView
           style={StyleSheet.absoluteFill}
-          facing="back"
-          barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
-          onBarcodeScanned={scanned ? undefined : handleBarCodeScanned}
+          paused={scanned}
+          onScanned={handleBarCodeScanned}
         />
 
         <View style={styles.overlay} pointerEvents="none">

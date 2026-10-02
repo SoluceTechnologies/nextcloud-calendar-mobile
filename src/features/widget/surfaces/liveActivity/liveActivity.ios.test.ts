@@ -9,7 +9,11 @@ jest.mock('@expo/ui/swift-ui/modifiers', () => ({
   frame: jest.fn(),
   padding: jest.fn(),
 }));
-jest.mock('@/utils/i18n', () => ({ t: (key: string) => key }));
+jest.mock('@/utils/i18n', () => ({
+  t: (key: string) => key,
+  getInitialLanguage: () => 'en',
+  getInitialWeekStartsOn: () => 1,
+}));
 const mockReadLiveEvent = jest.fn();
 jest.mock('@/features/widget/storage/widgetStore', () => ({
   writeLiveEvent: jest.fn(),

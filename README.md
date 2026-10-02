@@ -106,6 +106,7 @@ Create, view, and edit calendar events with support for:
 - All-day and timed events
 - Attendee lists with display names
 - Recurring event detection
+- Multiple reminders per event, configurable defaults, and custom offsets
 
 ### Nextcloud Talk Integration
 Optionally attach a Nextcloud Talk room to any event at creation time, the Talk link is stored in the event and surfaced in the event detail view.
@@ -122,6 +123,8 @@ Widgets are kept up to date through the app's background sync, and tapping an ev
 - Light, dark, and system-auto theme modes
 - Adjustable zoom level (hour row height: 45–120 px)
 - Configurable week start day (Sunday or Monday)
+- Per-account default calendar for new events
+- 12-hour / 24-hour time format, following the system setting by default
 ---
 
 ## 🤝 Open to Collaboration

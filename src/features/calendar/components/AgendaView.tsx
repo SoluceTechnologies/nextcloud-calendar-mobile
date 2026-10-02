@@ -1,6 +1,7 @@
-import { memo, useRef, useCallback, useMemo, forwardRef, useImperativeHandle } from 'react';
+import { memo, useRef, useCallback, useMemo, useLayoutEffect, forwardRef, useImperativeHandle } from 'react';
 import {
-  View, Text, SectionList, TouchableOpacity, StyleSheet, type ViewToken,
+  View, Text, FlatList, TouchableOpacity, StyleSheet, type ViewToken,
+  type NativeScrollEvent, type NativeSyntheticEvent,
 } from 'react-native';
 import dayjs from 'dayjs';
 import localizedFormat from 'dayjs/plugin/localizedFormat';
@@ -8,6 +9,10 @@ import { useTranslation } from 'react-i18next';
 import { useTheme } from 'expo-router';
 import type { Theme } from '@/theme';
 import type { CalendarEvent } from '@/types';
+import { useTimeFormat } from '@/hooks/useTimeFormat';
+import {
+  AGENDA_FUTURE_DAYS, AGENDA_PAST_DAYS, agendaRowKey, buildAgendaSections,
+} from '../utils/agendaSections';
 
 dayjs.extend(localizedFormat);
 
@@ -19,14 +24,8 @@ interface Props {
   onVisibleDateChange?: (date: Date) => void;
 }
 
-const DAYS_AHEAD = 120;
-
-type AgendaSection = { key: string; date: Date; data: CalendarEvent[] };
-
-function formatTime(d: Date, allDay: boolean, allDayLabel: string): string {
-  if (allDay) return allDayLabel;
-  return dayjs(d).format('LT');
-}
+const HEADER_HEIGHT = 57;
+const EVENT_ROW_HEIGHT = 72;
 
 interface DayHeaderProps {
   sectionDate: Date;
@@ -71,6 +70,7 @@ interface EventRowProps {
 
 const EventRow = memo(({ event, theme, onPress }: EventRowProps) => {
   const { t } = useTranslation();
+  const { formatTime } = useTimeFormat();
   const duration = event.allDay
     ? null
     : (() => {
@@ -91,13 +91,13 @@ const EventRow = memo(({ event, theme, onPress }: EventRowProps) => {
     >
       <View style={[styles.colorBar, { backgroundColor: event.color }]} />
       <View style={styles.eventContent}>
-        <Text style={[styles.eventTitle, { color: theme.colors.text }]} numberOfLines={2}>
+        <Text style={[styles.eventTitle, { color: theme.colors.text }]} numberOfLines={1}>
           {event.summary || t('calendar.noTitle')}
         </Text>
         <View style={styles.eventMeta}>
           <Text style={[styles.eventTime, { color: theme.colors.textSecondary }]}>
-            {formatTime(event.dtstart, event.allDay, allDayLabel)}
-            {!event.allDay && ` – ${formatTime(event.dtend, false, allDayLabel)}`}
+            {event.allDay ? allDayLabel : formatTime(event.dtstart)}
+            {!event.allDay && ` – ${formatTime(event.dtend)}`}
           </Text>
           {duration && (
             <Text style={[styles.eventDuration, { color: theme.colors.textTertiary }]}>{duration}</Text>
@@ -117,112 +117,154 @@ export interface AgendaViewHandle {
   scrollToToday: () => void;
 }
 
+type Row =
+  | { type: 'header'; key: string; date: Date; hasEvents: boolean }
+  | { type: 'item'; key: string; date: Date; event: CalendarEvent };
 
 const AgendaViewImpl = forwardRef<AgendaViewHandle, Props>(function AgendaView(
   { events, onPressEvent, onPressCell, onVisibleDateChange }, ref
 ) {
   const theme = useTheme();
-  const listRef = useRef<SectionList<CalendarEvent, AgendaSection>>(null);
+  const listRef = useRef<FlatList<Row>>(null);
+  const todayKey = dayjs().format('YYYY-MM-DD');
 
-  const sections = useMemo(() => {
+  const { rows, stickyIndices, offsets, todayIndex } = useMemo(() => {
     const today = dayjs();
-    const start = today.startOf('day');
-    const end = today.add(DAYS_AHEAD, 'day').endOf('day');
-
-    const byDay = new Map<string, CalendarEvent[]>();
-    for (const e of events) {
-      const eStart = dayjs(e.dtstart);
-      const eEnd = dayjs(e.dtend);
-      let cur = eStart.startOf('day');
-      while (cur.isBefore(eEnd) || cur.isSame(eEnd, 'day')) {
-        if (cur.isAfter(end)) break;
-        if (!cur.isBefore(start)) {
-          const key = cur.format('YYYY-MM-DD');
-          if (!byDay.has(key)) byDay.set(key, []);
-          byDay.get(key)!.push(e);
-        }
-        cur = cur.add(1, 'day');
+    const sections = buildAgendaSections(
+      events,
+      today.subtract(AGENDA_PAST_DAYS, 'day').toDate(),
+      today.add(AGENDA_FUTURE_DAYS, 'day').toDate(),
+    );
+    const out: Row[] = [];
+    const sticky: number[] = [];
+    const offs: number[] = [];
+    let y = 0;
+    let todayIdx = 0;
+    for (const s of sections) {
+      if (s.key === todayKey) todayIdx = out.length;
+      sticky.push(out.length);
+      offs.push(y);
+      y += HEADER_HEIGHT;
+      out.push({ type: 'header', key: s.key, date: s.date, hasEvents: s.data.length > 0 });
+      for (const e of s.data) {
+        offs.push(y);
+        y += EVENT_ROW_HEIGHT;
+        out.push({ type: 'item', key: s.key, date: s.date, event: e });
       }
     }
+    return { rows: out, stickyIndices: sticky, offsets: offs, todayIndex: todayIdx };
+  }, [events, todayKey]);
 
-    const result: AgendaSection[] = [];
-    let cur = start.clone();
-    while (cur.isBefore(end)) {
-      const key = cur.format('YYYY-MM-DD');
-      result.push({
-        key,
-        date: cur.toDate(),
-        data: (byDay.get(key) ?? []).sort((a, b) => {
-          if (a.allDay !== b.allDay) return a.allDay ? -1 : 1;
-          return a.dtstart.getTime() - b.dtstart.getTime();
-        }),
-      });
-      cur = cur.add(1, 'day');
-    }
-    return result;
-  }, [events]);
+  const getItemLayout = useCallback((data: ArrayLike<Row> | null | undefined, index: number) => ({
+    length: data?.[index]?.type === 'header' ? HEADER_HEIGHT : EVENT_ROW_HEIGHT,
+    offset: offsets[index] ?? 0,
+    index,
+  }), [offsets]);
 
+  const scrollYRef = useRef(offsets[todayIndex] ?? 0);
+  const anchorRef = useRef({ key: todayKey, delta: 0 });
+  const layoutRef = useRef({ rows, offsets });
+  const userScrollingRef = useRef(false);
+  const onUserScrollStart = useCallback(() => { userScrollingRef.current = true; }, []);
+  const onUserScrollEnd = useCallback(() => { userScrollingRef.current = false; }, []);
+  const onScroll = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const y = e.nativeEvent.contentOffset.y;
+    scrollYRef.current = y;
+    if (!userScrollingRef.current) return;
+    const { rows: r, offsets: o } = layoutRef.current;
+    let i = upperBound(o, y) - 1;
+    while (i > 0 && r[i].type !== 'header') i--;
+    if (r[i]) anchorRef.current = { key: r[i].key, delta: y - o[i] };
+  }, []);
+
+  useLayoutEffect(() => {
+    layoutRef.current = { rows, offsets };
+    const anchor = anchorRef.current;
+    const idx = rows.findIndex((r) => r.type === 'header' && r.key === anchor.key);
+    if (idx < 0) return;
+    const y = offsets[idx] + anchor.delta;
+    if (Math.abs(y - scrollYRef.current) < 1) return;
+    scrollYRef.current = y;
+    listRef.current?.scrollToOffset({ offset: y, animated: false });
+  }, [rows, offsets]);
+
+  const initialIndexRef = useRef(todayIndex);
+  const todayRef = useRef({ key: todayKey, y: offsets[todayIndex] ?? 0 });
+  todayRef.current = { key: todayKey, y: offsets[todayIndex] ?? 0 };
   useImperativeHandle(ref, () => ({
     scrollToToday: () => {
-      listRef.current?.scrollToLocation({ sectionIndex: 0, itemIndex: 0, viewOffset: 0, animated: true });
+      const { key, y } = todayRef.current;
+      userScrollingRef.current = false;
+      anchorRef.current = { key, delta: 0 };
+      scrollYRef.current = y;
+      listRef.current?.scrollToOffset({ offset: y, animated: false });
     },
-  }));
+  }), []);
 
   const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 50 });
+  const onVisibleRef = useRef(onVisibleDateChange);
+  onVisibleRef.current = onVisibleDateChange;
   const onViewableItemsChanged = useCallback(({ viewableItems }: { viewableItems: ViewToken[] }) => {
-    if (!onVisibleDateChange || viewableItems.length === 0) return;
-    const first = viewableItems[0];
-    const d: Date | undefined = first?.section?.date ?? first?.item?.dtstart;
-    if (d) onVisibleDateChange(d);
-  }, [onVisibleDateChange]);
+    const row = viewableItems[0]?.item as Row | undefined;
+    if (row) onVisibleRef.current?.(row.date);
+  }, []);
 
-  const renderSectionHeader = useCallback(({ section }: { section: typeof sections[0] }) => (
-    <DayHeader
-      sectionDate={section.date}
-      hasEvents={section.data.length > 0}
-      theme={theme}
-      onPress={onPressCell}
-    />
-  ), [theme, onPressCell]);
+  const renderRow = useCallback(({ item }: { item: Row }) => (
+    item.type === 'header'
+      ? <DayHeader sectionDate={item.date} hasEvents={item.hasEvents} theme={theme} onPress={onPressCell} />
+      : <EventRow event={item.event} theme={theme} onPress={onPressEvent} />
+  ), [theme, onPressCell, onPressEvent]);
 
-  const renderItem = useCallback(({ item }: { item: CalendarEvent }) => (
-    <EventRow event={item} theme={theme} onPress={onPressEvent} />
-  ), [theme, onPressEvent]);
-
-  const keyExtractor = useCallback((item: CalendarEvent, index: number) => `${item.uid}-${index}`, []);
+  const keyExtractor = useCallback((item: Row) => (
+    item.type === 'header' ? `h-${item.key}` : agendaRowKey(item.key, item.event)
+  ), []);
 
   return (
-    <SectionList<CalendarEvent, AgendaSection>
+    <FlatList<Row>
       ref={listRef}
-      sections={sections}
+      data={rows}
       keyExtractor={keyExtractor}
-      renderItem={renderItem}
-      renderSectionHeader={renderSectionHeader}
-      stickySectionHeadersEnabled
-      initialNumToRender={8}
-      maxToRenderPerBatch={8}
-      updateCellsBatchingPeriod={50}
-      windowSize={7}
+      renderItem={renderRow}
+      getItemLayout={getItemLayout}
+      initialScrollIndex={initialIndexRef.current}
+      stickyHeaderIndices={stickyIndices}
+      initialNumToRender={20}
+      maxToRenderPerBatch={16}
+      windowSize={9}
       removeClippedSubviews
       style={{ flex: 1, backgroundColor: theme.colors.background }}
       contentContainerStyle={{ paddingBottom: 80 }}
-      onScrollToIndexFailed={() => {}}
+      onScroll={onScroll}
+      onScrollBeginDrag={onUserScrollStart}
+      onScrollEndDrag={onUserScrollEnd}
+      onMomentumScrollBegin={onUserScrollStart}
+      onMomentumScrollEnd={onUserScrollEnd}
+      scrollEventThrottle={32}
       onViewableItemsChanged={onViewableItemsChanged}
       viewabilityConfig={viewabilityConfig.current}
     />
   );
 });
 
-export const AgendaView = memo(AgendaViewImpl);
+function upperBound(sorted: number[], v: number): number {
+  let lo = 0;
+  let hi = sorted.length;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if (sorted[mid] <= v) lo = mid + 1;
+    else hi = mid;
+  }
+  return lo;
+}
 
-const EVENT_ROW_HEIGHT = 72;
+export const AgendaView = memo(AgendaViewImpl);
 
 const styles = StyleSheet.create({
   dayHeader: {
     flexDirection: 'row',
     alignItems: 'center',
+    height: HEADER_HEIGHT,
     paddingHorizontal: 16,
-    paddingVertical: 10,
     borderBottomWidth: 1,
     gap: 12,
   },
@@ -243,12 +285,12 @@ const styles = StyleSheet.create({
     marginVertical: 3,
     borderRadius: 10,
     overflow: 'hidden',
-    minHeight: EVENT_ROW_HEIGHT - 6,
+    height: EVENT_ROW_HEIGHT - 6,
   },
   colorBar: { width: 4 },
   eventContent: { flex: 1, padding: 10, justifyContent: 'center' },
   eventTitle: { fontSize: 14, fontWeight: '600', marginBottom: 3 },
-  eventMeta: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 4 },
+  eventMeta: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   eventTime: { fontSize: 12, fontWeight: '500' },
   eventDuration: { fontSize: 11 },
   eventLocation: { fontSize: 11, flex: 1 },

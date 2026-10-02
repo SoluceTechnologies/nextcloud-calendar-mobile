@@ -42,6 +42,11 @@ export function useCalendarNavigation() {
 
   useEffect(() => { if (viewMode === 'schedule') setAgendaVisibleDate(date); }, [date, viewMode]);
 
+  useEffect(() => {
+    if (viewMode !== 'schedule') return;
+    fetchDebounce.call(agendaVisibleDate);
+  }, [viewMode, agendaVisibleDate, fetchDebounce]);
+
   const switchMode = useCallback((target: ViewMode) => {
     const focus = viewModeRef.current === 'schedule'
       ? agendaVisibleDateRef.current

@@ -19,7 +19,7 @@ export function TalkToggle({ value, onChange, roomType, onRoomTypeChange }: Prop
   if (!talkEnabled) return null;
 
   return (
-    <View style={[styles.container, { borderBottomColor: theme.colors.border }]}>
+    <View style={styles.container}>
       <View style={styles.topRow}>
         <View style={styles.textContainer}>
           <Text style={[styles.label, { color: theme.colors.text }]}>{t('event.talkCreateRoom')}</Text>
@@ -70,7 +70,6 @@ export function TalkToggle({ value, onChange, roomType, onRoomTypeChange }: Prop
 const styles = StyleSheet.create({
   container: {
     paddingVertical: 12,
-    borderBottomWidth: 1,
   },
   topRow: {
     flexDirection: 'row',

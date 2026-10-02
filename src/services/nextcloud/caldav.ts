@@ -218,9 +218,9 @@ export async function fetchCalendars(account: Account): Promise<CalendarMeta[]> 
     const sourceUrl = sourceMatch ? decodeXmlEntities(sourceMatch[1]).trim() : undefined;
 
     const hasPrivilegeSet = chunk.includes('current-user-privilege-set');
-    const hasAll = chunk.includes('<d:all');
-    const hasWrite = chunk.includes('<d:write') || chunk.includes('<d:write/>');
-    const hasBind = chunk.includes('<d:bind') || chunk.includes('<d:bind/>');
+    const hasAll = /<d:all[\s/>]/.test(chunk);
+    const hasWrite = /<d:write[\s/>]/.test(chunk);
+    const hasBind = /<d:bind[\s/>]/.test(chunk);
     const isReadOnly = hasPrivilegeSet && !hasAll && !hasWrite && !hasBind;
 
     const compSetMatch = chunk.match(
@@ -251,11 +251,16 @@ export async function fetchCalendars(account: Account): Promise<CalendarMeta[]> 
   return calendars;
 }
 
+export const BIRTHDAY_CALENDAR_SLUG = 'contact_birthdays';
+
 function caldavStamp(d: Date): string {
   return `${d.toISOString().replace(/[-:]/g, '').split('.')[0]}Z`;
 }
 
-function calendarQueryBody(comp: 'VEVENT' | 'VTODO', start: Date, end: Date): string {
+function calendarQueryBody(comp: 'VEVENT' | 'VTODO', start: Date, end: Date, bounded = true): string {
+  const timeRange = bounded
+    ? `<c:time-range start="${caldavStamp(start)}" end="${caldavStamp(end)}"/>`
+    : '';
   return `<?xml version="1.0"?>
 <c:calendar-query xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav">
   <d:prop>
@@ -264,8 +269,7 @@ function calendarQueryBody(comp: 'VEVENT' | 'VTODO', start: Date, end: Date): st
   </d:prop>
   <c:filter>
     <c:comp-filter name="VCALENDAR">
-      <c:comp-filter name="${comp}">
-        <c:time-range start="${caldavStamp(start)}" end="${caldavStamp(end)}"/>
+      <c:comp-filter name="${comp}">${timeRange}
       </c:comp-filter>
     </c:comp-filter>
   </c:filter>
@@ -279,11 +283,12 @@ async function reportCalendarObjects(
   start: Date,
   end: Date,
   required: boolean,
+  bounded = true,
 ): Promise<CalendarEvent[]> {
   const res = await davFetch(calendar.url, account, {
     method: 'REPORT',
     headers: { Depth: '1', 'Content-Type': 'application/xml' },
-    body: calendarQueryBody(comp, start, end),
+    body: calendarQueryBody(comp, start, end, bounded),
   });
   if (res.status !== 207) {
     if (required) throw new Error(`fetchEvents HTTP ${res.status}`);
@@ -354,8 +359,18 @@ export async function fetchEvents(
             .map((e) => ({ ...e, uid: stableSubscriptionUid(e) }));
     }
 
-    const vevents = await reportCalendarObjects(account, calendar, 'VEVENT', start, end, true);
-    const vtodos = await reportCalendarObjects(account, calendar, 'VTODO', start, end, false);
+    const [vevents, vtodos] = await Promise.all([
+        reportCalendarObjects(
+            account,
+            calendar,
+            'VEVENT',
+            start,
+            end,
+            true,
+            calendar.slug !== BIRTHDAY_CALENDAR_SLUG,
+        ),
+        reportCalendarObjects(account, calendar, 'VTODO', start, end, false),
+    ]);
     return [...vevents, ...vtodos];
 }
 
@@ -459,14 +474,20 @@ function toPath(account: Account, absHref: string): string {
   return absHref.startsWith(account.baseUrl) ? absHref.slice(account.baseUrl.length) : absHref;
 }
 
+export interface MultigetResult {
+  events: CalendarEvent[];
+  returnedHrefs: Set<string>;
+}
+
 export async function fetchEventsByHrefs(
   account: Account,
   calendar: CalendarMeta,
   hrefs: string[],
   rangeStart: Date,
   rangeEnd: Date,
-): Promise<CalendarEvent[]> {
-  if (hrefs.length === 0) return [];
+): Promise<MultigetResult> {
+  const returnedHrefs = new Set<string>();
+  if (hrefs.length === 0) return { events: [], returnedHrefs };
 
   const out: CalendarEvent[] = [];
   for (let i = 0; i < hrefs.length; i += MULTIGET_BATCH) {
@@ -489,6 +510,7 @@ export async function fetchEventsByHrefs(
     const items: { ics: string; href: string }[] = [];
     for (const chunk of splitResponses(xml)) {
       const hrefMatch = chunk.match(/<d:href>([^<]+)<\/d:href>/);
+      if (hrefMatch?.[1]) returnedHrefs.add(absUrl(account, hrefMatch[1]));
       const dataMatch = chunk.match(/<cal:calendar-data[^>]*>([\s\S]*?)<\/cal:calendar-data>/);
       if (dataMatch?.[1] && hrefMatch?.[1]) {
         items.push({ ics: decodeXmlEntities(dataMatch[1].trim()), href: absUrl(account, hrefMatch[1]) });
@@ -502,5 +524,5 @@ export async function fetchEventsByHrefs(
     );
     out.push(...parsed);
   }
-  return out;
+  return { events: out, returnedHrefs };
 }

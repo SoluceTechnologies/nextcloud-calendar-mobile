@@ -18,12 +18,20 @@ const WEEK_START_OPTIONS = [
   { labelKey: 'settings.monday', value: 1 },
 ] as const;
 
+const TIME_FORMAT_OPTIONS = [
+  { labelKey: 'settings.timeFormat.auto', value: 'auto' },
+  { labelKey: 'settings.timeFormat.h24', value: '24h' },
+  { labelKey: 'settings.timeFormat.h12', value: '12h' },
+] as const;
+
 export default function CalendarSettingsScreen() {
   const { t } = useTranslation();
   const hourRowHeight = useCalendarStore((s) => s.hourRowHeight);
   const setHourRowHeight = useCalendarStore((s) => s.setHourRowHeight);
   const weekStartsOn = useSettingsStore((s) => s.weekStartsOn);
   const setWeekStartsOn = useSettingsStore((s) => s.setWeekStartsOn);
+  const timeFormat = useSettingsStore((s) => s.timeFormat);
+  const setTimeFormat = useSettingsStore((s) => s.setTimeFormat);
 
   const [pendingWeek, setPendingWeek] = useState(weekStartsOn);
   useEffect(() => { setPendingWeek(weekStartsOn); }, [weekStartsOn]);
@@ -45,6 +53,22 @@ export default function CalendarSettingsScreen() {
               fullWidth
               active={pendingWeek === opt.value}
               onPress={() => { setPendingWeek(opt.value); setWeekStartsOn(opt.value); }}
+            >
+              {t(opt.labelKey)}
+            </Chip>
+          ))}
+        </Stack>
+      </Stack>
+
+      <Stack card gap={12} padding={16} hAlign="stretch" style={cardOuter}>
+        <Typography variant="body1">{t('settings.timeFormat.title')}</Typography>
+        <Stack direction="horizontal" gap={8}>
+          {TIME_FORMAT_OPTIONS.map((opt) => (
+            <Chip
+              key={opt.value}
+              fullWidth
+              active={timeFormat === opt.value}
+              onPress={() => setTimeFormat(opt.value)}
             >
               {t(opt.labelKey)}
             </Chip>

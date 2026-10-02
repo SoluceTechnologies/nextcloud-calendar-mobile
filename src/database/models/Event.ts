@@ -28,5 +28,6 @@ export default class Event extends Model {
   @field('rrule') rrule?: string;
   @field('recurrence_id') recurrenceId?: number;
   @field('alarm_minutes') alarmMinutes?: number;
+  @field('alarms') alarms?: string;
   @field('is_task') isTask?: boolean;
 }
