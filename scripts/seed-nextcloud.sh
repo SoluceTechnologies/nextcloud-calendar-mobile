@@ -347,7 +347,7 @@ for entry in "${CALENDARS[@]:0:$NCAL}"; do
         minute="${MINUTES[$((RANDOM % ${#MINUTES[@]}))]}"
         dur="$(pick "${DURATIONS[$slug]}")"
         start_hm="$(printf '%02d%02d00' "$hour" "$minute")"
-        end="$(date -d "$day $hour:$minute +$dur minutes" +%Y%m%dT%H%M%S)"
+        end="$(date -d "$day $hour:$minute $dur minutes" +%Y%m%dT%H%M%S)"
         status="${STATUSES[$((RANDOM % ${#STATUSES[@]}))]}"
         ics="$(build_ics "$uid" "$summary" "${daystamp}T${start_hm}" "$end" 0 \
               "$(pick "${LOCATIONS[$slug]}")" "$summary - jeu de test ($slug)." \
@@ -365,7 +365,7 @@ for entry in "${CALENDARS[@]:0:$NCAL}"; do
   anchor="$(date -d "$WEEK_START +$((RANDOM % 5)) days" +%Y%m%d)"
   anchor_date="$(date -d "$WEEK_START +$((RANDOM % 5)) days" +%Y-%m-%d)"
   rh="${HOURS[$((RANDOM % ${#HOURS[@]}))]}"
-  rend="$(date -d "$anchor_date $rh:00 +60 minutes" +%Y%m%dT%H%M%S)"
+  rend="$(date -d "$anchor_date $rh:00 60 minutes" +%Y%m%dT%H%M%S)"
   ics="$(build_ics "$uid" "[Récurrent] $(pick "${SUMMARIES[$slug]}")" \
         "${anchor}T$(printf '%02d0000' "$rh")" "$rend" 0 \
         "$(pick "${LOCATIONS[$slug]}")" "Série hebdomadaire du jeu de test." \

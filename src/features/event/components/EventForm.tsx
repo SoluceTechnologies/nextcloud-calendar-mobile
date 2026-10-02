@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { forwardRef, useImperativeHandle, useRef, useState } from 'react';
 import { View, StyleSheet, ScrollView, Platform, KeyboardAvoidingView, Keyboard, useWindowDimensions, LayoutChangeEvent } from 'react-native';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import dayjs from 'dayjs';
@@ -14,7 +14,7 @@ import { useTimeFormat } from '@/hooks/useTimeFormat';
 import { getNativePickerLocale } from '@/utils/i18n';
 import { AlertPicker } from './AlertPicker';
 import { RecurrencePicker } from './RecurrencePicker';
-import { Stack, Typography, TextField, DateField, Button, Chip, Toggle } from '@/ui/components';
+import { Stack, Typography, TextField, DateField, Chip, Toggle } from '@/ui/components';
 import type { CalendarMeta, Attendee, CreateEventInput, RecurrenceRule, TalkRoomType, Account } from '@/types';
 
 dayjs.extend(localizedFormat);
@@ -38,21 +38,21 @@ interface Props {
   organizerEmail: string;
   organizerName: string;
   onSubmit: (input: CreateEventInput) => void;
-  loading: boolean;
   initialValues?: InitialValues;
-  submitLabel?: string;
   disableCalendarChange?: boolean;
   account?: Pick<Account, 'id' | 'baseUrl' | 'username' | 'appPassword'> | null;
 }
 
-
+export interface EventFormHandle {
+  submit: () => void;
+}
 
 type AndroidPickerStep = null | { target: 'start' | 'end'; step: 'date' | 'time'; partial?: Date };
 
-export function EventForm({
-  calendars, defaultDate, organizerEmail, organizerName, onSubmit, loading,
-  initialValues, submitLabel, disableCalendarChange = false, account,
-}: Props) {
+export const EventForm = forwardRef<EventFormHandle, Props>(function EventForm({
+  calendars, defaultDate, organizerEmail, organizerName, onSubmit,
+  initialValues, disableCalendarChange = false, account,
+}: Props, ref) {
   const theme = useTheme();
   const { t } = useTranslation();
   const { use24h, timeFormat, formatTime } = useTimeFormat();
@@ -212,6 +212,8 @@ export function EventForm({
     });
   }
 
+  useImperativeHandle(ref, () => ({ submit: handleSubmit }));
+
   const startBlock = (
     <View style={twoColDates ? styles.grow : undefined}>
       {Platform.OS === 'ios' ? (
@@ -280,6 +282,7 @@ export function EventForm({
       contentContainerStyle={styles.scrollContent}
       keyboardShouldPersistTaps="handled"
       keyboardDismissMode="none"
+      contentInsetAdjustmentBehavior="automatic"
     >
       <Stack gap={16}>
         <View onLayout={(e) => onFieldLayout('title', e)}>
@@ -398,19 +401,11 @@ export function EventForm({
           roomType={talkRoomType}
           onRoomTypeChange={setTalkRoomType}
         />
-
-        <Button
-          variant="primary"
-          title={loading ? t('event.saving') : (submitLabel ?? t('event.saveEvent'))}
-          loading={loading}
-          disabled={loading}
-          onPress={handleSubmit}
-        />
       </Stack>
     </ScrollView>
     </KeyboardAvoidingView>
   );
-}
+});
 
 const styles = StyleSheet.create({
   scroll: { flex: 1, padding: 20 },
