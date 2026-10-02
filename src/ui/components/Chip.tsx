@@ -1,6 +1,7 @@
 import React from 'react';
 import { StyleSheet } from 'react-native';
 import { useTheme } from 'expo-router';
+import { contrastFor } from '@/utils/colors';
 import AnimatedPressable from './AnimatedPressable';
 import Typography from './Typography';
 
@@ -42,7 +43,7 @@ function Chip({
     >
       {icon}
       {typeof children === 'string' ? (
-        <Typography variant={small ? 'caption' : 'body2'} align="center" nowrap color={active ? 'light' : 'secondary'}>
+        <Typography variant={small ? 'caption' : 'body2'} align="center" nowrap color={active ? contrastFor(activeBg).text : 'secondary'}>
           {children}
         </Typography>
       ) : (
