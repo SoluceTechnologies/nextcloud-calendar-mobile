@@ -49,6 +49,13 @@ export function serializeAlarms(alarms?: number[]): string | undefined {
     return JSON.stringify([...new Set(alarms)].sort((a, b) => b - a));
 }
 
+export function serializeAttachments(attachments?: CalendarEvent['attachments']): string | undefined {
+  if (!attachments?.length) return undefined;
+  const sorted = [...attachments].sort((a, b) =>
+    (a.filename ?? a.uri ?? '').localeCompare(b.filename ?? b.uri ?? ''));
+  return JSON.stringify(sorted);
+}
+
 export function writeEvent(row: Event, ev: CalendarEvent): void {
     row.accountId = ev.accountId;
     row.calendarId = ev.calendarId;
@@ -70,6 +77,7 @@ export function writeEvent(row: Event, ev: CalendarEvent): void {
     row.alarms = serializeAlarms(ev.alarms);
     row.alarmMinutes = ev.alarms?.[0] ?? undefined;
     row.isTask = ev.isTask ?? false;
+    row.attachments = serializeAttachments(ev.attachments);
 }
 
 function calendarUnchanged(row: Calendar, c: CalendarMeta): boolean {
@@ -101,7 +109,8 @@ function eventUnchanged(row: Event, ev: CalendarEvent): boolean {
         (row.recurrenceId ?? undefined) === (ev.recurrenceId?.getTime() ?? undefined) &&
         !!row.isTask === !!ev.isTask &&
         (row.alarms ?? undefined) === serializeAlarms(ev.alarms) &&
-        (row.attendees ?? '[]') === JSON.stringify(ev.attendees ?? [])
+        (row.attendees ?? '[]') === JSON.stringify(ev.attendees ?? []) &&
+        (row.attachments ?? undefined) === serializeAttachments(ev.attachments)
     );
 }
 
@@ -358,6 +367,22 @@ export async function syncCalendarDelta(account: Account, calendar: CalendarMeta
     await safeWrite(db, async () => {
         const ops = [];
         const deletedSet = new Set(result.deleted);
+        const fetchedByKey = new Map(
+            fetched.map((ev) => [eventKey(ev.accountId, ev.calendarId, ev.uid), ev]),
+        );
+        // Rows kept because the fetched event is identical — avoids churning a
+        // delete+recreate (bridge ops + observer re-queries) on every delta sync,
+        // and keeps rows alive under screens currently observing them.
+        const keptKeys = new Set<string>();
+        const keepOrDrop = (r: Event) => {
+            const k = rowKey(r);
+            const fresh = fetchedByKey.get(k);
+            if (fresh && eventUnchanged(r, fresh) && !keptKeys.has(k)) {
+                keptKeys.add(k);
+            } else {
+                ops.push(r.prepareMarkAsDeleted());
+            }
+        };
 
         if (fullSync) {
             const existing = await events
@@ -366,7 +391,11 @@ export async function syncCalendarDelta(account: Account, calendar: CalendarMeta
             if (localWriteEpoch() !== epoch) return;
             if (result.changed.length > 0) {
                 for (const r of existing) {
-                    if (!changedSet.has(r.href) || returnedHrefs.has(r.href)) {
+                    if (!changedSet.has(r.href)) {
+                        ops.push(r.prepareMarkAsDeleted());
+                    } else if (returnedHrefs.has(r.href)) {
+                        keepOrDrop(r);
+                    } else {
                         ops.push(r.prepareMarkAsDeleted());
                     }
                 }
@@ -376,13 +405,24 @@ export async function syncCalendarDelta(account: Account, calendar: CalendarMeta
             const existing = await collectByHref(events, account.id, touched);
             if (localWriteEpoch() !== epoch) return;
             for (const r of existing) {
-                if (deletedSet.has(r.href) || returnedHrefs.has(r.href)) {
+                if (deletedSet.has(r.href)) {
+                    ops.push(r.prepareMarkAsDeleted());
+                } else if (returnedHrefs.has(r.href)) {
+                    keepOrDrop(r);
+                } else if (changedSet.has(r.href)) {
+                    // Deleted remotely, or the resource now expands to zero events.
                     ops.push(r.prepareMarkAsDeleted());
                 }
             }
         }
 
-        for (const ev of fetched) ops.push(prepareCreateEvent(events, ev));
+        const createdKeys = new Set<string>();
+        for (const ev of fetched) {
+            const k = eventKey(ev.accountId, ev.calendarId, ev.uid);
+            if (keptKeys.has(k) || createdKeys.has(k)) continue;
+            createdKeys.add(k);
+            ops.push(prepareCreateEvent(events, ev));
+        }
 
         if (row) {
             ops.push(row.prepareUpdate((r: Calendar) => {
