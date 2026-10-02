@@ -12,10 +12,20 @@ export interface MapHtmlData {
     bottomInset?: number;
     showChrome?: boolean;
     textColor?: string;
+    closeLabel?: string;
+    openInMapsLabel?: string;
 }
 
 function escapeJsString(value: string): string {
     return value.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+}
+
+function escapeAttr(value: string): string {
+    return value
+        .replace(/&/g, '&amp;')
+        .replace(/"/g, '&quot;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
 }
 
 export function buildMapHtml({
@@ -30,6 +40,8 @@ export function buildMapHtml({
                                  bottomInset = 0,
                                  showChrome = false,
                                  textColor = isDark ? '#ffffff' : '#000000',
+                                 closeLabel = 'Close',
+                                 openInMapsLabel = 'Open in maps',
                              }: MapHtmlData): string {
     const data = JSON.stringify({
         lat,
@@ -285,7 +297,7 @@ ${
   <div
     class="chrome-bar-button"
     id="map-close"
-    aria-label="Close"
+    aria-label="${escapeAttr(closeLabel)}"
   >&#10005;</div>
 
   <div class="chrome-bar-title">${escapeJsString(label)}</div>
@@ -293,7 +305,7 @@ ${
   <div
     class="chrome-bar-button"
     id="map-open"
-    aria-label="Open in maps"
+    aria-label="${escapeAttr(openInMapsLabel)}"
   >&#10148;</div>
 </div>`
             : ''

@@ -1,7 +1,9 @@
+import { useRef } from 'react';
 import { StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter, useTheme } from 'expo-router';
 import { useTranslation } from 'react-i18next';
+import { Check } from 'lucide-react-native';
 import { useEventByUid } from '@/database/useEventByUid';
 import { useCalendars } from '@/hooks/useCalendars';
 import { useAccounts } from '@/hooks/useAccounts';
@@ -9,9 +11,9 @@ import { useUpdateEvent } from '@/features/event/hooks/useMutateEvent';
 import { resolveOrganizer } from '@/features/event/utils/organizer';
 import { parseRrule } from '@/features/calendar/utils/parseRrule';
 import { useAccountStore } from '@/stores/accountStore';
-import { EventForm } from '@/features/event/components/EventForm';
+import { EventForm, type EventFormHandle } from '@/features/event/components/EventForm';
 import {
-  ViewContainer, Stack, Typography, Button, Spinner, ScreenHeader,
+  ViewContainer, Stack, Typography, Button, IconButton, Spinner, ScreenHeader,
 } from '@/ui/components';
 import { goBackOrHome } from '@/utils/navigationGuard';
 import type { CreateEventInput, RecurrenceEditScope } from '@/types';
@@ -20,6 +22,7 @@ export default function EditEventScreen() {
   const { uid, scope: scopeParam } = useLocalSearchParams<{ uid: string; scope?: string }>();
   const router = useRouter();
   const { t } = useTranslation();
+  const { colors } = useTheme();
   const activeAccountId = useAccountStore((s) => s.activeAccountId);
   const accounts = useAccounts();
   const activeAccount = accounts.find((a) => a.id === activeAccountId) ?? null;
@@ -35,6 +38,7 @@ export default function EditEventScreen() {
     : 'all';
 
   const updateMutation = useUpdateEvent(activeAccount!, calendars);
+  const formRef = useRef<EventFormHandle>(null);
 
   async function handleSubmit(input: CreateEventInput) {
     if (!activeAccount || !event) return;
@@ -87,16 +91,32 @@ export default function EditEventScreen() {
 
   return (
     <ViewContainer>
-      <SafeAreaView style={styles.flex}>
-        <ScreenHeader title={`${t('event.editEvent')}${scopeLabel}`} onBack={() => router.back()} />
+      <SafeAreaView edges={['top', 'left', 'right']} style={styles.flex}>
+        <ScreenHeader
+          title={`${t('event.editEvent')}${scopeLabel}`}
+          onBack={() => router.back()}
+          right={
+            <IconButton
+              glass
+              round
+              size={40}
+              onPress={updateMutation.isPending ? undefined : () => formRef.current?.submit()}
+              accessibilityRole="button"
+              accessibilityLabel={updateMutation.isPending ? t('event.saving') : t('event.updateEvent')}
+            >
+              {updateMutation.isPending
+                ? <Spinner />
+                : <Check size={22} color={colors.primary} />}
+            </IconButton>
+          }
+        />
         <EventForm
+          ref={formRef}
           calendars={calendars}
           organizerEmail={organizerEmail}
           organizerName={organizerName}
           onSubmit={handleSubmit}
-          loading={updateMutation.isPending}
           initialValues={initialValues}
-          submitLabel={t('event.updateEvent')}
           disableCalendarChange={event.isRecurring}
           account={activeAccount}
         />
