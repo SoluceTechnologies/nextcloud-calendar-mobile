@@ -1,6 +1,3 @@
-// VTODO completion helpers. A task counts as completed when any of the
-// Nextcloud criteria holds: STATUS:COMPLETED, a COMPLETED timestamp, or
-// PERCENT-COMPLETE:100. STATUS:CANCELLED is rendered as done as well.
 
 export function taskIsCompleted(
   status?: string | null,
@@ -37,7 +34,6 @@ function rewriteBlock(block: string, completed: boolean, now: Date): string {
     } else if (/^COMPLETED[;:]/i.test(line)) {
       sawCompleted = true;
       if (completed) out.push(`COMPLETED:${stamp(now)}`);
-      // uncompleting drops the line entirely
     } else if (/^SEQUENCE[;:]/i.test(line)) {
       const n = Number(line.split(':').pop());
       out.push(`SEQUENCE:${Number.isFinite(n) ? n + 1 : 1}`);
@@ -53,7 +49,6 @@ function rewriteBlock(block: string, completed: boolean, now: Date): string {
     }
   }
 
-  // Insert the properties that were missing, right before END:VTODO.
   const missing: string[] = [];
   if (!sawStatus) missing.push(`STATUS:${completed ? 'COMPLETED' : 'NEEDS-ACTION'}`);
   if (!sawPercent) missing.push(`PERCENT-COMPLETE:${completed ? 100 : 0}`);
@@ -68,9 +63,7 @@ function rewriteBlock(block: string, completed: boolean, now: Date): string {
   return out.join('\r\n');
 }
 
-// Toggle the completion state of every VTODO in the resource, preserving all
-// other properties (X-*, VALARM, RELATED-TO, ...) and bumping the change
-// tracking stamps the way Nextcloud Tasks does.
+
 export function setVtodoCompleted(ics: string, completed: boolean, now = new Date()): string {
   if (!/BEGIN:VTODO/i.test(ics)) return ics;
   return ics.replace(VTODO_BLOCK, (block) => rewriteBlock(block, completed, now));
