@@ -33,13 +33,7 @@ function TimeGridEventImpl({ event, top, height, leftPct, widthPct, zIndex, hour
   const durationMin = dayjs(event.end).diff(event.start, 'minute');
   const isTask = !!event._event.isTask;
   const taskDone = !!event._event.taskCompleted;
-
-  // A finger that rested here for the long-press window was grabbing the event,
-  // not tapping it, so it must not navigate on lift. The drag gesture cannot be
-  // relied on to have swallowed that touch: RNGH fails an activateAfterLongPress
-  // pan as soon as the finger drifts past the touch slop before the timer fires,
-  // and a failed pan never cancels this Touchable underneath it. Without the
-  // guard, the common "press, wobble, drag" opens the detail screen instead.
+  
   const pressedAt = useRef(0);
 
   const positionStyle: ViewStyle = {

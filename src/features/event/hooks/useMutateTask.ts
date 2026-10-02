@@ -10,9 +10,6 @@ import type { Account, CalendarEvent } from '@/types';
 
 import { useAction } from './useMutateEvent';
 
-// Toggle a VTODO between COMPLETED and NEEDS-ACTION. The local row is patched
-// optimistically; on failure the previous state is restored, mirroring
-// useUpdateEvent's snapshot/rollback flow.
 export function useToggleTask(account: Account) {
   return useAction<CalendarEvent>(
     useCallback(
