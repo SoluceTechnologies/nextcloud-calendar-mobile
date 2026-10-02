@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, ScrollView, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useTheme } from 'expo-router';
 import { useTranslation } from 'react-i18next';
+import { Check } from 'lucide-react-native';
 import dayjs from 'dayjs';
 import localizedFormat from 'dayjs/plugin/localizedFormat';
 
@@ -18,7 +19,7 @@ import {
 } from '@/features/event/utils/icsImport';
 import { eventExists } from '@/database/eventWrites';
 import { goBackOrHome } from '@/utils/navigationGuard';
-import { EventForm } from '@/features/event/components/EventForm';
+import { EventForm, type EventFormHandle } from '@/features/event/components/EventForm';
 import {
   ViewContainer,
   Stack,
@@ -26,6 +27,7 @@ import {
   Button,
   Spinner,
   ScreenHeader,
+  IconButton,
   List,
   Item,
 } from '@/ui/components';
@@ -46,6 +48,8 @@ function formatEventDate(event: CalendarEvent): string {
 export function IcsImportScreen({ uri }: Props) {
   const { t } = useTranslation();
   const router = useRouter();
+  const { colors } = useTheme();
+  const formRef = useRef<EventFormHandle>(null);
   const { loading, error, events, originalIcs, reload } = useImportIcs(uri);
 
   const activeAccountId = useAccountStore((s) => s.activeAccountId);
@@ -178,15 +182,28 @@ export function IcsImportScreen({ uri }: Props) {
           <ScreenHeader
             title={t('import.importEvent')}
             onBack={() => setSelectedEvent(null)}
+            right={
+              <IconButton
+                glass
+                round
+                size={40}
+                onPress={createMutation.isPending ? undefined : () => formRef.current?.submit()}
+                accessibilityRole="button"
+                accessibilityLabel={createMutation.isPending ? t('event.saving') : t('import.importEvent')}
+              >
+                {createMutation.isPending
+                  ? <Spinner />
+                  : <Check size={22} color={colors.primary} />}
+              </IconButton>
+            }
           />
           <EventForm
+            ref={formRef}
             calendars={calendars}
             organizerEmail={importedEmail}
             organizerName={importedName}
             onSubmit={handleSubmit}
-            loading={createMutation.isPending}
             initialValues={eventToFormValues(selectedEvent, originalIcs)}
-            submitLabel={t('import.importEvent')}
           />
         </SafeAreaView>
       </ViewContainer>
