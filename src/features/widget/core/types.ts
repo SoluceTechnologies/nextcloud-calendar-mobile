@@ -23,6 +23,7 @@ export interface AgendaDaySection {
 export interface AgendaSnapshot {
   generatedAtIso: string;
   timeZone: string;
+  locale?: string;
   scheme: 'light' | 'dark';
   dayLabel: string;
   dayNumber: string;

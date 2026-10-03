@@ -30,7 +30,7 @@ export function agendaHeader(snapshot: AgendaSnapshot | null): AgendaHeader {
 }
 
 export function emptyLabel(snapshot: AgendaSnapshot | null): string {
-  return snapshot?.relativeLabel ?? i18n.t('widget.emptyAgenda');
+  return snapshot?.relativeLabel ?? i18n.t('widget.emptyAgenda', { lng: snapshot?.locale });
 }
 
 export function compactEvents(snapshot: AgendaSnapshot | null, limit: number): AgendaEventItem[] {

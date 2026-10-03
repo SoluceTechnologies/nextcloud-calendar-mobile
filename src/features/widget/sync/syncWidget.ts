@@ -1,6 +1,7 @@
 import {Appearance} from 'react-native';
 
 import {useSettingsStore} from '@/stores/settingsStore';
+import i18n from '@/utils/i18n';
 import {resolveUse24h} from '@/utils/timeFormat';
 
 import {useAccountStore} from '@/stores/accountStore';
@@ -31,6 +32,8 @@ async function runSync(now: Date): Promise<void> {
         const events = (await readUpcomingEvents(AGENDA_DAYS, now))
             .filter((event) => !widgetDisabledCalendarIds.includes(event.calendarId));
         const {language: locale, timeFormat} = useSettingsStore.getState();
+        // Outside React, the global i18n may still sit at the init/default language.
+        i18n.changeLanguage(locale);
         const use24h = resolveUse24h(timeFormat, locale);
         const scheme = Appearance.getColorScheme() === 'dark' ? 'dark' : 'light';
 
@@ -49,7 +52,7 @@ async function runSync(now: Date): Promise<void> {
         if (liveActivity.isSupported()) {
             const enabled = useSettingsStore.getState().liveActivityEnabled;
             const liveEvents = events.filter((event) => !notifDisabledCalendarIds.includes(event.calendarId));
-            const ongoing = enabled ? selectOngoingEvent(liveEvents, now) : null;
+            const ongoing = enabled ? selectOngoingEvent(liveEvents, now, locale) : null;
             if (ongoing) await liveActivity.update(ongoing);
             else if (shouldClearLiveEvent(readLiveEvent(), liveEvents.length, now)) await liveActivity.clear();
         }

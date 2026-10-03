@@ -9,7 +9,7 @@ export function stripUrls(raw: string): string {
     .replace(/[([{<]\s*[)\]}>]/g, ' ');
 }
 
-export function displayLocation(raw: string | undefined): string {
+export function displayLocation(raw: string | undefined, locale?: string): string {
   if (!raw) return '';
   const cleaned = stripUrls(raw)
     .replace(/\s+/g, ' ')
@@ -17,7 +17,7 @@ export function displayLocation(raw: string | undefined): string {
     .trim();
   if (cleaned) return cleaned;
   const provider = meetingProvider(raw);
-  return provider ? i18n.t('widget.videoConference', { provider }) : '';
+  return provider ? i18n.t('widget.videoConference', { provider, lng: locale }) : '';
 }
 
 
@@ -40,7 +40,7 @@ export function meetingProvider(raw: string | undefined): string | null {
   return null;
 }
 
-export function selectOngoingEvent(events: CalendarEvent[], now: Date = new Date()): LiveEventState | null {
+export function selectOngoingEvent(events: CalendarEvent[], now: Date = new Date(), locale?: string): LiveEventState | null {
   const t = now.getTime();
   const ongoing = events
     .filter((e) => !e.allDay && e.dtstart.getTime() <= t && e.dtend.getTime() > t)
@@ -50,12 +50,12 @@ export function selectOngoingEvent(events: CalendarEvent[], now: Date = new Date
   if (!e) return null;
   return {
     uid: e.uid,
-    title: e.summary || i18n.t('calendar.noTitle'),
+    title: e.summary || i18n.t('calendar.noTitle', { lng: locale }),
     startIso: e.dtstart.toISOString(),
     endIso: e.dtend.toISOString(),
     color: e.color,
     link: eventDeepLink(e.uid),
-    location: displayLocation(e.location),
+    location: displayLocation(e.location, locale),
     attendees: e.attendees.map((a) => a.displayName || a.email).filter(Boolean),
   };
 }

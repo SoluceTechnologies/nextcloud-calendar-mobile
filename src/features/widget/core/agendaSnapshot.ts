@@ -49,7 +49,7 @@ function zonedKey(d: Date, tz: string): string {
 }
 
 function timeLabel(event: CalendarEvent, locale: string | undefined, tz: string, use24h?: boolean): string {
-  if (event.allDay) return i18n.t('calendar.allDay');
+  if (event.allDay) return i18n.t('calendar.allDay', { lng: locale });
   const f = fmt('time', locale, tz, use24h);
   return `${f.format(event.dtstart)} – ${f.format(event.dtend)}`;
 }
@@ -76,7 +76,7 @@ function indexEvents(events: CalendarEvent[], tz: string): EventIndex {
 function toItem(event: CalendarEvent, locale: string | undefined, tz: string, use24h?: boolean): AgendaEventItem {
   return {
     uid: event.uid,
-    title: event.summary || i18n.t('calendar.noTitle'),
+    title: event.summary || i18n.t('calendar.noTitle', { lng: locale }),
     startIso: event.dtstart.toISOString(),
     endIso: event.dtend.toISOString(),
     allDay: event.allDay,
@@ -105,7 +105,7 @@ export function buildAgendaSnapshot(
 
   const relativeLabel = todays.length > 0
     ? fmt('fullDate', locale, tz).format(now)
-    : i18n.t('widget.emptyAgenda');
+    : i18n.t('widget.emptyAgenda', { lng: locale });
 
   const sections: AgendaDaySection[] = [];
   for (let i = 0; i <= days; i++) {
@@ -130,6 +130,7 @@ export function buildAgendaSnapshot(
   return {
     generatedAtIso: now.toISOString(),
     timeZone: tz,
+    locale,
     scheme,
     dayLabel,
     dayNumber,
