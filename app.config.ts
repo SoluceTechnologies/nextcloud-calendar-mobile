@@ -51,6 +51,10 @@ const config: ExpoConfig = {
     android: {
         package: 'com.soluce.nextcloudcalendar',
         versionCode,
+        // USE_EXACT_ALARM: auto-granted on API 33+ (calendar apps are a permitted
+        // Play category). SCHEDULE_EXACT_ALARM: granted at install on API 31-32.
+        // Without either, AlarmManager can only fire inexact reminders (#343).
+        permissions: ['USE_EXACT_ALARM', 'SCHEDULE_EXACT_ALARM'],
         adaptiveIcon: {
             foregroundImage: './assets/adaptive-icon.png',
             backgroundColor: '#109be6',
