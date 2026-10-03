@@ -94,7 +94,7 @@ describe('syncCalendarDelta — non-destructive guards', () => {
     const { db, batch } = makeDb({ calendarRow: noTokenRow(), eventRows: existing });
     mockGetDb.mockReturnValue(db);
 
-    await syncCalendarDelta(account, calendar);
+    await expect(syncCalendarDelta(account, calendar)).rejects.toThrow(/multiget/);
 
     expect(batch).not.toHaveBeenCalled();
     existing.forEach((r) => expect(r.prepareMarkAsDeleted).not.toHaveBeenCalled());
@@ -109,7 +109,7 @@ describe('syncCalendarDelta — non-destructive guards', () => {
     const { db, batch, prepareCreate } = makeDb({ calendarRow: noTokenRow(), eventRows: [h1, h2, h3] });
     mockGetDb.mockReturnValue(db);
 
-    await syncCalendarDelta(account, calendar);
+    await expect(syncCalendarDelta(account, calendar)).rejects.toThrow(/multiget/);
 
     expect(batch).not.toHaveBeenCalled();
     expect(h1.prepareMarkAsDeleted).not.toHaveBeenCalled();
@@ -127,7 +127,7 @@ describe('syncCalendarDelta — non-destructive guards', () => {
     const { db, batch, prepareCreate } = makeDb({ calendarRow: tokenRow(), eventRows: [h1, h2, h3] });
     mockGetDb.mockReturnValue(db);
 
-    await syncCalendarDelta(account, calendar);
+    await expect(syncCalendarDelta(account, calendar)).rejects.toThrow(/multiget/);
 
     expect(batch).not.toHaveBeenCalled();
     [h1, h2, h3].forEach((r) => expect(r.prepareMarkAsDeleted).not.toHaveBeenCalled());
