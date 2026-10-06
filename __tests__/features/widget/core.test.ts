@@ -78,6 +78,49 @@ describe('buildAgendaSnapshot', () => {
     expect(snap.nextEvent?.uid).toBe('soon');
   });
 
+  it('lists a multi-day event under every day it covers, not just its start day', () => {
+    // Aug 1 00:00 → Aug 3 16:00 Europe/Berlin: covers Aug 1, 2 and 3.
+    const events = [
+      ev({ uid: 'week', summary: 'Offsite', dtstart: new Date('2026-07-31T22:00:00Z'), dtend: new Date('2026-08-03T14:00:00Z') }),
+    ];
+    const snap = buildAgendaSnapshot(events, { now, timeZone: TZ, locale: 'en-US', days: 4 });
+
+    const covered = snap.sections.filter((s) => s.items.some((i) => i.uid === 'week'));
+    expect(covered.map((s) => s.dayNumber)).toEqual(['1', '2', '3']);
+    // Ongoing event still counts as one of today's events.
+    expect(snap.events.map((e) => e.uid)).toEqual(['week']);
+  });
+
+  it('uses the inclusive end of all-day events as their last covered day', () => {
+    // All-day Fri–Sun: stored dtend is Sunday 00:00 (last covered day).
+    const events = [
+      ev({
+        uid: 'allday', allDay: true,
+        dtstart: new Date('2026-07-31T22:00:00Z'), // Aug 1 00:00 Berlin
+        dtend: new Date('2026-08-02T22:00:00Z'),   // Aug 3 00:00 Berlin
+      }),
+    ];
+    const snap = buildAgendaSnapshot(events, { now, timeZone: TZ, locale: 'en-US', days: 4 });
+
+    // No Aug-4/5 sections must appear: only days holding an event (plus today).
+    expect(snap.sections).toHaveLength(3);
+    expect(snap.sections.map((s) => s.dayNumber)).toEqual(['1', '2', '3']);
+  });
+
+  it('does not spill a timed event ending at midnight into the next day', () => {
+    const events = [
+      ev({ uid: 'late', dtstart: new Date('2026-08-01T20:00:00Z'), dtend: new Date('2026-08-01T22:00:00Z') }), // 22:00–24:00 Berlin
+    ];
+    const snap = buildAgendaSnapshot(events, { now, timeZone: TZ, locale: 'en-US', days: 1 });
+    expect(snap.sections).toHaveLength(1);
+  });
+
+  it('keeps a zero-duration event on its start day', () => {
+    const at = new Date('2026-08-02T10:00:00Z');
+    const snap = buildAgendaSnapshot([ev({ uid: 'z', dtstart: at, dtend: at })], { now, timeZone: TZ, locale: 'en-US', days: 2 });
+    expect(snap.sections[1].items.map((e) => e.uid)).toEqual(['z']);
+  });
+
   it('keeps today section even when empty and picks nextEvent from a later day', () => {
     const events = [
       ev({ uid: 'past', dtstart: new Date('2026-08-01T07:00:00Z'), dtend: new Date('2026-08-01T08:00:00Z') }),
