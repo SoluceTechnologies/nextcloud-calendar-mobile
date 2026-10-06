@@ -1,7 +1,7 @@
 import { memo, useRef } from 'react';
-import { Pressable, TouchableOpacity, View, StyleSheet, type ViewStyle } from 'react-native';
+import { TouchableOpacity, View, StyleSheet, type ViewStyle } from 'react-native';
 import dayjs from 'dayjs';
-import { Square, SquareCheck } from 'lucide-react-native';
+import { SquareCheck } from 'lucide-react-native';
 import { Typography } from '@/ui/components';
 import type { CalendarEvent } from '@/types';
 import type { GridEvent } from '../utils/toGridEvents';
@@ -19,10 +19,9 @@ interface Props {
   hourRowHeight: number;
   dimmed?: boolean;
   onPress: (event: GridEvent) => void;
-  onToggleTask?: (e: CalendarEvent) => void;
 }
 
-function TimeGridEventImpl({ event, top, height, leftPct, widthPct, zIndex, hourRowHeight, dimmed, onPress, onToggleTask }: Props) {
+function TimeGridEventImpl({ event, top, height, leftPct, widthPct, zIndex, hourRowHeight, dimmed, onPress }: Props) {
   const scale = Math.min(Math.max((hourRowHeight - 30) / 170, 0), 1);
   const titleSize = Math.round(11 + scale * 4);
   const timeSize = Math.round(9 + scale * 2);
@@ -76,20 +75,8 @@ function TimeGridEventImpl({ event, top, height, leftPct, widthPct, zIndex, hour
         ]}
       >
         <View style={styles.cardRow}>
-          {isTask && (
-            <Pressable
-              testID={`task-checkbox-${event._event.uid}`}
-              onPress={() => onToggleTask?.(event._event)}
-              disabled={!onToggleTask || event._event.readOnly}
-              hitSlop={6}
-              style={styles.taskCheckbox}
-              accessibilityRole="checkbox"
-              accessibilityState={{ checked: taskDone }}
-            >
-              {taskDone
-                ? <SquareCheck size={Math.max(13, titleSize + 1)} color={ink.text} />
-                : <Square size={Math.max(13, titleSize + 1)} color={ink.text} />}
-            </Pressable>
+          {isTask && taskDone && (
+            <SquareCheck size={Math.max(13, titleSize + 1)} color={ink.text} />
           )}
           <View style={styles.cardText}>
             {durationMin < 30 ? (
@@ -123,6 +110,5 @@ const styles = StyleSheet.create({
   },
   cardRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 3 },
   cardText: { flex: 1 },
-  taskCheckbox: { paddingTop: 1 },
   doneText: { textDecorationLine: 'line-through' },
 });

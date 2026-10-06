@@ -2,7 +2,7 @@ import { Animated, ScrollView, StyleSheet, View } from 'react-native';
 
 import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ChevronsUpDown, ListTodo, Settings } from 'lucide-react-native';
+import { ChevronsUpDown, Settings } from 'lucide-react-native';
 import { useTheme } from 'expo-router';
 
 import { AvatarImage } from '@/components/AvatarImage';
@@ -23,10 +23,8 @@ interface CalendarDrawerProps {
   calendars: CalendarMeta[];
   hiddenCalendarIds: string[];
   notifDisabledCalendarIds: string[];
-  showCompletedTasks: boolean;
   toggleCalendarVisibility: (id: string) => void;
   toggleCalendarNotifications: (id: string) => void;
-  onToggleShowCompletedTasks: () => void;
   onClose: () => void;
   onNavigateSettings: () => void;
 }
@@ -41,10 +39,8 @@ export function CalendarDrawer({
   calendars,
   hiddenCalendarIds,
   notifDisabledCalendarIds,
-  showCompletedTasks,
   toggleCalendarVisibility,
   toggleCalendarNotifications,
-  onToggleShowCompletedTasks,
   onClose,
   onNavigateSettings,
 }: CalendarDrawerProps) {
@@ -149,17 +145,6 @@ export function CalendarDrawer({
             </Stack>
           )}
 
-          <Item
-            leading={<ListTodo size={20} color={colors.textSecondary} />}
-            title={t('calendar.showCompletedTasks')}
-            trailing={
-              <Toggle
-                value={showCompletedTasks}
-                onValueChange={onToggleShowCompletedTasks}
-                accessibilityLabel={t('calendar.showCompletedTasks')}
-              />
-            }
-          />
         </ScrollView>
       </Animated.View>
     </>

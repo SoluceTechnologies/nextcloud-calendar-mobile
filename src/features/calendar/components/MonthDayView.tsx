@@ -1,6 +1,6 @@
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
-  View, Text, Pressable, TouchableOpacity, FlatList, StyleSheet,
+  View, Text, TouchableOpacity, FlatList, StyleSheet,
   useWindowDimensions, type LayoutChangeEvent,
 } from 'react-native';
 import dayjs from 'dayjs';
@@ -30,7 +30,6 @@ interface Props {
   onPressCell: (d: Date) => void;
   variant: MonthViewStyle;
   onOpenDay: (day: Date) => void;
-  onToggleTask?: (e: CalendarEvent) => void;
 }
 
 function monthDiff(from: Date, to: Date): number {
@@ -105,7 +104,7 @@ const MonthGrid = memo(function MonthGrid({
 });
 
 function MonthDayViewImpl({
-  date, events, weekStartsOn, jump, onSelectDate, onMonthChange, onPressEvent, onPressCell, variant, onOpenDay, onToggleTask,
+  date, events, weekStartsOn, jump, onSelectDate, onMonthChange, onPressEvent, onPressCell, variant, onOpenDay,
 }: Props) {
   const isGrid = variant === 'grid';
   const theme = useTheme();
@@ -280,7 +279,7 @@ function MonthDayViewImpl({
           ) : (
             <FlatList
               data={dayEvents}
-              keyExtractor={(event, index) => `${event.calendarId}-${event.uid}-${event.dtstart.getTime()}-${index}`}
+              keyExtractor={(e, i) => `${e.calendarId}-${e.uid}-${e.dtstart.getTime()}-${i}`}
               renderItem={({ item }) => (
                 <TouchableOpacity
                   style={[styles.eventRow, { borderLeftColor: item.color, backgroundColor: theme.colors.surface }]}
@@ -288,25 +287,27 @@ function MonthDayViewImpl({
                 >
                   <View style={[styles.eventColorBar, { backgroundColor: item.color }]} />
                   {item.isTask && (
-                    <Pressable
-                      testID={`task-checkbox-${item.uid}`}
-                      onPress={() => onToggleTask?.(item)}
-                      disabled={!onToggleTask || item.readOnly}
-                      hitSlop={8}
+                    <View
                       style={styles.taskCheckbox}
-                      accessibilityRole="checkbox"
-                      accessibilityState={{ checked: !!item.taskCompleted }}
+                      accessibilityRole="image"
                       accessibilityLabel={
-                        item.taskCompleted ? t('task.markNotCompleted') : t('task.markCompleted')
+                        item.taskCompleted ? t('task.completed') : t('task.pending')
                       }
                     >
                       {item.taskCompleted
                         ? <SquareCheck size={20} color={item.color} />
                         : <Square size={20} color={theme.colors.textTertiary} />}
-                    </Pressable>
+                    </View>
                   )}
                   <View style={[styles.eventInfo, item.taskCompleted && styles.eventInfoDone]}>
-                    <Text style={[styles.eventTitle, { color: theme.colors.text }, item.taskCompleted && styles.doneText]} numberOfLines={1}>
+                    <Text
+                      style={[
+                        styles.eventTitle,
+                        { color: theme.colors.text },
+                        item.taskCompleted && styles.doneText,
+                      ]}
+                      numberOfLines={1}
+                    >
                       {item.summary}
                     </Text>
                     <Text style={[styles.eventTime, { color: theme.colors.textSecondary }]}>

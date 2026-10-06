@@ -1,8 +1,8 @@
 import { memo, useMemo } from 'react';
-import { View, Text, Pressable, TouchableOpacity } from 'react-native';
+import { View, Text, TouchableOpacity } from 'react-native';
 import { useTheme } from 'expo-router';
 import dayjs from 'dayjs';
-import { Square, SquareCheck } from 'lucide-react-native';
+import { SquareCheck } from 'lucide-react-native';
 import { useSettingsStore } from '@/stores/settingsStore';
 import type { CalendarEvent } from '@/types';
 import {
@@ -18,10 +18,9 @@ interface Props {
   now: Date;
   allDayEvents: CalendarEvent[];
   onPressEvent: (event: CalendarEvent) => void;
-  onToggleTask?: (event: CalendarEvent) => void;
 }
 
-function TimeGridHeaderImpl({ dates, now, allDayEvents, onPressEvent, onToggleTask }: Props) {
+function TimeGridHeaderImpl({ dates, now, allDayEvents, onPressEvent }: Props) {
   const theme = useTheme();
   const language = useSettingsStore((s) => s.language);
 
@@ -88,19 +87,8 @@ function TimeGridHeaderImpl({ dates, now, allDayEvents, onPressEvent, onToggleTa
                     }}
                     onPress={() => onPressEvent(event)}
                   >
-                    {event.isTask && (
-                      <Pressable
-                        testID={`task-checkbox-${event.uid}`}
-                        onPress={() => onToggleTask?.(event)}
-                        disabled={!onToggleTask || event.readOnly}
-                        hitSlop={6}
-                        accessibilityRole="checkbox"
-                        accessibilityState={{ checked: !!event.taskCompleted }}
-                      >
-                        {event.taskCompleted
-                          ? <SquareCheck size={13} color="#fff" />
-                          : <Square size={13} color="#fff" />}
-                      </Pressable>
+                    {event.isTask && event.taskCompleted && (
+                      <SquareCheck size={13} color="#fff" />
                     )}
                     <Text
                       style={{

@@ -19,7 +19,6 @@ interface Props {
   onPressSlot: (d: Date) => void;
   onPressEvent: (e: GridEvent) => void;
   onMoveEvent?: (event: GridEvent, nextStart: Date, nextEnd: Date) => void;
-  onToggleTask?: (e: CalendarEvent) => void;
 }
 
 function TimeGridPageImpl({
@@ -30,7 +29,6 @@ function TimeGridPageImpl({
   onPressSlot,
   onPressEvent,
   onMoveEvent,
-  onToggleTask,
 }: Props) {
   const layoutCache = useRef(new WeakMap<GridEvent[], PositionedEvent[]>());
   const layouts = useMemo(
@@ -70,7 +68,6 @@ function TimeGridPageImpl({
             now={now}
             onPressSlot={onPressSlot}
             onPressEvent={onPressEvent}
-            onToggleTask={onToggleTask}
             dimmedUid={drag?.columnIndex === i ? drag.event._event.uid : undefined}
           />
         ))}
