@@ -315,7 +315,8 @@
       "defaultCalendarHint": "Presseleccionat a la creacion d'un eveniment.",
       "defaultCalendarAuto": "Automatic"
     },
-    "accountActive": "Actiu"
+    "accountActive": "Actiu",
+    "tasks": "Tasques"
   },
   "widget": {
     "liveRemaining": "Demòra {{duration}}",

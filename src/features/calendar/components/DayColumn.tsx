@@ -18,11 +18,10 @@ interface Props {
   now: Date;
   onPressSlot: (d: Date) => void;
   onPressEvent: (e: GridEvent) => void;
-  onToggleTask?: (e: CalendarEvent) => void;
   dimmedUid?: string;
 }
 
-function DayColumnImpl({ date, positioned, hourRowHeight, now, onPressSlot, onPressEvent, onToggleTask, dimmedUid }: Props) {
+function DayColumnImpl({ date, positioned, hourRowHeight, now, onPressSlot, onPressEvent, dimmedUid }: Props) {
   const { colors } = useTheme();
   const isToday = dayjs(now).isSame(date, 'day');
 
@@ -69,7 +68,6 @@ function DayColumnImpl({ date, positioned, hourRowHeight, now, onPressSlot, onPr
             hourRowHeight={hourRowHeight}
             dimmed={dimmedUid === event._event.uid}
             onPress={onPressEvent}
-            onToggleTask={onToggleTask}
           />
         );
       })}

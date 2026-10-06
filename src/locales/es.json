@@ -328,7 +328,8 @@
       "openInApp": "Nextcloud Talk app",
       "openInBrowser": "Browser",
       "askEachTime": "Ask each time"
-    }
+    },
+    "tasks": "Tareas"
   },
   "widget": {
     "liveRemaining": "quedan {{duration}}",

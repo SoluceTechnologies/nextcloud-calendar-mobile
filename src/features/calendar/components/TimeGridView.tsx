@@ -51,13 +51,12 @@ interface Props {
   onPressEvent: (e: GridEvent) => void;
   onPressAllDayEvent: (e: CalendarEvent) => void;
   onMoveEvent?: (event: GridEvent, nextStart: Date, nextEnd: Date) => void;
-  onToggleTask?: (e: CalendarEvent) => void;
 }
 
 function TimeGridViewImpl({
   mode, anchorDate, activeDate, events, allDayEvents, hourRowHeight, cellHeight, weekStartsOn,
   active, jump, commitZoom, initialScrollHour, onPageChange, onPressSlot, onPressEvent,
-  onPressAllDayEvent, onMoveEvent, onToggleTask,
+  onPressAllDayEvent, onMoveEvent,
 }: Props) {
   const activeRef = useRef(active); activeRef.current = active;
   const { colors } = useTheme();
@@ -214,10 +213,9 @@ function TimeGridViewImpl({
         now={now}
         allDayEvents={allDayEvents}
         onPressEvent={onPressAllDayEvent}
-        onToggleTask={onToggleTask}
       />
     ),
-    [datesForIndex, now, allDayEvents, onPressAllDayEvent, onToggleTask]
+    [datesForIndex, now, allDayEvents, onPressAllDayEvent]
   );
 
   const renderGridPage = useCallback(
@@ -230,10 +228,9 @@ function TimeGridViewImpl({
         onPressSlot={onPressSlot}
         onPressEvent={onPressEvent}
         onMoveEvent={onMoveEvent}
-        onToggleTask={onToggleTask}
       />
     ),
-    [datesForIndex, dayIndex, hourRowHeight, now, onPressSlot, onPressEvent, onMoveEvent, onToggleTask]
+    [datesForIndex, dayIndex, hourRowHeight, now, onPressSlot, onPressEvent, onMoveEvent]
   );
 
   return (

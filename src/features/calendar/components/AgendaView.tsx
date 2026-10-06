@@ -1,6 +1,6 @@
 import { memo, useRef, useCallback, useMemo, useLayoutEffect, forwardRef, useImperativeHandle } from 'react';
 import {
-  View, Text, FlatList, Pressable, TouchableOpacity, StyleSheet, type ViewToken,
+  View, Text, FlatList, TouchableOpacity, StyleSheet, type ViewToken,
   type NativeScrollEvent, type NativeSyntheticEvent,
 } from 'react-native';
 import dayjs from 'dayjs';
@@ -22,7 +22,6 @@ interface Props {
   date: Date;
   onPressEvent: (event: CalendarEvent) => void;
   onPressCell: (date: Date) => void;
-  onToggleTask?: (event: CalendarEvent) => void;
   onVisibleDateChange?: (date: Date) => void;
 }
 
@@ -70,10 +69,9 @@ interface EventRowProps {
   event: CalendarEvent;
   theme: Theme;
   onPress: (e: CalendarEvent) => void;
-  onToggleTask?: (e: CalendarEvent) => void;
 }
 
-const EventRow = memo(({ event, theme, onPress, onToggleTask }: EventRowProps) => {
+const EventRow = memo(({ event, theme, onPress }: EventRowProps) => {
   const { t } = useTranslation();
   const { formatTime } = useTimeFormat();
   const duration = event.allDay
@@ -96,22 +94,17 @@ const EventRow = memo(({ event, theme, onPress, onToggleTask }: EventRowProps) =
     >
       <View style={[styles.colorBar, { backgroundColor: event.color }]} />
       {event.isTask && (
-        <Pressable
-          testID={`task-checkbox-${event.uid}`}
-          onPress={() => onToggleTask?.(event)}
-          disabled={!onToggleTask || event.readOnly}
-          hitSlop={8}
+        <View
           style={styles.taskCheckbox}
-          accessibilityRole="checkbox"
-          accessibilityState={{ checked: !!event.taskCompleted }}
+          accessibilityRole="image"
           accessibilityLabel={
-            event.taskCompleted ? t('task.markNotCompleted') : t('task.markCompleted')
+            event.taskCompleted ? t('task.completed') : t('task.pending')
           }
         >
           {event.taskCompleted
             ? <SquareCheck size={20} color={event.color} />
             : <Square size={20} color={theme.colors.textTertiary} />}
-        </Pressable>
+        </View>
       )}
       <View style={[styles.eventContent, event.taskCompleted && styles.eventContentDone]}>
         <Text
@@ -152,7 +145,7 @@ type Row =
   | { type: 'item'; key: string; date: Date; event: CalendarEvent };
 
 const AgendaViewImpl = forwardRef<AgendaViewHandle, Props>(function AgendaView(
-  { events, onPressEvent, onPressCell, onToggleTask, onVisibleDateChange }, ref
+  { events, onPressEvent, onPressCell, onVisibleDateChange }, ref
 ) {
   const theme = useTheme();
   const listRef = useRef<FlatList<Row>>(null);
@@ -246,8 +239,8 @@ const AgendaViewImpl = forwardRef<AgendaViewHandle, Props>(function AgendaView(
   const renderRow = useCallback(({ item }: { item: Row }) => (
     item.type === 'header'
       ? <DayHeader sectionDate={item.date} hasEvents={item.hasEvents} theme={theme} onPress={onPressCell} />
-      : <EventRow event={item.event} theme={theme} onPress={onPressEvent} onToggleTask={onToggleTask} />
-  ), [theme, onPressCell, onPressEvent, onToggleTask]);
+      : <EventRow event={item.event} theme={theme} onPress={onPressEvent} />
+  ), [theme, onPressCell, onPressEvent]);
 
   const keyExtractor = useCallback((item: Row) => (
     item.type === 'header' ? `h-${item.key}` : agendaRowKey(item.key, item.event)

@@ -27,7 +27,6 @@ interface Props {
   onMonthChange: (d: Date) => void;
   onPressEvent: (e: CalendarEvent) => void;
   onPressCell: (d: Date) => void;
-  onToggleTask?: (e: CalendarEvent) => void;
 }
 
 export function buildMonthGrid(year: number, month: number, weekStartsOn: 0 | 1): (dayjs.Dayjs | null)[][] {
@@ -182,7 +181,7 @@ const MonthGrid = memo(function MonthGrid({
   );
 });
 
-function MonthDayViewImpl({ date, events, weekStartsOn, jump, onSelectDate, onMonthChange, onPressEvent, onPressCell, onToggleTask }: Props) {
+function MonthDayViewImpl({ date, events, weekStartsOn, jump, onSelectDate, onMonthChange, onPressEvent, onPressCell }: Props) {
   const theme = useTheme();
   const { t } = useTranslation();
   const language = useSettingsStore((s) => s.language);
@@ -324,22 +323,17 @@ function MonthDayViewImpl({ date, events, weekStartsOn, jump, onSelectDate, onMo
               >
                 <View style={[styles.eventColorBar, { backgroundColor: item.color }]} />
                 {item.isTask && (
-                  <Pressable
-                    testID={`task-checkbox-${item.uid}`}
-                    onPress={() => onToggleTask?.(item)}
-                    disabled={!onToggleTask || item.readOnly}
-                    hitSlop={8}
+                  <View
                     style={styles.taskCheckbox}
-                    accessibilityRole="checkbox"
-                    accessibilityState={{ checked: !!item.taskCompleted }}
+                    accessibilityRole="image"
                     accessibilityLabel={
-                      item.taskCompleted ? t('task.markNotCompleted') : t('task.markCompleted')
+                      item.taskCompleted ? t('task.completed') : t('task.pending')
                     }
                   >
                     {item.taskCompleted
                       ? <SquareCheck size={20} color={item.color} />
                       : <Square size={20} color={theme.colors.textTertiary} />}
-                  </Pressable>
+                  </View>
                 )}
                 <View style={[styles.eventInfo, item.taskCompleted && styles.eventInfoDone]}>
                   <Text

@@ -328,7 +328,8 @@
       "openInApp": "Application Nextcloud Talk",
       "openInBrowser": "Navigateur",
       "askEachTime": "Demander à chaque fois"
-    }
+    },
+    "tasks": "Tâches"
   },
   "widget": {
     "liveRemaining": "il reste {{duration}}",
