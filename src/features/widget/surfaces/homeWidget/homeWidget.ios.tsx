@@ -1,6 +1,6 @@
 import { Appearance } from 'react-native';
 import { HStack, Link, RoundedRectangle, Text, VStack } from '@expo/ui/swift-ui';
-import { containerBackground, font, foregroundStyle, frame, padding } from '@expo/ui/swift-ui/modifiers';
+import { containerBackground, font, foregroundStyle, frame, lineLimit, padding } from '@expo/ui/swift-ui/modifiers';
 import type { WidgetEnvironment } from 'expo-widgets';
 import { createWidget } from 'expo-widgets';
 
@@ -34,8 +34,7 @@ function CalendarWidget(props: { snapshot: AgendaSnapshot | null }, env: WidgetE
     primary: '#29aef7',
     onPrimary: '#ffffff',
   };
-
-  const LARGE_BUDGET = 4;
+  const LARGE_ROWS = 8;
   const ACCESSORY_FAMILIES = ['accessoryInline', 'accessoryCircular', 'accessoryRectangular'];
 
   function agendaPalette(snapshot: AgendaSnapshot | null) {
@@ -54,12 +53,13 @@ function CalendarWidget(props: { snapshot: AgendaSnapshot | null }, env: WidgetE
     return snapshot?.events.slice(0, limit) ?? [];
   }
 
-  function agendaGroups(snapshot: AgendaSnapshot | null, budget: number) {
+  function agendaGroups(snapshot: AgendaSnapshot | null, rowBudget: number) {
     const groups: { key: string; header: string; isToday: boolean; items: AgendaEventItem[] }[] = [];
-    let left = budget;
+    let left = rowBudget;
     for (const section of snapshot?.sections ?? []) {
-      if (left <= 0) break;
       if (section.items.length === 0) continue;
+      left -= 1; // the day header occupies a row too
+      if (left <= 0) break;
       const items = section.items.slice(0, left);
       left -= items.length;
       groups.push({ key: section.dayKey, header: `${section.weekdayLong} ${section.dayNumber}`, isToday: section.isToday, items });
@@ -73,8 +73,8 @@ function CalendarWidget(props: { snapshot: AgendaSnapshot | null }, env: WidgetE
         <HStack alignment="center" modifiers={[frame({ maxWidth: Infinity, alignment: 'leading' })]}>
           <RoundedRectangle cornerRadius={2} modifiers={[foregroundStyle(event.color), frame({ width: 4, height: 30 })]} />
           <VStack alignment="leading" modifiers={[frame({ maxWidth: Infinity, alignment: 'leading' }), padding({ leading: 8 })]}>
-            <Text modifiers={[font({ weight: 'medium', size: WIDGET_TYPE.body }), foregroundStyle(palette.text)]}>{event.title}</Text>
-            <Text modifiers={[font({ size: WIDGET_TYPE.time }), foregroundStyle(palette.textSecondary)]}>{event.timeLabel}</Text>
+            <Text modifiers={[font({ weight: 'medium', size: WIDGET_TYPE.body }), foregroundStyle(palette.text), lineLimit(1)]}>{event.title}</Text>
+            <Text modifiers={[font({ size: WIDGET_TYPE.time }), foregroundStyle(palette.textSecondary), lineLimit(1)]}>{event.timeLabel}</Text>
           </VStack>
         </HStack>
       </Link>
@@ -86,7 +86,7 @@ function CalendarWidget(props: { snapshot: AgendaSnapshot | null }, env: WidgetE
   }
 
   function LargeWidget({ snapshot, palette }: { snapshot: AgendaSnapshot | null; palette: typeof LIGHT_PALETTE }) {
-    const groups = agendaGroups(snapshot, LARGE_BUDGET);
+    const groups = agendaGroups(snapshot, LARGE_ROWS);
     const cells = [];
     for (const group of groups) {
       cells.push(
