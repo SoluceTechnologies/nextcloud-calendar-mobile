@@ -71,6 +71,7 @@ const config: ExpoConfig = {
 
     plugins: [
         './plugins/withAndroidNetworkSecurityConfig',
+        './plugins/withAndroidMultiDisplay',
         '@morrowdigital/watermelondb-expo-plugin',
         '@react-native-community/datetimepicker',
         'expo-router',
