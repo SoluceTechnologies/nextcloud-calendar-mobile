@@ -1,5 +1,6 @@
 import { createRef, type ReactElement } from 'react';
 import { render as rtlRender, act, fireEvent, waitFor } from '@testing-library/react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { ThemeWrapper } from '../helpers/theme';
 
 const render = (ui: ReactElement, opts?: Parameters<typeof rtlRender>[1]) =>
@@ -240,6 +241,74 @@ describe('EventForm all-day end date', () => {
     act(() => formRef.current!.submit());
     expect(getByText('End time must be after start time.')).toBeTruthy();
     expect(onSubmit).not.toHaveBeenCalled();
+  });
+});
+
+describe('EventForm start/end duration (#352)', () => {
+  beforeEach(async () => {
+    await i18n.changeLanguage('en');
+  });
+
+  const changeStart = (startPicker: unknown, d: Date) => {
+    const picker = startPicker as { props: { onChange: (e: unknown, d?: Date) => void } };
+    act(() => picker.props.onChange({ type: 'set' }, d));
+  };
+
+  it('keeps the duration when start minutes change repeatedly', () => {
+    const formRef = createRef<EventFormHandle>();
+    const onSubmit = jest.fn();
+    const { UNSAFE_getAllByType } = render(
+      <EventForm
+        ref={formRef}
+        {...baseProps}
+        onSubmit={onSubmit}
+        initialValues={{
+          summary: 'Shift me',
+          dtstart: new Date(2026, 5, 1, 2, 0, 0),
+          dtend: new Date(2026, 5, 1, 3, 0, 0),
+        }}
+      />,
+    );
+
+    const startPicker = UNSAFE_getAllByType(DateTimePicker)[0];
+    changeStart(startPicker, new Date(2026, 5, 1, 2, 13, 0));
+    changeStart(startPicker, new Date(2026, 5, 1, 2, 25, 0));
+
+    act(() => formRef.current!.submit());
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        dtstart: new Date(2026, 5, 1, 2, 25, 0),
+        dtend: new Date(2026, 5, 1, 3, 25, 0),
+      }),
+    );
+  });
+
+  it('preserves a manually customized duration', () => {
+    const formRef = createRef<EventFormHandle>();
+    const onSubmit = jest.fn();
+    const { UNSAFE_getAllByType } = render(
+      <EventForm
+        ref={formRef}
+        {...baseProps}
+        onSubmit={onSubmit}
+        initialValues={{
+          summary: 'Workshop',
+          dtstart: new Date(2026, 5, 1, 14, 0, 0),
+          dtend: new Date(2026, 5, 1, 17, 30, 0),
+        }}
+      />,
+    );
+
+    const startPicker = UNSAFE_getAllByType(DateTimePicker)[0];
+    changeStart(startPicker, new Date(2026, 5, 1, 16, 0, 0));
+
+    act(() => formRef.current!.submit());
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        dtstart: new Date(2026, 5, 1, 16, 0, 0),
+        dtend: new Date(2026, 5, 1, 19, 30, 0),
+      }),
+    );
   });
 });
 
