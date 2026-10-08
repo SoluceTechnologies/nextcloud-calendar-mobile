@@ -128,10 +128,13 @@ export const EventForm = forwardRef<EventFormHandle, Props>(function EventForm({
       setDtend(allDay ? d : dayjs(d).add(1, 'hour').toDate());
       return;
     }
+    // Moving the start shifts the end by the same amount so the duration is
+    // preserved — repeated start edits must keep tracking it (#352).
+    const duration = dtend.getTime() - dtstart.getTime();
     setDtstart(d);
     setDtend((prevEnd) => {
       if (allDay) return dayjs(prevEnd).isBefore(dayjs(d), 'day') ? d : prevEnd;
-      return prevEnd > d ? prevEnd : dayjs(d).add(1, 'hour').toDate();
+      return new Date(d.getTime() + (duration > 0 ? duration : 3_600_000));
     });
     setEndError(null);
   }
