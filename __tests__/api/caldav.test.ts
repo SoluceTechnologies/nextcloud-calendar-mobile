@@ -590,6 +590,22 @@ describe('Nextcloud installed in a subdirectory', () => {
 
     expect(events[0].href).toBe('https://cloud.example.com/nextcloud/remote.php/dav/calendars/john/personal/a.ics');
   });
+
+  it('fetchEventsByHrefs keeps the subfolder in multiget request hrefs (#351)', async () => {
+    mockFetch.mockResolvedValue({
+      status: 207,
+      text: async () => '<d:multistatus xmlns:d="DAV:" xmlns:cal="urn:ietf:params:xml:ns:caldav"></d:multistatus>',
+    });
+
+    await fetchEventsByHrefs(
+      subAccount, subCal,
+      ['https://cloud.example.com/nextcloud/remote.php/dav/calendars/john/personal/a.ics'],
+      new Date('2026-01-01T00:00:00Z'), new Date('2026-12-31T00:00:00Z'),
+    );
+
+    const body = mockFetch.mock.calls[0][1].body as string;
+    expect(body).toContain('<d:href>/nextcloud/remote.php/dav/calendars/john/personal/a.ics</d:href>');
+  });
 });
 
 describe('fetchEvents — subscribed feed with unstable UIDs', () => {
