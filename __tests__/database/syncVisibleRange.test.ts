@@ -252,7 +252,7 @@ describe('syncVisibleRange — failure semantics', () => {
       .mockResolvedValueOnce({ changed: [], deleted: [], newToken: 't2', reset: false })
       .mockRejectedValueOnce(new Error('syncCollection HTTP 500'));
 
-    await expect(syncVisibleRange(account, [calendar, other], start, end)).resolves.toBeUndefined();
+    await expect(syncVisibleRange(account, [calendar, other], start, end)).resolves.toEqual({ failedCount: 1 });
   });
 
   it('throws when every calendar fails', async () => {
