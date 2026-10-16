@@ -1,10 +1,10 @@
-import type { ReactElement } from 'react';
-import { render as rtlRender, fireEvent, waitFor } from '@testing-library/react-native';
+import { createRef, type ReactElement } from 'react';
+import { render as rtlRender, act, fireEvent, waitFor } from '@testing-library/react-native';
 import { ThemeWrapper } from '../helpers/theme';
 
 const render = (ui: ReactElement, opts?: Parameters<typeof rtlRender>[1]) =>
   rtlRender(ui, { wrapper: ThemeWrapper, ...opts });
-import { EventForm } from '@/features/event/components/EventForm';
+import { EventForm, type EventFormHandle } from '@/features/event/components/EventForm';
 import { useSettingsStore } from '../../src/stores/settingsStore';
 import i18n from '../../src/utils/i18n';
 import type { CalendarMeta } from '../../src/types';
@@ -37,7 +37,6 @@ const baseProps = {
   organizerEmail: 'john@example.com',
   organizerName: 'John',
   onSubmit: () => {},
-  loading: false,
 };
 
 const LOCKED_CAPTION = "Calendar can't be changed for recurring events.";
@@ -96,10 +95,12 @@ describe('EventForm default calendar', () => {
   });
 
   it('pre-selects the stored default calendar for new events', () => {
+    const formRef = createRef<EventFormHandle>();
     useSettingsStore.getState().setDefaultCalendar('acc-1', 'work-url');
     const onSubmit = jest.fn();
     const { getByText } = render(
       <EventForm
+        ref={formRef}
         {...baseProps}
         calendars={twoCalendars}
         account={account}
@@ -108,17 +109,19 @@ describe('EventForm default calendar', () => {
       />,
     );
 
-    fireEvent.press(getByText('Save Event'));
+    act(() => formRef.current!.submit());
     expect(onSubmit).toHaveBeenCalledWith(
       expect.objectContaining({ calendarId: 'work-url' }),
     );
   });
 
   it('falls back to the heuristic when the stored calendar is gone', () => {
+    const formRef = createRef<EventFormHandle>();
     useSettingsStore.getState().setDefaultCalendar('acc-1', 'deleted-url');
     const onSubmit = jest.fn();
     const { getByText } = render(
       <EventForm
+        ref={formRef}
         {...baseProps}
         calendars={twoCalendars}
         account={account}
@@ -127,13 +130,14 @@ describe('EventForm default calendar', () => {
       />,
     );
 
-    fireEvent.press(getByText('Save Event'));
+    act(() => formRef.current!.submit());
     expect(onSubmit).toHaveBeenCalledWith(
       expect.objectContaining({ calendarId: 'personal-url' }),
     );
   });
 
   it('falls back to the heuristic when the stored calendar became read-only', () => {
+    const formRef = createRef<EventFormHandle>();
     useSettingsStore.getState().setDefaultCalendar('acc-1', 'work-url');
     const readOnlyWork = twoCalendars.map((c) =>
       c.id === 'work-url' ? { ...c, isReadOnly: true } : c,
@@ -141,6 +145,7 @@ describe('EventForm default calendar', () => {
     const onSubmit = jest.fn();
     const { getByText } = render(
       <EventForm
+        ref={formRef}
         {...baseProps}
         calendars={readOnlyWork}
         account={account}
@@ -149,17 +154,19 @@ describe('EventForm default calendar', () => {
       />,
     );
 
-    fireEvent.press(getByText('Save Event'));
+    act(() => formRef.current!.submit());
     expect(onSubmit).toHaveBeenCalledWith(
       expect.objectContaining({ calendarId: 'personal-url' }),
     );
   });
 
   it('lets initialValues.calendarId win over the stored default', () => {
+    const formRef = createRef<EventFormHandle>();
     useSettingsStore.getState().setDefaultCalendar('acc-1', 'work-url');
     const onSubmit = jest.fn();
     const { getByText } = render(
       <EventForm
+        ref={formRef}
         {...baseProps}
         calendars={twoCalendars}
         account={account}
@@ -168,7 +175,7 @@ describe('EventForm default calendar', () => {
       />,
     );
 
-    fireEvent.press(getByText('Save Event'));
+    act(() => formRef.current!.submit());
     expect(onSubmit).toHaveBeenCalledWith(
       expect.objectContaining({ calendarId: 'personal-url' }),
     );
@@ -195,9 +202,11 @@ describe('EventForm all-day end date', () => {
   });
 
   it('allows submit when the all-day end equals the start (single-day event)', () => {
+    const formRef = createRef<EventFormHandle>();
     const onSubmit = jest.fn();
     const { getByText } = render(
       <EventForm
+        ref={formRef}
         {...baseProps}
         onSubmit={onSubmit}
         initialValues={{
@@ -208,14 +217,16 @@ describe('EventForm all-day end date', () => {
         }}
       />
     );
-    fireEvent.press(getByText('Save Event'));
+    act(() => formRef.current!.submit());
     expect(onSubmit).toHaveBeenCalledTimes(1);
   });
 
   it('blocks submit when the all-day end is before the start', () => {
+    const formRef = createRef<EventFormHandle>();
     const onSubmit = jest.fn();
     const { getByText } = render(
       <EventForm
+        ref={formRef}
         {...baseProps}
         onSubmit={onSubmit}
         initialValues={{
@@ -226,7 +237,7 @@ describe('EventForm all-day end date', () => {
         }}
       />
     );
-    fireEvent.press(getByText('Save Event'));
+    act(() => formRef.current!.submit());
     expect(getByText('End time must be after start time.')).toBeTruthy();
     expect(onSubmit).not.toHaveBeenCalled();
   });
@@ -238,9 +249,11 @@ describe('EventForm recurrence end condition', () => {
   });
 
   it('submits the occurrence count chosen in the recurrence picker', () => {
+    const formRef = createRef<EventFormHandle>();
     const onSubmit = jest.fn();
     const { getByText, getByDisplayValue } = render(
       <EventForm
+        ref={formRef}
         {...baseProps}
         onSubmit={onSubmit}
         initialValues={{ summary: 'Standup', rrule: { freq: 'WEEKLY' } }}
@@ -249,7 +262,7 @@ describe('EventForm recurrence end condition', () => {
 
     fireEvent.press(getByText('After'));
     fireEvent.changeText(getByDisplayValue('10'), '6');
-    fireEvent.press(getByText('Save Event'));
+    act(() => formRef.current!.submit());
 
     expect(onSubmit).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -259,9 +272,11 @@ describe('EventForm recurrence end condition', () => {
   });
 
   it('defaults the recurrence end date relative to the event start', () => {
+    const formRef = createRef<EventFormHandle>();
     const onSubmit = jest.fn();
     const { getByText } = render(
       <EventForm
+        ref={formRef}
         {...baseProps}
         onSubmit={onSubmit}
         initialValues={{
@@ -274,7 +289,7 @@ describe('EventForm recurrence end condition', () => {
     );
 
     fireEvent.press(getByText('On date'));
-    fireEvent.press(getByText('Save Event'));
+    act(() => formRef.current!.submit());
 
     expect(onSubmit).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -298,6 +313,7 @@ describe('EventForm contact suggestions', () => {
   });
 
   it('shows contact suggestions from the account', async () => {
+    const formRef = createRef<EventFormHandle>();
     mockedUseContactSuggestions.mockReturnValue({
       suggestions: [
         { id: '1', displayName: 'John Smith', email: 'john.smith@example.com', source: 'user' },
@@ -309,6 +325,7 @@ describe('EventForm contact suggestions', () => {
     const onSubmit = jest.fn();
     const { getByText, queryByText } = render(
       <EventForm
+        ref={formRef}
         {...baseProps}
         account={account}
         onSubmit={onSubmit}
@@ -321,7 +338,7 @@ describe('EventForm contact suggestions', () => {
 
     fireEvent.press(getByText('John Smith'));
 
-    fireEvent.press(getByText('Save Event'));
+    act(() => formRef.current!.submit());
     expect(onSubmit).toHaveBeenCalledWith(
       expect.objectContaining({
         attendees: [{ displayName: 'John Smith', email: 'john.smith@example.com' }],

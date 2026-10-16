@@ -124,6 +124,23 @@ describe('syncVisibleRange — routing', () => {
     expect(mockSyncCollection).not.toHaveBeenCalled();
   });
 
+  it('routes app-generated calendars (Deck boards) through the full fetch path', async () => {
+    const { db } = makeDb();
+    mockGetDb.mockReturnValue(db);
+    const deck: CalendarMeta = {
+      ...calendar,
+      id: 'https://cloud.example.com/remote.php/dav/calendars/john/app-generated--deck--board-3/',
+      url: 'https://cloud.example.com/remote.php/dav/calendars/john/app-generated--deck--board-3/',
+      slug: 'app-generated--deck--board-3',
+      supportsEvents: false,
+    };
+
+    await syncVisibleRange(account, [deck], start, end);
+
+    expect(mockFetchForCalendars).toHaveBeenCalledWith(account, [deck], start, end);
+    expect(mockSyncCollection).not.toHaveBeenCalled();
+  });
+
   it('splits a mixed list between delta and full paths', async () => {
     const { db } = makeDb();
     mockGetDb.mockReturnValue(db);

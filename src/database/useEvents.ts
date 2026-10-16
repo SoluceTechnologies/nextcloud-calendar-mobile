@@ -52,7 +52,7 @@ export function useEventsForRange(accountId: string, start: Date, end: Date, ref
     const query = database.get<Event>('events').query(
       Q.where('account_id', accountId),
       Q.where('start', Q.lt(end.getTime())),
-      Q.where('end', Q.gt(start.getTime())),
+      Q.where('end', Q.gte(start.getTime())),
     );
     const subscription = query.observeWithColumns(EVENT_OBSERVED_COLUMNS).subscribe((rows) => {
       const fingerprint = eventsFingerprint(rows);
