@@ -13,6 +13,11 @@ interface ParseCalMeta {
 const TALK_URL_PATTERN = /\/call\//;
 
 const MAX_OCCURRENCES = 1000;
+// Hard bound on iterator steps, independent of emitted occurrences: an
+// unbounded RRULE whose instances are all filtered out (excluded, overridden,
+// or before the range) would otherwise loop forever on the JS thread —
+// e.g. FREQ=MINUTELY starting decades ago (~13M iterations to reach today).
+const MAX_ITERATIONS = 50_000;
 
 const DEFAULT_TODO_DURATION_MS = 15 * 60 * 1000;
 
@@ -330,18 +335,22 @@ export function parseIcsItem(
 
         const iter = icalEvent.iterator();
         let emitted = 0;
+        let iterations = 0;
         let nextTime: ICAL.Time;
 
-        while ((nextTime = iter.next()) && emitted < MAX_OCCURRENCES) {
+        while ((nextTime = iter.next()) && emitted < MAX_OCCURRENCES && iterations++ < MAX_ITERATIONS) {
           const slotStart = resolveInstant(nextTime, tzid);
+          const slotMs = slotStart.getTime();
 
-          if (slotStart.getTime() >= rangeEndMs) break;
+          // A non-finite start (unresolvable TZID, corrupt DTSTART) can never
+          // be ordered — continuing would spin forever on an unbounded RRULE.
+          if (!Number.isFinite(slotMs) || slotMs >= rangeEndMs) break;
 
-          if (excluded.has(slotStart.getTime())) continue;
+          if (excluded.has(slotMs)) continue;
 
           if (isOverridden(nextTime, overrideIds)) continue;
 
-          if (canPrefilter && slotStart.getTime() + durationMs <= rangeStartMs) continue;
+          if (canPrefilter && slotMs + durationMs <= rangeStartMs) continue;
 
           const details = icalEvent.getOccurrenceDetails(nextTime);
           if (pushOccurrence(nextTime, details.item, details.startDate, details.endDate)) emitted++;
