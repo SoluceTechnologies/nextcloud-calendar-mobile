@@ -7,6 +7,7 @@ import dayjs from 'dayjs';
 import localizedFormat from 'dayjs/plugin/localizedFormat';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from 'expo-router';
+import { Square, SquareCheck } from 'lucide-react-native';
 import type { Theme } from '@/theme';
 import type { CalendarEvent } from '@/types';
 import { useTimeFormat } from '@/hooks/useTimeFormat';
@@ -90,8 +91,28 @@ const EventRow = memo(({ event, theme, onPress }: EventRowProps) => {
       activeOpacity={0.75}
     >
       <View style={[styles.colorBar, { backgroundColor: event.color }]} />
-      <View style={styles.eventContent}>
-        <Text style={[styles.eventTitle, { color: theme.colors.text }]} numberOfLines={1}>
+      {event.isTask && (
+        <View
+          style={styles.taskCheckbox}
+          accessibilityRole="image"
+          accessibilityLabel={
+            event.taskCompleted ? t('task.completed') : t('task.pending')
+          }
+        >
+          {event.taskCompleted
+            ? <SquareCheck size={20} color={event.color} />
+            : <Square size={20} color={theme.colors.textTertiary} />}
+        </View>
+      )}
+      <View style={[styles.eventContent, event.taskCompleted && styles.eventContentDone]}>
+        <Text
+          style={[
+            styles.eventTitle,
+            { color: theme.colors.text },
+            event.taskCompleted && styles.doneText,
+          ]}
+          numberOfLines={2}
+        >
           {event.summary || t('calendar.noTitle')}
         </Text>
         <View style={styles.eventMeta}>
@@ -288,9 +309,12 @@ const styles = StyleSheet.create({
     height: EVENT_ROW_HEIGHT - 6,
   },
   colorBar: { width: 4 },
+  taskCheckbox: { justifyContent: 'center', paddingHorizontal: 8 },
   eventContent: { flex: 1, padding: 10, justifyContent: 'center' },
+  eventContentDone: { opacity: 0.55 },
   eventTitle: { fontSize: 14, fontWeight: '600', marginBottom: 3 },
-  eventMeta: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  doneText: { textDecorationLine: 'line-through' },
+  eventMeta: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 4 },
   eventTime: { fontSize: 12, fontWeight: '500' },
   eventDuration: { fontSize: 11 },
   eventLocation: { fontSize: 11, flex: 1 },

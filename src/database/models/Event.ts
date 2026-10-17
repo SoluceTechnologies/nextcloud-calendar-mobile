@@ -30,4 +30,7 @@ export default class Event extends Model {
   @field('alarm_minutes') alarmMinutes?: number;
   @field('alarms') alarms?: string;
   @field('is_task') isTask?: boolean;
+  @field('task_status') taskStatus?: string;
+  @field('task_completed_at') taskCompletedAt?: number;
+  @field('task_percent') taskPercent?: number;
 }

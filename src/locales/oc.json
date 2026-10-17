@@ -73,7 +73,15 @@
     "noTitle": "(Sens títol)",
     "drawerNoCalendars": "Pas de calendari",
     "calendarNotifications": "Notificacions per {{name}}",
-    "calendarVisibility": "Afichar {{name}}"
+    "calendarVisibility": "Afichar {{name}}",
+    "showCompletedTasks": "Mostrar los prètzfets acabats"
+  },
+  "task": {
+    "pending": "Prètzfet",
+    "completed": "Acabat",
+    "completedWithDate": "Acabat lo {{date}}",
+    "markCompleted": "Marcar coma acabat",
+    "markNotCompleted": "Marcar coma pas acabat"
   },
   "event": {
     "titleLabel": "Títol *",
@@ -307,7 +315,8 @@
       "defaultCalendarHint": "Presseleccionat a la creacion d'un eveniment.",
       "defaultCalendarAuto": "Automatic"
     },
-    "accountActive": "Actiu"
+    "accountActive": "Actiu",
+    "tasks": "Tasques"
   },
   "widget": {
     "liveRemaining": "Demòra {{duration}}",

@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useCalendarStore } from '@/stores/calendarStore';
 import { useSettingsStore } from '@/stores/settingsStore';
 import { SettingsPage } from '@/features/settings/components/SettingsPage';
-import { Button, Chip, IconButton, Stack, Typography } from '@/ui/components';
+import { Button, Chip, IconButton, Stack, Toggle, Typography } from '@/ui/components';
 
 const cardOuter = { marginHorizontal: 16, marginBottom: 12 };
 
@@ -32,6 +32,8 @@ export default function CalendarSettingsScreen() {
   const setWeekStartsOn = useSettingsStore((s) => s.setWeekStartsOn);
   const timeFormat = useSettingsStore((s) => s.timeFormat);
   const setTimeFormat = useSettingsStore((s) => s.setTimeFormat);
+  const showCompletedTasks = useCalendarStore((s) => s.showCompletedTasks);
+  const toggleShowCompletedTasks = useCalendarStore((s) => s.toggleShowCompletedTasks);
 
   const [pendingWeek, setPendingWeek] = useState(weekStartsOn);
   useEffect(() => { setPendingWeek(weekStartsOn); }, [weekStartsOn]);
@@ -101,6 +103,20 @@ export default function CalendarSettingsScreen() {
           disabled={hourRowHeight === DEFAULT_ZOOM}
           onPress={() => setHourRowHeight(DEFAULT_ZOOM)}
         />
+      </Stack>
+
+      <Stack card gap={12} padding={16} hAlign="stretch" style={cardOuter}>
+        <Typography variant="body1">{t('settings.tasks')}</Typography>
+        <Stack direction="horizontal" vAlign="center" gap={12}>
+          <Typography variant="body2" style={{ flex: 1 }}>
+            {t('calendar.showCompletedTasks')}
+          </Typography>
+          <Toggle
+            value={showCompletedTasks}
+            onValueChange={toggleShowCompletedTasks}
+            accessibilityLabel={t('calendar.showCompletedTasks')}
+          />
+        </Stack>
       </Stack>
     </SettingsPage>
   );
