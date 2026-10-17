@@ -3,6 +3,7 @@ import type {Collection} from '@nozbe/watermelondb';
 
 import {
     fetchCalendars,
+    fetchEvents,
     fetchEventsForCalendars,
     fetchEventsByHrefs,
     syncCollection,
@@ -342,6 +343,34 @@ export async function syncCalendarDelta(account: Account, calendar: CalendarMeta
     }
     const fullSync = result.reset || forceFull || !storedToken;
 
+    if (fullSync) {
+        // sync-collection with an empty token only lists every href ever
+        // created — multigetting them all downloads the entire history.
+        // Fetch just the expansion window via the server-side time-range
+        // instead; the window is all the UI renders and archives can be
+        // arbitrarily large (#358).
+        const fetched = await fetchEvents(account, calendar, horizon.start, horizon.end);
+
+        const startMs = horizon.start.getTime();
+        const endMs = horizon.end.getTime();
+        await safeWrite(db, async () => {
+            const ops = [];
+            const existing = await events
+                .query(Q.where('account_id', account.id), Q.where('calendar_id', calendar.id))
+                .fetch();
+            if (localWriteEpoch() !== epoch) return;
+            for (const r of existing) {
+                if (r.start < endMs && r.end > startMs) {
+                    ops.push(r.prepareMarkAsDeleted());
+                }
+            }
+            for (const ev of fetched) ops.push(prepareCreateEvent(events, ev));
+            pushSyncTokenOp(ops, calendars, row, calendar, account, result.newToken, now);
+            if (ops.length > 0) await db.batch(ops);
+        }, 30000, 'syncCalendarDelta');
+        return;
+    }
+
     const {events: fetched, returnedHrefs} = await fetchEventsByHrefs(
         account, calendar, result.changed, horizon.start, horizon.end,
     );
@@ -358,45 +387,41 @@ export async function syncCalendarDelta(account: Account, calendar: CalendarMeta
     await safeWrite(db, async () => {
         const ops = [];
         const deletedSet = new Set(result.deleted);
-
-        if (fullSync) {
-            const existing = await events
-                .query(Q.where('account_id', account.id), Q.where('calendar_id', calendar.id))
-                .fetch();
-            if (localWriteEpoch() !== epoch) return;
-            if (result.changed.length > 0) {
-                for (const r of existing) {
-                    if (!changedSet.has(r.href) || returnedHrefs.has(r.href)) {
-                        ops.push(r.prepareMarkAsDeleted());
-                    }
-                }
-            }
-        } else {
-            const touched = new Set<string>([...result.deleted, ...returnedHrefs]);
-            const existing = await collectByHref(events, account.id, touched);
-            if (localWriteEpoch() !== epoch) return;
-            for (const r of existing) {
-                if (deletedSet.has(r.href) || returnedHrefs.has(r.href)) {
-                    ops.push(r.prepareMarkAsDeleted());
-                }
+        const touched = new Set<string>([...result.deleted, ...returnedHrefs]);
+        const existing = await collectByHref(events, account.id, touched);
+        if (localWriteEpoch() !== epoch) return;
+        for (const r of existing) {
+            if (deletedSet.has(r.href) || returnedHrefs.has(r.href)) {
+                ops.push(r.prepareMarkAsDeleted());
             }
         }
 
         for (const ev of fetched) ops.push(prepareCreateEvent(events, ev));
-
-        if (row) {
-            ops.push(row.prepareUpdate((r: Calendar) => {
-                r.syncToken = result.newToken ?? r.syncToken;
-                r.expandedCenter = now.getTime();
-            }));
-        } else {
-            ops.push(calendars.prepareCreate((r: Calendar) => {
-                writeCalendar(r, calendar, account.id);
-                r.syncToken = result.newToken ?? undefined;
-                r.expandedCenter = now.getTime();
-            }));
-        }
+        pushSyncTokenOp(ops, calendars, row, calendar, account, result.newToken, now);
 
         if (ops.length > 0) await db.batch(ops);
     }, 30000, 'syncCalendarDelta');
+}
+
+function pushSyncTokenOp(
+    ops: unknown[],
+    calendars: Collection<Calendar>,
+    row: Calendar | undefined,
+    calendar: CalendarMeta,
+    account: Account,
+    newToken: string | undefined,
+    now: Date,
+): void {
+    if (row) {
+        ops.push(row.prepareUpdate((r: Calendar) => {
+            r.syncToken = newToken ?? r.syncToken;
+            r.expandedCenter = now.getTime();
+        }));
+    } else {
+        ops.push(calendars.prepareCreate((r: Calendar) => {
+            writeCalendar(r, calendar, account.id);
+            r.syncToken = newToken ?? undefined;
+            r.expandedCenter = now.getTime();
+        }));
+    }
 }
