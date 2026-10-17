@@ -19,6 +19,7 @@ export function sameDisplayedEvent(a: CalendarEvent, b: CalendarEvent): boolean 
     (a.description ?? '') === (b.description ?? '') &&
     (a.talkUrl ?? '') === (b.talkUrl ?? '') &&
     a.isRecurring === b.isRecurring &&
+    a.timezone === b.timezone &&
     sameAttendees(a.attendees, b.attendees)
   );
 }

@@ -1,4 +1,4 @@
-import { buildIcs, buildAllDayIcs, shiftIcsDates, injectExdate, truncateRruleUntil } from '@/utils/ics';
+import { buildIcs, buildAllDayIcs, buildExceptionIcs, shiftIcsDates, injectExdate, truncateRruleUntil } from '@/utils/ics';
 import { parseRrule } from '@/features/calendar/utils/parseRrule';
 import { parseIcsObjects, extractExtraVeventLines } from '@/utils/caldav-parse';
 import type { Attendee } from '../../src/types';
@@ -48,6 +48,32 @@ describe('buildIcs', () => {
     expect(ics).toContain('DTSTART;TZID=Europe/Paris:20260601T160000\r\n');
     expect(ics).toContain('DTEND;TZID=Europe/Paris:20260601T170000\r\n');
     expect(ics).toContain('RRULE:FREQ=WEEKLY\r\n');
+  });
+
+  it('emits a VTIMEZONE block matching the event TZID before the VEVENT', () => {
+    const ics = buildIcs({ ...base, timezone: 'Europe/Paris' });
+    expect(ics.indexOf('BEGIN:VTIMEZONE')).toBeGreaterThan(-1);
+    expect(ics.indexOf('BEGIN:VTIMEZONE')).toBeLessThan(ics.indexOf('BEGIN:VEVENT'));
+    expect(ics).toContain('TZID:Europe/Paris\r\n');
+  });
+
+  it('keeps foreign VTIMEZONE blocks passed via calendarLines', () => {
+    const foreign = [
+      'BEGIN:VTIMEZONE', 'TZID:America/New_York', 'BEGIN:STANDARD',
+      'DTSTART:19701101T020000', 'TZOFFSETFROM:-0400', 'TZOFFSETTO:-0500',
+      'END:STANDARD', 'END:VTIMEZONE',
+    ];
+    const ics = buildIcs({ ...base, timezone: 'Europe/Paris', calendarLines: foreign });
+    expect(ics).toContain('TZID:America/New_York\r\n');
+    expect(ics).toContain('TZID:Europe/Paris\r\n');
+  });
+
+  it('round-trips the event timezone through the CalDAV parser', () => {
+    const ics = buildIcs({ ...base, timezone: 'America/New_York' });
+    const [ev] = parseIcsObjects([{ ics, href: '/e.ics' }], {
+      calendarId: 'cal', accountId: 'acc', color: '#fff',
+    });
+    expect(ev.timezone).toBe('America/New_York');
   });
 
   it('encodes UID correctly', () => {
@@ -102,7 +128,7 @@ describe('buildIcs', () => {
 
   it('omits LOCATION when empty', () => {
     const ics = buildIcs({ ...base, location: '' });
-    expect(ics).not.toContain('LOCATION');
+    expect(ics).not.toMatch(/^LOCATION:/m);
   });
 });
 
@@ -352,6 +378,21 @@ END:VEVENT`;
     expect(blocks[0]).toContain('EXDATE;TZID=Europe/Paris:20260826T140000');
     expect(blocks[1]).not.toContain('EXDATE');
     expect(out.match(/EXDATE/g)).toHaveLength(1);
+  });
+});
+
+describe('buildExceptionIcs', () => {
+  it('keeps the master TZID on RECURRENCE-ID when the exception overrides the zone', () => {
+    const slot = new Date('2026-09-02T12:00:00Z'); // 14:00 Paris / 08:00 NYC
+    const ics = buildExceptionIcs({
+      ...base,
+      timezone: 'America/New_York',
+      recurrenceId: slot,
+      recurrenceIdTzid: 'Europe/Paris',
+    });
+    expect(ics).toContain('RECURRENCE-ID;TZID=Europe/Paris:20260902T140000');
+    expect(ics).toContain('DTSTART;TZID=America/New_York:20260601T100000');
+    expect(ics).toContain('TZID:America/New_York');
   });
 });
 
