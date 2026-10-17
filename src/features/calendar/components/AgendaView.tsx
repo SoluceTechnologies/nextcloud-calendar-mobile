@@ -26,6 +26,9 @@ interface Props {
 
 const HEADER_HEIGHT = 57;
 const EVENT_ROW_HEIGHT = 72;
+// Collapse a fast second "Today" press: re-issuing scrollToOffset while the
+// first jump is still settling can strand the list at offset 0 on iOS (#348).
+const TODAY_JUMP_GUARD_MS = 500;
 
 interface DayHeaderProps {
   sectionDate: Date;
@@ -191,8 +194,12 @@ const AgendaViewImpl = forwardRef<AgendaViewHandle, Props>(function AgendaView(
   const initialIndexRef = useRef(todayIndex);
   const todayRef = useRef({ key: todayKey, y: offsets[todayIndex] ?? 0 });
   todayRef.current = { key: todayKey, y: offsets[todayIndex] ?? 0 };
+  const lastJumpAtRef = useRef(0);
   useImperativeHandle(ref, () => ({
     scrollToToday: () => {
+      const now = Date.now();
+      if (now - lastJumpAtRef.current < TODAY_JUMP_GUARD_MS) return;
+      lastJumpAtRef.current = now;
       const { key, y } = todayRef.current;
       userScrollingRef.current = false;
       anchorRef.current = { key, delta: 0 };
