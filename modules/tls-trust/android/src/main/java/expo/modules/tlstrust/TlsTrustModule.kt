@@ -10,6 +10,7 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.internal.tls.OkHostnameVerifier
+import java.io.ByteArrayOutputStream
 import java.security.MessageDigest
 import java.security.cert.CertificateException
 import java.security.cert.X509Certificate
@@ -25,6 +26,8 @@ import javax.net.ssl.TrustManagerFactory
 import javax.net.ssl.X509TrustManager
 
 class UntrustedCertException(val cert: X509Certificate) : CertificateException()
+
+internal class BodyTooLargeException : Exception("response body exceeds limit")
 
 internal fun shouldSkipHostnameVerification(pinned: Set<String>, leafSha256: String?): Boolean =
   leafSha256 != null && pinned.contains(leafSha256)
@@ -103,6 +106,7 @@ class TlsTrustModule : Module() {
         val headers = (params["headers"] as? Map<String, String>) ?: emptyMap()
         val bodyB64 = params["bodyBase64"] as? String
         val timeoutMs = (params["timeoutMs"] as? Number)?.toLong() ?: 20000L
+        val maxBodyBytes = (params["maxBodyBytes"] as? Number)?.toLong() ?: -1L
 
         val httpUrl = urlStr.toHttpUrl()
         val hostKey = hostKey(httpUrl)
@@ -115,7 +119,26 @@ class TlsTrustModule : Module() {
         headers.forEach { (k, v) -> builder.addHeader(k, v) }
 
         client.newCall(builder.build()).execute().use { resp ->
-          val bytes = resp.body?.bytes() ?: ByteArray(0)
+          val respBody = resp.body
+          val bytes = if (respBody == null) {
+            ByteArray(0)
+          } else {
+            if (maxBodyBytes >= 0 && respBody.contentLength() > maxBodyBytes) {
+              throw BodyTooLargeException()
+            }
+            val stream = respBody.byteStream()
+            val out = ByteArrayOutputStream()
+            val buf = ByteArray(16 * 1024)
+            var total = 0L
+            while (true) {
+              val n = stream.read(buf)
+              if (n < 0) break
+              total += n
+              if (maxBodyBytes >= 0 && total > maxBodyBytes) throw BodyTooLargeException()
+              out.write(buf, 0, n)
+            }
+            out.toByteArray()
+          }
           val responseHeaders = HashMap<String, String>()
           resp.headers.forEach { responseHeaders[it.first] = it.second }
           promise.resolve(
@@ -144,6 +167,8 @@ class TlsTrustModule : Module() {
               "notAfter" to iso(cert.notAfter),
             )
           )
+        } else if (e is BodyTooLargeException) {
+          promise.reject("RESPONSE_TOO_LARGE", "response body exceeds limit", e)
         } else {
           promise.reject("REQUEST_FAILED", e.message ?: "request failed", e)
         }
