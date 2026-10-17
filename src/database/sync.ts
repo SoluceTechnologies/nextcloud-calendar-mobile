@@ -285,17 +285,24 @@ export async function syncVisibleRange(
     const fullCals = calendars.filter((c) => rangeOnly(c) || !inHorizon);
 
     if (deltaCals.length === 0 && fullCals.length === 0) return;
-    if (deltaCals.length > 0) lastDeltaSyncAt.set(account.id, Date.now());
 
     const {failures, fulfilledIndexes} = await settleAll(
         deltaCals.map((cal) => () => syncCalendarDelta(account, cal).then((): never[] => [])),
     );
 
+    if (fulfilledIndexes.length > 0) lastDeltaSyncAt.set(account.id, Date.now());
+
+    // Calendars whose sync-collection failed still get the plain range fetch —
+    // otherwise a server that rejects sync-collection leaves the window stale
+    // forever (e.g. only ~2 months of events shown, #308).
+    const fulfilled = new Set(fulfilledIndexes);
+    const rangeCals = fullCals.concat(deltaCals.filter((_, i) => !fulfilled.has(i)));
+
     let fullOk = false;
-    if (fullCals.length > 0) {
+    if (rangeCals.length > 0) {
         try {
             await syncEvents(
-                account, fullCals, start, end, deleteMissing, calendars.map((c) => c.id),
+                account, rangeCals, start, end, deleteMissing, calendars.map((c) => c.id),
             );
             fullOk = true;
         } catch (e) {
@@ -303,7 +310,7 @@ export async function syncVisibleRange(
         }
     }
 
-    const deltaOk = deltaCals.length > 0 && fulfilledIndexes.length > 0;
+    const deltaOk = fulfilledIndexes.length > 0;
     if (!deltaOk && !fullOk) {
         lastDeltaSyncAt.delete(account.id);
         throw new Error(`[syncVisibleRange] all ${calendars.length} calendar sync(s) failed`);
@@ -349,10 +356,9 @@ export async function syncCalendarDelta(account: Account, calendar: CalendarMeta
 
     const missing = result.changed.filter((h) => !returnedHrefs.has(h));
     if (missing.length > 0) {
-        console.warn(
+        throw new Error(
             `[syncCalendarDelta] multiget returned ${returnedHrefs.size}/${changedSet.size} objects; skipping write`
         );
-        return;
     }
 
     await safeWrite(db, async () => {
