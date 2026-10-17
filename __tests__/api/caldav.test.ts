@@ -259,6 +259,24 @@ describe('fetchEventsByHrefs', () => {
     expect(events).toEqual([]);
     expect(returnedHrefs.size).toBe(0);
   });
+
+  it('reports which hrefs actually returned calendar-data via returnedHrefs', async () => {
+    // b.ics is listed in the multistatus but carries no calendar-data.
+    const xml = `<d:multistatus xmlns:d="DAV:" xmlns:cal="urn:ietf:params:xml:ns:caldav">${
+      respFor('/p/a.ics', 'a')
+    }<d:response><d:href>/p/b.ics</d:href><d:propstat><d:status>HTTP/1.1 404 Not Found</d:status></d:propstat></d:response></d:multistatus>`;
+    mockFetch.mockResolvedValue({ status: 207, text: async () => xml });
+
+    const { returnedHrefs } = await fetchEventsByHrefs(
+      account,
+      cal,
+      ['https://cloud.example.com/p/a.ics', 'https://cloud.example.com/p/b.ics'],
+      range.s,
+      range.e,
+    );
+
+    expect([...returnedHrefs]).toEqual(['https://cloud.example.com/p/a.ics']);
+  });
 });
 
 describe('fetchCalendars', () => {

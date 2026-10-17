@@ -3,9 +3,12 @@ import { Alert } from 'react-native';
 import * as Crypto from 'expo-crypto';
 import dayjs from 'dayjs';
 
-import { putEvent, updateEvent, deleteEvent, moveEvent, fetchEventIcs } from '@/services/nextcloud/caldav';
+import { putEvent, updateEvent, deleteEvent, moveEvent, fetchEventIcsWithEtag } from '@/services/nextcloud/caldav';
+import { deleteRemoteFile, ownDavPath, uploadAttachmentFile, type UploadedFile } from '@/services/nextcloud/files';
+import { createPublicLinkShare } from '@/services/nextcloud/shares';
 import { createTalkRoom } from '@/services/nextcloud/talk';
 import { describeMutationError } from '@/services/shared/errors';
+import { buildAttachLine, injectAttachLine, removeAttachLine } from '@/features/event/utils/attachmentWrite';
 import { buildIcs, buildAllDayIcs, buildExceptionIcs, injectExdate, truncateRruleUntil, shiftIcsDates } from '@/utils/ics';
 import { parseIcsObjects, extractDtstartTzid, extractSequence, extractDtstartDtend, extractExtraVeventLines } from '@/utils/caldav-parse';
 import { isValidTimeZone } from '@/utils/timezone';
@@ -21,10 +24,120 @@ import {
   seriesBaseUid,
   shiftSeriesDates,
 } from '@/database/eventWrites';
+import { syncCalendarDelta } from '@/database/sync';
 import { exceptionResourceUid, occurrenceSlot } from '@/features/event/occurrenceTarget';
 import type { Account, CalendarMeta, CalendarEvent, CreateEventInput, RecurrenceEditScope } from '@/types';
 
 const TALK_URL_PATTERN = /\/call\//;
+
+/**
+ * Applies the attachment delta carried by a form submit to a built ICS:
+ * strips `removedAttachments` lines, uploads `pendingAttachments` to Files and
+ * injects their ATTACH lines. Upload failures never block the event save —
+ * they are counted so the caller can warn once.
+ */
+async function applyAttachmentDelta(
+  account: Account,
+  ics: string,
+  input: CreateEventInput,
+): Promise<{ ics: string; failures: number; uploadedPaths: string[] }> {
+  let out = ics;
+  for (const att of input.removedAttachments ?? []) {
+    out = removeAttachLine(out, att);
+  }
+  let failures = 0;
+  // Events with attendees can opt into public `/s/<token>` links so
+  // attendees can open the files — a private DAV URL is useless to them.
+  const sharePublicly = !!input.shareAttachments;
+  const publicUriFor = async (path: string, fallback: string): Promise<string> => {
+    try {
+      return (await createPublicLinkShare(account, path)).url;
+    } catch (error) {
+      failures++;
+      console.warn('[attachments] public share failed, keeping private link', error);
+      return fallback;
+    }
+  };
+  // Files already on Nextcloud — the URI goes straight into the ICS.
+  for (const att of input.remoteAttachments ?? []) {
+    try {
+      const path = sharePublicly && att.uri ? ownDavPath(account, att.uri) : null;
+      const uri =
+        path && att.uri ? await publicUriFor(path, att.uri) : att.uri;
+      out = injectAttachLine(out, buildAttachLine({ ...att, uri }));
+    } catch (error) {
+      failures++;
+      console.warn('[attachments] remote attach failed', att.uri, error);
+    }
+  }
+  const uploadedPaths: string[] = [];
+  for (const pending of input.pendingAttachments ?? []) {
+    let up: UploadedFile | undefined;
+    try {
+      up = await uploadAttachmentFile(account, pending.name, pending.contentBase64, pending.mimeType);
+      const uri = sharePublicly ? await publicUriFor(up.path, up.davUrl) : up.davUrl;
+      out = injectAttachLine(
+        out,
+        buildAttachLine({
+          uri,
+          filename: up.filename,
+          fmttype: pending.mimeType,
+          size: pending.size,
+          fileId: up.fileId,
+        }),
+      );
+      // Tracked only once the file is actually referenced — the caller uses
+      // this list to delete orphans when the enclosing PUT never happens.
+      uploadedPaths.push(up.path);
+    } catch (error) {
+      failures++;
+      console.warn('[attachments] pending upload failed', pending.name, error);
+      // Uploaded but never injected — delete it now so nothing is orphaned.
+      if (up) await deleteRemoteFile(account, up.path).catch(() => {});
+    }
+  }
+  return { ics: out, failures, uploadedPaths };
+}
+
+/**
+ * Deletes files that were uploaded but never made it into a stored ICS — call
+ * only when the write that would have referenced them did not happen.
+ */
+async function cleanupUploaded(account: Account, paths: string[] | undefined): Promise<void> {
+  for (const path of paths ?? []) {
+    try {
+      await deleteRemoteFile(account, path);
+    } catch (error) {
+      console.warn('[attachments] orphan upload cleanup failed', path, error);
+    }
+  }
+}
+
+function warnAttachmentFailures(failures: number) {
+  if (failures > 0) Alert.alert(i18n.t('event.attachmentAddError'));
+}
+
+function hasAttachmentDelta(input: CreateEventInput): boolean {
+  return !!(
+    input.pendingAttachments?.length ||
+    input.remoteAttachments?.length ||
+    input.removedAttachments?.length
+  );
+}
+
+/** Attachments live in the ICS blob — refresh local rows so the UI reflects them. */
+async function resyncAfterAttachmentDelta(
+  account: Account,
+  calendar: CalendarMeta | undefined,
+  input: CreateEventInput,
+): Promise<void> {
+  if (!calendar || !hasAttachmentDelta(input)) return;
+  try {
+    await syncCalendarDelta(account, calendar);
+  } catch (error) {
+    console.warn('[attachments] post-save resync failed', error);
+  }
+}
 
 export function seriesDeltas(
   occurrence: { dtstart: Date; dtend: Date },
@@ -206,19 +319,45 @@ export function useCreateEvent(account: Account, calendars: CalendarMeta[]) {
         : [eventFromInput(uid, input, calendar, account)];
       await insertEvents(optimistic);
 
+      let resolved: { location: string; description: string };
+      let failures = 0;
+      let uploadedPaths: string[] = [];
       try {
-        const resolved = await resolveLocationAndDescription(account, input);
+        resolved = await resolveLocationAndDescription(account, input);
         const timezone = resolveTimezone(account);
-        const ics = buildIcsForInput(uid, input, resolved.location, resolved.description, timezone);
-        await putEvent(account, calendar, uid, ics);
-
-        const real = input.rrule
-          ? expandOccurrences(uid, input, calendar, account)
-          : [eventFromInput(uid, input, calendar, account, resolved)];
-        await insertEvents(real);
+        const built = buildIcsForInput(uid, input, resolved.location, resolved.description, timezone);
+        const delta = await applyAttachmentDelta(account, built, input);
+        failures = delta.failures;
+        uploadedPaths = delta.uploadedPaths;
+        await putEvent(account, calendar, uid, delta.ics);
       } catch (error) {
         await removeWhere(account.id, (e) => seriesBaseUid(e.uid) === uid);
+        // The event was never created — uploaded files would be orphaned.
+        await cleanupUploaded(account, uploadedPaths);
         Alert.alert(i18n.t('event.errorCreateFailed'), describeMutationError(error));
+        return;
+      }
+
+      // The PUT succeeded — the event exists on the server. Local writes are
+      // best-effort: a failure must not report "create failed"; the delta sync
+      // reconciles local state from the server.
+      let resync = hasAttachmentDelta(input);
+      const real = input.rrule
+        ? expandOccurrences(uid, input, calendar, account)
+        : [eventFromInput(uid, input, calendar, account, resolved)];
+      try {
+        await insertEvents(real);
+      } catch (error) {
+        console.warn('[useCreateEvent] post-PUT local write failed; forcing resync', error);
+        resync = true;
+      }
+      warnAttachmentFailures(failures);
+      if (resync) {
+        try {
+          await syncCalendarDelta(account, calendar);
+        } catch (error) {
+          console.warn('[useCreateEvent] post-save resync failed', error);
+        }
       }
     }, [account, calendars]),
   );
@@ -267,7 +406,7 @@ export function useUpdateEvent(account: Account, calendars: CalendarMeta[]) {
 
         if (!event.isRecurring || scope === 'all') {
           if (datesOnly) {
-            const masterIcs = await fetchEventIcs(account, event.href);
+            const { ics: masterIcs, etag } = await fetchEventIcsWithEtag(account, event.href);
             const tz = extractDtstartTzid(masterIcs) ?? timezone;
             const sequence = extractSequence(masterIcs) + 1;
             let newStart = input.dtstart;
@@ -278,14 +417,25 @@ export function useUpdateEvent(account: Account, calendars: CalendarMeta[]) {
               newStart = new Date(bounds.dtstart.getTime() + deltaStart);
               newEnd = new Date(bounds.dtend.getTime() + deltaEnd);
             }
-            await updateEvent(account, event.href, shiftIcsDates(masterIcs, newStart, newEnd, tz, input.allDay, sequence));
+            const shifted = shiftIcsDates(masterIcs, newStart, newEnd, tz, input.allDay, sequence);
+            const delta = await applyAttachmentDelta(account, shifted, input);
+            try {
+              await updateEvent(account, event.href, delta.ics, etag);
+            } catch (error) {
+              await cleanupUploaded(account, delta.uploadedPaths);
+              throw error;
+            }
+            warnAttachmentFailures(delta.failures);
           } else {
             let uid = event.uid;
             let masterInput = scheduled;
             let sequence = 0;
             let preserved: string[] = [];
+            let etag: string | undefined;
             if (event.isRecurring) {
-              const masterIcs = await fetchEventIcs(account, event.href);
+              const master = await fetchEventIcsWithEtag(account, event.href);
+              const masterIcs = master.ics;
+              etag = master.etag;
               timezone = extractDtstartTzid(masterIcs) ?? timezone;
               sequence = extractSequence(masterIcs) + 1;
               preserved = extractExtraVeventLines(masterIcs);
@@ -295,14 +445,23 @@ export function useUpdateEvent(account: Account, calendars: CalendarMeta[]) {
               masterInput = shiftedMasterInput(scheduled, bounds, deltaStart, deltaEnd);
             } else {
               try {
-                const masterIcs = await fetchEventIcs(account, event.href);
-                sequence = extractSequence(masterIcs) + 1;
-                preserved = extractExtraVeventLines(masterIcs);
+                const master = await fetchEventIcsWithEtag(account, event.href);
+                etag = master.etag;
+                sequence = extractSequence(master.ics) + 1;
+                preserved = extractExtraVeventLines(master.ics);
               } catch (error) {
                 console.warn('[useUpdateEvent] failed to fetch master ics for sequence/extra lines:', error);
               }
             }
-            await updateEvent(account, event.href, buildIcsForInput(uid, masterInput, location, description, timezone, sequence, preserved));
+            const rebuilt = buildIcsForInput(uid, masterInput, location, description, timezone, sequence, preserved);
+            const delta = await applyAttachmentDelta(account, rebuilt, input);
+            try {
+              await updateEvent(account, event.href, delta.ics, etag);
+            } catch (error) {
+              await cleanupUploaded(account, delta.uploadedPaths);
+              throw error;
+            }
+            warnAttachmentFailures(delta.failures);
           }
           if (!event.isRecurring && input.calendarId !== event.calendarId) {
             const cal = calendars.find((c) => c.id === input.calendarId);
@@ -311,8 +470,17 @@ export function useUpdateEvent(account: Account, calendars: CalendarMeta[]) {
           }
         } else if (scope === 'this') {
           const slot = occurrenceSlot(event);
-          const masterIcs = await fetchEventIcs(account, event.href);
-          await updateEvent(account, event.href, injectExdate(masterIcs, slot, timezone));
+          const { ics: masterIcs, etag } = await fetchEventIcsWithEtag(account, event.href);
+          // Attachments are series-level: the delta is applied to the master
+          // (which also gains the EXDATE), never to the exception VEVENT.
+          const delta = await applyAttachmentDelta(account, masterIcs, input);
+          try {
+            await updateEvent(account, event.href, injectExdate(delta.ics, slot, timezone), etag);
+          } catch (error) {
+            await cleanupUploaded(account, delta.uploadedPaths);
+            throw error;
+          }
+          warnAttachmentFailures(delta.failures);
           const cal = calendars.find((c) => c.id === event.calendarId) ?? calendars.find((c) => c.id === input.calendarId);
           if (!cal) throw new Error('Calendar not found for exception VEVENT');
           const exceptionUid = exceptionResourceUid(event);
@@ -323,17 +491,41 @@ export function useUpdateEvent(account: Account, calendars: CalendarMeta[]) {
             attendees: input.attendees, timezone, recurrenceId: slot,
             alarms: resolveAlarms(input),
             sequence: extractSequence(masterIcs) + 1,
-            extraLines: extractExtraVeventLines(masterIcs),
+            // ATTACH must not be copied into the exception (it inherits the
+            // master's attachments at parse time — a copy would go stale), and
+            // EXDATE lines are meaningless on a RECURRENCE-ID component.
+            extraLines: extractExtraVeventLines(delta.ics).filter(
+              (l) => !/^(attach|exdate)[;:]/i.test(l),
+            ),
           });
           await putEvent(account, cal, exceptionUid, exIcs);
         } else if (scope === 'thisAndFollowing') {
-          const masterIcs = await fetchEventIcs(account, event.href);
+          const { ics: masterIcs, etag } = await fetchEventIcsWithEtag(account, event.href);
           const oneDayBefore = dayjs(occurrenceSlot(event)).subtract(1, 'day').endOf('day').toDate();
-          await updateEvent(account, event.href, truncateRruleUntil(masterIcs, oneDayBefore));
           const cal = calendars.find((c) => c.id === event.calendarId) ?? calendars.find((c) => c.id === input.calendarId);
           if (!cal) throw new Error('Calendar not found for new series');
           const newUid = Crypto.randomUUID();
-          await putEvent(account, cal, newUid, buildIcsForInput(newUid, scheduled, location, description, timezone, 0, extractExtraVeventLines(masterIcs)));
+          const seriesIcs = buildIcsForInput(newUid, scheduled, location, description, timezone, 0, extractExtraVeventLines(masterIcs));
+          const delta = await applyAttachmentDelta(account, seriesIcs, input);
+          try {
+            await updateEvent(account, event.href, truncateRruleUntil(masterIcs, oneDayBefore), etag);
+            // The pending uploads are only referenced by the new series ICS —
+            // if either write fails they are orphans.
+            await putEvent(account, cal, newUid, delta.ics);
+          } catch (error) {
+            await cleanupUploaded(account, delta.uploadedPaths);
+            throw error;
+          }
+          warnAttachmentFailures(delta.failures);
+        }
+        // Resync the source calendar and, when the event moved, the target one.
+        const affectedCalIds = new Set([event.calendarId, input.calendarId]);
+        for (const id of affectedCalIds) {
+          await resyncAfterAttachmentDelta(
+            account,
+            calendars.find((c) => c.id === id),
+            input,
+          );
         }
       } catch (error) {
         await restoreSeries(account.id, base, snapshot);
@@ -366,12 +558,12 @@ export function useDeleteEvent(account: Account) {
           return;
         }
         const timezone = resolveTimezone(account);
-        const masterIcs = await fetchEventIcs(account, event.href);
+        const { ics: masterIcs, etag } = await fetchEventIcsWithEtag(account, event.href);
         if (scope === 'this') {
-          await updateEvent(account, event.href, injectExdate(masterIcs, occurrenceSlot(event), timezone));
+          await updateEvent(account, event.href, injectExdate(masterIcs, occurrenceSlot(event), timezone), etag);
         } else if (scope === 'thisAndFollowing') {
           const oneDayBefore = dayjs(occurrenceSlot(event)).subtract(1, 'day').endOf('day').toDate();
-          await updateEvent(account, event.href, truncateRruleUntil(masterIcs, oneDayBefore));
+          await updateEvent(account, event.href, truncateRruleUntil(masterIcs, oneDayBefore), etag);
         }
       } catch (error) {
         await insertEvents(removed);
