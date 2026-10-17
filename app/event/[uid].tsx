@@ -5,7 +5,7 @@ import * as Clipboard from 'expo-clipboard';
 import { haptic } from '@/utils/haptics';
 import {
   Pencil, Clock, CalendarDays, MapPin, Video, Repeat, Trash2, Copy, Check, Bell,
-  Navigation,
+  Navigation, Plus, Smartphone, FolderOpen, FilePlus2,
 } from 'lucide-react-native';
 import { useLocalSearchParams, useNavigation, useRouter, useTheme } from 'expo-router';
 import dayjs from 'dayjs';
@@ -26,10 +26,37 @@ import { useTimeFormat } from '@/hooks/useTimeFormat';
 import {
   ViewContainer, Stack, Typography, Button, Chip, Icon, List, Item,
   SectionHeader, Avatar, Spinner, ScreenHeader,
-  IconButton,
+  IconButton, Sheet,
 } from '@/ui/components';
-import type { RecurrenceEditScope } from '@/types';
+import type { EventAttachment, RecurrenceEditScope } from '@/types';
 import { openTalkRoom, promptTalkRoomOpen } from '@/features/event/utils/openTalkRoom';
+import {
+  attachmentDisplayName,
+  attachmentIcon,
+  canEditAttachment,
+  prepareAttachmentEdit,
+  formatBytes,
+  isOpenableAttachment,
+  mimeFromName,
+  openAttachment,
+  pickDeviceAttachment,
+} from '@/features/event/utils/attachments';
+import { useEventAttachments } from '@/features/event/hooks/useEventAttachments';
+import { setPendingEditorUrl } from '@/features/event/utils/editorSession';
+import {
+  createDirectEditingUrl,
+  fetchDirectEditing,
+  editorForMime,
+  type DirectEditor,
+  type DirectCreator,
+} from '@/services/nextcloud/directEditing';
+import {
+  availableAttachmentPath,
+  fileDavUrl,
+  isOwnDavFile,
+} from '@/services/nextcloud/files';
+import { isOwnFileRef, publicShareToken } from '@/services/nextcloud/fileLinks';
+import { DavFilePicker } from '@/features/event/components/DavFilePicker';
 import { askRecurrenceScope, type RecurrenceScopeStrings } from '@/features/event/recurrenceScope';
 import { decideMoveEventScope } from '@/features/calendar/utils/moveEventScope';
 import {
@@ -71,6 +98,7 @@ export default function EventDetailScreen() {
 
   const calendar = calendars.find((c) => c.id === event?.calendarId);
   const deleteMutation = useDeleteEvent(activeAccount!);
+  const attachments = useEventAttachments(activeAccount, event, calendar);
 
   const canEdit = !calendar?.isReadOnly && !calendar?.isSubscribed && !event?.isTask;
   const eventsLoading = event === undefined;
@@ -95,6 +123,160 @@ export default function EventDetailScreen() {
     if (!event?.location) return;
     await openMaps(event.location, coordinates?.lat, coordinates?.lon);
   }, [event?.location, coordinates]);
+
+  const pickDeviceFile = useCallback(async () => {
+    const file = await pickDeviceAttachment();
+    if (file) await attachments.add(file);
+  }, [attachments]);
+
+  const [davPickerOpen, setDavPickerOpen] = useState(false);
+
+  // Direct Editing editors (Text, Collabora…) — fetched once per account to
+  // know which attachments can offer an "edit in browser" action.
+  const [editors, setEditors] = useState<DirectEditor[]>([]);
+  const [creators, setCreators] = useState<DirectCreator[]>([]);
+  useEffect(() => {
+    let on = true;
+    setEditors([]);
+    setCreators([]);
+    if (activeAccount) {
+      fetchDirectEditing(activeAccount)
+        .then((caps) => {
+          if (!on) return;
+          setEditors(caps.editors);
+          setCreators(caps.creators);
+        })
+        .catch(() => {
+          if (!on) return;
+          setEditors([]);
+          setCreators([]);
+        });
+    }
+    return () => { on = false; };
+  }, [activeAccount]);
+
+  const isEditable = useCallback(
+    (att: EventAttachment) =>
+      canEditAttachment(att, activeAccount) &&
+      !!editorForMime(
+        editors,
+        att.fmttype ?? mimeFromName(att.filename ?? att.uri?.split('?')[0].split('/').pop()),
+      ),
+    [activeAccount, editors],
+  );
+
+  const handleEditAttachment = useCallback(
+    async (att: EventAttachment) => {
+      const session = await prepareAttachmentEdit(att, activeAccount);
+      if (session) {
+        router.push({
+          pathname: '/event/editor',
+          params: {
+            path: session.path,
+            editorId: session.editorId,
+            name: session.name,
+          },
+        });
+      }
+    },
+    [activeAccount, router],
+  );
+
+  const [sourceSheetOpen, setSourceSheetOpen] = useState(false);
+
+  const handleNewDocument = useCallback(
+    async (creator: DirectCreator) => {
+      if (!activeAccount || !event) return;
+      try {
+        const ext = creator.extension.replace(/^\./, '');
+        const base = `${event.summary || 'document'}.${ext}`;
+        const { path, filename } = await availableAttachmentPath(
+          activeAccount,
+          base,
+        );
+        // Creates the file server-side and mints the one-time editor URL.
+        const url = await createDirectEditingUrl(
+          activeAccount,
+          path,
+          creator.editor,
+          creator.id,
+        );
+        // addRemote swallows its own errors (alerts) — a failure leaves the
+        // created file in /Calendar, still editable, just unattached.
+        await attachments.addRemote({
+          uri: fileDavUrl(activeAccount, path),
+          filename,
+          fmttype: creator.mimetype,
+        });
+        // The one-time URL is handed over via the session slot, not route
+        // params — params survive state restoration while the token is dead.
+        setPendingEditorUrl(url);
+        router.push({
+          pathname: '/event/editor',
+          params: { path, editorId: creator.editor, name: filename },
+        });
+      } catch (error) {
+        console.warn('[attachments] new document failed', error);
+        Alert.alert(t('event.attachmentAddError'));
+      }
+    },
+    [activeAccount, event, attachments, router, t],
+  );
+
+  const handleAddAttachment = useCallback(() => {
+    setSourceSheetOpen(true);
+  }, []);
+
+  const handleRemoveAttachment = useCallback((att: EventAttachment) => {
+    const deletable =
+      !!activeAccount &&
+      (isOwnDavFile(activeAccount, att) || isOwnFileRef(activeAccount, att));
+    const revocable =
+      !!activeAccount && !!att.uri && !!publicShareToken(activeAccount, att.uri);
+    Alert.alert(
+      t('event.attachmentRemove'),
+      deletable
+        ? t('event.attachmentRemoveConfirmDeletable')
+        : revocable
+          ? t('event.attachmentRemoveConfirmShare')
+          : t('event.attachmentRemoveConfirm'),
+      deletable
+        ? [
+            { text: t('common.cancel'), style: 'cancel' },
+            {
+              text: t('event.attachmentRemove'),
+              onPress: () => void attachments.remove(att),
+            },
+            {
+              text: t('event.attachmentRemoveAndDelete'),
+              style: 'destructive',
+              onPress: () => void attachments.remove(att, { deleteFile: true }),
+            },
+          ]
+        : revocable
+          ? [
+              { text: t('common.cancel'), style: 'cancel' },
+              {
+                text: t('event.attachmentRemove'),
+                onPress: () => void attachments.remove(att),
+              },
+              {
+                text: t('event.attachmentRemoveAndRevoke'),
+                style: 'destructive',
+                onPress: () =>
+                  void attachments.remove(att, { revokeShare: true }),
+              },
+            ]
+          : [
+              { text: t('common.cancel'), style: 'cancel' },
+              {
+                text: t('event.attachmentRemove'),
+                style: 'destructive',
+                onPress: () => void attachments.remove(att),
+              },
+            ],
+    );
+  }, [attachments, activeAccount, t]);
 
   const recurrenceScopeStrings: RecurrenceScopeStrings = {
     message: t('event.recurrenceScopeMessage'),
@@ -308,6 +490,62 @@ export default function EventDetailScreen() {
               />
             )}
 
+            <Sheet
+              visible={sourceSheetOpen}
+              onClose={() => setSourceSheetOpen(false)}
+              title={t('event.addAttachment')}
+            >
+              <List>
+                <Item
+                  title={t('event.attachFromDevice')}
+                  leading={<Smartphone size={20} color={theme.colors.text} />}
+                  onPress={() => {
+                    setSourceSheetOpen(false);
+                    void pickDeviceFile();
+                  }}
+                />
+                {activeAccount?.davUserId && (
+                  <Item
+                    title={t('event.attachFromNextcloud')}
+                    leading={<FolderOpen size={20} color={theme.colors.text} />}
+                    onPress={() => {
+                      setSourceSheetOpen(false);
+                      setDavPickerOpen(true);
+                    }}
+                  />
+                )}
+                {creators.map((creator) => (
+                  <Item
+                    key={creator.id}
+                    title={creator.name}
+                    description={t('event.attachNewDocumentHint')}
+                    leading={<FilePlus2 size={20} color={theme.colors.text} />}
+                    onPress={() => {
+                      setSourceSheetOpen(false);
+                      void handleNewDocument(creator);
+                    }}
+                  />
+                ))}
+              </List>
+            </Sheet>
+
+            <DavFilePicker
+              visible={davPickerOpen && !!activeAccount?.davUserId}
+              account={activeAccount}
+              onClose={() => setDavPickerOpen(false)}
+              onSelect={(entry) => {
+                setDavPickerOpen(false);
+                if (!activeAccount) return;
+                void attachments.addRemote({
+                  uri: fileDavUrl(activeAccount, entry.path),
+                  filename: entry.name,
+                  fmttype: entry.mime,
+                  size: entry.size,
+                  fileId: entry.fileId,
+                });
+              }}
+            />
+
             {event.talkUrl && (
               <Button
                 variant="primary"
@@ -342,6 +580,87 @@ export default function EventDetailScreen() {
                       />
                     ))}
                 </List>
+              </Stack>
+            )}
+
+            {(!!event.attachments?.length || (canEdit && attachments.ready)) && (
+              <Stack gap={8}>
+                <SectionHeader
+                  title={t('event.attachments')}
+                  trailing={
+                    canEdit && attachments.ready ? (
+                      <IconButton
+                        variant="plain"
+                        size={36}
+                        onPress={() => void handleAddAttachment()}
+                        disabled={attachments.isPending}
+                        accessibilityLabel={t('event.addAttachment')}
+                      >
+                        {attachments.isPending
+                          ? <Spinner size={18} />
+                          : <Plus size={18} color={theme.colors.textSecondary} />}
+                      </IconButton>
+                    ) : undefined
+                  }
+                />
+                {!!event.attachments?.length && (
+                  <List>
+                    {event.attachments.map((att, i) => {
+                      const AttachIcon = attachmentIcon(att);
+                      const subtitle = [att.fmttype, formatBytes(att.size)]
+                        .filter(Boolean)
+                        .join(' · ');
+                      return (
+                        <Item
+                          key={att.uri ?? `${att.filename ?? 'attachment'}-${i}`}
+                          leading={
+                            <Icon size={20}>
+                              <AttachIcon color={theme.colors.textSecondary} />
+                            </Icon>
+                          }
+                          title={attachmentDisplayName(att)}
+                          description={subtitle || undefined}
+                          onPress={
+                            // Editable own-Files open the in-app editor (like
+                            // the web app); everything else downloads/shares.
+                            isEditable(att)
+                              ? () => void handleEditAttachment(att)
+                              : isOpenableAttachment(att)
+                                ? () => openAttachment(att, activeAccount, event.href)
+                                : undefined
+                          }
+                          trailing={
+                            isEditable(att) || (canEdit && attachments.ready) ? (
+                            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                              {isEditable(att) && (
+                                <IconButton
+                                  variant="plain"
+                                  size={36}
+                                  onPress={() => void handleEditAttachment(att)}
+                                  accessibilityLabel={t('event.attachmentEdit')}
+                                >
+                                  <Pencil size={18} color={theme.colors.textSecondary} />
+                                </IconButton>
+                              )}
+                              {canEdit && attachments.ready ? (
+                                <IconButton
+                                  variant="plain"
+                                  size={36}
+                                  onPress={() => handleRemoveAttachment(att)}
+                                  disabled={attachments.isPending}
+                                  accessibilityLabel={t('event.attachmentRemove')}
+                                >
+                                  <Trash2 size={18} color={theme.colors.danger} />
+                                </IconButton>
+                              ) : null}
+                            </View>
+                          ) : undefined
+                          }
+                        />
+                      );
+                    })}
+                  </List>
+                )}
               </Stack>
             )}
 
