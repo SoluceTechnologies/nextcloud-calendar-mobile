@@ -4,6 +4,7 @@ import {
 } from '../../src/database/sync';
 import {
   syncCollection,
+  fetchEvents,
   fetchEventsByHrefs,
   fetchEventsForCalendars,
 } from '../../src/services/nextcloud/caldav';
@@ -17,6 +18,7 @@ jest.mock('../../src/database/utils/safeTransaction', () => ({
 }));
 
 const mockSyncCollection = syncCollection as jest.Mock;
+const mockFetchEvents = fetchEvents as jest.Mock;
 const mockFetchByHrefs = fetchEventsByHrefs as jest.Mock;
 const mockFetchForCalendars = fetchEventsForCalendars as jest.Mock;
 const mockGetDb = getDatabaseInstance as jest.Mock;
@@ -97,6 +99,7 @@ beforeEach(() => {
   jest.clearAllMocks();
   resetDeltaSyncThrottle();
   mockSyncCollection.mockResolvedValue({ changed: [], deleted: [], newToken: 't2', reset: false });
+  mockFetchEvents.mockResolvedValue([]);
   mockFetchByHrefs.mockResolvedValue({ events: [], returnedHrefs: new Set() });
   mockFetchForCalendars.mockResolvedValue({ events: [], syncedCalendarIds: [subscribed.id], failures: [] });
 });
