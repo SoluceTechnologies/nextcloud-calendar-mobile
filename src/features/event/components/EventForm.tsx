@@ -1,4 +1,4 @@
-import { forwardRef, useImperativeHandle, useRef, useState } from 'react';
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import { View, StyleSheet, ScrollView, Platform, KeyboardAvoidingView, Keyboard, useWindowDimensions, LayoutChangeEvent } from 'react-native';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import dayjs from 'dayjs';
@@ -7,6 +7,8 @@ import { useTranslation } from 'react-i18next';
 import { useTheme } from 'expo-router';
 import { TalkToggle } from './TalkToggle';
 import { AttendeesField } from './AttendeesField';
+import { FindTimeSuggestSheet } from './FindTimeSuggestSheet';
+import { useFindTimeStore } from '@/features/event/stores/findTimeStore';
 import { requestAlertPermission } from '@/features/notifications/scheduleAlerts';
 import { useSettingsStore } from '@/stores/settingsStore';
 import { isWritableCalendar } from '@/utils/calendars';
@@ -14,8 +16,8 @@ import { useTimeFormat } from '@/hooks/useTimeFormat';
 import { getNativePickerLocale } from '@/utils/i18n';
 import { AlertPicker } from './AlertPicker';
 import { RecurrencePicker } from './RecurrencePicker';
-import { Stack, Typography, TextField, DateField, Chip, Toggle } from '@/ui/components';
-import type { CalendarMeta, Attendee, CreateEventInput, RecurrenceRule, TalkRoomType, Account } from '@/types';
+import { Stack, Typography, TextField, DateField, Button, Chip, Toggle } from '@/ui/components';
+import type { CalendarMeta, Attendee, CreateEventInput, RecurrenceRule, TalkRoomType, Account, SuggestedSlot } from '@/types';
 
 dayjs.extend(localizedFormat);
 
@@ -40,7 +42,7 @@ interface Props {
   onSubmit: (input: CreateEventInput) => void;
   initialValues?: InitialValues;
   disableCalendarChange?: boolean;
-  account?: Pick<Account, 'id' | 'baseUrl' | 'username' | 'appPassword'> | null;
+  account?: Pick<Account, 'id' | 'displayName' | 'baseUrl' | 'username' | 'appPassword' | 'davUserId'> | null;
 }
 
 export interface EventFormHandle {
@@ -97,6 +99,17 @@ export const EventForm = forwardRef<EventFormHandle, Props>(function EventForm({
   const [endError, setEndError] = useState<string | null>(null);
 
   const [androidStep, setAndroidStep] = useState<AndroidPickerStep>(null);
+  const [findTimeVisible, setFindTimeVisible] = useState(false);
+
+  // Slot picked on the full-screen find-time route comes back through the store.
+  const findTimeResult = useFindTimeStore((s) => s.result);
+  useEffect(() => {
+    if (!findTimeResult) return;
+    setDtstart(findTimeResult.start);
+    setDtend(findTimeResult.end);
+    setEndError(null);
+    useFindTimeStore.getState().clearResult();
+  }, [findTimeResult]);
 
   const scrollRef = useRef<ScrollView>(null);
   const inputOffsets = useRef<Record<string, number>>({});
@@ -394,6 +407,32 @@ export const EventForm = forwardRef<EventFormHandle, Props>(function EventForm({
           onInputLayout={(e) => onFieldLayout('attendee', e)}
           onInputFocus={() => scrollToField('attendee')}
         />
+
+        {attendees.length > 0 && account && !allDay && (
+          <Button
+            variant="secondary"
+            title={t('event.findTime')}
+            onPress={() => setFindTimeVisible(true)}
+          />
+        )}
+
+        {account && (
+          <FindTimeSuggestSheet
+            visible={findTimeVisible}
+            onClose={() => setFindTimeVisible(false)}
+            account={account}
+            organizer={{ email: organizerEmail, displayName: organizerName }}
+            attendees={attendees}
+            start={dtstart}
+            end={dtend}
+            eventTitle={summary}
+            onApplySlot={(slot: SuggestedSlot) => {
+              setDtstart(slot.start);
+              setDtend(slot.end);
+              setEndError(null);
+            }}
+          />
+        )}
 
         <TalkToggle
           value={withTalkRoom}
