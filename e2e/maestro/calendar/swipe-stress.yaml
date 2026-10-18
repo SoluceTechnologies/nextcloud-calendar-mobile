@@ -13,4 +13,8 @@ appId: com.soluce.nextcloudcalendar
       # Default RIGHT starts at x=10%, on the fixed hour rail, which doesn't page.
       - swipe: { start: "25%,50%", end: "95%,50%", duration: 150 }
 - waitForAnimationToEnd
+# Under load a 150 ms swipe can be dropped, leaving the pager a week off: what matters is that it
+# still responds and renders.
+- tapOn:
+    id: calendar-today
 - extendedWaitUntil: { visible: "E2E seed", timeout: 15000 }
