@@ -92,6 +92,9 @@ function maestro(args: string[]): { status: number | null; output: string } {
   const r = spawnSync('maestro', [...(device ? ['--device', device] : []), 'test', ...args], {
     encoding: 'utf8',
     maxBuffer: 64 * 1024 * 1024,
+    // spawnSync blocks the event loop, so Jest's test timeout can't stop a hung flow: kill it first.
+    timeout: 9 * 60 * 1000,
+    killSignal: 'SIGKILL',
   });
   const output = `${r.stdout ?? ''}${r.stderr ?? ''}`;
   process.stdout.write(output);
