@@ -1,6 +1,6 @@
 /// <reference types="node" />
 import { execFile, execFileSync, spawnSync } from 'node:child_process';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
 import { ADMIN, Nextcloud, SEED_UID, type NextcloudLocation } from './nextcloud';
@@ -9,6 +9,8 @@ const APK = process.env.APK ?? 'android/app/build/outputs/apk/release/app-releas
 const APP_ID = 'com.soluce.nextcloudcalendar';
 const MAESTRO_DIR = join(__dirname, 'maestro');
 const REPORT_DIR = process.env.MAESTRO_REPORT_DIR;
+// Maestro doesn't create the --output folder.
+if (REPORT_DIR) mkdirSync(REPORT_DIR, { recursive: true });
 const run = promisify(execFile);
 
 export interface Suite {

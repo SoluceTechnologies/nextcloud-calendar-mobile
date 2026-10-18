@@ -81,6 +81,8 @@ jobs:
           api-level: 35
           arch: x86_64
           target: google_apis
+          # The default AVD is a 320x640dp screen: the keyboard hides the login fields. Same size class as a local Medium Phone.
+          profile: pixel_6
           emulator-options: -no-window -gpu swiftshader_indirect -no-audio -no-boot-anim -no-snapshot-save
           disable-animations: true
           script: bash -c 'MAESTRO_REPORT_DIR="$RUNNER_TEMP/maestro-junit" yarn jest -c e2e/jest.config.mjs --ci 2>&1 | tee "$RUNNER_TEMP/e2e.log"; rc=${PIPESTATUS[0]}; adb logcat -d > "$RUNNER_TEMP/logcat.txt" || true; exit $rc'
