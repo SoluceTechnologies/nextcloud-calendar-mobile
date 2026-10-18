@@ -26,8 +26,7 @@ interface Props {
 
 const HEADER_HEIGHT = 57;
 const EVENT_ROW_HEIGHT = 72;
-// Collapse a fast second "Today" press: re-issuing scrollToOffset while the
-// first jump is still settling can strand the list at offset 0 on iOS (#348).
+
 const TODAY_JUMP_GUARD_MS = 500;
 
 interface DayHeaderProps {
