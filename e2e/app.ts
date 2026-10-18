@@ -1,6 +1,7 @@
 /// <reference types="node" />
 import { execFile, execFileSync, spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, readdirSync, statSync } from 'node:fs';
+import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
 import { ADMIN, Nextcloud, SEED_UID, type NextcloudLocation } from './nextcloud';
@@ -67,29 +68,58 @@ export function runFlow(nc: Nextcloud, flow: string, vars: Record<string, string
   // in globalSetup installs it; test files inherit the flag through their copy of process.env.
   const ready = process.env.E2E_MAESTRO_DRIVER_READY;
   let result = maestro(ready ? ['--no-reinstall-driver', ...flowArgs] : flowArgs);
-  if (result.status !== 0 && driverDied(result.output)) {
-    // Not the app failing: the driver died. Kill it, drop its stale port forward, reinstall it and
-    // run the flow once more.
+  // Not the app failing: the driver died. Kill it, drop its stale port forward, let it wind down
+  // (a retry started right away dies again within milliseconds), reinstall it and run the flow again.
+  for (let retry = 0; retry < 2 && result.status !== 0 && driverDied(result); retry++) {
     for (const pkg of MAESTRO_DRIVER_PACKAGES) adb(['shell', 'am', 'force-stop', pkg]);
     adb(['forward', '--remove-all']);
+    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 10_000);
     result = maestro(flowArgs);
   }
   if (result.status !== 0) {
     delete process.env.E2E_MAESTRO_DRIVER_READY;
-    throw new Error(`Maestro flow ${flow} failed (exit ${result.status}), see its output above`);
+    throw new Error(`Maestro flow ${flow} failed (exit ${result.status}):\n${failureCause(result)}`);
   }
   process.env.E2E_MAESTRO_DRIVER_READY = '1';
 }
 
-/** The console only says the flow failed; the cause is in the debug log whose path it prints. */
-function driverDied(output: string): boolean {
-  const dir = output.match(/Debug output \(logs & screenshots\) ====\s+(\S+)/)?.[1];
-  const log = dir && join(dir, 'maestro.log');
-  return DRIVER_DEAD.test(log && existsSync(log) ? readFileSync(log, 'utf8') : output);
+const MAESTRO_DEBUG_ROOT = join(homedir(), '.maestro', 'tests');
+
+/**
+ * The console only says the flow failed; the cause is in the debug log. Its path is printed only
+ * without `--format junit` (CI), so read every log written since the attempt started instead.
+ */
+function debugLog({ output, startedAt }: MaestroResult): string {
+  const logs = existsSync(MAESTRO_DEBUG_ROOT)
+    ? readdirSync(MAESTRO_DEBUG_ROOT)
+        .map((dir) => join(MAESTRO_DEBUG_ROOT, dir, 'maestro.log'))
+        .filter((log) => existsSync(log) && statSync(log).mtimeMs >= startedAt)
+    : [];
+  return [output, ...logs.map((log) => readFileSync(log, 'utf8'))].join('\n');
+}
+
+function driverDied(result: MaestroResult): boolean {
+  return DRIVER_DEAD.test(debugLog(result));
+}
+
+/** The first error lines of the debug log: in CI the console shows none of them. */
+function failureCause(result: MaestroResult): string {
+  return debugLog(result)
+    .split('\n')
+    .filter((line) => /\[ERROR\]|Exception:|Assertion is false|not found/.test(line))
+    .slice(0, 5)
+    .join('\n');
+}
+
+interface MaestroResult {
+  status: number | null;
+  output: string;
+  startedAt: number;
 }
 
 /** Runs `maestro test`, printing its output once it ends (it is needed to spot a dead driver). */
-function maestro(args: string[]): { status: number | null; output: string } {
+function maestro(args: string[]): MaestroResult {
+  const startedAt = Date.now();
   const device = process.env.ANDROID_SERIAL;
   const r = spawnSync('maestro', [...(device ? ['--device', device] : []), 'test', ...args], {
     encoding: 'utf8',
@@ -100,7 +130,7 @@ function maestro(args: string[]): { status: number | null; output: string } {
   });
   const output = `${r.stdout ?? ''}${r.stderr ?? ''}`;
   process.stdout.write(output);
-  return { status: r.status, output };
+  return { status: r.status, output, startedAt };
 }
 
 export function uniqueTitle(prefix: string): string {
