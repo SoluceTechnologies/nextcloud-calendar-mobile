@@ -4,6 +4,8 @@ import { containerBackground, font, foregroundStyle, frame, padding } from '@exp
 import type { WidgetEnvironment } from 'expo-widgets';
 import { createWidget } from 'expo-widgets';
 
+import i18n from '@/utils/i18n';
+
 import type { AgendaEventItem, AgendaSnapshot, AgendaTimelineEntry, WidgetSurface } from '../../core/types';
 import { openAppLink } from '../../core/types';
 
@@ -32,7 +34,7 @@ function CalendarWidget(props: { snapshot: AgendaSnapshot | null }, env: WidgetE
     primary: '#29aef7',
     onPrimary: '#ffffff',
   };
-  const AGENDA_EMPTY_LABEL = 'No upcoming event';
+
   const LARGE_BUDGET = 4;
   const ACCESSORY_FAMILIES = ['accessoryInline', 'accessoryCircular', 'accessoryRectangular'];
 
@@ -45,7 +47,7 @@ function CalendarWidget(props: { snapshot: AgendaSnapshot | null }, env: WidgetE
   }
 
   function emptyLabel(snapshot: AgendaSnapshot | null) {
-    return snapshot?.relativeLabel || AGENDA_EMPTY_LABEL;
+    return snapshot?.relativeLabel || i18n.t('widget.emptyAgenda', { lng: snapshot?.locale });
   }
 
   function compactEvents(snapshot: AgendaSnapshot | null, limit: number) {
@@ -106,7 +108,7 @@ function CalendarWidget(props: { snapshot: AgendaSnapshot | null }, env: WidgetE
   function AccessoryWidget({ snapshot, family }: { snapshot: AgendaSnapshot | null; family: string }) {
     const next = snapshot?.nextEvent ?? null;
     if (!next) {
-      return <Text modifiers={[font({ size: WIDGET_TYPE.caption })]}>No event</Text>;
+      return <Text modifiers={[font({ size: WIDGET_TYPE.caption })]}>{i18n.t('widget.emptyAgenda', { lng: snapshot?.locale })}</Text>;
     }
     if (family === 'accessoryInline') {
       return <Text modifiers={[font({ size: WIDGET_TYPE.caption })]}>{`${next.timeLabel} ${next.title}`}</Text>;

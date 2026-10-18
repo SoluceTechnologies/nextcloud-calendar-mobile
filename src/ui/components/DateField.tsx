@@ -10,9 +10,10 @@ interface DateFieldProps {
   onPress: () => void;
   error?: string;
   disabled?: boolean;
+  testID?: string;
 }
 
-function DateField({ label, value, time, onPress, error, disabled }: DateFieldProps) {
+function DateField({ label, value, time, onPress, error, disabled, testID }: DateFieldProps) {
   const { colors, radius } = useTheme();
 
   return (
@@ -23,6 +24,7 @@ function DateField({ label, value, time, onPress, error, disabled }: DateFieldPr
         </Typography>
       ) : null}
       <Pressable
+        testID={testID}
         onPress={onPress}
         disabled={disabled}
         style={[
@@ -45,7 +47,7 @@ function DateField({ label, value, time, onPress, error, disabled }: DateFieldPr
         ) : null}
       </Pressable>
       {error ? (
-        <Typography variant="caption" color="danger" style={styles.error}>
+        <Typography testID={testID ? `${testID}-error` : undefined} variant="caption" color="danger" style={styles.error}>
           {error}
         </Typography>
       ) : null}

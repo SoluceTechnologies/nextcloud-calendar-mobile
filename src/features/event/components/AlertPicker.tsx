@@ -17,9 +17,9 @@ export function AlertPicker({ value, onChange }: Props) {
   const isDefault = value === undefined;
   const isNone = value?.length === 0;
 
-  const exclusives: { label: string; active: boolean; select: () => void }[] = [
-    { label: t('settings.alerts.useDefault'), active: isDefault, select: () => onChange(undefined) },
-    { label: t('settings.alerts.none'), active: isNone, select: () => onChange([]) },
+  const exclusives: { id: string; label: string; active: boolean; select: () => void }[] = [
+    { id: 'default', label: t('settings.alerts.useDefault'), active: isDefault, select: () => onChange(undefined) },
+    { id: 'none', label: t('settings.alerts.none'), active: isNone, select: () => onChange([]) },
   ];
 
   return (
@@ -28,9 +28,12 @@ export function AlertPicker({ value, onChange }: Props) {
       <AlarmOffsetPicker
         values={value ?? []}
         onChange={(next) => onChange(next)}
-        leading={exclusives.map(({ label, active, select }) => (
+        testIDPrefix="event-form-alert"
+        leading={exclusives.map(({ id, label, active, select }) => (
           <TouchableOpacity
             key={label}
+            testID={`event-form-alert-${id}`}
+            accessibilityState={{ selected: active }}
             style={[
               styles.pill,
               { backgroundColor: active ? theme.colors.primary : theme.colors.chip },

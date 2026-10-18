@@ -1,0 +1,25 @@
+appId: com.soluce.nextcloudcalendar
+---
+- runFlow:
+    file: ../shared/home-and-wait.yaml
+    env: { TITLE: "E2E seed" }
+- tapOn:
+    id: calendar-mode-day
+- assertVisible:
+    id: calendar-mode-day
+    selected: true
+- extendedWaitUntil: { visible: "E2E seed", timeout: 15000 }
+- tapOn:
+    id: calendar-mode-3days
+- extendedWaitUntil: { visible: "E2E seed", timeout: 15000 }
+- tapOn:
+    id: calendar-mode-week
+- extendedWaitUntil: { visible: "E2E seed", timeout: 15000 }
+- tapOn:
+    id: calendar-mode-month
+- tapOn:
+    id: month-day-${TODAY}
+- extendedWaitUntil: { visible: "E2E seed", timeout: 15000 }
+- tapOn:
+    id: calendar-mode-schedule
+- extendedWaitUntil: { visible: "E2E seed", timeout: 15000 }

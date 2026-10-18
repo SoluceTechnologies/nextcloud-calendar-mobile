@@ -1,0 +1,9 @@
+appId: com.soluce.nextcloudcalendar
+---
+# Slow CI emulators ANR the launcher; its "isn't responding" dialog covers the app and hides
+# every element from Maestro. "Wait" keeps the launcher alive and closes the dialog.
+- runFlow:
+    when:
+      visible: ".*isn.t responding.*"
+    commands:
+      - tapOn: "Wait"

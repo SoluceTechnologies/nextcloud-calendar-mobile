@@ -1,4 +1,4 @@
-import { memo, useCallback, useMemo } from 'react';
+import { memo, useCallback, useMemo, useRef } from 'react';
 import { View, Pressable, StyleSheet, type GestureResponderEvent } from 'react-native';
 import { useTheme } from 'expo-router';
 import dayjs from 'dayjs';
@@ -6,6 +6,9 @@ import { eventPositionStyle, nowTopPct } from '../utils/grid';
 import type { GridEvent } from '../utils/toGridEvents';
 import type { PositionedEvent } from '../utils/eventLayout';
 import { TimeGridEvent } from './TimeGridEvent';
+
+/** Movement (dp) beyond which a touch is a swipe, not a tap. */
+const TAP_SLOP = 10;
 
 interface Props {
   date: Date;
@@ -26,9 +29,20 @@ function DayColumnImpl({ date, positioned, hourRowHeight, now, onPressSlot, onPr
     [colors.border]
   );
 
+  // A fast fling through the pager can reach this surface as a press, released far from where it
+  // started (with a meaningless locationY): only a touch that stayed put is a tap.
+  const pressIn = useRef<GestureResponderEvent['nativeEvent'] | null>(null);
+  const handlePressIn = useCallback((e: GestureResponderEvent) => {
+    pressIn.current = e.nativeEvent;
+  }, []);
+
   const handlePress = useCallback(
     (e: GestureResponderEvent) => {
-      const raw = Math.floor(e.nativeEvent.locationY / hourRowHeight);
+      const start = pressIn.current ?? e.nativeEvent;
+      pressIn.current = null;
+      const moved = Math.hypot(e.nativeEvent.pageX - start.pageX, e.nativeEvent.pageY - start.pageY);
+      if (moved > TAP_SLOP) return;
+      const raw = Math.floor(start.locationY / hourRowHeight);
       const hour = Math.min(23, Math.max(0, raw));
       onPressSlot(dayjs(date).hour(hour).minute(0).second(0).millisecond(0).toDate());
     },
@@ -37,7 +51,7 @@ function DayColumnImpl({ date, positioned, hourRowHeight, now, onPressSlot, onPr
 
   return (
     <View testID="day-column" style={columnStyle}>
-      <Pressable testID="day-column-surface" style={StyleSheet.absoluteFill} onPress={handlePress} />
+      <Pressable testID="day-column-surface" style={StyleSheet.absoluteFill} onPressIn={handlePressIn} onPress={handlePress} />
 
       {positioned.map(({ event, leftPct, widthPct, zIndex }, i) => {
         const { top, height } = eventPositionStyle(event.start, event.end);

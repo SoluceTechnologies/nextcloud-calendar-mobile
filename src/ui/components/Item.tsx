@@ -11,9 +11,10 @@ interface ItemProps {
   onPress?: () => void;
   disabled?: boolean;
   children?: React.ReactNode;
+  testID?: string;
 }
 
-function Item({ title, description, leading, trailing, onPress, disabled, children }: ItemProps) {
+function Item({ title, description, leading, trailing, onPress, disabled, children, testID }: ItemProps) {
   const body = children ?? (
     <View style={styles.content}>
       {typeof title === 'string' ? <Typography variant="body1">{title}</Typography> : title}
@@ -28,7 +29,7 @@ function Item({ title, description, leading, trailing, onPress, disabled, childr
   );
 
   const inner = (
-    <View style={styles.row}>
+    <View style={styles.row} testID={onPress ? undefined : testID}>
       {leading}
       {body}
       {trailing != null ? <View style={styles.trailing}>{trailing}</View> : null}
@@ -38,7 +39,7 @@ function Item({ title, description, leading, trailing, onPress, disabled, childr
   if (!onPress) return inner;
 
   return (
-    <AnimatedPressable onPress={onPress} disabled={disabled} scaleTo={0.98}>
+    <AnimatedPressable testID={testID} onPress={onPress} disabled={disabled} scaleTo={0.98}>
       {inner}
     </AnimatedPressable>
   );

@@ -168,14 +168,19 @@ export default function CalendarScreen() {
         </ViewLayer>
 
         <ViewLayer visible={deferredViewMode === 'schedule'}>
-          <AgendaView
-            ref={nav.agendaRef}
-            events={agendaEvents}
-            date={date}
-            onPressEvent={handlePressEventFromMonth}
-            onPressCell={handlePressCell}
-            onVisibleDateChange={nav.setAgendaVisibleDate}
-          />
+          {/* Mounted only while shown: kept alive under display:none, the list could come back
+              blank when the first sync landed as it was revealed. Its data only loads in this
+              mode anyway, so keeping it mounted saved nothing. */}
+          {deferredViewMode === 'schedule' && (
+            <AgendaView
+              ref={nav.agendaRef}
+              events={agendaEvents}
+              date={date}
+              onPressEvent={handlePressEventFromMonth}
+              onPressCell={handlePressCell}
+              onVisibleDateChange={nav.setAgendaVisibleDate}
+            />
+          )}
         </ViewLayer>
 
         <ViewLayer visible={deferredIsCalendarMode}>

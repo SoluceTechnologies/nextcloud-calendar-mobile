@@ -1,0 +1,31 @@
+appId: com.soluce.nextcloudcalendar
+---
+- runFlow:
+    file: ../shared/home-and-wait.yaml
+    env: { TITLE: "E2E seed" }
+- tapOn:
+    id: calendar-mode-schedule
+- runFlow:
+    file: ../shared/open-event.yaml
+    env: { TITLE: "${UID}" }
+- tapOn:
+    id: event-detail-edit
+- extendedWaitUntil:
+    visible:
+      id: event-form-title
+    timeout: 15000
+- tapOn:
+    id: event-form-title
+- eraseText: 40
+- inputText: ${NEW_TITLE}
+- runFlow:
+    file: ../shared/pick-time.yaml
+    env: { FIELD: event-form-end, HOUR: "12", MINUTE: "00", MERIDIEM: PM }
+- scrollUntilVisible:
+    element:
+      id: event-form-save
+- tapOn:
+    id: event-form-save
+- extendedWaitUntil:
+    visible: ${NEW_TITLE}
+    timeout: 30000

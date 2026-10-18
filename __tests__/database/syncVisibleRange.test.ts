@@ -124,6 +124,23 @@ describe('syncVisibleRange — routing', () => {
     expect(mockSyncCollection).not.toHaveBeenCalled();
   });
 
+  it('routes app-generated calendars (Deck boards) through the full fetch path', async () => {
+    const { db } = makeDb();
+    mockGetDb.mockReturnValue(db);
+    const deck: CalendarMeta = {
+      ...calendar,
+      id: 'https://cloud.example.com/remote.php/dav/calendars/john/app-generated--deck--board-3/',
+      url: 'https://cloud.example.com/remote.php/dav/calendars/john/app-generated--deck--board-3/',
+      slug: 'app-generated--deck--board-3',
+      supportsEvents: false,
+    };
+
+    await syncVisibleRange(account, [deck], start, end);
+
+    expect(mockFetchForCalendars).toHaveBeenCalledWith(account, [deck], start, end);
+    expect(mockSyncCollection).not.toHaveBeenCalled();
+  });
+
   it('splits a mixed list between delta and full paths', async () => {
     const { db } = makeDb();
     mockGetDb.mockReturnValue(db);
@@ -202,6 +219,18 @@ describe('syncVisibleRange — throttle', () => {
     await syncVisibleRange(other, [calendar], start, end);
 
     expect(mockSyncCollection).toHaveBeenCalledTimes(2);
+  });
+
+  it('still syncs a calendar that appeared after the last sync', async () => {
+    const { db } = makeDb();
+    mockGetDb.mockReturnValue(db);
+    const added: CalendarMeta = { ...calendar, id: 'added', url: `${calendar.url}added/` };
+
+    await syncVisibleRange(account, [calendar], start, end);
+    await syncVisibleRange(account, [calendar, added], start, end);
+
+    expect(mockSyncCollection).toHaveBeenCalledTimes(2);
+    expect(mockSyncCollection.mock.calls[1][1]).toBe(added);
   });
 
   it('does not consume the throttle when only subscribed calendars were synced', async () => {

@@ -1,0 +1,41 @@
+appId: com.soluce.nextcloudcalendar
+---
+- tapOn:
+    id: ${FIELD}
+- tapOn: "OK"
+- tapOn:
+    id: android:id/toggle_mode
+# Tap the right edge: eraseText deletes behind the cursor, and a centre tap on a
+# two-digit value ("11") leaves it between the digits, so the new value is rejected.
+# On a slow CI emulator a keystroke can still get lost: check each field, redo it if not set.
+- retry:
+    maxRetries: 3
+    commands:
+      - tapOn:
+          id: android:id/input_hour
+          point: "95%,50%"
+      - eraseText: 2
+      - inputText: ${HOUR}
+      - assertVisible:
+          id: android:id/input_hour
+          text: ${HOUR}
+- retry:
+    maxRetries: 3
+    commands:
+      - tapOn:
+          id: android:id/input_minute
+          point: "95%,50%"
+      - eraseText: 2
+      - inputText: ${MINUTE}
+      - assertVisible:
+          id: android:id/input_minute
+          text: ${MINUTE}
+- runFlow:
+    when:
+      visible:
+        id: android:id/am_pm_spinner
+    commands:
+      - tapOn:
+          id: android:id/am_pm_spinner
+      - tapOn: ${MERIDIEM}
+- tapOn: "OK"

@@ -96,6 +96,29 @@ describe('buildAgendaSnapshot', () => {
     expect(snap.sections[0].isToday).toBe(true);
     expect(snap.nextEvent).toBeUndefined();
   });
+
+  it('localizes i18n strings with the caller locale, not the global i18n language', () => {
+    const events = [
+      ev({ uid: 'allday', summary: 'Conference', allDay: true, dtstart: new Date('2026-08-01T00:00:00Z'), dtend: new Date('2026-08-02T00:00:00Z') }),
+    ];
+    const snap = buildAgendaSnapshot(events, { now, timeZone: TZ, locale: 'de' });
+    expect(snap.events[0].timeLabel).toBe('Ganzt\u00e4gig');
+    const empty = buildAgendaSnapshot([], { now, timeZone: TZ, locale: 'de' });
+    expect(empty.relativeLabel).toBe('Keine anstehenden Termine');
+  });
+});
+
+describe('selectOngoingEvent localization', () => {
+  const now = new Date('2026-08-01T12:30:00Z');
+
+  it('localizes the no-title fallback and visio label with the caller locale', () => {
+    const events = [
+      ev({ uid: 'visio', summary: '', location: 'https://meet.google.com/abc-def', dtstart: new Date('2026-08-01T12:00:00Z'), dtend: new Date('2026-08-01T13:00:00Z') }),
+    ];
+    const ongoing = selectOngoingEvent(events, now, 'de');
+    expect(ongoing?.title).toBe('(Kein Titel)');
+    expect(ongoing?.location).toBe('Videokonferenz: Google Meet');
+  });
 });
 
 describe('selectOngoingEvent', () => {

@@ -1,0 +1,14 @@
+appId: com.soluce.nextcloudcalendar
+---
+- runFlow: ../shared/ensure-home.yaml
+- tapOn:
+    id: calendar-mode-month
+- extendedWaitUntil:
+    visible:
+      id: calendar-mode-month
+      selected: true
+    timeout: 10000
+- runFlow: ../shared/relaunch.yaml
+- assertVisible:
+    id: calendar-mode-month
+    selected: true

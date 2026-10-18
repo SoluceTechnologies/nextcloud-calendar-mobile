@@ -142,6 +142,7 @@ const MonthGrid = memo(function MonthGrid({
             return (
               <TouchableOpacity
                 key={di}
+                testID={`month-day-${d.format('YYYY-MM-DD')}`}
                 style={styles.dayCell}
                 onPress={() => onDayPress(d)}
                 onLongPress={() => onPressCell(d.toDate())}

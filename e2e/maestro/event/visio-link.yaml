@@ -1,0 +1,29 @@
+appId: com.soluce.nextcloudcalendar
+---
+- runFlow: ../shared/ensure-home.yaml
+- tapOn:
+    id: calendar-fab-new
+- extendedWaitUntil:
+    visible:
+      id: event-form-title
+    timeout: 15000
+- tapOn:
+    id: event-form-title
+- inputText: ${TITLE}
+- tapOn:
+    id: event-form-all-day
+- scrollUntilVisible:
+    element:
+      id: event-form-location
+- tapOn:
+    id: event-form-location
+- inputText: ${LOCATION}
+- scrollUntilVisible:
+    element:
+      id: event-form-save
+- tapOn:
+    id: event-form-save
+- runFlow: ../shared/open-event.yaml
+- scrollUntilVisible:
+    element:
+      id: event-detail-join

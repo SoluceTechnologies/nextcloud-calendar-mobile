@@ -90,6 +90,7 @@
     "patch-package": "^8.0.1",
     "react-test-renderer": "19.2.3",
     "release-it": "^19.2.4",
+    "testcontainers": "^12.1.0",
     "typescript": "~6.0.3"
   },
   "jest": {

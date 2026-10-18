@@ -1,0 +1,8 @@
+appId: com.soluce.nextcloudcalendar
+---
+- tapOn:
+    id: tab-calendar
+- extendedWaitUntil:
+    visible:
+      id: calendar-fab-new
+    timeout: 15000

@@ -1,0 +1,8 @@
+extends: plumber:default
+version: "2.0"
+github:
+  controls:
+    githubActionMustComeFromAuthorizedSources:
+      includePlumberDefaults: true
+      trustedGithubActions:
+        - reactivecircus/android-emulator-runner

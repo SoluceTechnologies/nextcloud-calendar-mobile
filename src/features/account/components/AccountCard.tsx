@@ -52,6 +52,7 @@ export function AccountCard({ account, isActive, onSetActive, onOpen }: Props) {
         </Stack>
       ) : (
         <Button
+          testID={`account-card-activate-${account.username}`}
           variant="link"
           size="small"
           inline

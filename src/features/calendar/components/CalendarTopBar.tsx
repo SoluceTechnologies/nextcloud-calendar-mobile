@@ -36,7 +36,7 @@ function CalendarTopBarImpl({ headerTitle, isToday, viewMode, onOpenDrawer, onTo
       style={{ backgroundColor: colors.headerBackground, borderBottomColor: colors.border, borderBottomWidth: StyleSheet.hairlineWidth }}
     >
       <Stack direction="horizontal" vAlign="center" gap={0} style={styles.headerRow}>
-        <AnimatedPressable onPress={onOpenDrawer} hitSlop={8} style={styles.hamburger}>
+        <AnimatedPressable testID="calendar-drawer-open" onPress={onOpenDrawer} hitSlop={8} style={styles.hamburger}>
           <Icon size={24}>
             <Menu color={colors.primary} />
           </Icon>
@@ -56,6 +56,7 @@ function CalendarTopBarImpl({ headerTitle, isToday, viewMode, onOpenDrawer, onTo
         </Typography>
 
         <AnimatedPressable
+          testID="calendar-today"
           onPress={onToday}
           disabled={todayDisabled}
           animated={!todayDisabled}
@@ -69,7 +70,7 @@ function CalendarTopBarImpl({ headerTitle, isToday, viewMode, onOpenDrawer, onTo
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.pills}>
         {VIEW_MODES.map((mode) => (
-          <Chip key={mode} rounded small active={viewMode === mode} activeColor={colors.chipActive} onPress={() => onSwitchMode(mode)}>
+          <Chip key={mode} testID={`calendar-mode-${mode}`} rounded small active={viewMode === mode} activeColor={colors.chipActive} onPress={() => onSwitchMode(mode)}>
             {t(VIEW_MODE_KEYS[mode])}
           </Chip>
         ))}

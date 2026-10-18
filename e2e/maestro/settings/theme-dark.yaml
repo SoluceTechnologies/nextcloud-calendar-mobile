@@ -1,0 +1,15 @@
+appId: com.soluce.nextcloudcalendar
+---
+- runFlow: ../shared/ensure-home.yaml
+- runFlow: ../shared/open-settings.yaml
+- tapOn:
+    id: settings-appearance
+- tapOn:
+    id: settings-theme-dark
+- runFlow: ../shared/relaunch.yaml
+- runFlow: ../shared/open-settings.yaml
+- tapOn:
+    id: settings-appearance
+- assertVisible:
+    id: settings-theme-dark
+    selected: true

@@ -1,0 +1,14 @@
+appId: com.soluce.nextcloudcalendar
+---
+# The run logs in once (e2e/globalSetup.ts). Landing on setup here means the session was lost:
+# fail now instead of logging in again.
+- launchApp:
+    permissions:
+      all: allow
+- runFlow: dismiss-anr.yaml
+- extendedWaitUntil:
+    visible:
+      id: calendar-fab-new
+    timeout: 30000
+- tapOn:
+    id: calendar-mode-week

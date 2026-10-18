@@ -73,9 +73,11 @@ interface Props {
   onChange: (values: number[]) => void;
   allDay?: boolean;
   leading?: ReactNode;
+  /** The row gets `${testIDPrefix}-row` and pills `${testIDPrefix}-${minutes}`, for E2E. */
+  testIDPrefix?: string;
 }
 
-export function AlarmOffsetPicker({ values, onChange, allDay = false, leading }: Props) {
+export function AlarmOffsetPicker({ values, onChange, allDay = false, leading, testIDPrefix }: Props) {
   const theme = useTheme();
   const { t } = useTranslation();
   const [customOpen, setCustomOpen] = useState(false);
@@ -108,13 +110,21 @@ export function AlarmOffsetPicker({ values, onChange, allDay = false, leading }:
 
   return (
     <View>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.pillRow}>
+      <ScrollView
+        horizontal
+        testID={testIDPrefix && `${testIDPrefix}-row`}
+        showsHorizontalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={styles.pillRow}
+      >
         {leading}
         {pills.map((minutes) => {
           const active = values.includes(minutes);
           return (
             <TouchableOpacity
               key={minutes}
+              testID={testIDPrefix && `${testIDPrefix}-${minutes}`}
+              accessibilityState={{ selected: active }}
               style={[
                 styles.pill,
                 { backgroundColor: active ? theme.colors.primary : theme.colors.chip },

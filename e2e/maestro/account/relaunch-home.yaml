@@ -1,0 +1,5 @@
+appId: com.soluce.nextcloudcalendar
+---
+- runFlow: ../shared/relaunch.yaml
+- assertNotVisible:
+    id: setup-server-url

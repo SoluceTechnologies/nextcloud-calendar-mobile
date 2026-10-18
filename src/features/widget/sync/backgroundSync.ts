@@ -5,6 +5,9 @@ import { syncCalendars, syncVisibleRange } from '@/database/sync';
 import { scheduleEventAlerts } from '@/features/notifications/scheduleAlerts';
 import { getActiveAccountId, loadAccounts } from '@/services/nextcloud/auth';
 
+import {useSettingsStore} from '@/stores/settingsStore';
+import i18n from '@/utils/i18n';
+
 import { syncWidget } from './syncWidget';
 
 export const WIDGET_BACKGROUND_TASK = 'widget-agenda-refresh';
@@ -19,6 +22,9 @@ export async function runBackgroundWidgetSync(now: Date = new Date()): Promise<v
 
   const account = (await loadAccounts()).find((a) => a.id === accountId);
   if (!account) return;
+
+  // Headless context: the global i18n still sits at the device default.
+  i18n.changeLanguage(useSettingsStore.getState().language);
 
   const calendars = await syncCalendars(account);
   if (calendars.length > 0) {

@@ -22,6 +22,7 @@ function CalendarFabImpl({ onPress }: Props) {
   if (nativeTabsEnabled() && isGlassEffectAPIAvailable()) {
     return (
       <AnimatedPressable
+        testID="calendar-fab-new"
         onPress={onPress}
         hapticFeedback={Haptics.ImpactFeedbackStyle.Light}
         style={[
@@ -50,7 +51,7 @@ function CalendarFabImpl({ onPress }: Props) {
   }
 
   return (
-    <AnimatedPressable onPress={onPress} style={[styles.base, styles.solid, { backgroundColor: colors.primary }]}>
+    <AnimatedPressable testID="calendar-fab-new" onPress={onPress} style={[styles.base, styles.solid, { backgroundColor: colors.primary }]}>
       <Icon size={28}>
         <Plus color="#ffffff" />
       </Icon>

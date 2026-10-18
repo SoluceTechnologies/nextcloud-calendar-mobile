@@ -51,6 +51,7 @@ export function AttendeesField({ attendees, onChange, account, onInputLayout, on
         <Stack direction="horizontal" vAlign="center" gap={8}>
           <View style={styles.grow}>
             <TextField
+              testID="event-form-attendee-input"
               value={attendeeInput}
               onChangeText={setAttendeeInput}
               placeholder={t('event.attendeePlaceholder')}
@@ -64,7 +65,7 @@ export function AttendeesField({ attendees, onChange, account, onInputLayout, on
               onFocus={onInputFocus}
             />
           </View>
-          <Button variant="primary" title={t('event.add')} onPress={() => addAttendee()} />
+          <Button testID="event-form-attendee-add" variant="primary" title={t('event.add')} onPress={() => addAttendee()} />
         </Stack>
       </View>
 
