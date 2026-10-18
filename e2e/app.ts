@@ -26,6 +26,8 @@ export function setupSuite(): Suite {
     suite.nc = new Nextcloud(JSON.parse(process.env.E2E_NEXTCLOUD!) as NextcloudLocation);
   });
   beforeEach(async () => {
+    // A test killed by its timeout while the server was paused never ran its `finally`.
+    await suite.nc.unpause().catch(() => {});
     await suite.nc.dav.clearEvents([`${SEED_UID}.ics`]);
   });
   afterEach(() => {

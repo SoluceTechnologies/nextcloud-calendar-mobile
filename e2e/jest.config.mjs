@@ -5,6 +5,7 @@ export default {
   testMatch: ['<rootDir>/e2e/**/*.e2e.ts'],
   globalSetup: '<rootDir>/e2e/globalSetup.ts',
   globalTeardown: '<rootDir>/e2e/globalTeardown.ts',
+  setupFilesAfterEnv: ['<rootDir>/e2e/retry.ts'],
   testSequencer: '<rootDir>/e2e/sequencer.cjs',
   maxWorkers: 1,
   transformIgnorePatterns: ['/node_modules/'],

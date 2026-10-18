@@ -4,6 +4,10 @@ import { E2E_CAL } from './nextcloud';
 
 const suite = setupSuite();
 
+// No CI retry (e2e/retry.ts): each test starts from the session the previous one left, and a rerun
+// would recreate users that already exist.
+jest.retryTimes(0);
+
 // Runs last (e2e/sequencer.cjs) and in this order: each test starts from the session the previous
 // one left (logged in as e2e → e2e + bob → carol only → no account), so only the login tests type
 // credentials.
