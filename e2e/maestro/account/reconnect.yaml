@@ -10,7 +10,11 @@ appId: com.soluce.nextcloudcalendar
 - tapOn:
     id: account-reconnect-password
 - inputText: ${NEW_PASS}
-- hideKeyboard
+# Not hideKeyboard: with no soft keyboard up (hardware-keyboard emulator) it presses Back and
+# leaves the app.
+- scrollUntilVisible:
+    element:
+      id: account-reconnect-submit
 - tapOn:
     id: account-reconnect-submit
 - extendedWaitUntil:
