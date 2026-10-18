@@ -1,0 +1,112 @@
+name: E2E
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  e2e:
+    name: E2E (Android)
+    # Not macOS: the suite starts Nextcloud through testcontainers, and macOS runners have no Docker.
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "lts/*"
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Locate Yarn cache
+        id: yarn-cache
+        run: echo "dir=$(yarn config get cacheFolder)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Yarn downloads
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.yarn-cache.outputs.dir }}
+          key: yarn-${{ runner.os }}-${{ hashFiles('yarn.lock') }}
+          restore-keys: |
+            yarn-${{ runner.os }}-
+
+      - name: Install dependencies
+        run: yarn install --immutable
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      # Same as `just e2e-build`, before the emulator boots so they don't fight over the runner's CPUs.
+      - name: Build release APK (x86_64)
+        run: |
+          EXPO_NO_GIT_STATUS=1 npx expo prebuild -p android --clean --no-install
+          (cd android && ./gradlew assembleRelease -x lintVitalAnalyzeRelease -PreactNativeArchitectures=x86_64)
+          test -f android/app/build/outputs/apk/release/app-release.apk
+
+      - name: Install Maestro
+        env:
+          MAESTRO_VERSION: "2.11.0"
+        run: |
+          curl -fsSL "https://get.maestro.mobile.dev" | bash
+          echo "$HOME/.maestro/bin" >> "$GITHUB_PATH"
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      # e2e/retry.ts reruns a failed test once because CI is set. The runner runs each script line on
+      # its own, hence one line: keep jest's exit code past the tee and the logcat dump.
+      - name: Run e2e suite
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          arch: x86_64
+          target: google_apis
+          emulator-options: -no-window -gpu swiftshader_indirect -no-audio -no-boot-anim -no-snapshot-save
+          disable-animations: true
+          script: bash -c 'MAESTRO_REPORT_DIR="$RUNNER_TEMP/maestro-junit" yarn jest -c e2e/jest.config.mjs --ci 2>&1 | tee "$RUNNER_TEMP/e2e.log"; rc=${PIPESTATUS[0]}; adb logcat -d > "$RUNNER_TEMP/logcat.txt" || true; exit $rc'
+
+      - name: Summarize retries
+        if: always()
+        run: |
+          log="$RUNNER_TEMP/e2e.log"
+          [ -f "$log" ] || exit 0
+          {
+            echo "### E2E retries: $(grep -c ' RETRY ' "$log" || true)"
+            grep 'LOGGING RETRY ERRORS' "$log" | sed 's/.*LOGGING RETRY ERRORS */- /' || true
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload debug artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-debug
+          retention-days: 7
+          if-no-files-found: ignore
+          path: |
+            ${{ runner.temp }}/maestro-junit
+            ${{ runner.temp }}/e2e.log
+            ${{ runner.temp }}/logcat.txt
+            ~/.maestro/tests
+            android/app/build/outputs/apk/release/app-release.apk
