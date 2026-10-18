@@ -42,10 +42,6 @@ describe('server', () => {
 });
 
 describe('sync', () => {
-  it('shows the seeded event after the initial sync @smoke', () => {
-    runFlow(suite.nc, 'sync/initial');
-  });
-
   it('shows an event created on the server after a relaunch', async () => {
     const title = uniqueTitle('n');
     runFlow(suite.nc, 'shared/home-and-wait', { TITLE: SEED_TITLE });

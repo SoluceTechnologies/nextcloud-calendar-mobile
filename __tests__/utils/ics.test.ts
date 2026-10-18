@@ -1,4 +1,4 @@
-import { buildIcs, buildAllDayIcs, shiftIcsDates, injectExdate, truncateRruleUntil } from '@/utils/ics';
+import { buildIcs, buildAllDayIcs, buildExceptionIcs, shiftIcsDates, injectExdate, truncateRruleUntil, upsertOverride } from '@/utils/ics';
 import { parseRrule } from '@/features/calendar/utils/parseRrule';
 import { parseIcsObjects, extractExtraVeventLines } from '@/utils/caldav-parse';
 import type { Attendee } from '../../src/types';
@@ -352,6 +352,66 @@ END:VEVENT`;
     expect(blocks[0]).toContain('EXDATE;TZID=Europe/Paris:20260826T140000');
     expect(blocks[1]).not.toContain('EXDATE');
     expect(out.match(/EXDATE/g)).toHaveLength(1);
+  });
+});
+
+describe('upsertOverride', () => {
+  const master = `BEGIN:VEVENT\r
+UID:weekly-1\r
+DTSTART;TZID=Europe/Paris:20260805T140000\r
+DTEND;TZID=Europe/Paris:20260805T150000\r
+RRULE:FREQ=WEEKLY;BYDAY=WE\r
+SUMMARY:Weekly 14h\r
+END:VEVENT`;
+  const wrap = (...bodies: string[]) =>
+    `BEGIN:VCALENDAR\r\nVERSION:2.0\r\n${bodies.join('\r\n')}\r\nEND:VCALENDAR\r\n`;
+  const override = (summary: string) => buildExceptionIcs({
+    ...base,
+    uid: 'weekly-1',
+    summary,
+    timezone: 'Europe/Paris',
+    recurrenceId: new Date('2026-08-26T12:00:00Z'),
+    dtstart: new Date('2026-08-26T14:00:00Z'),
+    dtend: new Date('2026-08-26T15:00:00Z'),
+  });
+  const vevents = (ics: string) => ics.match(/BEGIN:VEVENT[\s\S]*?END:VEVENT/g) ?? [];
+
+  // CalDAV keeps a series and its overrides in one resource: a second resource with the same UID
+  // is refused (409 no-uid-conflict).
+  it('adds the override to the master resource, without excluding the occurrence', () => {
+    const out = upsertOverride(wrap(master), override('Moved'));
+
+    expect(vevents(out)).toHaveLength(2);
+    expect(vevents(out)[1]).toContain('RECURRENCE-ID;TZID=Europe/Paris:20260826T140000');
+    expect(vevents(out)[1]).toContain('SUMMARY:Moved');
+    expect(out).not.toContain('EXDATE');
+    expect(out.match(/BEGIN:VCALENDAR/g)).toHaveLength(1);
+    expect(out.trimEnd().endsWith('END:VCALENDAR')).toBe(true);
+  });
+
+  it('replaces an existing override of the same occurrence', () => {
+    const out = upsertOverride(upsertOverride(wrap(master), override('First')), override('Second'));
+
+    expect(vevents(out)).toHaveLength(2);
+    expect(out).toContain('SUMMARY:Second');
+    expect(out).not.toContain('SUMMARY:First');
+  });
+});
+
+describe('buildExceptionIcs', () => {
+  it('writes date values for an all-day occurrence, matching an all-day master', () => {
+    const ics = buildExceptionIcs({
+      ...base,
+      timezone: 'Europe/Paris',
+      allDay: true,
+      recurrenceId: new Date(2026, 9, 9),
+      dtstart: new Date(2026, 9, 9),
+      dtend: new Date(2026, 9, 9),
+    });
+
+    expect(ics).toContain('RECURRENCE-ID;VALUE=DATE:20261009');
+    expect(ics).toContain('DTSTART;VALUE=DATE:20261009');
+    expect(ics).toContain('DTEND;VALUE=DATE:20261010');
   });
 });
 

@@ -33,6 +33,7 @@ export function AlertPicker({ value, onChange }: Props) {
           <TouchableOpacity
             key={label}
             testID={`event-form-alert-${id}`}
+            accessibilityState={{ selected: active }}
             style={[
               styles.pill,
               { backgroundColor: active ? theme.colors.primary : theme.colors.chip },

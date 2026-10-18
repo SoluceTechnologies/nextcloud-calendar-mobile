@@ -1,7 +1,7 @@
 appId: com.soluce.nextcloudcalendar
 ---
 - runFlow:
-    file: ../shared/login-and-wait.yaml
+    file: ../shared/home-and-wait.yaml
     env: { TITLE: "${A_TITLE}" }
 - runFlow: ../shared/open-settings.yaml
 - tapOn:

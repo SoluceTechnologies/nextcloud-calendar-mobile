@@ -1,45 +1,99 @@
 /// <reference types="node" />
-import { execFileSync } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { execFile, execFileSync, spawnSync } from 'node:child_process';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { allDay } from './ics';
-import { ADMIN, E2E_CAL, NextcloudContainer, SEED_TITLE, type StartedNextcloud } from './nextcloud';
+import { promisify } from 'node:util';
+import { ADMIN, Nextcloud, SEED_UID, type NextcloudLocation } from './nextcloud';
 
 const APK = process.env.APK ?? 'android/app/build/outputs/apk/release/app-release.apk';
 const APP_ID = 'com.soluce.nextcloudcalendar';
 const MAESTRO_DIR = join(__dirname, 'maestro');
 const REPORT_DIR = process.env.MAESTRO_REPORT_DIR;
+const run = promisify(execFile);
 
 export interface Suite {
-  readonly nc: StartedNextcloud;
+  readonly nc: Nextcloud;
 }
 
+/**
+ * Attaches the suite to the server started once by globalSetup, already logged in: the session is
+ * shared by every suite. The server is wiped back to the seed event before each test, so a test
+ * never sees events left by another (today's all-day lane only shows a few rows).
+ */
 export function setupSuite(): Suite {
-  const suite = {} as { nc: StartedNextcloud };
-  beforeAll(async () => {
-    installApp();
-    adb(['shell', 'pm', 'clear', APP_ID]);
-    suite.nc = await new NextcloudContainer().start();
-    await suite.nc.setEmail(ADMIN.user, 'e2e@example.test');
-    await suite.nc.dav.createCalendar(E2E_CAL, 'E2E');
-    await suite.nc.dav.putEvent(E2E_CAL, 'e2e-seed', allDay({ uid: 'e2e-seed', summary: SEED_TITLE, day: today() }));
+  const suite = {} as { nc: Nextcloud };
+  beforeAll(() => {
+    suite.nc = new Nextcloud(JSON.parse(process.env.E2E_NEXTCLOUD!) as NextcloudLocation);
+  });
+  beforeEach(async () => {
+    await suite.nc.dav.clearEvents([`${SEED_UID}.ics`]);
   });
   afterEach(() => {
     adb(['shell', 'cmd', 'connectivity', 'airplane-mode', 'disable']);
   });
-  afterAll(async () => {
-    await suite.nc?.stop();
-  });
   return suite;
 }
 
-export function runFlow(nc: StartedNextcloud, flow: string, vars: Record<string, string> = {}): void {
+const ANIMATION_SCALES = ['window_animation_scale', 'transition_animation_scale', 'animator_duration_scale'];
+
+/**
+ * Turns system animations off for the run: Maestro waits for the screen to settle after every tap,
+ * so animations cost seconds per step. Returns a function putting the previous values back.
+ */
+export function disableAnimations(): () => void {
+  const before = ANIMATION_SCALES.map((key) => adb(['shell', 'settings', 'get', 'global', key]).trim());
+  for (const key of ANIMATION_SCALES) adb(['shell', 'settings', 'put', 'global', key, '0']);
+  return () => ANIMATION_SCALES.forEach((key, i) => {
+    if (!before[i]) return;
+    adb(['shell', 'settings', ...(before[i] === 'null' ? ['delete', 'global', key] : ['put', 'global', key, before[i]])]);
+  });
+}
+
+// Maestro's on-device driver sometimes dies: a start-up timeout, then every call UNAVAILABLE.
+const DRIVER_DEAD = /did not start up in time|DeviceServerDiedException|StatusRuntimeException: UNAVAILABLE/;
+const MAESTRO_DRIVER_PACKAGES = ['dev.mobile.maestro', 'dev.mobile.maestro.test'];
+
+export function runFlow(nc: Nextcloud, flow: string, vars: Record<string, string> = {}): void {
   const env = { NC_URL: nc.emulatorUrl, NC_USER: ADMIN.user, NC_PASS: ADMIN.password, ...vars };
+  const flowArgs = [join(MAESTRO_DIR, `${flow}.yaml`)];
+  for (const [key, value] of Object.entries(env)) flowArgs.push('-e', `${key}=${value}`);
+  if (REPORT_DIR) flowArgs.push('--format', 'junit', '--output', join(REPORT_DIR, `${flow.replace(/\//g, '-')}.xml`));
+
+  // Maestro reinstalls its driver on every run by default, which costs seconds per flow. The login
+  // in globalSetup installs it; test files inherit the flag through their copy of process.env.
+  const ready = process.env.E2E_MAESTRO_DRIVER_READY;
+  let result = maestro(ready ? ['--no-reinstall-driver', ...flowArgs] : flowArgs);
+  if (result.status !== 0 && driverDied(result.output)) {
+    // Not the app failing: the driver died. Kill it, drop its stale port forward, reinstall it and
+    // run the flow once more.
+    for (const pkg of MAESTRO_DRIVER_PACKAGES) adb(['shell', 'am', 'force-stop', pkg]);
+    adb(['forward', '--remove-all']);
+    result = maestro(flowArgs);
+  }
+  if (result.status !== 0) {
+    delete process.env.E2E_MAESTRO_DRIVER_READY;
+    throw new Error(`Maestro flow ${flow} failed (exit ${result.status}), see its output above`);
+  }
+  process.env.E2E_MAESTRO_DRIVER_READY = '1';
+}
+
+/** The console only says the flow failed; the cause is in the debug log whose path it prints. */
+function driverDied(output: string): boolean {
+  const dir = output.match(/Debug output \(logs & screenshots\) ====\s+(\S+)/)?.[1];
+  const log = dir && join(dir, 'maestro.log');
+  return DRIVER_DEAD.test(log && existsSync(log) ? readFileSync(log, 'utf8') : output);
+}
+
+/** Runs `maestro test`, printing its output once it ends (it is needed to spot a dead driver). */
+function maestro(args: string[]): { status: number | null; output: string } {
   const device = process.env.ANDROID_SERIAL;
-  const args = [...(device ? ['--device', device] : []), 'test', join(MAESTRO_DIR, `${flow}.yaml`)];
-  for (const [key, value] of Object.entries(env)) args.push('-e', `${key}=${value}`);
-  if (REPORT_DIR) args.push('--format', 'junit', '--output', join(REPORT_DIR, `${flow.replace(/\//g, '-')}.xml`));
-  execFileSync('maestro', args, { stdio: 'inherit' });
+  const r = spawnSync('maestro', [...(device ? ['--device', device] : []), 'test', ...args], {
+    encoding: 'utf8',
+    maxBuffer: 64 * 1024 * 1024,
+  });
+  const output = `${r.stdout ?? ''}${r.stderr ?? ''}`;
+  process.stdout.write(output);
+  return { status: r.status, output };
 }
 
 export function uniqueTitle(prefix: string): string {
@@ -55,16 +109,17 @@ export function today(): Date {
   return new Date(now.getFullYear(), now.getMonth(), now.getDate());
 }
 
+/** Polls `probe` until `accept` holds or the timeout passes, and returns the last value. */
 export async function eventually<T>(
   probe: () => Promise<T>,
   accept: (v: T) => boolean,
-  timeoutMs = 120_000,
+  timeoutMs = 30_000,
 ): Promise<T> {
   const until = Date.now() + timeoutMs;
   for (;;) {
     const value = await probe();
     if (accept(value) || Date.now() > until) return value;
-    await new Promise((resolve) => setTimeout(resolve, 2_000));
+    await new Promise((resolve) => setTimeout(resolve, 1_000));
   }
 }
 
@@ -82,14 +137,20 @@ export function zonedToUtc(day: Date, hh: number, mm: number, tz: string): Date 
   return new Date(guess - (seenAsUtc - guess));
 }
 
-function installApp(): void {
+export async function installApp(): Promise<void> {
   if (!existsSync(APK)) throw new Error(`APK not found at ${APK}. Run \`just e2e-build\` first.`);
   try {
     execFileSync('adb', ['get-state'], { stdio: 'pipe' });
   } catch {
     throw new Error('No Android device/emulator connected. Start one (e.g. `emulator -avd <name>`) and retry.');
   }
-  execFileSync('adb', ['install', '-r', APK], { stdio: 'inherit' });
+  try {
+    await run('adb', ['install', '-r', APK]);
+  } catch {
+    // Installed build signed with another key (e.g. a dev build): -r can't replace it.
+    adb(['uninstall', APP_ID]);
+    await run('adb', ['install', APK]);
+  }
 }
 
 function adb(args: string[]): string {

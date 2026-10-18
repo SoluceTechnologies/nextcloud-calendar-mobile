@@ -13,13 +13,26 @@ appId: com.soluce.nextcloudcalendar
 - scrollUntilVisible:
     element:
       id: event-form-alert-default
-- swipe:
-    from:
-      id: event-form-alert-10
-    direction: LEFT
-    duration: 1500
+- repeat:
+    while:
+      notVisible:
+        id: event-form-alert-15
+    times: 4
+    commands:
+      - swipe:
+          from:
+            id: event-form-alert-row
+          direction: LEFT
+          duration: 800
+# The pill is usually cut by the row's edge and Maestro taps an element's centre, which can fall
+# outside the row: tap near its left edge instead. Let the fling settle first, and check the tap took.
+- waitForAnimationToEnd
 - tapOn:
     id: event-form-alert-15
+    point: "15%,50%"
+- assertVisible:
+    id: event-form-alert-15
+    selected: true
 - scrollUntilVisible:
     element:
       id: event-form-save

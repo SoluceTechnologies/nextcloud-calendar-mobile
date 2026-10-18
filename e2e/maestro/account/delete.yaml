@@ -1,7 +1,6 @@
 appId: com.soluce.nextcloudcalendar
 ---
-- runFlow: ../shared/reset.yaml
-- runFlow: ../shared/login.yaml
+- runFlow: ../shared/ensure-home.yaml
 - runFlow: ../shared/open-settings.yaml
 - tapOn:
     id: settings-active-account

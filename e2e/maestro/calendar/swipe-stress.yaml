@@ -10,6 +10,7 @@ appId: com.soluce.nextcloudcalendar
 - repeat:
     times: 10
     commands:
-      - swipe: { direction: RIGHT, duration: 150 }
+      # Default RIGHT starts at x=10%, on the fixed hour rail, which doesn't page.
+      - swipe: { start: "25%,50%", end: "95%,50%", duration: 150 }
 - waitForAnimationToEnd
 - extendedWaitUntil: { visible: "E2E seed", timeout: 15000 }

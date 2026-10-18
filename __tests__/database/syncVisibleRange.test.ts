@@ -221,6 +221,18 @@ describe('syncVisibleRange — throttle', () => {
     expect(mockSyncCollection).toHaveBeenCalledTimes(2);
   });
 
+  it('still syncs a calendar that appeared after the last sync', async () => {
+    const { db } = makeDb();
+    mockGetDb.mockReturnValue(db);
+    const added: CalendarMeta = { ...calendar, id: 'added', url: `${calendar.url}added/` };
+
+    await syncVisibleRange(account, [calendar], start, end);
+    await syncVisibleRange(account, [calendar, added], start, end);
+
+    expect(mockSyncCollection).toHaveBeenCalledTimes(2);
+    expect(mockSyncCollection.mock.calls[1][1]).toBe(added);
+  });
+
   it('does not consume the throttle when only subscribed calendars were synced', async () => {
     const { db } = makeDb();
     mockGetDb.mockReturnValue(db);

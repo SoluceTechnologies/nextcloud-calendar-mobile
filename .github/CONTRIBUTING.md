@@ -379,15 +379,26 @@ E2E suites (`e2e/*.e2e.ts`) drive the **release APK** on an Android emulator wit
 **Run them**
 
 ```bash
-just e2e-build                     # prebuild android + assembleRelease (x86_64)
+just e2e-all                       # boot emulator if needed + build + run every suite (AVD=<name> to pick one)
+
+# or step by step:
+just e2e-build                     # prebuild android + assembleRelease for the booted emulator's ABI
 just e2e                           # every suite
 just e2e e2e/event.e2e.ts          # one suite
 just e2e -t 'dark theme'           # tests whose name matches
 ```
 
-`just e2e-build` only needs re-running when app code changes — the suites install the APK from `android/app/build/outputs/apk/release/` on each run and wipe app data first. The first run pulls the Nextcloud image; starting the container takes about a minute per suite.
+`just e2e-build` only needs re-running when app code changes. `just e2e-all` boots the emulator in the background while Gradle builds.
 
-> ⚠️ `just e2e-build` runs `expo prebuild --clean`, which regenerates `android/`, and builds **x86_64 only**. On an Apple Silicon Mac (arm64 emulator), change `-PreactNativeArchitectures=x86_64` to `arm64-v8a` in the `justfile`, or build with Gradle yourself and point `APK` at the result.
+How a run is organised (`e2e/globalSetup.ts`), to keep it fast:
+
+- **One Nextcloud container for the whole run**, started while the APK installs. Suites reach it through `E2E_NEXTCLOUD`; the first run pulls the image.
+- **One install, one login.** `globalSetup` wipes the app, logs in once (`shared/login-and-wait`) and every suite starts from that session. App flows never log in: `shared/ensure-home` fails if it lands on setup, so a lost session shows up at once instead of costing a login per flow.
+- **Isolation per suite on the server side:** each suite starts by deleting every event except the seed (`E2E seed`), so it never sees what the previous suite created.
+- Only `account.e2e.ts` changes the session (switching, reconnecting, deleting accounts). `e2e/sequencer.cjs` runs it last so it can't break the others.
+- Maestro installs its on-device driver on each suite's first flow only (`--no-reinstall-driver` afterwards).
+
+> ⚠️ `just e2e-build` runs `expo prebuild --clean`, which regenerates `android/`. It builds only the ABI of the booted emulator (falling back to `arm64-v8a` on Apple Silicon, `x86_64` elsewhere) — boot the emulator first, and rebuild if you switch to an emulator with another ABI.
 
 **Environment variables**
 
@@ -400,7 +411,7 @@ just e2e -t 'dark theme'           # tests whose name matches
 **Writing a new E2E test**
 
 1. Add any missing `testID` to the component (e2e IDs are kebab-case and prefixed by screen, e.g. `event-form-save`), and reference it from the flow.
-2. Write the Maestro flow in `e2e/maestro/<area>/<name>.yaml`. Reuse `e2e/maestro/shared/*` (`ensure-home`, `login`, `open-event`, …) via `runFlow`. Values come in as `${VAR}` (`NC_URL`, `NC_USER`, `NC_PASS`, plus whatever the suite passes).
+2. Write the Maestro flow in `e2e/maestro/<area>/<name>.yaml`. Reuse `e2e/maestro/shared/*` (`ensure-home`, `home-and-wait`, `open-event`, …) via `runFlow`. Values come in as `${VAR}` (`NC_URL`, `NC_USER`, `NC_PASS`, plus whatever the suite passes).
 3. Call it from a suite with `runFlow(suite.nc, '<area>/<name>', { TITLE })`, then verify the server side with `suite.nc.dav` and `eventually(...)` — sync is asynchronous.
 
 Iterating on a flow alone is faster than the whole suite, once the app is installed and logged in:

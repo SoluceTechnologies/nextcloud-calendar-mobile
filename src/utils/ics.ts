@@ -197,7 +197,7 @@ export function buildAllDayIcs(params: BuildAllDayIcsParams): string {
     ]);
 }
 
-export function buildExceptionIcs(params: BuildIcsParams & { recurrenceId: Date }): string {
+export function buildExceptionIcs(params: BuildIcsParams & { recurrenceId: Date; allDay?: boolean }): string {
     const {
         uid,
         summary,
@@ -210,18 +210,30 @@ export function buildExceptionIcs(params: BuildIcsParams & { recurrenceId: Date 
         attendees,
         timezone,
         recurrenceId,
+        allDay = false,
         alarms,
         sequence = 0,
         extraLines = []
     } = params;
+    // RECURRENCE-ID must have the master DTSTART's value type: DATE for an all-day series.
+    const endExclusive = new Date(dtend.getFullYear(), dtend.getMonth(), dtend.getDate() + 1);
+    const dates = allDay
+        ? [
+            `RECURRENCE-ID;VALUE=DATE:${dateStamp(recurrenceId)}`,
+            `DTSTART;VALUE=DATE:${dateStamp(dtstart)}`,
+            `DTEND;VALUE=DATE:${dateStamp(endExclusive)}`,
+        ]
+        : [
+            `RECURRENCE-ID;TZID=${timezone}:${localStamp(recurrenceId, timezone)}`,
+            `DTSTART;TZID=${timezone}:${localStamp(dtstart, timezone)}`,
+            `DTEND;TZID=${timezone}:${localStamp(dtend, timezone)}`,
+        ];
 
     return serialize([
         `UID:${uid}`,
         `DTSTAMP:${utcStamp(new Date())}`,
         `SEQUENCE:${sequence}`,
-        `RECURRENCE-ID;TZID=${timezone}:${localStamp(recurrenceId, timezone)}`,
-        `DTSTART;TZID=${timezone}:${localStamp(dtstart, timezone)}`,
-        `DTEND;TZID=${timezone}:${localStamp(dtend, timezone)}`,
+        ...dates,
         ...textLines(summary, description, location),
         ...schedulingLines(organizerName, organizerEmail, attendees),
         ...extraLines,
@@ -269,6 +281,19 @@ export function injectExdate(masterIcs: string, occurrenceDtstart: Date, timezon
     const exdateLine = `EXDATE;TZID=${timezone}:${localStamp(occurrenceDtstart, timezone)}`;
     return editMasterVevent(masterIcs, (block) =>
         block.replace('END:VEVENT', `${exdateLine}\r\nEND:VEVENT`));
+}
+
+/**
+ * Puts the override VEVENT of `overrideIcs` into the series resource, replacing an earlier override
+ * of the same occurrence. CalDAV keeps a series and its overrides in one resource: a second
+ * resource with the same UID is refused (409 no-uid-conflict).
+ */
+export function upsertOverride(masterIcs: string, overrideIcs: string): string {
+    const override = overrideIcs.match(/BEGIN:VEVENT[\s\S]*?END:VEVENT\r?\n?/)![0];
+    const recurrenceId = override.match(/^RECURRENCE-ID[^\r\n]*/m)![0];
+    const kept = masterIcs.replace(/BEGIN:VEVENT[\s\S]*?END:VEVENT\r?\n?/g, (block) =>
+        block.match(/^RECURRENCE-ID[^\r\n]*/m)?.[0] === recurrenceId ? '' : block);
+    return kept.replace(/END:VCALENDAR\s*$/, `${override.replace(/\r?\n?$/, '\r\n')}END:VCALENDAR\r\n`);
 }
 
 export function truncateRruleUntil(masterIcs: string, newUntil: Date): string {

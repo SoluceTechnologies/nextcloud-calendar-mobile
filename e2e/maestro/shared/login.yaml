@@ -13,6 +13,7 @@ appId: com.soluce.nextcloudcalendar
 - tapOn:
     id: setup-app-password
 - inputText: ${NC_PASS}
+- hideKeyboard
 - tapOn:
     id: setup-connect
 - extendedWaitUntil:

@@ -18,12 +18,11 @@ appId: com.soluce.nextcloudcalendar
     env: { FIELD: event-form-end, HOUR: "9", MINUTE: "00", MERIDIEM: AM }
 - scrollUntilVisible:
     element:
-      id: event-form-save
-- tapOn:
-    id: event-form-save
-- assertVisible:
-    id: event-form-save
-- scrollUntilVisible:
-    element:
       id: event-form-end-error
     direction: UP
+- tapOn:
+    id: event-form-save
+- extendedWaitUntil:
+    visible:
+      id: calendar-fab-new
+    timeout: 30000

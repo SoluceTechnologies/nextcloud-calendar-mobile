@@ -1,20 +1,13 @@
 appId: com.soluce.nextcloudcalendar
 ---
+# The run logs in once (e2e/globalSetup.ts). Landing on setup here means the session was lost:
+# fail now instead of logging in again.
 - launchApp:
     permissions:
       all: allow
 - extendedWaitUntil:
     visible:
-      id: "setup-server-url|calendar-fab-new"
+      id: calendar-fab-new
     timeout: 30000
-- runFlow:
-    when:
-      visible:
-        id: setup-server-url
-    commands:
-      - runFlow: login.yaml
-      - extendedWaitUntil:
-          visible: "E2E seed"
-          timeout: 60000
 - tapOn:
     id: calendar-mode-week

@@ -56,6 +56,32 @@ describe('DayColumn', () => {
     expect(tapped.getDate()).toBe(7);
   });
 
+  it('ignores a swipe delivered as a press: a fling through weeks must not open a new event', () => {
+    const onPressSlot = jest.fn();
+    const { getByTestId } = render(
+      <DayColumn date={date} positioned={[]} hourRowHeight={60} now={now} onPressSlot={onPressSlot} onPressEvent={jest.fn()} />
+    );
+    const surface = getByTestId('day-column-surface');
+
+    fireEvent(surface, 'pressIn', { nativeEvent: { pageX: 300, pageY: 1200, locationY: 545 } });
+    fireEvent.press(surface, { nativeEvent: { pageX: 1000, pageY: 1200, locationY: 0 } });
+
+    expect(onPressSlot).not.toHaveBeenCalled();
+  });
+
+  it('takes the hour from where the finger went down', () => {
+    const onPressSlot = jest.fn();
+    const { getByTestId } = render(
+      <DayColumn date={date} positioned={[]} hourRowHeight={60} now={now} onPressSlot={onPressSlot} onPressEvent={jest.fn()} />
+    );
+    const surface = getByTestId('day-column-surface');
+
+    fireEvent(surface, 'pressIn', { nativeEvent: { pageX: 300, pageY: 1200, locationY: 545 } });
+    fireEvent.press(surface, { nativeEvent: { pageX: 302, pageY: 1203, locationY: 0 } });
+
+    expect(onPressSlot.mock.calls[0][0].getHours()).toBe(9);
+  });
+
   it('clamps a touch past the bottom to the last hour', () => {
     const onPressSlot = jest.fn();
     const { getByTestId } = render(

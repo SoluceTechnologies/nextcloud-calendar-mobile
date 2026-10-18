@@ -6,7 +6,7 @@ import dayjs from 'dayjs';
 import { putEvent, updateEvent, deleteEvent, moveEvent, fetchEventIcs } from '@/services/nextcloud/caldav';
 import { createTalkRoom } from '@/services/nextcloud/talk';
 import { describeMutationError } from '@/services/shared/errors';
-import { buildIcs, buildAllDayIcs, buildExceptionIcs, injectExdate, truncateRruleUntil, shiftIcsDates } from '@/utils/ics';
+import { buildIcs, buildAllDayIcs, buildExceptionIcs, injectExdate, truncateRruleUntil, shiftIcsDates, upsertOverride } from '@/utils/ics';
 import { parseIcsObjects, extractDtstartTzid, extractSequence, extractDtstartDtend, extractExtraVeventLines } from '@/utils/caldav-parse';
 import { isValidTimeZone } from '@/utils/timezone';
 import { allDayAlarmMinutes } from '@/features/notifications/alerts';
@@ -21,7 +21,7 @@ import {
   seriesBaseUid,
   shiftSeriesDates,
 } from '@/database/eventWrites';
-import { exceptionResourceUid, occurrenceSlot } from '@/features/event/occurrenceTarget';
+import { occurrenceSlot } from '@/features/event/occurrenceTarget';
 import type { Account, CalendarMeta, CalendarEvent, CreateEventInput, RecurrenceEditScope } from '@/types';
 
 const TALK_URL_PATTERN = /\/call\//;
@@ -310,22 +310,18 @@ export function useUpdateEvent(account: Account, calendars: CalendarMeta[]) {
             await moveEvent(account, event.href, cal, event.uid);
           }
         } else if (scope === 'this') {
-          const slot = occurrenceSlot(event);
           const masterIcs = await fetchEventIcs(account, event.href);
-          await updateEvent(account, event.href, injectExdate(masterIcs, slot, timezone));
-          const cal = calendars.find((c) => c.id === event.calendarId) ?? calendars.find((c) => c.id === input.calendarId);
-          if (!cal) throw new Error('Calendar not found for exception VEVENT');
-          const exceptionUid = exceptionResourceUid(event);
           const exIcs = buildExceptionIcs({
             uid: seriesBaseUid(event.uid), summary: input.summary, description, location,
-            dtstart: input.dtstart, dtend: input.dtend,
+            dtstart: input.dtstart, dtend: input.dtend, allDay: input.allDay,
             organizerEmail: scheduled.organizerEmail, organizerName: input.organizerName,
-            attendees: input.attendees, timezone, recurrenceId: slot,
+            attendees: input.attendees, timezone, recurrenceId: occurrenceSlot(event),
             alarms: resolveAlarms(input),
             sequence: extractSequence(masterIcs) + 1,
             extraLines: extractExtraVeventLines(masterIcs),
           });
-          await putEvent(account, cal, exceptionUid, exIcs);
+          // The override lives in the series resource (CalDAV refuses a second one with its UID).
+          await updateEvent(account, event.href, upsertOverride(masterIcs, exIcs));
         } else if (scope === 'thisAndFollowing') {
           const masterIcs = await fetchEventIcs(account, event.href);
           const oneDayBefore = dayjs(occurrenceSlot(event)).subtract(1, 'day').endOf('day').toDate();

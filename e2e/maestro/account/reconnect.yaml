@@ -10,6 +10,7 @@ appId: com.soluce.nextcloudcalendar
 - tapOn:
     id: account-reconnect-password
 - inputText: ${NEW_PASS}
+- hideKeyboard
 - tapOn:
     id: account-reconnect-submit
 - extendedWaitUntil:

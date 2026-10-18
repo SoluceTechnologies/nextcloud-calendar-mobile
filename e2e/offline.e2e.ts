@@ -1,14 +1,14 @@
-import { eventually, runFlow, setupSuite, uniqueTitle } from './app';
+import { runFlow, setupSuite, uniqueTitle } from './app';
 import { SEED_TITLE } from './nextcloud';
 
 const suite = setupSuite();
 
 describe('offline', () => {
-  it('pushes an event created in airplane mode once the network is back', async () => {
+  // Creating is online-only (useCreateEvent rolls back and alerts on failure): no queue to replay.
+  it('refuses to create an event in airplane mode and keeps nothing', async () => {
     const title = uniqueTitle('z');
     runFlow(suite.nc, 'offline/create-offline', { TITLE: title });
-    const found = await eventually(() => suite.nc.dav.findEvent(title), (v) => v !== null);
-    expect(found).not.toBeNull();
+    expect(await suite.nc.dav.findEvent(title)).toBeNull();
   });
 
   it('stays usable on local data while the server is down', async () => {

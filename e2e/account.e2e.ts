@@ -4,17 +4,21 @@ import { E2E_CAL } from './nextcloud';
 
 const suite = setupSuite();
 
-describe('account', () => {
-  it('logs in with server URL, user and password @smoke', () => {
-    runFlow(suite.nc, 'account/login');
-  });
+// Runs last (e2e/sequencer.cjs) and in this order: each test starts from the session the previous
+// one left (logged in as e2e → e2e + bob → carol only → no account), so only the login tests type
+// credentials.
 
+describe('account', () => {
   it('rejects a wrong password and stays on setup', () => {
     runFlow(suite.nc, 'account/login-error', { NC_PASS: 'Wrong-Passw0rd-2026' });
   });
 
   it('reports an unreachable server and stays on setup', () => {
     runFlow(suite.nc, 'account/login-error', { NC_URL: 'http://10.0.2.2:1' });
+  });
+
+  it('logs in with server URL, user and password @smoke', () => {
+    runFlow(suite.nc, 'account/login');
   });
 
   it('lands on the calendar after a relaunch', () => {

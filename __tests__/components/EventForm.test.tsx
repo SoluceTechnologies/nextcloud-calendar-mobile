@@ -365,4 +365,11 @@ describe('EventForm testIDs', () => {
       expect(getByTestId(id)).toBeTruthy();
     }
   });
+
+  it('marks the pressed alert pill as selected (the E2E flow checks it)', () => {
+    const { getByTestId } = render(<EventForm {...baseProps} />);
+    fireEvent.press(getByTestId('event-form-alert-15'));
+    expect(getByTestId('event-form-alert-15').props.accessibilityState).toMatchObject({ selected: true });
+    expect(getByTestId('event-form-alert-default').props.accessibilityState).toMatchObject({ selected: false });
+  });
 });
