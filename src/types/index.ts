@@ -42,6 +42,18 @@ export type RecurrenceRule = {
 
 export type RecurrenceEditScope = 'this' | 'thisAndFollowing' | 'all';
 
+export type EventAttachment = {
+    uri?: string;
+    base64?: string;
+    /** True when binary content exists in the server ICS but was stripped locally (occurrence rows, oversized embeds). */
+    inline?: boolean;
+    /** Content fingerprint of a stripped base64 payload — lets a re-fetch pick the right ATTACH when metadata is ambiguous. */
+    digest?: string;
+    filename?: string;
+    fmttype?: string;
+    size?: number;
+};
+
 export type TalkRoomType = 'public' | 'private';
 
 export type TalkOpenMode = 'app' | 'browser' | 'ask';
@@ -67,6 +79,7 @@ export type CalendarEvent = {
     alarms?: number[];
     isTask?: boolean;
     readOnly?: boolean;
+    attachments?: EventAttachment[];
 };
 
 export type CreateEventInput = {
