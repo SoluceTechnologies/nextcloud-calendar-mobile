@@ -190,3 +190,37 @@ describe('cleartext gate', () => {
     expect(req).not.toHaveBeenCalled();
   });
 });
+
+describe('native request watchdog', () => {
+  beforeEach(() => {
+    jest.useFakeTimers();
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  it('abandons a native request that never settles instead of hanging forever', async () => {
+    req.mockReturnValueOnce(new Promise(() => {}));
+    const p = trustedFetch('https://h/x', { timeoutMs: 20 });
+    const assertion = expect(p).rejects.toThrow('Network request failed');
+    await jest.advanceTimersByTimeAsync(20 + 5000);
+    await assertion;
+  });
+
+  it('still honours a native response that arrives within the grace window', async () => {
+    // The native timeout is the primary guard; the JS watchdog is only a
+    // last-resort bound, so a late-but-settling promise must still win.
+    req.mockImplementationOnce(
+      () =>
+        new Promise((resolve) =>
+          setTimeout(() => resolve({ type: 'response', status: 200, headers: {}, bodyBase64: b64('ok') }), 4000),
+        ),
+    );
+    const p = trustedFetch('https://h/x', { timeoutMs: 20 });
+    await jest.advanceTimersByTimeAsync(4100);
+    const res = await p;
+    expect(res.status).toBe(200);
+    expect(await res.text()).toBe('ok');
+  });
+});
