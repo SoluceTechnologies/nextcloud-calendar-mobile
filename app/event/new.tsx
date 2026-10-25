@@ -8,6 +8,7 @@ import { useAccounts } from '@/hooks/useAccounts';
 import { useCalendars } from '@/hooks/useCalendars';
 import { useCreateEvent } from '@/features/event/hooks/useMutateEvent';
 import { resolveOrganizer } from '@/features/event/utils/organizer';
+import { askAttachmentShareMode } from '@/features/event/utils/attachments';
 import { useAccountStore } from '@/stores/accountStore';
 import { EventForm, type EventFormHandle } from '@/features/event/components/EventForm';
 import { ViewContainer, Stack, Typography, IconButton, Spinner, ScreenHeader } from '@/ui/components';
@@ -32,6 +33,14 @@ export default function NewEventScreen() {
 
   async function handleSubmit(input: CreateEventInput) {
     if (!activeAccount) return;
+    // Attendees can't open private DAV links — offer a public share.
+    const hasNewAttachments =
+      !!input.pendingAttachments?.length || !!input.remoteAttachments?.length;
+    if (hasNewAttachments && input.attendees.length > 0) {
+      const share = await askAttachmentShareMode();
+      if (share === null) return;
+      input.shareAttachments = share === 'public';
+    }
     await createMutation.mutateAsync(input);
     goBackOrHome(router);
   }
