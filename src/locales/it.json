@@ -68,6 +68,7 @@
     "manageAccounts": "Gestisci account →",
     "drawerCalendars": "CALENDARI",
     "offlineBanner": "Offline — visualizzazione eventi salvati",
+    "syncError": "Sincronizzazione non riuscita — tocca per riprovare",
     "noEvents": "Nessun evento",
     "allDay": "Tutto il giorno",
     "noTitle": "(Senza titolo)",

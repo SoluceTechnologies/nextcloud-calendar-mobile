@@ -68,6 +68,7 @@
     "manageAccounts": "Gestionar cuentas →",
     "drawerCalendars": "CALENDARIOS",
     "offlineBanner": "Sin conexión — mostrando eventos guardados",
+    "syncError": "Error de sincronización — toca para reintentar",
     "noEvents": "Sin eventos",
     "allDay": "Todo el día",
     "noTitle": "(Sin título)",
