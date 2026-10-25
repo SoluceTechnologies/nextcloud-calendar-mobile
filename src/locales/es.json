@@ -73,7 +73,15 @@
     "noTitle": "(Sin título)",
     "drawerNoCalendars": "Ningún calendario",
     "calendarNotifications": "Notificaciones de {{name}}",
-    "calendarVisibility": "Mostrar {{name}}"
+    "calendarVisibility": "Mostrar {{name}}",
+    "showCompletedTasks": "Mostrar tareas completadas"
+  },
+  "task": {
+    "pending": "Tarea",
+    "completed": "Completada",
+    "completedWithDate": "Completada el {{date}}",
+    "markCompleted": "Marcar como completada",
+    "markNotCompleted": "Marcar como no completada"
   },
   "event": {
     "titleLabel": "Título *",
@@ -320,7 +328,8 @@
       "openInApp": "Nextcloud Talk app",
       "openInBrowser": "Browser",
       "askEachTime": "Ask each time"
-    }
+    },
+    "tasks": "Tareas"
   },
   "widget": {
     "liveRemaining": "quedan {{duration}}",

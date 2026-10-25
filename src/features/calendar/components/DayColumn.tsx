@@ -3,6 +3,7 @@ import { View, Pressable, StyleSheet, type GestureResponderEvent } from 'react-n
 import { useTheme } from 'expo-router';
 import dayjs from 'dayjs';
 import { eventPositionStyle, nowTopPct } from '../utils/grid';
+import type { CalendarEvent } from '@/types';
 import type { GridEvent } from '../utils/toGridEvents';
 import type { PositionedEvent } from '../utils/eventLayout';
 import { TimeGridEvent } from './TimeGridEvent';

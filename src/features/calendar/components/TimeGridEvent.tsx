@@ -1,7 +1,9 @@
 import { memo, useRef } from 'react';
 import { TouchableOpacity, View, StyleSheet, type ViewStyle } from 'react-native';
 import dayjs from 'dayjs';
+import { SquareCheck } from 'lucide-react-native';
 import { Typography } from '@/ui/components';
+import type { CalendarEvent } from '@/types';
 import type { GridEvent } from '../utils/toGridEvents';
 import { contrastFor } from '../utils/eventInk';
 import { useTimeFormat } from '@/hooks/useTimeFormat';
@@ -28,13 +30,9 @@ function TimeGridEventImpl({ event, top, height, leftPct, widthPct, zIndex, hour
   const ink = contrastFor(color);
   const { formatTime } = useTimeFormat();
   const durationMin = dayjs(event.end).diff(event.start, 'minute');
-
-  // A finger that rested here for the long-press window was grabbing the event,
-  // not tapping it, so it must not navigate on lift. The drag gesture cannot be
-  // relied on to have swallowed that touch: RNGH fails an activateAfterLongPress
-  // pan as soon as the finger drifts past the touch slop before the timer fires,
-  // and a failed pan never cancels this Touchable underneath it. Without the
-  // guard, the common "press, wobble, drag" opens the detail screen instead.
+  const isTask = !!event._event.isTask;
+  const taskDone = !!event._event.taskCompleted;
+  
   const pressedAt = useRef(0);
 
   const positionStyle: ViewStyle = {
@@ -45,7 +43,7 @@ function TimeGridEventImpl({ event, top, height, leftPct, widthPct, zIndex, hour
     zIndex,
     left: `${leftPct}%` as ViewStyle['left'],
     width: `${widthPct}%` as ViewStyle['width'],
-    opacity: dimmed ? 0.35 : 1,
+    opacity: dimmed ? 0.35 : taskDone ? 0.55 : 1,
   };
 
   return (
@@ -76,20 +74,27 @@ function TimeGridEventImpl({ event, top, height, leftPct, widthPct, zIndex, hour
           },
         ]}
       >
-        {durationMin < 30 ? (
-          <Typography variant="body2" weight="600" color={ink.text} style={{ fontSize: titleSize, lineHeight: Math.round(titleSize * 1.25) }} numberOfLines={1}>
-            {event.title}
-          </Typography>
-        ) : (
-          <>
-            <Typography variant="body2" weight="600" color={ink.text} style={{ fontSize: titleSize, lineHeight: Math.round(titleSize * 1.25) }} numberOfLines={2}>
-              {event.title}
-            </Typography>
-            <Typography color={ink.subtext} weight="400" style={{ fontSize: timeSize, lineHeight: Math.round(timeSize * 1.25) }} numberOfLines={1}>
-              {formatTime(event.start)}–{formatTime(event.end)}
-            </Typography>
-          </>
-        )}
+        <View style={styles.cardRow}>
+          {isTask && taskDone && (
+            <SquareCheck size={Math.max(13, titleSize + 1)} color={ink.text} />
+          )}
+          <View style={styles.cardText}>
+            {durationMin < 30 ? (
+              <Typography variant="body2" weight="600" color={ink.text} style={[{ fontSize: titleSize, lineHeight: Math.round(titleSize * 1.25) }, taskDone && styles.doneText]} numberOfLines={1}>
+                {event.title}
+              </Typography>
+            ) : (
+              <>
+                <Typography variant="body2" weight="600" color={ink.text} style={[{ fontSize: titleSize, lineHeight: Math.round(titleSize * 1.25) }, taskDone && styles.doneText]} numberOfLines={2}>
+                  {event.title}
+                </Typography>
+                <Typography color={ink.subtext} weight="400" style={{ fontSize: timeSize, lineHeight: Math.round(timeSize * 1.25) }} numberOfLines={1}>
+                  {formatTime(event.start)}–{formatTime(event.end)}
+                </Typography>
+              </>
+            )}
+          </View>
+        </View>
       </View>
     </TouchableOpacity>
   );
@@ -103,4 +108,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     overflow: 'hidden',
   },
+  cardRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 3 },
+  cardText: { flex: 1 },
+  doneText: { textDecorationLine: 'line-through' },
 });
