@@ -4,9 +4,16 @@ import { useTranslation } from 'react-i18next';
 import { useAccountStore } from '@/stores/accountStore';
 import { useActiveAccount } from '@/hooks/useAccounts';
 import { useCalendars } from '@/hooks/useCalendars';
-import { useCalendarStore } from '@/stores/calendarStore';
+import {
+  type MonthWidgetCardStyle,
+  type MonthWidgetDayTap,
+  type MonthWidgetFontSize,
+  type MonthWidgetFontWeight,
+  type MonthWidgetTheme,
+  useCalendarStore,
+} from '@/stores/calendarStore';
 import { refreshWidgets } from '@/features/widget';
-import { Divider, Stack, Toggle, Typography } from '@/ui/components';
+import { Divider, Select, Stack, Toggle, Typography, type SelectOption } from '@/ui/components';
 
 const cardOuter = { marginHorizontal: 16, marginBottom: 4 };
 
@@ -18,11 +25,42 @@ export function WidgetCalendarSettings() {
   const hiddenCalendarIds = useCalendarStore((s) => s.hiddenCalendarIds);
   const widgetDisabledCalendarIds = useCalendarStore((s) => s.widgetDisabledCalendarIds);
   const toggleWidget = useCalendarStore((s) => s.toggleCalendarWidget);
+  const monthWidgetFontSize = useCalendarStore((s) => s.monthWidgetFontSize);
+  const monthWidgetFontWeight = useCalendarStore((s) => s.monthWidgetFontWeight);
+  const monthWidgetTheme = useCalendarStore((s) => s.monthWidgetTheme);
+  const monthWidgetCardStyle = useCalendarStore((s) => s.monthWidgetCardStyle);
+  const monthWidgetDayTap = useCalendarStore((s) => s.monthWidgetDayTap);
+  const setMonthWidgetFontSize = useCalendarStore((s) => s.setMonthWidgetFontSize);
+  const setMonthWidgetFontWeight = useCalendarStore((s) => s.setMonthWidgetFontWeight);
+  const setMonthWidgetTheme = useCalendarStore((s) => s.setMonthWidgetTheme);
+  const setMonthWidgetCardStyle = useCalendarStore((s) => s.setMonthWidgetCardStyle);
+  const setMonthWidgetDayTap = useCalendarStore((s) => s.setMonthWidgetDayTap);
 
   const setWidget = useCallback((id: string) => {
     toggleWidget(id);
     void refreshWidgets();
   }, [toggleWidget]);
+
+  function setMonthOption<T>(value: T, set: (next: T) => void) {
+    set(value);
+    void refreshWidgets();
+  }
+
+  const fontSizeOptions: SelectOption<MonthWidgetFontSize>[] = (['small', 'normal', 'large', 'xlarge', 'huge'] as const).map((value) => ({
+    value, label: t(`settings.widgets.month.fontSize.${value}`),
+  }));
+  const fontWeightOptions: SelectOption<MonthWidgetFontWeight>[] = (['light', 'normal', 'medium', 'bold', 'black'] as const).map((value) => ({
+    value, label: t(`settings.widgets.month.fontWeight.${value}`),
+  }));
+  const themeOptions: SelectOption<MonthWidgetTheme>[] = (['system', 'light', 'dark'] as const).map((value) => ({
+    value, label: t(`settings.widgets.month.theme.${value}`),
+  }));
+  const cardStyleOptions: SelectOption<MonthWidgetCardStyle>[] = (['card', 'borderless', 'transparent'] as const).map((value) => ({
+    value, label: t(`settings.widgets.month.cardStyle.${value}`),
+  }));
+  const dayTapOptions: SelectOption<MonthWidgetDayTap>[] = (['calendar', 'newEvent'] as const).map((value) => ({
+    value, label: t(`settings.widgets.month.dayTap.${value}`),
+  }));
 
   return (
     <Stack card gap={12} padding={16} hAlign="stretch" style={cardOuter}>
@@ -65,6 +103,24 @@ export function WidgetCalendarSettings() {
           );
         })
       )}
+
+      <Divider />
+
+      <Stack gap={2}>
+        <Typography variant="body1">{t('settings.widgets.month.title')}</Typography>
+        <Typography variant="caption" color="secondary">{t('settings.widgets.month.hint')}</Typography>
+      </Stack>
+
+      <Typography variant="body1">{t('settings.widgets.month.fontSizeLabel')}</Typography>
+      <Select value={monthWidgetFontSize} options={fontSizeOptions} onChange={(value) => setMonthOption(value, setMonthWidgetFontSize)} />
+      <Typography variant="body1">{t('settings.widgets.month.fontWeightLabel')}</Typography>
+      <Select value={monthWidgetFontWeight} options={fontWeightOptions} onChange={(value) => setMonthOption(value, setMonthWidgetFontWeight)} />
+      <Typography variant="body1">{t('settings.widgets.month.themeLabel')}</Typography>
+      <Select value={monthWidgetTheme} options={themeOptions} onChange={(value) => setMonthOption(value, setMonthWidgetTheme)} />
+      <Typography variant="body1">{t('settings.widgets.month.cardStyleLabel')}</Typography>
+      <Select value={monthWidgetCardStyle} options={cardStyleOptions} onChange={(value) => setMonthOption(value, setMonthWidgetCardStyle)} />
+      <Typography variant="body1">{t('settings.widgets.month.dayTapLabel')}</Typography>
+      <Select value={monthWidgetDayTap} options={dayTapOptions} onChange={(value) => setMonthOption(value, setMonthWidgetDayTap)} />
     </Stack>
   );
 }
