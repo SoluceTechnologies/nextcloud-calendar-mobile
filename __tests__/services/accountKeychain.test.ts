@@ -17,7 +17,7 @@ const getItem = SecureStore.getItemAsync as jest.MockedFunction<typeof SecureSto
 const deleteItem = SecureStore.deleteItemAsync as jest.MockedFunction<typeof SecureStore.deleteItemAsync>;
 
 const account = {
-  id: 'acc1', baseUrl: 'https://cloud.example.com', username: 'u', appPassword: 'p',
+  id: 'acc1', baseUrl: 'https://cloud.example.com', username: 'u', appPassword: 'p', davUserId: 'u',
 } as Account;
 
 const AFTER_FIRST_UNLOCK = { keychainAccessible: SecureStore.AFTER_FIRST_UNLOCK };
