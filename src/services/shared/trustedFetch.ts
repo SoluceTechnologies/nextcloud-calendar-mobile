@@ -34,6 +34,14 @@ export class CleartextNotConsentedError extends Error {
     }
 }
 
+/** Raised when the native layer aborts a response exceeding `maxBodyBytes`. */
+export class ResponseTooLargeError extends Error {
+    constructor() {
+        super('Response body exceeds the allowed size limit');
+        this.name = 'ResponseTooLargeError';
+    }
+}
+
 export interface TrustedResponse {
     ok: boolean;
     status: number;
@@ -52,9 +60,16 @@ type Init = {
     method?: string;
     headers?: Record<string, string> | Headers;
     body?: string;
+    /** Binary-safe request body — takes precedence over `body` (which is UTF-8 encoded). */
+    bodyBase64?: string;
     timeoutMs?: number;
     /** Number of retries for transient network/server errors (429/5xx/timeout). Defaults to 0. */
     maxRetries?: number;
+    /**
+     * Abort the response once the decoded body exceeds this many bytes — the
+     * promise rejects with ResponseTooLargeError instead of buffering it all.
+     */
+    maxBodyBytes?: number;
 };
 
 const DEFAULT_TIMEOUT_MS = 20000;
@@ -116,8 +131,9 @@ async function doRequest(
         url,
         method: init.method ?? 'GET',
         headers: toRecord(init.headers),
-        bodyBase64: init.body != null ? utf8ToBase64(init.body) : undefined,
+        bodyBase64: init.bodyBase64 ?? (init.body != null ? utf8ToBase64(init.body) : undefined),
         timeoutMs: init.timeoutMs ?? DEFAULT_TIMEOUT_MS,
+        maxBodyBytes: init.maxBodyBytes,
     });
 }
 
@@ -152,6 +168,9 @@ export async function trustedFetch(url: string, init: Init = {}): Promise<Truste
             }
         } catch (e) {
             if (e instanceof UntrustedCertError) throw e;
+            if ((e as { code?: string }).code === 'RESPONSE_TOO_LARGE') {
+                throw new ResponseTooLargeError();
+            }
 
             lastError = e;
 

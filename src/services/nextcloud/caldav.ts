@@ -397,12 +397,26 @@ export async function fetchEventsForCalendars(
 }
 
 export async function fetchEventIcs(account: Account, href: string): Promise<string> {
+  const { ics } = await fetchEventIcsWithEtag(account, href);
+  return ics;
+}
+
+/**
+ * GETs an event's ICS along with its ETag — pass it to updateEvent so the PUT
+ * carries If-Match and fails instead of overwriting a concurrent change.
+ */
+export async function fetchEventIcsWithEtag(
+  account: Account,
+  href: string,
+): Promise<{ ics: string; etag?: string }> {
   const res = await davFetch(href, account, {
     method: 'GET',
     headers: { Accept: 'text/calendar' },
   });
   if (!res.ok) throw new Error(`fetchEventIcs HTTP ${res.status}`);
-  return res.text();
+  const etag = res.headers.get('etag') ?? undefined;
+  // Weak etags can never satisfy If-Match (strong comparison required).
+  return { ics: await res.text(), etag: etag?.startsWith('W/') ? undefined : etag };
 }
 
 export async function putEvent(
@@ -427,11 +441,15 @@ export async function putEvent(
 export async function updateEvent(
   account: Account,
   href: string,
-  ics: string
+  ics: string,
+  etag?: string
 ): Promise<void> {
   const res = await davFetch(href, account, {
     method: 'PUT',
-    headers: { 'Content-Type': 'text/calendar; charset=utf-8' },
+    headers: {
+      'Content-Type': 'text/calendar; charset=utf-8',
+      ...(etag ? { 'If-Match': etag } : {}),
+    },
     body: ics,
   });
   if (!res.ok) {
@@ -510,10 +528,11 @@ export async function fetchEventsByHrefs(
     const items: { ics: string; href: string }[] = [];
     for (const chunk of splitResponses(xml)) {
       const hrefMatch = chunk.match(/<d:href>([^<]+)<\/d:href>/);
-      if (hrefMatch?.[1]) returnedHrefs.add(absUrl(account, hrefMatch[1]));
       const dataMatch = chunk.match(/<cal:calendar-data[^>]*>([\s\S]*?)<\/cal:calendar-data>/);
       if (dataMatch?.[1] && hrefMatch?.[1]) {
-        items.push({ ics: decodeXmlEntities(dataMatch[1].trim()), href: absUrl(account, hrefMatch[1]) });
+        const href = absUrl(account, hrefMatch[1]);
+        items.push({ ics: decodeXmlEntities(dataMatch[1].trim()), href });
+        returnedHrefs.add(href);
       }
     }
 
