@@ -58,14 +58,31 @@ interface EventIndex {
   byKey: Map<string, CalendarEvent[]>;
 }
 
+/** Safety bound so a pathological span cannot loop forever; buckets outside the
+ *  queried window are simply unused. */
+const MAX_COVERED_DAYS = 400;
+
 function indexEvents(events: CalendarEvent[], tz: string): EventIndex {
   const dayKey = fmt('dayKey', undefined, tz);
   const byKey = new Map<string, CalendarEvent[]>();
   for (const e of events) {
-    const key = dayKey.format(e.dtstart);
-    const bucket = byKey.get(key);
-    if (bucket) bucket.push(e);
-    else byKey.set(key, [e]);
+    // Bucket the event under every day it covers, not just its start day, so
+    // multi-day events keep showing after their first day (#327). For all-day
+    // events `dtend` is already the last covered day's midnight (inclusive
+    // convention); for timed events it is the real end instant, so subtract 1ms
+    // to avoid spilling into the following day when it ends at midnight.
+    const lastCoveredMs = e.allDay ? e.dtend.getTime() : e.dtend.getTime() - 1;
+    const lastCovered = new Date(Math.max(e.dtstart.getTime(), lastCoveredMs));
+    const endKey = dayKey.format(lastCovered);
+    let cursor = new Date(e.dtstart.getTime());
+    for (let i = 0; i < MAX_COVERED_DAYS; i++) {
+      const key = dayKey.format(cursor);
+      const bucket = byKey.get(key);
+      if (bucket) bucket.push(e);
+      else byKey.set(key, [e]);
+      if (key >= endKey) break;
+      cursor = nextZonedMidnight(cursor, tz);
+    }
   }
   for (const bucket of byKey.values()) {
     bucket.sort((a, b) => a.dtstart.getTime() - b.dtstart.getTime());
