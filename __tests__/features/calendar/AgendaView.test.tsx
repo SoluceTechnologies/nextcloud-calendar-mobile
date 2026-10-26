@@ -8,7 +8,7 @@ const render = (ui: React.ReactElement) => rtlRender(ui, { wrapper: ThemeWrapper
 
 function renderAgenda() {
   const ref = createRef<AgendaViewHandle>();
-  render(
+  const screen = render(
     <AgendaView
       ref={ref}
       events={[]}
@@ -17,8 +17,10 @@ function renderAgenda() {
       onPressCell={jest.fn()}
     />,
   );
-  return ref;
+  return { ref, list: screen.UNSAFE_getByType(FlatList) };
 }
+
+const scrollEventAt = (y: number) => ({ nativeEvent: { contentOffset: { x: 0, y } } });
 
 describe('AgendaView scrollToToday', () => {
   let scrollSpy: jest.SpyInstance;
@@ -32,7 +34,7 @@ describe('AgendaView scrollToToday', () => {
   });
 
   it('collapses a double-press into a single scroll (#348)', () => {
-    const ref = renderAgenda();
+    const { ref } = renderAgenda();
 
     ref.current!.scrollToToday();
     ref.current!.scrollToToday();
@@ -42,7 +44,7 @@ describe('AgendaView scrollToToday', () => {
   });
 
   it('scrolls again once the guard window has passed', () => {
-    const ref = renderAgenda();
+    const { ref } = renderAgenda();
     const nowSpy = jest.spyOn(Date, 'now');
     let now = 1_000_000;
     nowSpy.mockImplementation(() => now);
@@ -54,5 +56,50 @@ describe('AgendaView scrollToToday', () => {
     } finally {
       nowSpy.mockRestore();
     }
+  });
+
+  it('re-issues the jump while the reported position is off-target (#348)', () => {
+    const { ref, list } = renderAgenda();
+
+    ref.current!.scrollToToday();
+    expect(scrollSpy).toHaveBeenCalledTimes(1);
+
+    // The list reports it never landed (dropped scroll or residual momentum)
+    list.props.onScroll(scrollEventAt(0));
+    expect(scrollSpy).toHaveBeenCalledTimes(2);
+
+    list.props.onScroll(scrollEventAt(0));
+    expect(scrollSpy).toHaveBeenCalledTimes(3);
+
+    // Settle the pending jump so the scheduled check can't fire into the next test
+    list.props.onScroll(scrollEventAt(scrollSpy.mock.calls[0][0].offset));
+  });
+
+  it('stops re-issuing once the target offset is reached', () => {
+    const { ref, list } = renderAgenda();
+
+    ref.current!.scrollToToday();
+    const targetY = scrollSpy.mock.calls[0][0].offset;
+
+    list.props.onScroll(scrollEventAt(0));
+    expect(scrollSpy).toHaveBeenCalledTimes(2);
+
+    // Landed: further scroll events must not trigger more jumps
+    list.props.onScroll(scrollEventAt(targetY));
+    list.props.onScroll(scrollEventAt(0));
+    expect(scrollSpy).toHaveBeenCalledTimes(2);
+  });
+
+  it('yields to the user when they grab the list mid-jump', () => {
+    const { ref, list } = renderAgenda();
+
+    ref.current!.scrollToToday();
+    expect(scrollSpy).toHaveBeenCalledTimes(1);
+
+    list.props.onScrollBeginDrag();
+    list.props.onScroll(scrollEventAt(0));
+    list.props.onScrollEndDrag();
+
+    expect(scrollSpy).toHaveBeenCalledTimes(1);
   });
 });

@@ -1,4 +1,4 @@
-import { memo, useRef, useCallback, useMemo, useLayoutEffect, forwardRef, useImperativeHandle } from 'react';
+import { memo, useRef, useCallback, useMemo, useLayoutEffect, useEffect, forwardRef, useImperativeHandle } from 'react';
 import {
   View, Text, FlatList, TouchableOpacity, StyleSheet, type ViewToken,
   type NativeScrollEvent, type NativeSyntheticEvent,
@@ -28,6 +28,8 @@ const HEADER_HEIGHT = 57;
 const EVENT_ROW_HEIGHT = 72;
 
 const TODAY_JUMP_GUARD_MS = 500;
+const JUMP_VERIFY_WINDOW_MS = 1200;
+const JUMP_CHECK_DELAY_MS = 120;
 
 interface DayHeaderProps {
   sectionDate: Date;
@@ -169,15 +171,68 @@ const AgendaViewImpl = forwardRef<AgendaViewHandle, Props>(function AgendaView(
   const userScrollingRef = useRef(false);
   const onUserScrollStart = useCallback(() => { userScrollingRef.current = true; }, []);
   const onUserScrollEnd = useCallback(() => { userScrollingRef.current = false; }, []);
+
+  const pendingJumpRef = useRef<{ key: string; expiresAt: number } | null>(null);
+  const jumpTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const offsetForKey = useCallback((key: string): number | null => {
+    const { rows: r, offsets: o } = layoutRef.current;
+    const idx = r.findIndex((row) => row.type === 'header' && row.key === key);
+    return idx >= 0 ? o[idx] : null;
+  }, []);
+
+  const issuePendingJump = useCallback(() => {
+    const pending = pendingJumpRef.current;
+    if (!pending || userScrollingRef.current) return;
+    const target = offsetForKey(pending.key);
+    if (target == null) {
+      pendingJumpRef.current = null;
+      return;
+    }
+    anchorRef.current = { key: pending.key, delta: 0 };
+    listRef.current?.scrollToOffset({ offset: target, animated: false });
+  }, [offsetForKey]);
+
+  const scheduleJumpCheck = useCallback(() => {
+    if (jumpTimerRef.current) return;
+    jumpTimerRef.current = setTimeout(() => {
+      jumpTimerRef.current = null;
+      const pending = pendingJumpRef.current;
+      if (!pending) return;
+      const target = offsetForKey(pending.key);
+      const landed = target != null && Math.abs(scrollYRef.current - target) < 2;
+      if (landed || userScrollingRef.current || Date.now() > pending.expiresAt) {
+        pendingJumpRef.current = null;
+        return;
+      }
+      issuePendingJump();
+      scheduleJumpCheck();
+    }, JUMP_CHECK_DELAY_MS);
+  }, [offsetForKey, issuePendingJump]);
+
+  useEffect(() => () => {
+    if (jumpTimerRef.current) clearTimeout(jumpTimerRef.current);
+  }, []);
+
   const onScroll = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
     const y = e.nativeEvent.contentOffset.y;
     scrollYRef.current = y;
+    const pending = pendingJumpRef.current;
+    if (pending) {
+      const target = offsetForKey(pending.key);
+      if (userScrollingRef.current || target == null || Math.abs(y - target) < 2 || Date.now() > pending.expiresAt) {
+        pendingJumpRef.current = null;
+      } else {
+        issuePendingJump();
+        return;
+      }
+    }
     if (!userScrollingRef.current) return;
     const { rows: r, offsets: o } = layoutRef.current;
     let i = upperBound(o, y) - 1;
     while (i > 0 && r[i].type !== 'header') i--;
     if (r[i]) anchorRef.current = { key: r[i].key, delta: y - o[i] };
-  }, []);
+  }, [offsetForKey, issuePendingJump]);
 
   useLayoutEffect(() => {
     layoutRef.current = { rows, offsets };
@@ -191,21 +246,21 @@ const AgendaViewImpl = forwardRef<AgendaViewHandle, Props>(function AgendaView(
   }, [rows, offsets]);
 
   const initialIndexRef = useRef(todayIndex);
-  const todayRef = useRef({ key: todayKey, y: offsets[todayIndex] ?? 0 });
-  todayRef.current = { key: todayKey, y: offsets[todayIndex] ?? 0 };
+  const todayKeyRef = useRef(todayKey);
+  todayKeyRef.current = todayKey;
   const lastJumpAtRef = useRef(0);
+
   useImperativeHandle(ref, () => ({
     scrollToToday: () => {
       const now = Date.now();
       if (now - lastJumpAtRef.current < TODAY_JUMP_GUARD_MS) return;
       lastJumpAtRef.current = now;
-      const { key, y } = todayRef.current;
       userScrollingRef.current = false;
-      anchorRef.current = { key, delta: 0 };
-      scrollYRef.current = y;
-      listRef.current?.scrollToOffset({ offset: y, animated: false });
+      pendingJumpRef.current = { key: todayKeyRef.current, expiresAt: now + JUMP_VERIFY_WINDOW_MS };
+      issuePendingJump();
+      scheduleJumpCheck();
     },
-  }), []);
+  }), [issuePendingJump, scheduleJumpCheck]);
 
   const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 50 });
   const onVisibleRef = useRef(onVisibleDateChange);
