@@ -84,6 +84,8 @@
     "allDay": "Jorn entièr",
     "start": "Debuta",
     "end": "Fin",
+    "timezone": "Fus orari",
+    "timezoneSearch": "Recercar un fus orari",
     "location": "Luòc",
     "locationPlaceholder": "Sala o adreça",
     "description": "Descripcion",
