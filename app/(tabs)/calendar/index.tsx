@@ -209,7 +209,14 @@ export default function CalendarScreen() {
       {showFullOverlay && <CalendarLoadingOverlay label={t('calendar.loadingCalendar')} />}
       {showSmallLoader && <Spinner size="small" color="secondary" style={styles.smallLoader} />}
 
-      <CalendarFab onPress={() => navGuard(() => router.push('/event/new'))} />
+      <CalendarFab
+        onPress={() => navGuard(() => router.push({
+          pathname: '/event/new',
+          // Seed the form with the date the user is looking at, not always
+          // "now" — same source as the header title (#364).
+          params: { date: (viewMode === 'schedule' ? agendaVisibleDate : date).toISOString() },
+        }))}
+      />
 
       <CalendarDrawer
         open={drawer.drawerOpen}
