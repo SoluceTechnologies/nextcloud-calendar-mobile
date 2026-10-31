@@ -470,9 +470,6 @@ export async function deleteEvent(
 
 export const MULTIGET_BATCH = 50;
 
-// REPORT <d:href> elements must carry the server-root absolute path. On
-// subdirectory installs (https://host/nextcloud) stripping baseUrl would drop
-// the /nextcloud prefix, so slice the origin instead (#351).
 function toPath(absHref: string): string {
   try {
     return new URL(absHref).pathname;
