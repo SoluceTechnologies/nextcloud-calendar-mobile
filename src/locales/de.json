@@ -231,7 +231,44 @@
       "title": "Widgets",
       "calendars": "Kalender in Widgets",
       "calendarsHint": "Wählen Sie, welche Kalender auf den Startbildschirm-Widgets und der Live-Aktivität erscheinen.",
-      "calendarHidden": "Aus der Agenda ausgeblendet"
+      "calendarHidden": "Aus der Agenda ausgeblendet",
+      "month": {
+        "title": "Month widget",
+        "hint": "Controls the large month-grid widget on your home screen.",
+        "fontSizeLabel": "Font size",
+        "fontWeightLabel": "Font weight",
+        "themeLabel": "Theme",
+        "cardStyleLabel": "Card style",
+        "dayTapLabel": "Tap a day",
+        "fontSize": {
+          "small": "Small (85%)",
+          "normal": "Normal (100%)",
+          "large": "Large (125% - Recommended)",
+          "xlarge": "Extra Large (150%)",
+          "huge": "Huge (175%)"
+        },
+        "fontWeight": {
+          "light": "Light",
+          "normal": "Normal",
+          "medium": "Medium",
+          "bold": "Bold",
+          "black": "Black"
+        },
+        "theme": {
+          "system": "System",
+          "light": "Light",
+          "dark": "Dark"
+        },
+        "cardStyle": {
+          "card": "Rounded card",
+          "borderless": "Square",
+          "transparent": "Transparent"
+        },
+        "dayTap": {
+          "calendar": "Open that day in Calendar",
+          "newEvent": "Create an event on that day"
+        }
+      }
     },
     "alerts": {
       "timed": "Standarderinnerung",
