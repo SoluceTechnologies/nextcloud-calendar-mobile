@@ -254,12 +254,10 @@ export async function syncEvents(
 }
 
 const DELTA_SYNC_MIN_INTERVAL_MS = 10_000;
-// Per calendar, not per account: a calendar that just appeared (calendar list refreshed after the
-// first sync of the session) must not wait for the others' throttle to expire.
+
 const lastDeltaSyncAt = new Map<string, number>();
 const deltaKey = (account: Account, calendar: CalendarMeta) => `${account.id}\n${calendar.url}`;
 
-/** Test-only: reset the throttle between syncVisibleRange calls. */
 export function resetDeltaSyncThrottle(): void {
     lastDeltaSyncAt.clear();
 }
@@ -281,8 +279,6 @@ export async function syncVisibleRange(
     const throttled = (c: CalendarMeta) =>
         now - (lastDeltaSyncAt.get(deltaKey(account, c)) ?? 0) < DELTA_SYNC_MIN_INTERVAL_MS;
 
-    // App-generated calendars (Deck boards, …) are Nextcloud ExternalCalendars:
-    // no sync token, so sync-collection answers 415 — range fetch only.
     const rangeOnly = (c: CalendarMeta) => c.isSubscribed || c.url.includes('/app-generated--');
     const deltaCals = inHorizon ? calendars.filter((c) => !rangeOnly(c) && !throttled(c)) : [];
     const fullCals = calendars.filter((c) => rangeOnly(c) || !inHorizon);
@@ -295,9 +291,6 @@ export async function syncVisibleRange(
 
     for (const i of fulfilledIndexes) lastDeltaSyncAt.set(deltaKey(account, deltaCals[i]), now);
 
-    // Calendars whose sync-collection failed still get the plain range fetch —
-    // otherwise a server that rejects sync-collection leaves the window stale
-    // forever (e.g. only ~2 months of events shown, #308).
     const fulfilled = new Set(fulfilledIndexes);
     const rangeCals = fullCals.concat(deltaCals.filter((_, i) => !fulfilled.has(i)));
 
