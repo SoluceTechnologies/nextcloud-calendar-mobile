@@ -59,9 +59,6 @@ export const EventForm = forwardRef<EventFormHandle, Props>(function EventForm({
   const language = useSettingsStore((s) => s.language);
   const twoColDates = useWindowDimensions().width >= 600;
 
-  // The iOS wheel picker ignores is24Hour; its hour cycle follows the picker
-  // locale's region. For an explicit 12h/24h choice we pin a matching region
-  // while keeping the app language for labels. 'auto' uses the device region.
   const iosPickerLocale = timeFormat === 'auto'
     ? getNativePickerLocale(language)
     : `${language}-${use24h ? 'GB' : 'US'}`;
@@ -128,8 +125,7 @@ export const EventForm = forwardRef<EventFormHandle, Props>(function EventForm({
       setDtend(allDay ? d : dayjs(d).add(1, 'hour').toDate());
       return;
     }
-    // Moving the start shifts the end by the same amount so the duration is
-    // preserved — repeated start edits must keep tracking it (#352).
+
     const duration = dtend.getTime() - dtstart.getTime();
     setDtstart(d);
     setDtend((prevEnd) => {
