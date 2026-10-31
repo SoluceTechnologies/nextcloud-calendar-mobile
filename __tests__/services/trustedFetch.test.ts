@@ -20,7 +20,6 @@ function mockSequence(responses: unknown[]) {
 describe('trustedFetch', () => {
   afterEach(() => {
     jest.clearAllMocks();
-    // Reset the mock implementation queue so mockResolvedValueOnce does not leak between tests.
     (TlsTrust.request as jest.Mock).mockReset();
   });
 
@@ -32,7 +31,7 @@ describe('trustedFetch', () => {
       bodyBase64: b64('<xml/>'),
     });
     const res = await trustedFetch('https://h/dav', { method: 'PROPFIND' });
-    expect(res.ok).toBe(true); // 207 Multi-Status is within 200-299
+    expect(res.ok).toBe(true);
     expect(res.status).toBe(207);
     expect(res.headers.get('Content-Type')).toBe('application/xml');
     expect(await res.text()).toBe('<xml/>');
@@ -209,8 +208,6 @@ describe('native request watchdog', () => {
   });
 
   it('still honours a native response that arrives within the grace window', async () => {
-    // The native timeout is the primary guard; the JS watchdog is only a
-    // last-resort bound, so a late-but-settling promise must still win.
     req.mockImplementationOnce(
       () =>
         new Promise((resolve) =>

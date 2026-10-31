@@ -60,10 +60,6 @@ type Init = {
 const DEFAULT_TIMEOUT_MS = 20000;
 const BASE_RETRY_DELAY_MS = 500;
 const MAX_RETRY_DELAY_MS = 8000;
-// Extra headroom over the native timeoutMs before the JS watchdog fires.
-// The native promise can outlive its timeout (e.g. abandoned coroutine after
-// backgrounding) — without a JS-side bound, a single request can hang a sync
-// forever (#358-class).
 const NATIVE_WATCHDOG_GRACE_MS = 5000;
 
 function toRecord(h?: Record<string, string> | Headers): Record<string, string> {
