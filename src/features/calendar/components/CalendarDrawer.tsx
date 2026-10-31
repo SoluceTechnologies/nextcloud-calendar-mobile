@@ -7,7 +7,7 @@ import { useTheme } from 'expo-router';
 
 import { AvatarImage } from '@/components/AvatarImage';
 import { AccountSwitcher } from '@/features/account/components/AccountSwitcher';
-import { Item, List, SectionHeader, Stack, Typography } from '@/ui/components';
+import { Item, List, SectionHeader, Stack, Toggle, Typography } from '@/ui/components';
 import type { Account, CalendarMeta } from '@/types';
 
 import { CalendarDrawerRow } from './CalendarDrawerRow';
@@ -124,6 +124,7 @@ export function CalendarDrawer({
               ))}
             </List>
           )}
+
         </ScrollView>
       </Animated.View>
     </>
