@@ -1,5 +1,5 @@
 import { syncCalendarDelta, syncEvents, markLocalWrite } from '../../src/database/sync';
-import { syncCollection, fetchEventsByHrefs, fetchEventsForCalendars } from '../../src/services/nextcloud/caldav';
+import { syncCollection, fetchEvents, fetchEventsByHrefs, fetchEventsForCalendars } from '../../src/services/nextcloud/caldav';
 import { getDatabaseInstance } from '../../src/database/DatabaseProvider';
 import type { Account, CalendarMeta, CalendarEvent } from '../../src/types';
 
@@ -10,6 +10,7 @@ jest.mock('../../src/database/utils/safeTransaction', () => ({
 }));
 
 const mockSyncCollection = syncCollection as jest.Mock;
+const mockFetchEvents = fetchEvents as jest.Mock;
 const mockFetchByHrefs = fetchEventsByHrefs as jest.Mock;
 const mockFetchForCalendars = fetchEventsForCalendars as jest.Mock;
 const mockGetDb = getDatabaseInstance as jest.Mock;
@@ -33,8 +34,11 @@ const calendar: CalendarMeta = {
   slug: 'work',
 };
 
-function makeRow(href: string) {
-  return { href, prepareMarkAsDeleted: jest.fn(() => ({ _op: 'del', href })) };
+function makeRow(href: string, start?: number, end?: number) {
+  // Default window: inside the ±18-month expansion horizon around today.
+  const s = start ?? new Date('2026-07-01T09:00:00Z').getTime();
+  const e = end ?? new Date('2026-07-01T10:00:00Z').getTime();
+  return { href, start: s, end: e, prepareMarkAsDeleted: jest.fn(() => ({ _op: 'del', href })) };
 }
 
 function evt(href: string): CalendarEvent {
@@ -87,35 +91,46 @@ const tokenRow = () => ({ syncToken: 'tok', expandedCenter: Date.now(), prepareU
 beforeEach(() => jest.clearAllMocks());
 
 describe('syncCalendarDelta — non-destructive guards', () => {
-  it('does NOT wipe when a full sync enumerates hrefs but the multiget returns nothing', async () => {
+  it('throws and writes nothing when the first-sync window fetch fails', async () => {
     mockSyncCollection.mockResolvedValue({ changed: ['h1', 'h2'], deleted: [], newToken: 't2', reset: false });
-    mockFetchByHrefs.mockResolvedValue({ events: [], returnedHrefs: new Set() });
+    mockFetchEvents.mockRejectedValue(new Error('fetchEvents HTTP 500'));
     const existing = [makeRow('h1'), makeRow('h2')];
     const { db, batch } = makeDb({ calendarRow: noTokenRow(), eventRows: existing });
     mockGetDb.mockReturnValue(db);
 
-    await expect(syncCalendarDelta(account, calendar)).rejects.toThrow(/multiget/);
+    await expect(syncCalendarDelta(account, calendar)).rejects.toThrow(/fetchEvents/);
 
     expect(batch).not.toHaveBeenCalled();
     existing.forEach((r) => expect(r.prepareMarkAsDeleted).not.toHaveBeenCalled());
   });
 
-  it('does NOT delete when a full sync multiget returns fewer objects than expected', async () => {
+  it('bounds the first sync to the expansion window instead of multigetting history', async () => {
     mockSyncCollection.mockResolvedValue({ changed: ['h1', 'h2', 'h3'], deleted: [], newToken: 't2', reset: false });
-    mockFetchByHrefs.mockResolvedValue({ events: [evt('h1')], returnedHrefs: new Set(['h1']) });
-    const h1 = makeRow('h1');
-    const h2 = makeRow('h2');
-    const h3 = makeRow('h3');
-    const { db, batch, prepareCreate } = makeDb({ calendarRow: noTokenRow(), eventRows: [h1, h2, h3] });
+    mockFetchEvents.mockResolvedValue([evt('h1'), evt('h2')]);
+    const { db, batch, prepareCreate } = makeDb({ calendarRow: noTokenRow(), eventRows: [] });
     mockGetDb.mockReturnValue(db);
 
-    await expect(syncCalendarDelta(account, calendar)).rejects.toThrow(/multiget/);
+    await syncCalendarDelta(account, calendar);
 
-    expect(batch).not.toHaveBeenCalled();
-    expect(h1.prepareMarkAsDeleted).not.toHaveBeenCalled();
-    expect(h2.prepareMarkAsDeleted).not.toHaveBeenCalled();
-    expect(h3.prepareMarkAsDeleted).not.toHaveBeenCalled();
-    expect(prepareCreate).not.toHaveBeenCalled();
+    expect(mockFetchByHrefs).not.toHaveBeenCalled();
+    expect(mockFetchEvents).toHaveBeenCalledTimes(1);
+    const [, , rangeStart, rangeEnd] = mockFetchEvents.mock.calls[0];
+    expect(rangeEnd.getTime() - rangeStart.getTime()).toBeGreaterThan(300 * 24 * 3600 * 1000);
+    expect(prepareCreate).toHaveBeenCalledTimes(2);
+    expect(batch).toHaveBeenCalled();
+  });
+
+  it('keeps the multiget path for a token-backed delta sync', async () => {
+    mockSyncCollection.mockResolvedValue({ changed: ['h1'], deleted: [], newToken: 't2', reset: false });
+    mockFetchByHrefs.mockResolvedValue({ events: [evt('h1')], returnedHrefs: new Set(['h1']) });
+    const { db, batch } = makeDb({ calendarRow: tokenRow(), eventRows: [] });
+    mockGetDb.mockReturnValue(db);
+
+    await syncCalendarDelta(account, calendar);
+
+    expect(mockFetchByHrefs).toHaveBeenCalledTimes(1);
+    expect(mockFetchEvents).not.toHaveBeenCalled();
+    expect(batch).toHaveBeenCalled();
   });
 
   it('does NOT delete when a delta sync multiget returns fewer objects than expected', async () => {
@@ -134,25 +149,45 @@ describe('syncCalendarDelta — non-destructive guards', () => {
     expect(prepareCreate).not.toHaveBeenCalled();
   });
 
-  it('does NOT delete existing rows when a full sync enumerates zero members (untrusted empty)', async () => {
+  it('first sync: an authoritative empty window clears in-window stale rows', async () => {
     mockSyncCollection.mockResolvedValue({ changed: [], deleted: [], newToken: 't2', reset: false });
-    mockFetchByHrefs.mockResolvedValue({ events: [], returnedHrefs: new Set() });
+    mockFetchEvents.mockResolvedValue([]);
     const existing = [makeRow('h1')];
     const { db, batch } = makeDb({ calendarRow: noTokenRow(), eventRows: existing });
     mockGetDb.mockReturnValue(db);
 
     await syncCalendarDelta(account, calendar);
 
-    expect(existing[0].prepareMarkAsDeleted).not.toHaveBeenCalled();
+    expect(existing[0].prepareMarkAsDeleted).toHaveBeenCalled();
     expect(batch).toHaveBeenCalled();
   });
 
-  it('full sync reconcile: replaces fetched hrefs and removes stale ones', async () => {
-    mockSyncCollection.mockResolvedValue({ changed: ['h1', 'h2'], deleted: [], newToken: 't2', reset: false });
-    mockFetchByHrefs.mockResolvedValue({ events: [evt('h1'), evt('h2')], returnedHrefs: new Set(['h1', 'h2']) });
+  it('first sync: keeps out-of-window rows and drops in-window rows the server no longer has', async () => {
+    mockSyncCollection.mockResolvedValue({ changed: [], deleted: [], newToken: 't2', reset: false });
+    mockFetchEvents.mockResolvedValue([evt('h1')]);
+    const staleIn = makeRow('h-stale');
+    const staleOut = makeRow(
+      'h-out',
+      new Date('2019-01-01T00:00:00Z').getTime(),
+      new Date('2019-01-01T01:00:00Z').getTime(),
+    );
+    const { db, batch } = makeDb({ calendarRow: noTokenRow(), eventRows: [staleIn, staleOut] });
+    mockGetDb.mockReturnValue(db);
+
+    await syncCalendarDelta(account, calendar);
+
+    expect(staleIn.prepareMarkAsDeleted).toHaveBeenCalled();
+    expect(staleOut.prepareMarkAsDeleted).not.toHaveBeenCalled();
+    expect(batch).toHaveBeenCalled();
+  });
+
+  it('first sync reconcile: refreshes in-window rows and stores the new token', async () => {
+    mockSyncCollection.mockResolvedValue({ changed: [], deleted: [], newToken: 't2', reset: false });
+    mockFetchEvents.mockResolvedValue([evt('h1'), evt('h2')]);
     const h1old = makeRow('h1');
     const h3stale = makeRow('h3');
-    const { db, batch, prepareCreate } = makeDb({ calendarRow: noTokenRow(), eventRows: [h1old, h3stale] });
+    const row = noTokenRow();
+    const { db, batch, prepareCreate } = makeDb({ calendarRow: row, eventRows: [h1old, h3stale] });
     mockGetDb.mockReturnValue(db);
 
     await syncCalendarDelta(account, calendar);
@@ -160,6 +195,7 @@ describe('syncCalendarDelta — non-destructive guards', () => {
     expect(h1old.prepareMarkAsDeleted).toHaveBeenCalled();
     expect(h3stale.prepareMarkAsDeleted).toHaveBeenCalled();
     expect(prepareCreate).toHaveBeenCalledTimes(2);
+    expect(row.prepareUpdate).toHaveBeenCalled();
     expect(batch).toHaveBeenCalled();
   });
 
@@ -216,6 +252,22 @@ describe('syncCalendarDelta — non-destructive guards', () => {
       return { events: [evt('h1')], returnedHrefs: new Set(['h1']) };
     });
     const row = tokenRow();
+    const { db, batch } = makeDb({ calendarRow: row, eventRows: [] });
+    mockGetDb.mockReturnValue(db);
+
+    await syncCalendarDelta(account, calendar);
+
+    expect(batch).not.toHaveBeenCalled();
+    expect(row.prepareUpdate).not.toHaveBeenCalled();
+  });
+
+  it('aborts the first-sync write when a local change lands during the window fetch', async () => {
+    mockSyncCollection.mockResolvedValue({ changed: [], deleted: [], newToken: 't6', reset: false });
+    mockFetchEvents.mockImplementation(async () => {
+      markLocalWrite();
+      return [evt('h1')];
+    });
+    const row = noTokenRow();
     const { db, batch } = makeDb({ calendarRow: row, eventRows: [] });
     mockGetDb.mockReturnValue(db);
 
