@@ -57,9 +57,10 @@ export function prepareDevice(): () => void {
   const before = keys.map((key) => adb(['shell', 'settings', 'get', 'global', key]).trim());
   for (const key of keys) adb(['shell', 'settings', 'put', 'global', key, DEVICE_SETTINGS[key]]);
   adb(['shell', 'am', 'broadcast', '-a', 'android.intent.action.CLOSE_SYSTEM_DIALOGS']);
+  // Unset key → put the default 1: `settings delete` leaves WindowManager's in-memory scale at 0 until reboot.
   return () => keys.forEach((key, i) => {
     if (!before[i]) return;
-    adb(['shell', 'settings', ...(before[i] === 'null' ? ['delete', 'global', key] : ['put', 'global', key, before[i]])]);
+    adb(['shell', 'settings', 'put', 'global', key, before[i] === 'null' ? '1' : before[i]]);
   });
 }
 

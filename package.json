@@ -1,6 +1,6 @@
 {
   "name": "nextcloud-calendar",
-  "version": "1.8.0",
+  "version": "1.9.2",
   "main": "expo-router/entry",
   "expo": {
     "autolinking": {
@@ -73,7 +73,6 @@
     "react-native-svg": "15.15.4",
     "react-native-webview": "15.0.0",
     "react-native-worklets": "0.10.0",
-    "react-native-worklets-core": "^1.6.3",
     "tsdav": "^2.2.0",
     "zustand": "^5.0.12"
   },

@@ -9,7 +9,7 @@ if (![major, minor, patch].every(Number.isInteger)) {
     );
 }
 
-const versionCode = 10800;
+const versionCode = 10902;
 
 if (versionCode !== major * 10000 + minor * 100 + patch) {
     throw new Error(
@@ -51,6 +51,7 @@ const config: ExpoConfig = {
     android: {
         package: 'com.soluce.nextcloudcalendar',
         versionCode,
+        permissions: ['USE_EXACT_ALARM', 'SCHEDULE_EXACT_ALARM'],
         adaptiveIcon: {
             foregroundImage: './assets/adaptive-icon.png',
             backgroundColor: '#109be6',
@@ -72,6 +73,16 @@ const config: ExpoConfig = {
     plugins: [
         './plugins/withAndroidNetworkSecurityConfig',
         './plugins/withAndroidMultiDisplay',
+        [
+            'expo-build-properties',
+            {
+                android: {
+                    enableMinifyInReleaseBuilds: true,
+                    enableShrinkResourcesInReleaseBuilds: true,
+                    extraProguardRules: '-keep class expo.modules.adapters.react.apploader.RNHeadlessAppLoader { *; }',
+                },
+            },
+        ],
         '@morrowdigital/watermelondb-expo-plugin',
         '@react-native-community/datetimepicker',
         'expo-router',

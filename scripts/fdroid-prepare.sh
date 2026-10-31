@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+ABI="${1:?usage: fdroid-prepare.sh <abi>  (armeabi-v7a | arm64-v8a)}"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 STUB_REPO='https://gitlab.com/freed-by-fdroid/firebase-stubs.git'
@@ -49,4 +50,16 @@ grep -q '"buildFromSource"' package.json
 rm -rf node_modules/expo-dev-client node_modules/expo-dev-launcher \
        node_modules/expo-dev-menu node_modules/expo-dev-menu-interface
 
-echo "F-Droid variant prepared"
+yarn expo prebuild --platform android --no-install
+
+# Later keys win: these override the prebuild defaults. Low memory and worker limits fit the F-Droid build server.
+cat >> android/gradle.properties <<EOF
+
+org.gradle.jvmargs=-Xmx3g -Dfile.encoding=UTF-8
+org.gradle.workers.max=2
+org.gradle.parallel=false
+reactNativeArchitectures=$ABI
+expo.useLegacyPackaging=true
+EOF
+
+echo "F-Droid variant prepared ($ABI)"
