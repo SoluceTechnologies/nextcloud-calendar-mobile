@@ -347,11 +347,6 @@ export async function syncCalendarDelta(account: Account, calendar: CalendarMeta
     const fullSync = result.reset || forceFull || !storedToken;
 
     if (fullSync) {
-        // sync-collection with an empty token only lists every href ever
-        // created — multigetting them all downloads the entire history.
-        // Fetch just the expansion window via the server-side time-range
-        // instead; the window is all the UI renders and archives can be
-        // arbitrarily large (#358).
         const fetched = await fetchEvents(account, calendar, horizon.start, horizon.end);
 
         const startMs = horizon.start.getTime();
