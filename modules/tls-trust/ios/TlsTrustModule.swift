@@ -31,6 +31,7 @@ public class TlsTrustModule: Module {
       let headers = (params["headers"] as? [String: String]) ?? [:]
       let bodyB64 = params["bodyBase64"] as? String
       let timeoutMs = (params["timeoutMs"] as? Double) ?? 20000
+      let maxBodyBytes = (params["maxBodyBytes"] as? NSNumber)?.intValue ?? -1
 
       var req = URLRequest(url: url)
       req.httpMethod = method
@@ -40,44 +41,14 @@ public class TlsTrustModule: Module {
 
       let hostKey = self.hostKey(url)
       let pinned = self.pinsQueue.sync { self.pins[hostKey] ?? [] }
-      let delegate = TrustDelegate(pinned: pinned)
+      let delegate = TrustDelegate(
+        pinned: pinned,
+        hostKey: hostKey,
+        maxBodyBytes: maxBodyBytes,
+        promise: promise
+      )
       let session = URLSession(configuration: .ephemeral, delegate: delegate, delegateQueue: nil)
-
-      let task = session.dataTask(with: req) { data, response, error in
-        defer { session.finishTasksAndInvalidate() }
-
-        if let untrusted = delegate.untrusted {
-          promise.resolve([
-            "type": "untrusted_cert",
-            "host": hostKey,
-            "sha256": untrusted.sha256,
-            "subject": untrusted.subject,
-            "issuer": untrusted.issuer,
-            "notBefore": untrusted.notBefore,
-            "notAfter": untrusted.notAfter,
-          ])
-          return
-        }
-        if let error = error {
-          promise.reject("REQUEST_FAILED", error.localizedDescription)
-          return
-        }
-        guard let http = response as? HTTPURLResponse else {
-          promise.reject("REQUEST_FAILED", "no response")
-          return
-        }
-        var responseHeaders: [String: String] = [:]
-        for (k, v) in http.allHeaderFields {
-          if let ks = k as? String, let vs = v as? String { responseHeaders[ks] = vs }
-        }
-        promise.resolve([
-          "type": "response",
-          "status": http.statusCode,
-          "headers": responseHeaders,
-          "bodyBase64": (data ?? Data()).base64EncodedString(),
-        ])
-      }
-      task.resume()
+      session.dataTask(with: req).resume()
     }
   }
 
@@ -88,11 +59,77 @@ public class TlsTrustModule: Module {
   }
 }
 
-final class TrustDelegate: NSObject, URLSessionDelegate {
+final class TrustDelegate: NSObject, URLSessionDataDelegate {
   private let pinned: Set<String>
-  var untrusted: UntrustedInfo?
+  private let hostKey: String
+  private let maxBodyBytes: Int
+  private let promise: Promise
+  private var buffer = Data()
+  private var tooLarge = false
+  private var untrusted: UntrustedInfo?
 
-  init(pinned: Set<String>) { self.pinned = pinned }
+  init(pinned: Set<String>, hostKey: String, maxBodyBytes: Int, promise: Promise) {
+    self.pinned = pinned
+    self.hostKey = hostKey
+    self.maxBodyBytes = maxBodyBytes
+    self.promise = promise
+  }
+
+  func urlSession(
+    _ session: URLSession,
+    dataTask: URLSessionDataTask,
+    didReceive data: Data
+  ) {
+    guard !tooLarge else { return }
+    buffer.append(data)
+    if maxBodyBytes >= 0 && buffer.count > maxBodyBytes {
+      tooLarge = true
+      dataTask.cancel()
+    }
+  }
+
+  func urlSession(
+    _ session: URLSession,
+    task: URLSessionTask,
+    didCompleteWithError error: Error?
+  ) {
+    defer { session.finishTasksAndInvalidate() }
+
+    if let untrusted = untrusted {
+      promise.resolve([
+        "type": "untrusted_cert",
+        "host": hostKey,
+        "sha256": untrusted.sha256,
+        "subject": untrusted.subject,
+        "issuer": untrusted.issuer,
+        "notBefore": untrusted.notBefore,
+        "notAfter": untrusted.notAfter,
+      ])
+      return
+    }
+    if tooLarge {
+      promise.reject("RESPONSE_TOO_LARGE", "response body exceeds limit")
+      return
+    }
+    if let error = error {
+      promise.reject("REQUEST_FAILED", error.localizedDescription)
+      return
+    }
+    guard let http = task.response as? HTTPURLResponse else {
+      promise.reject("REQUEST_FAILED", "no response")
+      return
+    }
+    var responseHeaders: [String: String] = [:]
+    for (k, v) in http.allHeaderFields {
+      if let ks = k as? String, let vs = v as? String { responseHeaders[ks] = vs }
+    }
+    promise.resolve([
+      "type": "response",
+      "status": http.statusCode,
+      "headers": responseHeaders,
+      "bodyBase64": buffer.base64EncodedString(),
+    ])
+  }
 
   func urlSession(
     _ session: URLSession,
