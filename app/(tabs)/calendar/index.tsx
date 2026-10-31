@@ -168,9 +168,6 @@ export default function CalendarScreen() {
         </ViewLayer>
 
         <ViewLayer visible={deferredViewMode === 'schedule'}>
-          {/* Mounted only while shown: kept alive under display:none, the list could come back
-              blank when the first sync landed as it was revealed. Its data only loads in this
-              mode anyway, so keeping it mounted saved nothing. */}
           {deferredViewMode === 'schedule' && (
             <AgendaView
               ref={nav.agendaRef}
@@ -212,8 +209,6 @@ export default function CalendarScreen() {
       <CalendarFab
         onPress={() => navGuard(() => router.push({
           pathname: '/event/new',
-          // Seed the form with the date the user is looking at, not always
-          // "now" — same source as the header title (#364).
           params: { date: (viewMode === 'schedule' ? agendaVisibleDate : date).toISOString() },
         }))}
       />
