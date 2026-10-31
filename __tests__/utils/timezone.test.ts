@@ -1,4 +1,7 @@
-import { zonedWallTimeToUtc, getTimezoneOffsetMinutes } from '@/utils/timezone';
+import {
+  zonedWallTimeToUtc, getTimezoneOffsetMinutes,
+  zonedUtcToWallDate, wallDateToUtc, resolveAccountTimezone,
+} from '@/utils/timezone';
 import { buildIcs } from '@/utils/ics';
 import { parseIcsItem } from '@/utils/caldav-parse';
 import type { Attendee } from '../../src/types';
@@ -27,6 +30,37 @@ describe('getTimezoneOffsetMinutes', () => {
     expect(getTimezoneOffsetMinutes('Europe/Berlin', new Date('2026-08-01T12:00:00Z'))).toBe(120);
     expect(getTimezoneOffsetMinutes('Europe/Berlin', new Date('2026-01-15T12:00:00Z'))).toBe(60);
     expect(getTimezoneOffsetMinutes('America/Recife', new Date('2026-08-01T12:00:00Z'))).toBe(-180);
+  });
+});
+
+describe('wall-date conversions (form editing)', () => {
+  it('zonedUtcToWallDate returns the zone wall time as a device-local Date', () => {
+    // 13:00 UTC is 15:00 in Berlin (CEST) in August.
+    const wall = zonedUtcToWallDate(new Date('2026-08-01T13:00:00Z'), 'Europe/Berlin');
+    expect([wall.getHours(), wall.getMinutes()]).toEqual([15, 0]);
+  });
+
+  it('wallDateToUtc is the exact inverse of zonedUtcToWallDate', () => {
+    const instant = new Date('2026-01-15T11:00:00Z');
+    const wall = zonedUtcToWallDate(instant, 'America/New_York');
+    expect(wallDateToUtc(wall, 'America/New_York').getTime()).toBe(instant.getTime());
+  });
+
+  it('keeps the same wall time when switching zones (form semantics)', () => {
+    // User typed 14:30 while the event zone was Paris, then switched to Tokyo:
+    // the wall time stays, only the instant moves.
+    const wall = zonedUtcToWallDate(new Date('2026-08-01T12:30:00Z'), 'Europe/Paris');
+    expect(wall.getHours()).toBe(14);
+    expect(wall.getMinutes()).toBe(30);
+    expect(wallDateToUtc(wall, 'Asia/Tokyo').toISOString()).toBe('2026-08-01T05:30:00.000Z');
+  });
+});
+
+describe('resolveAccountTimezone', () => {
+  it('prefers a valid account zone, then the device zone, then UTC', () => {
+    expect(resolveAccountTimezone({ timezone: 'Asia/Tokyo' })).toBe('Asia/Tokyo');
+    expect(resolveAccountTimezone({ timezone: 'Bogus/Zone' })).not.toBe('Bogus/Zone');
+    expect(resolveAccountTimezone(null)).toBeTruthy();
   });
 });
 

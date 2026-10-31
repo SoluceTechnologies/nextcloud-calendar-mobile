@@ -84,6 +84,8 @@
     "allDay": "Todo el día",
     "start": "Inicio",
     "end": "Fin",
+    "timezone": "Zona horaria",
+    "timezoneSearch": "Buscar zona horaria",
     "location": "Ubicación",
     "locationPlaceholder": "Sala o dirección",
     "openInMaps": "Open in Maps",

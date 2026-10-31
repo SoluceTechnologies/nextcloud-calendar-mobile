@@ -84,6 +84,8 @@
     "allDay": "All Day",
     "start": "Start",
     "end": "End",
+    "timezone": "Time zone",
+    "timezoneSearch": "Search time zones",
     "location": "Location",
     "locationPlaceholder": "Room or address",
     "openInMaps": "Open in Maps",

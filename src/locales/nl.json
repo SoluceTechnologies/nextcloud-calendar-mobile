@@ -84,6 +84,8 @@
     "allDay": "Hele dag",
     "start": "Begin",
     "end": "Einde",
+    "timezone": "Tijdzone",
+    "timezoneSearch": "Tijdzone zoeken",
     "location": "Locatie",
     "locationPlaceholder": "Ruimte of adres",
     "openInMaps": "Open in Maps",
