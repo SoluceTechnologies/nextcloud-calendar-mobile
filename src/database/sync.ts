@@ -254,12 +254,10 @@ export async function syncEvents(
 }
 
 const DELTA_SYNC_MIN_INTERVAL_MS = 10_000;
-// Per calendar, not per account: a calendar that just appeared (calendar list refreshed after the
-// first sync of the session) must not wait for the others' throttle to expire.
+
 const lastDeltaSyncAt = new Map<string, number>();
 const deltaKey = (account: Account, calendar: CalendarMeta) => `${account.id}\n${calendar.url}`;
 
-/** Test-only: reset the throttle between syncVisibleRange calls. */
 export function resetDeltaSyncThrottle(): void {
     lastDeltaSyncAt.clear();
 }
@@ -281,24 +279,26 @@ export async function syncVisibleRange(
     const throttled = (c: CalendarMeta) =>
         now - (lastDeltaSyncAt.get(deltaKey(account, c)) ?? 0) < DELTA_SYNC_MIN_INTERVAL_MS;
 
-    // App-generated calendars (Deck boards, …) are Nextcloud ExternalCalendars:
-    // no sync token, so sync-collection answers 415 — range fetch only.
     const rangeOnly = (c: CalendarMeta) => c.isSubscribed || c.url.includes('/app-generated--');
     const deltaCals = inHorizon ? calendars.filter((c) => !rangeOnly(c) && !throttled(c)) : [];
     const fullCals = calendars.filter((c) => rangeOnly(c) || !inHorizon);
 
     if (deltaCals.length === 0 && fullCals.length === 0) return;
-    for (const c of deltaCals) lastDeltaSyncAt.set(deltaKey(account, c), now);
 
     const {failures, fulfilledIndexes} = await settleAll(
         deltaCals.map((cal) => () => syncCalendarDelta(account, cal).then((): never[] => [])),
     );
 
+    for (const i of fulfilledIndexes) lastDeltaSyncAt.set(deltaKey(account, deltaCals[i]), now);
+
+    const fulfilled = new Set(fulfilledIndexes);
+    const rangeCals = fullCals.concat(deltaCals.filter((_, i) => !fulfilled.has(i)));
+
     let fullOk = false;
-    if (fullCals.length > 0) {
+    if (rangeCals.length > 0) {
         try {
             await syncEvents(
-                account, fullCals, start, end, deleteMissing, calendars.map((c) => c.id),
+                account, rangeCals, start, end, deleteMissing, calendars.map((c) => c.id),
             );
             fullOk = true;
         } catch (e) {
@@ -306,7 +306,7 @@ export async function syncVisibleRange(
         }
     }
 
-    const deltaOk = deltaCals.length > 0 && fulfilledIndexes.length > 0;
+    const deltaOk = fulfilledIndexes.length > 0;
     if (!deltaOk && !fullOk) {
         for (const c of deltaCals) lastDeltaSyncAt.delete(deltaKey(account, c));
         throw new Error(`[syncVisibleRange] all ${calendars.length} calendar sync(s) failed`);
@@ -352,10 +352,9 @@ export async function syncCalendarDelta(account: Account, calendar: CalendarMeta
 
     const missing = result.changed.filter((h) => !returnedHrefs.has(h));
     if (missing.length > 0) {
-        console.warn(
+        throw new Error(
             `[syncCalendarDelta] multiget returned ${returnedHrefs.size}/${changedSet.size} objects; skipping write`
         );
-        return;
     }
 
     await safeWrite(db, async () => {
