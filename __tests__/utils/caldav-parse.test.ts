@@ -797,3 +797,32 @@ END:VCALENDAR`;
     expect(got).toContain(deletedSlot);
   });
 });
+
+describe('recurring expansion — iteration bound', () => {
+  const calMeta = { calendarId: 'cal-1', accountId: 'acc-1', color: '#0082c9' };
+
+  const minutelyFrom2000Ics = `BEGIN:VCALENDAR
+VERSION:2.0
+BEGIN:VEVENT
+UID:minutely-noise
+SUMMARY:Noise
+DTSTART:20000101T000000Z
+DTEND:20000101T001500Z
+RRULE:FREQ=MINUTELY
+END:VEVENT
+END:VCALENDAR`;
+
+  it('terminates on an unbounded high-frequency RRULE that never reaches the window', () => {
+    // FREQ=MINUTELY since 2000 would need ~13M iterations to reach 2026 —
+    // the iteration cap must cut expansion instead of hanging the JS thread.
+    const started = Date.now();
+    const events = parseIcsObjects(
+      [{ ics: minutelyFrom2000Ics, href: '/cal/noise.ics' }],
+      calMeta,
+      new Date('2026-01-01T00:00:00Z'),
+      new Date('2026-02-01T00:00:00Z'),
+    );
+    expect(Date.now() - started).toBeLessThan(3000);
+    expect(events).toEqual([]);
+  });
+});

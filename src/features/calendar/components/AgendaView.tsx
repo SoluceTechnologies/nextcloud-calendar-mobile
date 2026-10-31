@@ -1,4 +1,4 @@
-import { memo, useRef, useCallback, useMemo, useLayoutEffect, forwardRef, useImperativeHandle } from 'react';
+import { memo, useRef, useCallback, useMemo, useLayoutEffect, useEffect, forwardRef, useImperativeHandle } from 'react';
 import {
   View, Text, FlatList, TouchableOpacity, StyleSheet, type ViewToken,
   type NativeScrollEvent, type NativeSyntheticEvent,
@@ -7,12 +7,16 @@ import dayjs from 'dayjs';
 import localizedFormat from 'dayjs/plugin/localizedFormat';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from 'expo-router';
+import { HelpCircle } from 'lucide-react-native';
 import type { Theme } from '@/theme';
 import type { CalendarEvent } from '@/types';
 import { useTimeFormat } from '@/hooks/useTimeFormat';
 import {
   AGENDA_FUTURE_DAYS, AGENDA_PAST_DAYS, agendaRowKey, buildAgendaSections,
 } from '../utils/agendaSections';
+import { useAccountStore } from '@/stores/accountStore';
+import { useActiveAccount } from '@/hooks/useAccounts';
+import { isEventPending } from '@/utils/eventPending';
 
 dayjs.extend(localizedFormat);
 
@@ -28,6 +32,8 @@ const HEADER_HEIGHT = 57;
 const EVENT_ROW_HEIGHT = 72;
 
 const TODAY_JUMP_GUARD_MS = 500;
+const JUMP_VERIFY_WINDOW_MS = 1200;
+const JUMP_CHECK_DELAY_MS = 120;
 
 interface DayHeaderProps {
   sectionDate: Date;
@@ -73,6 +79,9 @@ interface EventRowProps {
 const EventRow = memo(({ event, theme, onPress }: EventRowProps) => {
   const { t } = useTranslation();
   const { formatTime } = useTimeFormat();
+  const activeAccountId = useAccountStore((s) => s.activeAccountId);
+  const activeAccount = useActiveAccount(activeAccountId);
+  const pending = isEventPending(event, activeAccount);
   const duration = event.allDay
     ? null
     : (() => {
@@ -87,11 +96,20 @@ const EventRow = memo(({ event, theme, onPress }: EventRowProps) => {
 
   return (
     <TouchableOpacity
-      style={[styles.eventRow, { backgroundColor: theme.colors.surface }]}
+      style={[
+        styles.eventRow,
+        { backgroundColor: theme.colors.surface },
+        pending && styles.eventRowPending,
+      ]}
       onPress={() => onPress(event)}
       activeOpacity={0.75}
     >
       <View style={[styles.colorBar, { backgroundColor: event.color }]} />
+      {pending && (
+        <View style={styles.pendingIcon} pointerEvents="none">
+          <HelpCircle size={16} color={theme.colors.textTertiary} />
+        </View>
+      )}
       <View style={styles.eventContent}>
         <Text style={[styles.eventTitle, { color: theme.colors.text }]} numberOfLines={1}>
           {event.summary || t('calendar.noTitle')}
@@ -169,15 +187,68 @@ const AgendaViewImpl = forwardRef<AgendaViewHandle, Props>(function AgendaView(
   const userScrollingRef = useRef(false);
   const onUserScrollStart = useCallback(() => { userScrollingRef.current = true; }, []);
   const onUserScrollEnd = useCallback(() => { userScrollingRef.current = false; }, []);
+
+  const pendingJumpRef = useRef<{ key: string; expiresAt: number } | null>(null);
+  const jumpTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const offsetForKey = useCallback((key: string): number | null => {
+    const { rows: r, offsets: o } = layoutRef.current;
+    const idx = r.findIndex((row) => row.type === 'header' && row.key === key);
+    return idx >= 0 ? o[idx] : null;
+  }, []);
+
+  const issuePendingJump = useCallback(() => {
+    const pending = pendingJumpRef.current;
+    if (!pending || userScrollingRef.current) return;
+    const target = offsetForKey(pending.key);
+    if (target == null) {
+      pendingJumpRef.current = null;
+      return;
+    }
+    anchorRef.current = { key: pending.key, delta: 0 };
+    listRef.current?.scrollToOffset({ offset: target, animated: false });
+  }, [offsetForKey]);
+
+  const scheduleJumpCheck = useCallback(() => {
+    if (jumpTimerRef.current) return;
+    jumpTimerRef.current = setTimeout(() => {
+      jumpTimerRef.current = null;
+      const pending = pendingJumpRef.current;
+      if (!pending) return;
+      const target = offsetForKey(pending.key);
+      const landed = target != null && Math.abs(scrollYRef.current - target) < 2;
+      if (landed || userScrollingRef.current || Date.now() > pending.expiresAt) {
+        pendingJumpRef.current = null;
+        return;
+      }
+      issuePendingJump();
+      scheduleJumpCheck();
+    }, JUMP_CHECK_DELAY_MS);
+  }, [offsetForKey, issuePendingJump]);
+
+  useEffect(() => () => {
+    if (jumpTimerRef.current) clearTimeout(jumpTimerRef.current);
+  }, []);
+
   const onScroll = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
     const y = e.nativeEvent.contentOffset.y;
     scrollYRef.current = y;
+    const pending = pendingJumpRef.current;
+    if (pending) {
+      const target = offsetForKey(pending.key);
+      if (userScrollingRef.current || target == null || Math.abs(y - target) < 2 || Date.now() > pending.expiresAt) {
+        pendingJumpRef.current = null;
+      } else {
+        issuePendingJump();
+        return;
+      }
+    }
     if (!userScrollingRef.current) return;
     const { rows: r, offsets: o } = layoutRef.current;
     let i = upperBound(o, y) - 1;
     while (i > 0 && r[i].type !== 'header') i--;
     if (r[i]) anchorRef.current = { key: r[i].key, delta: y - o[i] };
-  }, []);
+  }, [offsetForKey, issuePendingJump]);
 
   useLayoutEffect(() => {
     layoutRef.current = { rows, offsets };
@@ -191,21 +262,21 @@ const AgendaViewImpl = forwardRef<AgendaViewHandle, Props>(function AgendaView(
   }, [rows, offsets]);
 
   const initialIndexRef = useRef(todayIndex);
-  const todayRef = useRef({ key: todayKey, y: offsets[todayIndex] ?? 0 });
-  todayRef.current = { key: todayKey, y: offsets[todayIndex] ?? 0 };
+  const todayKeyRef = useRef(todayKey);
+  todayKeyRef.current = todayKey;
   const lastJumpAtRef = useRef(0);
+
   useImperativeHandle(ref, () => ({
     scrollToToday: () => {
       const now = Date.now();
       if (now - lastJumpAtRef.current < TODAY_JUMP_GUARD_MS) return;
       lastJumpAtRef.current = now;
-      const { key, y } = todayRef.current;
       userScrollingRef.current = false;
-      anchorRef.current = { key, delta: 0 };
-      scrollYRef.current = y;
-      listRef.current?.scrollToOffset({ offset: y, animated: false });
+      pendingJumpRef.current = { key: todayKeyRef.current, expiresAt: now + JUMP_VERIFY_WINDOW_MS };
+      issuePendingJump();
+      scheduleJumpCheck();
     },
-  }), []);
+  }), [issuePendingJump, scheduleJumpCheck]);
 
   const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 50 });
   const onVisibleRef = useRef(onVisibleDateChange);
@@ -292,6 +363,18 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     overflow: 'hidden',
     height: EVENT_ROW_HEIGHT - 6,
+  },
+  eventRowPending: {
+    borderStyle: 'dotted',
+    borderWidth: 2,
+    borderColor: 'rgba(0,0,0,0.15)',
+    opacity: 0.85,
+  },
+  pendingIcon: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    zIndex: 1,
   },
   colorBar: { width: 4 },
   eventContent: { flex: 1, padding: 10, justifyContent: 'center' },

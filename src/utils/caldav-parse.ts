@@ -13,6 +13,11 @@ interface ParseCalMeta {
 const TALK_URL_PATTERN = /\/call\//;
 
 const MAX_OCCURRENCES = 1000;
+// Hard bound on iterator steps, independent of emitted occurrences: an
+// unbounded RRULE whose instances are all filtered out (excluded, overridden,
+// or before the range) would otherwise loop forever on the JS thread —
+// e.g. FREQ=MINUTELY starting decades ago (~13M iterations to reach today).
+const MAX_ITERATIONS = 50_000;
 
 const DEFAULT_TODO_DURATION_MS = 15 * 60 * 1000;
 
@@ -58,10 +63,12 @@ function readAttendees(props: ICAL.Property[]): Attendee[] {
     const value = (prop.getFirstValue() as string) ?? '';
     const email = value.replace(/^mailto:/i, '');
     const displayName = (prop.getParameter('cn') as string) ?? undefined;
+    const partstat = (prop.getParameter('partstat') as string) ?? undefined;
+    const role = (prop.getParameter('role') as string) ?? undefined;
     const key = email.toLowerCase();
     if (email && seen.has(key)) continue;
     if (email) seen.add(key);
-    attendees.push({ email, displayName });
+    attendees.push({ email, displayName, partstat, role });
   }
   return attendees;
 }
@@ -121,7 +128,7 @@ function isOverridden(slot: ICAL.Time, overrideIds: Set<string>): boolean {
   return overrideIds.has(slot.convertToZone(ICAL.Timezone.utcTimezone).toString());
 }
 
-function resolveInstant(t: ICAL.Time, tzid: string | undefined, isEnd = false): Date {
+export function resolveInstant(t: ICAL.Time, tzid: string | undefined, isEnd = false): Date {
   if (t.isDate) {
     return isEnd
       ? new Date(t.year, t.month - 1, t.day - 1)
@@ -164,7 +171,7 @@ function repairIcsFolding(ics: string): string {
   return out.join('\r\n');
 }
 
-function parseIcsToJcal(ics: string): ReturnType<typeof ICAL.parse> {
+export function parseIcsToJcal(ics: string): ReturnType<typeof ICAL.parse> {
   try {
     return ICAL.parse(ics);
   } catch {
@@ -330,18 +337,22 @@ export function parseIcsItem(
 
         const iter = icalEvent.iterator();
         let emitted = 0;
+        let iterations = 0;
         let nextTime: ICAL.Time;
 
-        while ((nextTime = iter.next()) && emitted < MAX_OCCURRENCES) {
+        while ((nextTime = iter.next()) && emitted < MAX_OCCURRENCES && iterations++ < MAX_ITERATIONS) {
           const slotStart = resolveInstant(nextTime, tzid);
+          const slotMs = slotStart.getTime();
 
-          if (slotStart.getTime() >= rangeEndMs) break;
+          // A non-finite start (unresolvable TZID, corrupt DTSTART) can never
+          // be ordered — continuing would spin forever on an unbounded RRULE.
+          if (!Number.isFinite(slotMs) || slotMs >= rangeEndMs) break;
 
-          if (excluded.has(slotStart.getTime())) continue;
+          if (excluded.has(slotMs)) continue;
 
           if (isOverridden(nextTime, overrideIds)) continue;
 
-          if (canPrefilter && slotStart.getTime() + durationMs <= rangeStartMs) continue;
+          if (canPrefilter && slotMs + durationMs <= rangeStartMs) continue;
 
           const details = icalEvent.getOccurrenceDetails(nextTime);
           if (pushOccurrence(nextTime, details.item, details.startDate, details.endDate)) emitted++;
