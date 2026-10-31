@@ -6,6 +6,8 @@ export type NativeRequest = {
   headers: Record<string, string>;
   bodyBase64?: string;
   timeoutMs: number;
+  /** Abort the response once the decoded body exceeds this many bytes. */
+  maxBodyBytes?: number;
 };
 
 export type NativeResult =
