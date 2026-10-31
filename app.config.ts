@@ -72,6 +72,7 @@ const config: ExpoConfig = {
 
     plugins: [
         './plugins/withAndroidNetworkSecurityConfig',
+        './plugins/withAndroidMultiDisplay',
         [
             'expo-build-properties',
             {
