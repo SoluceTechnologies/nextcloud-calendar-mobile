@@ -207,10 +207,14 @@ export default function CalendarScreen() {
       {showSmallLoader && <Spinner size="small" color="secondary" style={styles.smallLoader} />}
 
       <CalendarFab
-        onPress={() => navGuard(() => router.push({
-          pathname: '/event/new',
-          params: { date: (viewMode === 'schedule' ? agendaVisibleDate : date).toISOString() },
-        }))}
+        onPress={() => navGuard(() => {
+          const shown = viewMode === 'schedule' ? agendaVisibleDate : date;
+          const now = new Date();
+          const start = new Date(
+            shown.getFullYear(), shown.getMonth(), shown.getDate(), now.getHours(), now.getMinutes()
+          );
+          router.push({ pathname: '/event/new', params: { date: start.toISOString() } });
+        })}
       />
 
       <CalendarDrawer
