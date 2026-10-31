@@ -51,6 +51,7 @@ const config: ExpoConfig = {
     android: {
         package: 'com.soluce.nextcloudcalendar',
         versionCode,
+        permissions: ['USE_EXACT_ALARM', 'SCHEDULE_EXACT_ALARM'],
         adaptiveIcon: {
             foregroundImage: './assets/adaptive-icon.png',
             backgroundColor: '#109be6',
