@@ -34,7 +34,6 @@ export function useCalendarData(date: Date, agendaEnabled = false) {
 
   const [syncing, setSyncing] = useState(false);
 
-
   useEffect(() => {
     if (!activeAccount || calendars.length === 0) return;
     if (calendars.some((c) => c.accountId !== activeAccount.id)) {
@@ -56,8 +55,6 @@ export function useCalendarData(date: Date, agendaEnabled = false) {
     })();
     return () => {
       active = false;
-      // A stale run's finally above is skipped, so reset here: the next run
-      // may early-return and leave the loading overlay stuck on forever.
       setSyncing(false);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
