@@ -470,8 +470,12 @@ export async function deleteEvent(
 
 export const MULTIGET_BATCH = 50;
 
-function toPath(account: Account, absHref: string): string {
-  return absHref.startsWith(account.baseUrl) ? absHref.slice(account.baseUrl.length) : absHref;
+function toPath(absHref: string): string {
+  try {
+    return new URL(absHref).pathname;
+  } catch {
+    return absHref;
+  }
 }
 
 export interface MultigetResult {
@@ -492,7 +496,7 @@ export async function fetchEventsByHrefs(
   const out: CalendarEvent[] = [];
   for (let i = 0; i < hrefs.length; i += MULTIGET_BATCH) {
     const batch = hrefs.slice(i, i + MULTIGET_BATCH);
-    const hrefEls = batch.map((h) => `<d:href>${toPath(account, h)}</d:href>`).join('');
+    const hrefEls = batch.map((h) => `<d:href>${toPath(h)}</d:href>`).join('');
     const body = `<?xml version="1.0"?>
 <c:calendar-multiget xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav">
   <d:prop><d:getetag/><c:calendar-data/></d:prop>
