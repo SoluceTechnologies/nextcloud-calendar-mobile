@@ -1,10 +1,5 @@
 const {withAndroidManifest, AndroidConfig} = require('@expo/config-plugins');
 
-// Multi-display (Samsung DeX, external monitors): declare the activity
-// explicitly resizable and survive density/fontScale changes without a
-// restart. DeX otherwise puts the app on its compatibility path where the
-// window may report a very low logical density (~111 dpi), rendering
-// everything ~70% smaller (#274).
 const EXTRA_CONFIG_CHANGES = ['density', 'fontScale'];
 
 module.exports = function withAndroidMultiDisplay(config) {
