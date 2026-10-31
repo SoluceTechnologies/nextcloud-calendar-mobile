@@ -64,14 +64,12 @@ describe('AgendaView scrollToToday', () => {
     ref.current!.scrollToToday();
     expect(scrollSpy).toHaveBeenCalledTimes(1);
 
-    // The list reports it never landed (dropped scroll or residual momentum)
     list.props.onScroll(scrollEventAt(0));
     expect(scrollSpy).toHaveBeenCalledTimes(2);
 
     list.props.onScroll(scrollEventAt(0));
     expect(scrollSpy).toHaveBeenCalledTimes(3);
 
-    // Settle the pending jump so the scheduled check can't fire into the next test
     list.props.onScroll(scrollEventAt(scrollSpy.mock.calls[0][0].offset));
   });
 
