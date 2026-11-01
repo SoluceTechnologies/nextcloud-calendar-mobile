@@ -6,6 +6,7 @@ import {
   cancelTask,
   pollTask,
   scheduleTask,
+  shapeTypeOf,
   TaskPollTimeout,
 } from '@/services/nextcloud/taskprocessing';
 import { useAccountStore } from '@/stores/accountStore';
@@ -108,7 +109,7 @@ export function useTextTask(): {
       // First Text-typed input slot; 'input' covers core:text2text*.
       const shape = taskTypes?.[textTaskType]?.inputShape;
       const inputSlot =
-        (shape && Object.entries(shape).find(([, s]) => s?.type === 1)?.[0]) || 'input';
+        (shape && Object.entries(shape).find(([, s]) => shapeTypeOf(s) === 1)?.[0]) || 'input';
       try {
         const scheduled = await scheduleTask(
           account,

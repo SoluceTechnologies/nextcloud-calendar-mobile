@@ -92,7 +92,8 @@ export function useTaskTypes(): {
           setLoading(false);
         }
       })
-      .catch(() => {
+      .catch((e) => {
+        console.warn('[useTaskTypes] failed to load task types:', String(e));
         if (!cancelled) setLoading(false);
       });
     return () => {
