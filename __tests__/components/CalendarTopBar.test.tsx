@@ -10,7 +10,7 @@ jest.mock('react-native-safe-area-context', () => require('react-native-safe-are
 describe('CalendarTopBar', () => {
   it('exposes drawer, today and one selectable chip per mode', () => {
     const { getByTestId } = render(
-      <CalendarTopBar headerTitle="Sep" isToday={false} viewMode="month" onOpenDrawer={() => {}} onToday={() => {}} onSwitchMode={() => {}} />,
+      <CalendarTopBar headerTitle="Sep" isToday={false} viewMode="month" onOpenDrawer={() => {}} onOpenSearch={() => {}} onToday={() => {}} onSwitchMode={() => {}} />,
     );
     expect(getByTestId('calendar-drawer-open')).toBeTruthy();
     expect(getByTestId('calendar-today')).toBeTruthy();
