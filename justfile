@@ -35,7 +35,7 @@ e2e-all *args:
       avd="${AVD:-$(emulator -list-avds | head -1)}"
       [ -n "$avd" ] || { echo 'No AVD found: create one in Android Studio, or set AVD=<name>' >&2; exit 1; }
       echo "Booting emulator ${avd} in the background..."
-      nohup emulator -avd "$avd" -no-snapshot-save >/dev/null 2>&1 &
+      nohup emulator -avd "$avd" -no-snapshot-save -dns-server 8.8.8.8,1.1.1.1 >/dev/null 2>&1 &
     fi
     just e2e-build
     echo "Waiting for the emulator to finish booting..."
