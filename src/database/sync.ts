@@ -43,6 +43,8 @@ function writeCalendar(row: Calendar, c: CalendarMeta, accountId: string): void 
     row.isReadOnly = c.isReadOnly ?? false;
     row.sourceUrl = c.sourceUrl ?? undefined;
     row.supportsEvents = c.supportsEvents ?? true;
+    row.calendarOrder = c.order ?? 0;
+    row.isShared = c.isShared ?? false;
 }
 
 export function serializeAlarms(alarms?: number[]): string | undefined {
@@ -83,6 +85,8 @@ function calendarUnchanged(row: Calendar, c: CalendarMeta): boolean {
         (row.isSubscribed ?? false) === (c.isSubscribed ?? false) &&
         (row.isReadOnly ?? false) === (c.isReadOnly ?? false) &&
         (row.supportsEvents ?? true) === (c.supportsEvents ?? true) &&
+        (row.calendarOrder ?? 0) === (c.order ?? 0) &&
+        (row.isShared ?? false) === (c.isShared ?? false) &&
         (row.sourceUrl ?? undefined) === (c.sourceUrl ?? undefined)
     );
 }

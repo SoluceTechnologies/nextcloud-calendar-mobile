@@ -28,4 +28,6 @@ export const CALENDAR_OBSERVED_COLUMNS = [
   'is_read_only',
   'source_url',
   'supports_events',
+  'calendar_order',
+  'is_shared',
 ];

@@ -9,6 +9,7 @@ import { AvatarImage } from '@/components/AvatarImage';
 import { AccountSwitcher } from '@/features/account/components/AccountSwitcher';
 import { Item, List, SectionHeader, Stack, Typography } from '@/ui/components';
 import type { Account, CalendarMeta } from '@/types';
+import { CALENDAR_GROUPS, calendarGroup } from '@/utils/calendars';
 
 import { CalendarDrawerRow } from './CalendarDrawerRow';
 
@@ -46,6 +47,12 @@ export function CalendarDrawer({
   const { colors } = useTheme();
   const { t } = useTranslation();
   const safeInsets = useSafeAreaInsets();
+  const groupTitles = {
+    personal: t('calendar.drawerCalendars'),
+    shared: t('calendar.drawerShared'),
+    deck: t('calendar.drawerDeck'),
+    tasks: t('calendar.drawerTasks'),
+  };
 
   return (
     <>
@@ -103,26 +110,39 @@ export function CalendarDrawer({
           contentContainerStyle={[styles.scrollContent, { paddingBottom: safeInsets.bottom + 24 }]}
           showsVerticalScrollIndicator={false}
         >
-          <SectionHeader title={t('calendar.drawerCalendars')} />
           {calendars.length === 0 ? (
-            <Stack padding={[8, 4]}>
-              <Typography variant="caption" color="secondary">
-                {t('calendar.drawerNoCalendars')}
-              </Typography>
-            </Stack>
+            <>
+              <SectionHeader title={t('calendar.drawerCalendars')} />
+              <Stack padding={[8, 4]}>
+                <Typography variant="caption" color="secondary">
+                  {t('calendar.drawerNoCalendars')}
+                </Typography>
+              </Stack>
+            </>
           ) : (
-            <List>
-              {calendars.map((cal) => (
-                <CalendarDrawerRow
-                  key={cal.id}
-                  calendar={cal}
-                  visible={!hiddenCalendarIds.includes(cal.id)}
-                  notifies={!notifDisabledCalendarIds.includes(cal.id)}
-                  onToggleVisibility={() => toggleCalendarVisibility(cal.id)}
-                  onToggleNotifications={() => toggleCalendarNotifications(cal.id)}
-                />
-              ))}
-            </List>
+            <Stack gap={24} hAlign="stretch">
+              {CALENDAR_GROUPS.map((group) => {
+                const groupCalendars = calendars.filter((cal) => calendarGroup(cal) === group);
+                if (groupCalendars.length === 0) return null;
+                return (
+                  <View key={group}>
+                    <SectionHeader title={groupTitles[group]} />
+                    <List>
+                      {groupCalendars.map((cal) => (
+                        <CalendarDrawerRow
+                          key={cal.id}
+                          calendar={cal}
+                          visible={!hiddenCalendarIds.includes(cal.id)}
+                          notifies={!notifDisabledCalendarIds.includes(cal.id)}
+                          onToggleVisibility={() => toggleCalendarVisibility(cal.id)}
+                          onToggleNotifications={() => toggleCalendarNotifications(cal.id)}
+                        />
+                      ))}
+                    </List>
+                  </View>
+                );
+              })}
+            </Stack>
           )}
         </ScrollView>
       </Animated.View>

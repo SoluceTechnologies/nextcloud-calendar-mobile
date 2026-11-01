@@ -19,4 +19,6 @@ export default class Calendar extends Model {
   @field('sync_token') syncToken?: string;
   @field('expanded_center') expandedCenter?: number;
   @field('supports_events') supportsEvents?: boolean;
+  @field('calendar_order') calendarOrder?: number;
+  @field('is_shared') isShared?: boolean;
 }
