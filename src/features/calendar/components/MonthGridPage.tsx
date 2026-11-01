@@ -139,37 +139,39 @@ function MonthGridPageImpl({
             );
           })}
 
-          <View
-            style={StyleSheet.absoluteFill}
-            pointerEvents="none"
-            accessibilityElementsHidden
-            importantForAccessibility="no-hide-descendants"
-          >
-            {layout.segments.map((s) => (
-              <Segment
-                key={`${s.event.uid}-${s.event.dtstart.getTime()}-${s.col0}`}
-                segment={s}
-                dimmed={days[s.col0].getMonth() !== month && days[s.col1].getMonth() !== month}
-                untitled={untitled}
-              />
-            ))}
-            {layout.more.map(({ col, count }) => (
-              <Text
-                key={`more-${col}`}
-                allowFontScaling={false}
-                style={[
-                  styles.more,
-                  {
-                    top: MONTH_NUMBER_AREA + (lines - 1) * MONTH_LINE_HEIGHT,
-                    left: `${col * COL_PCT}%`,
-                    color: colors.textSecondary,
-                  },
-                ]}
-              >
-                +{count}
-              </Text>
-            ))}
-          </View>
+          {height > 0 && (
+            <View
+              style={StyleSheet.absoluteFill}
+              pointerEvents="none"
+              accessibilityElementsHidden
+              importantForAccessibility="no-hide-descendants"
+            >
+              {layout.segments.map((s) => (
+                <Segment
+                  key={`${s.event.uid}-${s.event.dtstart.getTime()}-${s.col0}`}
+                  segment={s}
+                  dimmed={days[s.col0].getMonth() !== month && days[s.col1].getMonth() !== month}
+                  untitled={untitled}
+                />
+              ))}
+              {layout.more.map(({ col, count }) => (
+                <Text
+                  key={`more-${col}`}
+                  allowFontScaling={false}
+                  style={[
+                    styles.more,
+                    {
+                      top: MONTH_NUMBER_AREA + (lines - 1) * MONTH_LINE_HEIGHT,
+                      left: `${col * COL_PCT}%`,
+                      color: colors.textSecondary,
+                    },
+                  ]}
+                >
+                  +{count}
+                </Text>
+              ))}
+            </View>
+          )}
         </View>
       ))}
     </View>

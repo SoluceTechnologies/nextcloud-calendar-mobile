@@ -164,7 +164,6 @@ export function layoutWeek(days: Date[], events: CalendarEvent[], lines: number)
   const chips = items.filter((i) => !i.isBar).sort(byStartThenTitle);
 
   const occupied: boolean[][] = keys.map(() => []);
-  const count = keys.map(() => 0);
   for (const item of [...bars, ...chips]) {
     let lane = 0;
     const taken = (l: number) => {
@@ -173,13 +172,13 @@ export function layoutWeek(days: Date[], events: CalendarEvent[], lines: number)
     };
     while (taken(lane)) lane++;
     item.lane = lane;
-    for (let c = item.col0; c <= item.col1; c++) {
-      occupied[c][lane] = true;
-      count[c]++;
-    }
+    for (let c = item.col0; c <= item.col1; c++) occupied[c][lane] = true;
   }
 
-  const limit = count.map((n) => (n > lines ? lines - 1 : lines));
+  // Lanes are shared across the week, so a day can have a gap under a bar: what
+  // decides overflow is its highest used lane, not its item count. Otherwise
+  // "+N" could land on a line a visible chip still uses.
+  const limit = occupied.map((lanes) => (lanes.length > lines ? lines - 1 : lines));
   const hidden = keys.map(() => 0);
   const segments: WeekSegment[] = [];
   for (const item of [...bars, ...chips]) {

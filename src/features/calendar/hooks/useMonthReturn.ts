@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { BackHandler } from 'react-native';
+import { useIsFocused } from 'expo-router';
 import type { ViewMode } from '@/types';
 
 // A Day view opened by tapping a month cell sends Android hardware back to
@@ -9,6 +10,8 @@ export function useMonthReturn(
   switchMode: (target: ViewMode, focus?: Date) => void,
 ) {
   const fromMonth = useRef(false);
+  // Another screen on top (event details, settings tab) owns back while it is open.
+  const focused = useIsFocused();
 
   const openDay = useCallback((d: Date) => {
     fromMonth.current = true;
@@ -20,13 +23,13 @@ export function useMonthReturn(
       fromMonth.current = false;
       return;
     }
-    if (!fromMonth.current) return;
+    if (!fromMonth.current || !focused) return;
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
       switchMode('month');
       return true;
     });
     return () => sub.remove();
-  }, [viewMode, switchMode]);
+  }, [viewMode, switchMode, focused]);
 
   return { openDay };
 }

@@ -15,6 +15,7 @@ jest.mock('@react-native-async-storage/async-storage', () =>
 );
 
 let mockCapturedPagerProps: any[] = [];
+let mockPagerMounts = 0;
 
 // Render the pager's current page directly; the real pager pulls Reanimated
 // hooks the jest mock does not provide.
@@ -23,6 +24,7 @@ jest.mock('react-native-infinite-pager', () => {
   return {
     __esModule: true,
     default: React.forwardRef((props: any, _ref: any) => {
+      React.useEffect(() => { mockPagerMounts++; }, []);
       mockCapturedPagerProps.push(props);
       return props.renderPage ? props.renderPage({ index: 0 }) : null;
     }),
@@ -270,5 +272,19 @@ describe('MonthDayView grid variant', () => {
     fireEvent(getByTestId('month-grid-pager'), 'layout', layout);
     fireEvent.press(getByTestId('month-day-2026-06-20'));
     expect(onOpenDay.mock.calls[0][0]).toEqual(new Date(2026, 5, 20));
+  });
+
+  it('mounts the pager before the grid is measured, so jumps reach it', () => {
+    mockPagerMounts = 0;
+    render(grid());
+    expect(mockPagerMounts).toBe(1);
+  });
+
+  it('keeps the same pager when switching between compact and grid', () => {
+    mockPagerMounts = 0;
+    const r = render(view(june15));
+    r.rerender(grid());
+    fireEvent(r.getByTestId('month-grid-pager'), 'layout', layout);
+    expect(mockPagerMounts).toBe(1);
   });
 });

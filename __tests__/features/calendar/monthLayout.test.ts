@@ -105,4 +105,17 @@ describe('layoutWeek', () => {
     const outside = ev('x', new Date(2026, 10, 20, 9), new Date(2026, 10, 20, 10));
     expect(layoutWeek(week, [outside], 4).segments).toEqual([]);
   });
+
+  it('never draws "+N" over a visible chip when bars are staggered', () => {
+    // lines = 2. A Mon–Wed lane 0, B Tue–Thu lane 1, C Wed–Fri lane 2.
+    // Thu holds B (lane 1) and C (lane 2): "+N" takes lane 1, so B must hide there too.
+    const a = ev('A', new Date(2026, 10, 2), new Date(2026, 10, 4), { allDay: true });
+    const b = ev('B', new Date(2026, 10, 3), new Date(2026, 10, 5), { allDay: true });
+    const c = ev('C', new Date(2026, 10, 4), new Date(2026, 10, 6), { allDay: true });
+    const r = layoutWeek(week, [a, b, c], 2);
+    for (const { col } of r.more) {
+      expect(r.segments.some((s) => s.lane >= 1 && s.col0 <= col && col <= s.col1)).toBe(false);
+    }
+    expect(r.more).toContainEqual({ col: 3, count: 2 });
+  });
 });

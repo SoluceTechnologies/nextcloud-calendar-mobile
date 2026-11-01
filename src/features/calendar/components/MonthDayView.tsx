@@ -155,8 +155,10 @@ function MonthDayViewImpl({
 
   const gridHeight = height * 0.44;
   const [pagerHeight, setPagerHeight] = useState(0);
+  // A hidden layer (Android display:none) reports 0: keep the last real height.
   const handlePagerLayout = useCallback((e: LayoutChangeEvent) => {
-    setPagerHeight(e.nativeEvent.layout.height);
+    const h = e.nativeEvent.layout.height;
+    if (h > 0) setPagerHeight(h);
   }, []);
   const [localAnchor, setLocalAnchor] = useState(date);
   const [pagerKey, setPagerKey] = useState(0);
@@ -250,57 +252,59 @@ function MonthDayViewImpl({
     />
   );
 
-  if (isGrid) {
-    // Lines per cell depend on the page height, so the pager mounts once it is measured.
-    return (
-      <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-        {header}
-        <View testID="month-grid-pager" style={styles.pagerWrap} onLayout={handlePagerLayout}>
-          {pagerHeight > 0 && pager}
-        </View>
-      </View>
-    );
-  }
-
+  // Same tree for both variants: the pager must never remount (a remount loses
+  // the paged-to month and replays a page-change echo).
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      <View style={[styles.grid, { height: gridHeight, borderBottomColor: theme.colors.border }]}>
+      <View
+        style={isGrid
+          ? styles.fill
+          : [styles.grid, { height: gridHeight, borderBottomColor: theme.colors.border }]}
+      >
         {header}
-        <View style={styles.pagerWrap}>{pager}</View>
+        <View
+          testID="month-grid-pager"
+          style={styles.pagerWrap}
+          onLayout={isGrid ? handlePagerLayout : undefined}
+        >
+          {pager}
+        </View>
       </View>
 
-      <View style={styles.dayList}>
-        <Text style={[styles.dayListHeader, { color: theme.colors.textSecondary }]}>
-          {selected.locale(language).format('dddd, LL')}
-        </Text>
-        {dayEvents.length === 0 ? (
-          <Text style={[styles.emptyText, { color: theme.colors.textTertiary }]}>{t('calendar.noEvents')}</Text>
-        ) : (
-          <FlatList
-            data={dayEvents}
-            keyExtractor={(e, i) => `${e.calendarId}-${e.uid}-${e.dtstart.getTime()}-${i}`}
-            renderItem={({ item }) => (
-              <TouchableOpacity
-                style={[styles.eventRow, { borderLeftColor: item.color, backgroundColor: theme.colors.surface }]}
-                onPress={() => onPressEvent(item)}
-              >
-                <View style={[styles.eventColorBar, { backgroundColor: item.color }]} />
-                <View style={styles.eventInfo}>
-                  <Text style={[styles.eventTitle, { color: theme.colors.text }]} numberOfLines={1}>
-                    {item.summary}
-                  </Text>
-                  <Text style={[styles.eventTime, { color: theme.colors.textSecondary }]}>
-                    {item.allDay
-                      ? t('calendar.allDay')
-                      : `${formatTime(item.dtstart)} – ${formatTime(item.dtend)}`}
-                  </Text>
-                </View>
-              </TouchableOpacity>
-            )}
-            contentContainerStyle={{ paddingBottom: 16 }}
-          />
-        )}
-      </View>
+      {!isGrid && (
+        <View style={styles.dayList}>
+          <Text style={[styles.dayListHeader, { color: theme.colors.textSecondary }]}>
+            {selected.locale(language).format('dddd, LL')}
+          </Text>
+          {dayEvents.length === 0 ? (
+            <Text style={[styles.emptyText, { color: theme.colors.textTertiary }]}>{t('calendar.noEvents')}</Text>
+          ) : (
+            <FlatList
+              data={dayEvents}
+              keyExtractor={(e, i) => `${e.calendarId}-${e.uid}-${e.dtstart.getTime()}-${i}`}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={[styles.eventRow, { borderLeftColor: item.color, backgroundColor: theme.colors.surface }]}
+                  onPress={() => onPressEvent(item)}
+                >
+                  <View style={[styles.eventColorBar, { backgroundColor: item.color }]} />
+                  <View style={styles.eventInfo}>
+                    <Text style={[styles.eventTitle, { color: theme.colors.text }]} numberOfLines={1}>
+                      {item.summary}
+                    </Text>
+                    <Text style={[styles.eventTime, { color: theme.colors.textSecondary }]}>
+                      {item.allDay
+                        ? t('calendar.allDay')
+                        : `${formatTime(item.dtstart)} – ${formatTime(item.dtend)}`}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              )}
+              contentContainerStyle={{ paddingBottom: 16 }}
+            />
+          )}
+        </View>
+      )}
     </View>
   );
 }

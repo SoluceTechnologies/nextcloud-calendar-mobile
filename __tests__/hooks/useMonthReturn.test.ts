@@ -3,6 +3,9 @@ import { BackHandler } from 'react-native';
 import { useMonthReturn } from '@/features/calendar/hooks/useMonthReturn';
 import type { ViewMode } from '@/types';
 
+let mockFocused = true;
+jest.mock('expo-router', () => ({ useIsFocused: () => mockFocused }));
+
 describe('useMonthReturn', () => {
   let handlers: (() => boolean)[];
   let removed: number;
@@ -12,6 +15,7 @@ describe('useMonthReturn', () => {
     handlers = [];
     removed = 0;
     switchMode = jest.fn();
+    mockFocused = true;
     jest.spyOn(BackHandler, 'addEventListener').mockImplementation((_event, handler) => {
       handlers.push(handler as () => boolean);
       return { remove: () => { removed++; } };
@@ -48,6 +52,17 @@ describe('useMonthReturn', () => {
     rerender({ mode: 'day' });
     rerender({ mode: 'week' });
     expect(removed).toBe(1);
+    rerender({ mode: 'day' });
+    expect(handlers).toHaveLength(1);
+  });
+
+  it('leaves back to the screen in front when the calendar is not focused', () => {
+    const { result, rerender } = setup();
+    act(() => { result.current.openDay(new Date(2026, 10, 13)); });
+    mockFocused = false;
+    rerender({ mode: 'day' });
+    expect(handlers).toHaveLength(0);
+    mockFocused = true;
     rerender({ mode: 'day' });
     expect(handlers).toHaveLength(1);
   });
