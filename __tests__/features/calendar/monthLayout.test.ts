@@ -2,7 +2,7 @@ import { dayKey } from '@/features/calendar/utils/grid';
 import { MONTH_NUMBER_AREA, layoutWeek, linesFor, monthWeeks } from '@/features/calendar/utils/monthLayout';
 import type { CalendarEvent } from '@/types';
 
-function ev(uid: string, dtstart: Date, dtend: Date, extra: Partial<CalendarEvent> = {}): CalendarEvent {
+function makeEvent(uid: string, dtstart: Date, dtend: Date, extra: Partial<CalendarEvent> = {}): CalendarEvent {
   return {
     uid, href: `/${uid}.ics`, calendarId: 'c1', accountId: 'a1',
     summary: uid, dtstart, dtend, allDay: false, color: '#0082c9',
@@ -10,17 +10,16 @@ function ev(uid: string, dtstart: Date, dtend: Date, extra: Partial<CalendarEven
   };
 }
 
-// Mon 2 Nov … Sun 8 Nov 2026
-const week = monthWeeks(2026, 10, 1)[1];
+const novemberSecondWeek = monthWeeks(2026, 10, 1)[1];
 
 describe('monthWeeks', () => {
   it('fills adjacent days: November 2026, Monday start', () => {
-    const w = monthWeeks(2026, 10, 1);
-    expect(w).toHaveLength(6);
-    expect(dayKey(w[0][0])).toBe('2026-10-26');
-    expect(dayKey(w[5][6])).toBe('2026-12-06');
-    w.flat().forEach((d, i, all) => {
-      if (i) expect(d.getTime()).toBeGreaterThan(all[i - 1].getTime());
+    const weeks = monthWeeks(2026, 10, 1);
+    expect(weeks).toHaveLength(6);
+    expect(dayKey(weeks[0][0])).toBe('2026-10-26');
+    expect(dayKey(weeks[5][6])).toBe('2026-12-06');
+    weeks.flat().forEach((day, index, allDays) => {
+      if (index) expect(day.getTime()).toBeGreaterThan(allDays[index - 1].getTime());
     });
   });
 
@@ -40,87 +39,90 @@ describe('linesFor', () => {
   });
 
   it('leaves a 4px gap between the day-number circle and the first chip', () => {
-    // circle: 2px top margin + 20px
-    expect(MONTH_NUMBER_AREA - (2 + 20)).toBe(4);
+    const circleTopMargin = 2;
+    const circleSize = 20;
+    expect(MONTH_NUMBER_AREA - (circleTopMargin + circleSize)).toBe(4);
   });
 });
 
 describe('layoutWeek', () => {
+  const findSegment = (segments: ReturnType<typeof layoutWeek>['segments'], uid: string) =>
+    segments.find((segment) => segment.event.uid === uid);
+
   it('puts a multi-day all-day event in one bar above timed chips', () => {
-    const bar = ev('ferien', new Date(2026, 10, 3), new Date(2026, 10, 5), { allDay: true });
-    const chip = ev('daily', new Date(2026, 10, 3, 9), new Date(2026, 10, 3, 9, 15));
-    const { segments } = layoutWeek(week, [chip, bar], 4);
-    expect(segments.find((s) => s.event.uid === 'ferien')).toMatchObject({ col0: 1, col1: 3, lane: 0 });
-    expect(segments.find((s) => s.event.uid === 'daily')).toMatchObject({ col0: 1, col1: 1, lane: 1 });
+    const holiday = makeEvent('ferien', new Date(2026, 10, 3), new Date(2026, 10, 5), { allDay: true });
+    const standup = makeEvent('daily', new Date(2026, 10, 3, 9), new Date(2026, 10, 3, 9, 15));
+    const { segments } = layoutWeek(novemberSecondWeek, [standup, holiday], 4);
+    expect(findSegment(segments, 'ferien')).toMatchObject({ startColumn: 1, endColumn: 3, lane: 0 });
+    expect(findSegment(segments, 'daily')).toMatchObject({ startColumn: 1, endColumn: 1, lane: 1 });
   });
 
   it('clips a bar crossing the week edge and flags it', () => {
-    const bar = ev('shift', new Date(2026, 10, 6), new Date(2026, 10, 12), { allDay: true });
-    expect(layoutWeek(week, [bar], 4).segments[0]).toMatchObject({
-      col0: 4, col1: 6, continuesLeft: false, continuesRight: true,
+    const shift = makeEvent('shift', new Date(2026, 10, 6), new Date(2026, 10, 12), { allDay: true });
+    expect(layoutWeek(novemberSecondWeek, [shift], 4).segments[0]).toMatchObject({
+      startColumn: 4, endColumn: 6, continuesLeft: false, continuesRight: true,
     });
   });
 
   it('draws a timed event crossing midnight as a bar, one ending at midnight as a chip', () => {
-    const night = ev('night', new Date(2026, 10, 3, 22), new Date(2026, 10, 4, 2));
-    const late = ev('late', new Date(2026, 10, 3, 23), new Date(2026, 10, 4, 0));
-    const { segments } = layoutWeek(week, [night, late], 4);
-    expect(segments.find((s) => s.event.uid === 'night')).toMatchObject({ col0: 1, col1: 2 });
-    expect(segments.find((s) => s.event.uid === 'late')).toMatchObject({ col0: 1, col1: 1 });
+    const nightShift = makeEvent('night', new Date(2026, 10, 3, 22), new Date(2026, 10, 4, 2));
+    const lateMeeting = makeEvent('late', new Date(2026, 10, 3, 23), new Date(2026, 10, 4, 0));
+    const { segments } = layoutWeek(novemberSecondWeek, [nightShift, lateMeeting], 4);
+    expect(findSegment(segments, 'night')).toMatchObject({ startColumn: 1, endColumn: 2 });
+    expect(findSegment(segments, 'late')).toMatchObject({ startColumn: 1, endColumn: 1 });
   });
 
   it('fills the free lane under a shorter bar with a chip', () => {
-    const bar = ev('b', new Date(2026, 10, 2), new Date(2026, 10, 2), { allDay: true });
-    const chip = ev('c', new Date(2026, 10, 3, 9), new Date(2026, 10, 3, 10));
-    expect(layoutWeek(week, [bar, chip], 4).segments.find((s) => s.event.uid === 'c')!.lane).toBe(0);
+    const mondayBar = makeEvent('bar', new Date(2026, 10, 2), new Date(2026, 10, 2), { allDay: true });
+    const tuesdayChip = makeEvent('chip', new Date(2026, 10, 3, 9), new Date(2026, 10, 3, 10));
+    const { segments } = layoutWeek(novemberSecondWeek, [mondayBar, tuesdayChip], 4);
+    expect(findSegment(segments, 'chip')!.lane).toBe(0);
   });
 
   it('draws 3 items and reports +3 when 6 fall on a 4-line day', () => {
-    const items = [9, 10, 11, 12, 13, 14].map((h) =>
-      ev(`t${h}`, new Date(2026, 10, 4, h), new Date(2026, 10, 4, h, 30)));
-    const r = layoutWeek(week, items, 4);
-    expect(r.segments.filter((s) => s.col0 === 2)).toHaveLength(3);
-    expect(r.more).toEqual([{ col: 2, count: 3 }]);
+    const meetings = [9, 10, 11, 12, 13, 14].map((hour) =>
+      makeEvent(`meeting-${hour}`, new Date(2026, 10, 4, hour), new Date(2026, 10, 4, hour, 30)));
+    const layout = layoutWeek(novemberSecondWeek, meetings, 4);
+    expect(layout.segments.filter((segment) => segment.startColumn === 2)).toHaveLength(3);
+    expect(layout.overflows).toEqual([{ column: 2, count: 3 }]);
   });
 
   it('splits a bar around a day where its lane is hidden', () => {
-    // top: Mon–Thu lane 0; long: Tue–Thu lane 1; extra: Wed chip lane 2.
-    // lines = 2 → Wed (3 items) shows only lane 0, so `long` is split around it.
-    const top = ev('top', new Date(2026, 10, 2), new Date(2026, 10, 5), { allDay: true });
-    const long = ev('long', new Date(2026, 10, 3), new Date(2026, 10, 5), { allDay: true });
-    const extra = ev('extra', new Date(2026, 10, 4, 9), new Date(2026, 10, 4, 10));
-    const r = layoutWeek(week, [extra, long, top], 2);
-    const runs = r.segments.filter((s) => s.event.uid === 'long');
-    expect(runs.map((s) => [s.col0, s.col1])).toEqual([[1, 1], [3, 3]]);
+    const top = makeEvent('top', new Date(2026, 10, 2), new Date(2026, 10, 5), { allDay: true });
+    const long = makeEvent('long', new Date(2026, 10, 3), new Date(2026, 10, 5), { allDay: true });
+    const extra = makeEvent('extra', new Date(2026, 10, 4, 9), new Date(2026, 10, 4, 10));
+    const layout = layoutWeek(novemberSecondWeek, [extra, long, top], 2);
+    const runs = layout.segments.filter((segment) => segment.event.uid === 'long');
+    expect(runs.map((run) => [run.startColumn, run.endColumn])).toEqual([[1, 1], [3, 3]]);
     expect(runs[0].continuesRight).toBe(true);
     expect(runs[1].continuesLeft).toBe(true);
-    expect(r.more).toEqual([{ col: 2, count: 2 }]);
+    expect(layout.overflows).toEqual([{ column: 2, count: 2 }]);
   });
 
   it('with one line, shows a lone item and collapses two items to +2', () => {
-    const one = ev('one', new Date(2026, 10, 2, 9), new Date(2026, 10, 2, 10));
-    const twoA = ev('a', new Date(2026, 10, 3, 9), new Date(2026, 10, 3, 10));
-    const twoB = ev('b', new Date(2026, 10, 3, 11), new Date(2026, 10, 3, 12));
-    const r = layoutWeek(week, [one, twoA, twoB], 1);
-    expect(r.segments.map((s) => s.event.uid)).toEqual(['one']);
-    expect(r.more).toEqual([{ col: 1, count: 2 }]);
+    const mondayMeeting = makeEvent('one', new Date(2026, 10, 2, 9), new Date(2026, 10, 2, 10));
+    const tuesdayMorning = makeEvent('morning', new Date(2026, 10, 3, 9), new Date(2026, 10, 3, 10));
+    const tuesdayNoon = makeEvent('noon', new Date(2026, 10, 3, 11), new Date(2026, 10, 3, 12));
+    const layout = layoutWeek(novemberSecondWeek, [mondayMeeting, tuesdayMorning, tuesdayNoon], 1);
+    expect(layout.segments.map((segment) => segment.event.uid)).toEqual(['one']);
+    expect(layout.overflows).toEqual([{ column: 1, count: 2 }]);
   });
 
   it('ignores events outside the week', () => {
-    const outside = ev('x', new Date(2026, 10, 20, 9), new Date(2026, 10, 20, 10));
-    expect(layoutWeek(week, [outside], 4).segments).toEqual([]);
+    const later = makeEvent('later', new Date(2026, 10, 20, 9), new Date(2026, 10, 20, 10));
+    expect(layoutWeek(novemberSecondWeek, [later], 4).segments).toEqual([]);
   });
 
   it('never draws "+N" over a visible chip when bars are staggered', () => {
-    // lines = 2. A Mon–Wed lane 0, B Tue–Thu lane 1, C Wed–Fri lane 2.
-    // Thu holds B (lane 1) and C (lane 2): "+N" takes lane 1, so B must hide there too.
-    const a = ev('A', new Date(2026, 10, 2), new Date(2026, 10, 4), { allDay: true });
-    const b = ev('B', new Date(2026, 10, 3), new Date(2026, 10, 5), { allDay: true });
-    const c = ev('C', new Date(2026, 10, 4), new Date(2026, 10, 6), { allDay: true });
-    const r = layoutWeek(week, [a, b, c], 2);
-    for (const { col } of r.more) {
-      expect(r.segments.some((s) => s.lane >= 1 && s.col0 <= col && col <= s.col1)).toBe(false);
+    const mondayToWednesday = makeEvent('A', new Date(2026, 10, 2), new Date(2026, 10, 4), { allDay: true });
+    const tuesdayToThursday = makeEvent('B', new Date(2026, 10, 3), new Date(2026, 10, 5), { allDay: true });
+    const wednesdayToFriday = makeEvent('C', new Date(2026, 10, 4), new Date(2026, 10, 6), { allDay: true });
+    const layout = layoutWeek(novemberSecondWeek, [mondayToWednesday, tuesdayToThursday, wednesdayToFriday], 2);
+    for (const { column } of layout.overflows) {
+      const coversColumnBelowFirstLine = layout.segments.some((segment) =>
+        segment.lane >= 1 && segment.startColumn <= column && column <= segment.endColumn);
+      expect(coversColumnBelowFirstLine).toBe(false);
     }
-    expect(r.more).toContainEqual({ col: 3, count: 2 });
+    expect(layout.overflows).toContainEqual({ column: 3, count: 2 });
   });
 });

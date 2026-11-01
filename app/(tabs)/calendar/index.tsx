@@ -42,7 +42,7 @@ export default function CalendarScreen() {
   const calendarApp = useAccountStore((s) => s.capabilities.calendarApp);
   const weekStartsOn = useSettingsStore((s) => s.weekStartsOn);
   const language = useSettingsStore((s) => s.language);
-  const monthViewStyle = useSettingsStore((s) => s.monthViewStyle);
+  const monthViewStyle = useSettingsStore((state) => state.monthViewStyle);
   const hiddenCalendarIds = useCalendarStore((s) => s.hiddenCalendarIds);
   const toggleCalendarVisibility = useCalendarStore((s) => s.toggleCalendarVisibility);
   const notifDisabledCalendarIds = useCalendarStore((s) => s.notifDisabledCalendarIds);

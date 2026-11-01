@@ -21,7 +21,7 @@ import {
 
 dayjs.extend(localizedFormat);
 
-const COL_PCT = 100 / 7;
+const COLUMN_PERCENT = 100 / 7;
 
 interface Props {
   year: number;
@@ -30,20 +30,20 @@ interface Props {
   events: CalendarEvent[];
   height: number;
   todayKey: string;
-  onOpenDay: (d: Date) => void;
-  onLongPressDay: (d: Date) => void;
+  onOpenDay: (day: Date) => void;
+  onLongPressDay: (day: Date) => void;
 }
 
 function Segment({ segment, dimmed, untitled }: { segment: WeekSegment; dimmed: boolean; untitled: string }) {
-  const { event, col0, col1, lane, continuesLeft, continuesRight } = segment;
+  const { event, startColumn, endColumn, lane, continuesLeft, continuesRight } = segment;
   const ink = contrastFor(event.color);
   return (
     <View
       style={{
         position: 'absolute',
         top: MONTH_NUMBER_AREA + lane * MONTH_LINE_HEIGHT,
-        left: `${col0 * COL_PCT}%`,
-        width: `${(col1 - col0 + 1) * COL_PCT}%`,
+        left: `${startColumn * COLUMN_PERCENT}%`,
+        width: `${(endColumn - startColumn + 1) * COLUMN_PERCENT}%`,
         paddingLeft: continuesLeft ? 0 : 2,
         paddingRight: continuesRight ? 0 : 2,
         opacity: dimmed ? 0.5 : 1,
@@ -75,23 +75,25 @@ function MonthGridPageImpl({
 }: Props) {
   const theme = useTheme();
   const { t } = useTranslation();
-  const language = useSettingsStore((s) => s.language);
+  const language = useSettingsStore((state) => state.language);
 
   const weeks = useMemo(() => monthWeeks(year, month, weekStartsOn), [year, month, weekStartsOn]);
   const lines = linesFor(height / weeks.length);
 
   const rows = useMemo(() => {
-    const first = weeks[0][0];
-    const last = weeks[weeks.length - 1][6];
-    const end = new Date(last.getFullYear(), last.getMonth(), last.getDate() + 1);
-    const visible = events.filter((e) => e.dtend >= first && e.dtstart < end);
+    const firstDay = weeks[0][0];
+    const lastDay = weeks[weeks.length - 1][6];
+    const pageEnd = new Date(lastDay.getFullYear(), lastDay.getMonth(), lastDay.getDate() + 1);
+    const pageEvents = events.filter((event) => event.dtend >= firstDay && event.dtstart < pageEnd);
     return weeks.map((days) => {
-      const layout = layoutWeek(days, visible, lines);
-      const counts = days.map((_, col) => {
-        const drawn = layout.segments.filter((s) => s.col0 <= col && col <= s.col1).length;
-        return drawn + (layout.more.find((m) => m.col === col)?.count ?? 0);
+      const layout = layoutWeek(days, pageEvents, lines);
+      const eventCounts = days.map((_, column) => {
+        const drawnCount = layout.segments
+          .filter((segment) => segment.startColumn <= column && column <= segment.endColumn).length;
+        const hiddenCount = layout.overflows.find((overflow) => overflow.column === column)?.count ?? 0;
+        return drawnCount + hiddenCount;
       });
-      return { days, layout, counts };
+      return { days, layout, eventCounts };
     });
   }, [weeks, events, lines]);
 
@@ -100,25 +102,26 @@ function MonthGridPageImpl({
 
   return (
     <View style={styles.page}>
-      {rows.map(({ days, layout, counts }) => (
+      {rows.map(({ days, layout, eventCounts }) => (
         <View key={dayKey(days[0])} style={[styles.week, { borderTopColor: colors.border }]}>
-          {days.map((d, col) => {
-            const key = dayKey(d);
+          {days.map((day, column) => {
+            const key = dayKey(day);
             const isToday = key === todayKey;
-            const outside = d.getMonth() !== month;
-            const date = dayjs(d).locale(language).format('dddd, LL');
+            const isOutsideMonth = day.getMonth() !== month;
+            const date = dayjs(day).locale(language).format('dddd, LL');
+            const eventCount = eventCounts[column];
             return (
               <Pressable
                 key={key}
                 testID={`month-day-${key}`}
-                style={[styles.cell, col > 0 && { borderLeftWidth: StyleSheet.hairlineWidth, borderLeftColor: colors.border }]}
+                style={[styles.cell, column > 0 && { borderLeftWidth: StyleSheet.hairlineWidth, borderLeftColor: colors.border }]}
                 accessibilityRole="button"
-                accessibilityLabel={counts[col]
-                  ? t('calendar.monthCell.a11y', { date, count: counts[col] })
+                accessibilityLabel={eventCount
+                  ? t('calendar.monthCell.a11y', { date, count: eventCount })
                   : t('calendar.monthCell.a11yEmpty', { date })}
                 accessibilityHint={t('calendar.monthCell.hint')}
-                onPress={() => onOpenDay(d)}
-                onLongPress={() => onLongPressDay(d)}
+                onPress={() => onOpenDay(day)}
+                onLongPress={() => onLongPressDay(day)}
                 delayLongPress={LONG_PRESS_MS}
               >
                 <View style={[styles.number, isToday && { backgroundColor: colors.primary }]}>
@@ -127,12 +130,12 @@ function MonthGridPageImpl({
                     style={[
                       styles.numberText,
                       {
-                        color: isToday ? colors.primaryText : outside ? colors.textTertiary : colors.text,
+                        color: isToday ? colors.primaryText : isOutsideMonth ? colors.textTertiary : colors.text,
                         fontWeight: isToday ? '700' : '400',
                       },
                     ]}
                   >
-                    {d.getDate()}
+                    {day.getDate()}
                   </Text>
                 </View>
               </Pressable>
@@ -146,23 +149,24 @@ function MonthGridPageImpl({
               accessibilityElementsHidden
               importantForAccessibility="no-hide-descendants"
             >
-              {layout.segments.map((s) => (
+              {layout.segments.map((segment) => (
                 <Segment
-                  key={`${s.event.uid}-${s.event.dtstart.getTime()}-${s.col0}`}
-                  segment={s}
-                  dimmed={days[s.col0].getMonth() !== month && days[s.col1].getMonth() !== month}
+                  key={`${segment.event.uid}-${segment.event.dtstart.getTime()}-${segment.startColumn}`}
+                  segment={segment}
+                  dimmed={days[segment.startColumn].getMonth() !== month
+                    && days[segment.endColumn].getMonth() !== month}
                   untitled={untitled}
                 />
               ))}
-              {layout.more.map(({ col, count }) => (
+              {layout.overflows.map(({ column, count }) => (
                 <Text
-                  key={`more-${col}`}
+                  key={`overflow-${column}`}
                   allowFontScaling={false}
                   style={[
-                    styles.more,
+                    styles.overflow,
                     {
                       top: MONTH_NUMBER_AREA + (lines - 1) * MONTH_LINE_HEIGHT,
-                      left: `${col * COL_PCT}%`,
+                      left: `${column * COLUMN_PERCENT}%`,
                       color: colors.textSecondary,
                     },
                   ]}
@@ -193,5 +197,5 @@ const styles = StyleSheet.create({
   squareLeft: { borderTopLeftRadius: 0, borderBottomLeftRadius: 0 },
   squareRight: { borderTopRightRadius: 0, borderBottomRightRadius: 0 },
   chipText: { fontSize: 11, lineHeight: 13, fontWeight: '500' },
-  more: { position: 'absolute', width: `${COL_PCT}%`, paddingLeft: 4, fontSize: 11, lineHeight: 14, fontWeight: '600' },
+  overflow: { position: 'absolute', width: `${COLUMN_PERCENT}%`, paddingLeft: 4, fontSize: 11, lineHeight: 14, fontWeight: '600' },
 });

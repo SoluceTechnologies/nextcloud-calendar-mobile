@@ -122,10 +122,10 @@ describe('useCalendarNavigation', () => {
 
   it('switchMode uses the given focus date', () => {
     const { result } = renderHook(() => useCalendarNavigation());
-    const d = new Date(2026, 10, 13);
-    act(() => { result.current.switchMode('day', d); });
-    expect(result.current.date).toEqual(d);
-    expect(result.current.anchorDate).toEqual(d);
+    const tappedDay = new Date(2026, 10, 13);
+    act(() => { result.current.switchMode('day', tappedDay); });
+    expect(result.current.date).toEqual(tappedDay);
+    expect(result.current.anchorDate).toEqual(tappedDay);
     expect(useCalendarStore.getState().viewMode).toBe('day');
   });
 });

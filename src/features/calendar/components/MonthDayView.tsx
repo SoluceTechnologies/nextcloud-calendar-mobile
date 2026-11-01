@@ -28,7 +28,7 @@ interface Props {
   onPressEvent: (e: CalendarEvent) => void;
   onPressCell: (d: Date) => void;
   variant: MonthViewStyle;
-  onOpenDay: (d: Date) => void;
+  onOpenDay: (day: Date) => void;
 }
 
 function monthDiff(from: Date, to: Date): number {
@@ -155,10 +155,9 @@ function MonthDayViewImpl({
 
   const gridHeight = height * 0.44;
   const [pagerHeight, setPagerHeight] = useState(0);
-  // A hidden layer (Android display:none) reports 0: keep the last real height.
-  const handlePagerLayout = useCallback((e: LayoutChangeEvent) => {
-    const h = e.nativeEvent.layout.height;
-    if (h > 0) setPagerHeight(h);
+  const handlePagerLayout = useCallback((event: LayoutChangeEvent) => {
+    const measuredHeight = event.nativeEvent.layout.height;
+    if (measuredHeight > 0) setPagerHeight(measuredHeight);
   }, []);
   const [localAnchor, setLocalAnchor] = useState(date);
   const [pagerKey, setPagerKey] = useState(0);
@@ -201,12 +200,12 @@ function MonthDayViewImpl({
   }, [onMonthChange]);
 
   const renderPage = useCallback(({ index }: { index: number }) => {
-    const m = dayjs(localAnchor).add(index, 'month');
+    const pageMonth = dayjs(localAnchor).add(index, 'month');
     if (isGrid) {
       return (
         <MonthGridPage
-          year={m.year()}
-          month={m.month()}
+          year={pageMonth.year()}
+          month={pageMonth.month()}
           weekStartsOn={weekStartsOn}
           events={events}
           height={pagerHeight}
@@ -216,7 +215,7 @@ function MonthDayViewImpl({
         />
       );
     }
-    const weeks = buildMonthGrid(m.year(), m.month(), weekStartsOn);
+    const weeks = buildMonthGrid(pageMonth.year(), pageMonth.month(), weekStartsOn);
     return (
       <MonthGrid
         weeks={weeks}
@@ -235,8 +234,8 @@ function MonthDayViewImpl({
 
   const header = (
     <View style={styles.dowRow}>
-      {dayHeaders.map((d, i) => (
-        <Text key={i} style={[styles.dowLabel, { color: theme.colors.textTertiary }]}>{d}</Text>
+      {dayHeaders.map((label, index) => (
+        <Text key={index} style={[styles.dowLabel, { color: theme.colors.textTertiary }]}>{label}</Text>
       ))}
     </View>
   );
@@ -252,8 +251,6 @@ function MonthDayViewImpl({
     />
   );
 
-  // Same tree for both variants: the pager must never remount (a remount loses
-  // the paged-to month and replays a page-change echo).
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <View
@@ -281,7 +278,7 @@ function MonthDayViewImpl({
           ) : (
             <FlatList
               data={dayEvents}
-              keyExtractor={(e, i) => `${e.calendarId}-${e.uid}-${e.dtstart.getTime()}-${i}`}
+              keyExtractor={(event, index) => `${event.calendarId}-${event.uid}-${event.dtstart.getTime()}-${index}`}
               renderItem={({ item }) => (
                 <TouchableOpacity
                   style={[styles.eventRow, { borderLeftColor: item.color, backgroundColor: theme.colors.surface }]}

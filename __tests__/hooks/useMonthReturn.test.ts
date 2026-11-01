@@ -31,9 +31,9 @@ describe('useMonthReturn', () => {
 
   it('sends hardware back from a Day opened from Month back to Month', () => {
     const { result, rerender } = setup();
-    const d = new Date(2026, 10, 13);
-    act(() => { result.current.openDay(d); });
-    expect(switchMode).toHaveBeenCalledWith('day', d);
+    const tappedDay = new Date(2026, 10, 13);
+    act(() => { result.current.openDay(tappedDay); });
+    expect(switchMode).toHaveBeenCalledWith('day', tappedDay);
     rerender({ mode: 'day' });
     expect(handlers).toHaveLength(1);
     expect(handlers[0]()).toBe(true);

@@ -282,9 +282,9 @@ describe('MonthDayView grid variant', () => {
 
   it('keeps the same pager when switching between compact and grid', () => {
     mockPagerMounts = 0;
-    const r = render(view(june15));
-    r.rerender(grid());
-    fireEvent(r.getByTestId('month-grid-pager'), 'layout', layout);
+    const screen = render(view(june15));
+    screen.rerender(grid());
+    fireEvent(screen.getByTestId('month-grid-pager'), 'layout', layout);
     expect(mockPagerMounts).toBe(1);
   });
 });

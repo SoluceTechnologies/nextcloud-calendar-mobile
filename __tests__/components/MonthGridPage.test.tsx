@@ -11,10 +11,9 @@ jest.mock('@react-native-async-storage/async-storage', () =>
 );
 
 const render = (ui: React.ReactElement) => rtlRender(ui, { wrapper: ThemeWrapper });
-// Chips are hidden from screen readers (the cell speaks for them), so queries must include hidden elements.
-const hidden = { includeHiddenElements: true };
+const includeHidden = { includeHiddenElements: true };
 
-function ev(uid: string, dtstart: Date, dtend: Date, extra: Partial<CalendarEvent> = {}): CalendarEvent {
+function makeEvent(uid: string, dtstart: Date, dtend: Date, extra: Partial<CalendarEvent> = {}): CalendarEvent {
   return {
     uid, href: `/${uid}.ics`, calendarId: 'c1', accountId: 'a1',
     summary: uid, dtstart, dtend, allDay: false, color: '#0082c9',
@@ -22,8 +21,8 @@ function ev(uid: string, dtstart: Date, dtend: Date, extra: Partial<CalendarEven
   };
 }
 
-const standup = ev('s', new Date(2026, 10, 3, 9), new Date(2026, 10, 3, 9, 15), { summary: 'Daily standup' });
-const ferien = ev('f', new Date(2026, 10, 3), new Date(2026, 10, 5), { allDay: true, summary: 'Ferien' });
+const standup = makeEvent('standup', new Date(2026, 10, 3, 9), new Date(2026, 10, 3, 9, 15), { summary: 'Daily standup' });
+const ferien = makeEvent('ferien', new Date(2026, 10, 3), new Date(2026, 10, 5), { allDay: true, summary: 'Ferien' });
 
 let onOpenDay: jest.Mock;
 let onLongPressDay: jest.Mock;
@@ -52,18 +51,17 @@ describe('MonthGridPage', () => {
   });
 
   it('shows event titles in their day', () => {
-    expect(render(page([standup])).getByText('Daily standup', hidden)).toBeTruthy();
+    expect(render(page([standup])).getByText('Daily standup', includeHidden)).toBeTruthy();
   });
 
   it('renders an all-day multi-day event once, not per day', () => {
-    expect(render(page([ferien])).getAllByText('Ferien', hidden)).toHaveLength(1);
+    expect(render(page([ferien])).getAllByText('Ferien', includeHidden)).toHaveLength(1);
   });
 
   it('shows "+N" when a day overflows', () => {
-    // 600 / 6 rows = 100 → 4 lines → 3 drawn + "+5"
-    const busy = [8, 9, 10, 11, 12, 13, 14, 15].map((h) =>
-      ev(`b${h}`, new Date(2026, 10, 4, h), new Date(2026, 10, 4, h, 30)));
-    expect(render(page(busy)).getByText('+5', hidden)).toBeTruthy();
+    const meetings = [8, 9, 10, 11, 12, 13, 14, 15].map((hour) =>
+      makeEvent(`meeting-${hour}`, new Date(2026, 10, 4, hour), new Date(2026, 10, 4, hour, 30)));
+    expect(render(page(meetings)).getByText('+5', includeHidden)).toBeTruthy();
   });
 
   it('opens the tapped day', () => {
@@ -93,13 +91,13 @@ describe('MonthGridPage', () => {
   });
 
   it('drops chips when the events prop shrinks (calendar hidden)', () => {
-    const r = render(page([standup]));
-    r.rerender(page([]));
-    expect(r.queryByText('Daily standup', hidden)).toBeNull();
+    const screen = render(page([standup]));
+    screen.rerender(page([]));
+    expect(screen.queryByText('Daily standup', includeHidden)).toBeNull();
   });
 
   it('shows (No title) for an untitled event', () => {
-    const untitled = ev('u', new Date(2026, 10, 3, 9), new Date(2026, 10, 3, 10), { summary: '' });
-    expect(render(page([untitled])).getByText('(No title)', hidden)).toBeTruthy();
+    const untitled = makeEvent('untitled', new Date(2026, 10, 3, 9), new Date(2026, 10, 3, 10), { summary: '' });
+    expect(render(page([untitled])).getByText('(No title)', includeHidden)).toBeTruthy();
   });
 });

@@ -37,8 +37,8 @@ export default function CalendarSettingsScreen() {
   const setWeekStartsOn = useSettingsStore((s) => s.setWeekStartsOn);
   const timeFormat = useSettingsStore((s) => s.timeFormat);
   const setTimeFormat = useSettingsStore((s) => s.setTimeFormat);
-  const monthViewStyle = useSettingsStore((s) => s.monthViewStyle);
-  const setMonthViewStyle = useSettingsStore((s) => s.setMonthViewStyle);
+  const monthViewStyle = useSettingsStore((state) => state.monthViewStyle);
+  const setMonthViewStyle = useSettingsStore((state) => state.setMonthViewStyle);
 
   const [pendingWeek, setPendingWeek] = useState(weekStartsOn);
   useEffect(() => { setPendingWeek(weekStartsOn); }, [weekStartsOn]);
@@ -70,14 +70,14 @@ export default function CalendarSettingsScreen() {
       <Stack card gap={12} padding={16} hAlign="stretch" style={cardOuter}>
         <Typography variant="body1">{t('settings.monthView.title')}</Typography>
         <Stack direction="horizontal" gap={8}>
-          {MONTH_VIEW_OPTIONS.map((opt) => (
+          {MONTH_VIEW_OPTIONS.map((option) => (
             <Chip
-              key={opt.value}
+              key={option.value}
               fullWidth
-              active={monthViewStyle === opt.value}
-              onPress={() => setMonthViewStyle(opt.value)}
+              active={monthViewStyle === option.value}
+              onPress={() => setMonthViewStyle(option.value)}
             >
-              {t(opt.labelKey)}
+              {t(option.labelKey)}
             </Chip>
           ))}
         </Stack>
