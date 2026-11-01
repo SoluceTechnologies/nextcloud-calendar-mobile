@@ -74,6 +74,11 @@
     "noEvents": "Geen afspraken",
     "allDay": "Hele dag",
     "noTitle": "(Geen titel)",
+    "monthCell": {
+      "a11y": "{{date}}, afspraken: {{count}}",
+      "a11yEmpty": "{{date}}, geen afspraken",
+      "hint": "Opent de dagweergave"
+    },
     "drawerNoCalendars": "Geen agenda",
     "calendarNotifications": "Meldingen van {{name}}",
     "calendarVisibility": "{{name}} tonen"

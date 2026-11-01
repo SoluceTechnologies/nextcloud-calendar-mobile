@@ -74,6 +74,11 @@
     "noEvents": "Keine Ereignisse",
     "allDay": "Ganztägig",
     "noTitle": "(Kein Titel)",
+    "monthCell": {
+      "a11y": "{{date}}, Termine: {{count}}",
+      "a11yEmpty": "{{date}}, keine Termine",
+      "hint": "Öffnet die Tagesansicht"
+    },
     "drawerNoCalendars": "Kein Kalender",
     "calendarNotifications": "Benachrichtigungen für {{name}}",
     "calendarVisibility": "{{name}} anzeigen"

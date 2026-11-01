@@ -74,6 +74,11 @@
     "noEvents": "Pas d'eveniment",
     "allDay": "Jorn entièr",
     "noTitle": "(Sens títol)",
+    "monthCell": {
+      "a11y": "{{date}}, eveniments : {{count}}",
+      "a11yEmpty": "{{date}}, cap d'eveniment",
+      "hint": "Dobrís la vista del jorn"
+    },
     "drawerNoCalendars": "Pas de calendari",
     "calendarNotifications": "Notificacions per {{name}}",
     "calendarVisibility": "Afichar {{name}}"
