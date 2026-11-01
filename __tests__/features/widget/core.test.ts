@@ -79,7 +79,6 @@ describe('buildAgendaSnapshot', () => {
   });
 
   it('lists a multi-day event under every day it covers, not just its start day', () => {
-    // Aug 1 00:00 → Aug 3 16:00 Europe/Berlin: covers Aug 1, 2 and 3.
     const events = [
       ev({ uid: 'week', summary: 'Offsite', dtstart: new Date('2026-07-31T22:00:00Z'), dtend: new Date('2026-08-03T14:00:00Z') }),
     ];
@@ -92,7 +91,6 @@ describe('buildAgendaSnapshot', () => {
   });
 
   it('uses the inclusive end of all-day events as their last covered day', () => {
-    // All-day Fri–Sun: stored dtend is Sunday 00:00 (last covered day).
     const events = [
       ev({
         uid: 'allday', allDay: true,
