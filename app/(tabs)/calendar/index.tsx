@@ -19,6 +19,7 @@ import { useCalendarNavigation } from '@/features/calendar/hooks/useCalendarNavi
 import { useCalendarData } from '@/features/calendar/hooks/useCalendarData';
 import { useCalendarDrawer } from '@/features/calendar/hooks/useCalendarDrawer';
 import { useZoom } from '@/features/calendar/hooks/useZoom';
+import { useMonthReturn } from '@/features/calendar/hooks/useMonthReturn';
 import { CalendarTopBar } from '@/features/calendar/components/CalendarTopBar';
 import { TimeGridView } from '@/features/calendar/components/TimeGridView';
 import { ViewLayer } from '@/features/calendar/components/ViewLayer';
@@ -41,6 +42,7 @@ export default function CalendarScreen() {
   const calendarApp = useAccountStore((s) => s.capabilities.calendarApp);
   const weekStartsOn = useSettingsStore((s) => s.weekStartsOn);
   const language = useSettingsStore((s) => s.language);
+  const monthViewStyle = useSettingsStore((s) => s.monthViewStyle);
   const hiddenCalendarIds = useCalendarStore((s) => s.hiddenCalendarIds);
   const toggleCalendarVisibility = useCalendarStore((s) => s.toggleCalendarVisibility);
   const notifDisabledCalendarIds = useCalendarStore((s) => s.notifDisabledCalendarIds);
@@ -48,6 +50,7 @@ export default function CalendarScreen() {
 
   const nav = useCalendarNavigation();
   const { viewMode, date, fetchDate, agendaVisibleDate } = nav;
+  const { openDay } = useMonthReturn(viewMode, nav.switchMode);
 
   const deferredViewMode = useDeferredValue(viewMode);
   const deferredDate = useDeferredValue(date);
@@ -164,6 +167,8 @@ export default function CalendarScreen() {
             onMonthChange={nav.onPageChange}
             onPressEvent={handlePressEventFromMonth}
             onPressCell={handlePressCell}
+            variant={monthViewStyle}
+            onOpenDay={openDay}
           />
         </ViewLayer>
 

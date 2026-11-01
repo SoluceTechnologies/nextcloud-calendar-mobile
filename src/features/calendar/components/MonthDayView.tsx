@@ -1,7 +1,7 @@
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
   View, Text, TouchableOpacity, FlatList, StyleSheet,
-  useWindowDimensions,
+  useWindowDimensions, type LayoutChangeEvent,
 } from 'react-native';
 import dayjs from 'dayjs';
 import localizedFormat from 'dayjs/plugin/localizedFormat';
@@ -9,9 +9,10 @@ import { useTranslation } from 'react-i18next';
 import { useTheme } from 'expo-router';
 import { eventCoversDay, eventDayKeys, buildMonthGrid } from '../utils/monthLayout';
 import InfinitePager, { type InfinitePagerImperativeApi } from 'react-native-infinite-pager';
-import { useSettingsStore } from '@/stores/settingsStore';
+import { useSettingsStore, type MonthViewStyle } from '@/stores/settingsStore';
 import { useTimeFormat } from '@/hooks/useTimeFormat';
 import type { CalendarEvent } from '@/types';
+import { MonthGridPage } from './MonthGridPage';
 
 dayjs.extend(localizedFormat);
 
@@ -26,6 +27,8 @@ interface Props {
   onMonthChange: (d: Date) => void;
   onPressEvent: (e: CalendarEvent) => void;
   onPressCell: (d: Date) => void;
+  variant: MonthViewStyle;
+  onOpenDay: (d: Date) => void;
 }
 
 function monthDiff(from: Date, to: Date): number {
@@ -99,7 +102,10 @@ const MonthGrid = memo(function MonthGrid({
   );
 });
 
-function MonthDayViewImpl({ date, events, weekStartsOn, jump, onSelectDate, onMonthChange, onPressEvent, onPressCell }: Props) {
+function MonthDayViewImpl({
+  date, events, weekStartsOn, jump, onSelectDate, onMonthChange, onPressEvent, onPressCell, variant, onOpenDay,
+}: Props) {
+  const isGrid = variant === 'grid';
   const theme = useTheme();
   const { t } = useTranslation();
   const language = useSettingsStore((s) => s.language);
@@ -110,6 +116,7 @@ function MonthDayViewImpl({ date, events, weekStartsOn, jump, onSelectDate, onMo
 
   const dotMap = useMemo(() => {
     const map = new Map<string, Set<string>>();
+    if (isGrid) return map;
     const add = (key: string, color: string) => {
       let set = map.get(key);
       if (!set) { set = new Set(); map.set(key, set); }
@@ -120,14 +127,15 @@ function MonthDayViewImpl({ date, events, weekStartsOn, jump, onSelectDate, onMo
       for (const key of eventDayKeys(ev)) add(key, ev.color);
     }
     return map;
-  }, [events]);
+  }, [events, isGrid]);
 
   const dayEvents = useMemo(() => {
+    if (isGrid) return [];
     const sel = selected.format('YYYY-MM-DD');
     return events
       .filter((e) => eventCoversDay(e, sel))
       .sort((a, b) => a.dtstart.getTime() - b.dtstart.getTime());
-  }, [events, selected]);
+  }, [events, selected, isGrid]);
 
   const todayKey = dayjs().format('YYYY-MM-DD');
   const today = useMemo(() => dayjs(todayKey), [todayKey]);
@@ -146,6 +154,10 @@ function MonthDayViewImpl({ date, events, weekStartsOn, jump, onSelectDate, onMo
   }, [weekStartsOn, language]);
 
   const gridHeight = height * 0.44;
+  const [pagerHeight, setPagerHeight] = useState(0);
+  const handlePagerLayout = useCallback((e: LayoutChangeEvent) => {
+    setPagerHeight(e.nativeEvent.layout.height);
+  }, []);
   const [localAnchor, setLocalAnchor] = useState(date);
   const [pagerKey, setPagerKey] = useState(0);
   const pagerRef = useRef<InfinitePagerImperativeApi>(null);
@@ -188,6 +200,20 @@ function MonthDayViewImpl({ date, events, weekStartsOn, jump, onSelectDate, onMo
 
   const renderPage = useCallback(({ index }: { index: number }) => {
     const m = dayjs(localAnchor).add(index, 'month');
+    if (isGrid) {
+      return (
+        <MonthGridPage
+          year={m.year()}
+          month={m.month()}
+          weekStartsOn={weekStartsOn}
+          events={events}
+          height={pagerHeight}
+          todayKey={todayKey}
+          onOpenDay={onOpenDay}
+          onLongPressDay={onPressCell}
+        />
+      );
+    }
     const weeks = buildMonthGrid(m.year(), m.month(), weekStartsOn);
     return (
       <MonthGrid
@@ -200,28 +226,47 @@ function MonthDayViewImpl({ date, events, weekStartsOn, jump, onSelectDate, onMo
         onPressCell={onPressCell}
       />
     );
-  }, [localAnchor, weekStartsOn, selected, today, dotMap, theme.colors, handleDayPress, onPressCell]);
+  }, [
+    localAnchor, weekStartsOn, selected, today, dotMap, theme.colors, handleDayPress, onPressCell,
+    isGrid, events, pagerHeight, todayKey, onOpenDay,
+  ]);
+
+  const header = (
+    <View style={styles.dowRow}>
+      {dayHeaders.map((d, i) => (
+        <Text key={i} style={[styles.dowLabel, { color: theme.colors.textTertiary }]}>{d}</Text>
+      ))}
+    </View>
+  );
+  const pager = (
+    <InfinitePager
+      key={pagerKey}
+      ref={pagerRef}
+      style={styles.fill}
+      pageWrapperStyle={styles.fill}
+      renderPage={renderPage}
+      onPageChange={handlePageChange}
+      pageBuffer={1}
+    />
+  );
+
+  if (isGrid) {
+    // Lines per cell depend on the page height, so the pager mounts once it is measured.
+    return (
+      <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+        {header}
+        <View testID="month-grid-pager" style={styles.pagerWrap} onLayout={handlePagerLayout}>
+          {pagerHeight > 0 && pager}
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <View style={[styles.grid, { height: gridHeight, borderBottomColor: theme.colors.border }]}>
-        <View style={styles.dowRow}>
-          {dayHeaders.map((d, i) => (
-            <Text key={i} style={[styles.dowLabel, { color: theme.colors.textTertiary }]}>{d}</Text>
-          ))}
-        </View>
-
-        <View style={styles.pagerWrap}>
-          <InfinitePager
-            key={pagerKey}
-            ref={pagerRef}
-            style={styles.fill}
-            pageWrapperStyle={styles.fill}
-            renderPage={renderPage}
-            onPageChange={handlePageChange}
-            pageBuffer={1}
-          />
-        </View>
+        {header}
+        <View style={styles.pagerWrap}>{pager}</View>
       </View>
 
       <View style={styles.dayList}>

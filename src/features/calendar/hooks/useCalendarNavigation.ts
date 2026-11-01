@@ -47,13 +47,13 @@ export function useCalendarNavigation() {
     fetchDebounce.call(agendaVisibleDate);
   }, [viewMode, agendaVisibleDate, fetchDebounce]);
 
-  const switchMode = useCallback((target: ViewMode) => {
-    const focus = viewModeRef.current === 'schedule'
+  const switchMode = useCallback((target: ViewMode, focus?: Date) => {
+    const focusDate = focus ?? (viewModeRef.current === 'schedule'
       ? agendaVisibleDateRef.current
-      : dateRef.current;
+      : dateRef.current);
     if (target !== 'schedule') {
-      setAnchorDate(focus);
-      setDate(focus);
+      setAnchorDate(focusDate);
+      setDate(focusDate);
     }
     setViewMode(target);
   }, [setViewMode, setDate]);

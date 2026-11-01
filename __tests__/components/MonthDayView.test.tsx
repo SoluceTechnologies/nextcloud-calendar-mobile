@@ -1,5 +1,5 @@
 import React from 'react';
-import { render as rtlRender } from '@testing-library/react-native';
+import { render as rtlRender, fireEvent } from '@testing-library/react-native';
 import { ThemeWrapper } from '../helpers/theme';
 import dayjs from 'dayjs';
 
@@ -50,6 +50,8 @@ function view(date: Date) {
       onMonthChange={jest.fn()}
       onPressEvent={jest.fn()}
       onPressCell={jest.fn()}
+      variant="compact"
+      onOpenDay={jest.fn()}
     />
   );
 }
@@ -168,6 +170,8 @@ describe('MonthDayView', () => {
         onMonthChange={onMonthChange}
         onPressEvent={jest.fn()}
         onPressCell={jest.fn()}
+        variant="compact"
+        onOpenDay={jest.fn()}
       />
     );
 
@@ -207,6 +211,8 @@ describe('MonthDayView multi-day all-day events', () => {
         onMonthChange={jest.fn()}
         onPressEvent={jest.fn()}
         onPressCell={jest.fn()}
+        variant="compact"
+        onOpenDay={jest.fn()}
       />
     );
   }
@@ -229,5 +235,40 @@ describe('MonthDayView multi-day all-day events', () => {
 
   it('does not list the event the day after it ends', () => {
     expect(render(allDayView(new Date(2026, 5, 18))).queryByText('Conference')).toBeNull();
+  });
+});
+
+describe('MonthDayView grid variant', () => {
+  function grid(onOpenDay = jest.fn()) {
+    return (
+      <MonthDayView
+        date={june15}
+        events={[event]}
+        weekStartsOn={0}
+        jump={{ nonce: 0, target: june15 }}
+        onSelectDate={jest.fn()}
+        onMonthChange={jest.fn()}
+        onPressEvent={jest.fn()}
+        onPressCell={jest.fn()}
+        variant="grid"
+        onOpenDay={onOpenDay}
+      />
+    );
+  }
+  const layout = { nativeEvent: { layout: { x: 0, y: 0, width: 390, height: 600 } } };
+
+  it('shows event titles in the grid once measured, and no day list', () => {
+    const { getByTestId, getByText, queryByText } = render(grid());
+    fireEvent(getByTestId('month-grid-pager'), 'layout', layout);
+    expect(getByText('Birthday Party', { includeHiddenElements: true })).toBeTruthy();
+    expect(queryByText('No events')).toBeNull();
+  });
+
+  it('opens the tapped day', () => {
+    const onOpenDay = jest.fn();
+    const { getByTestId } = render(grid(onOpenDay));
+    fireEvent(getByTestId('month-grid-pager'), 'layout', layout);
+    fireEvent.press(getByTestId('month-day-2026-06-20'));
+    expect(onOpenDay.mock.calls[0][0]).toEqual(new Date(2026, 5, 20));
   });
 });

@@ -119,4 +119,13 @@ describe('useCalendarNavigation', () => {
     expect(result.current.jump.target.toDateString()).toBe(today);
     expect(result.current.anchorDate).toBe(anchorBefore);
   });
+
+  it('switchMode uses the given focus date', () => {
+    const { result } = renderHook(() => useCalendarNavigation());
+    const d = new Date(2026, 10, 13);
+    act(() => { result.current.switchMode('day', d); });
+    expect(result.current.date).toEqual(d);
+    expect(result.current.anchorDate).toEqual(d);
+    expect(useCalendarStore.getState().viewMode).toBe('day');
+  });
 });
