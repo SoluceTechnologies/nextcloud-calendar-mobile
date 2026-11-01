@@ -67,10 +67,18 @@
     "drawerAccount": "ACCOUNT",
     "manageAccounts": "Gestisci account →",
     "drawerCalendars": "CALENDARI",
+    "drawerShared": "CALENDARI CONDIVISI",
+    "drawerDeck": "DECK",
+    "drawerTasks": "ATTIVITÀ",
     "offlineBanner": "Offline — visualizzazione eventi salvati",
     "noEvents": "Nessun evento",
     "allDay": "Tutto il giorno",
     "noTitle": "(Senza titolo)",
+    "monthCell": {
+      "a11y": "{{date}}, eventi: {{count}}",
+      "a11yEmpty": "{{date}}, nessun evento",
+      "hint": "Apre la vista giorno"
+    },
     "drawerNoCalendars": "Nessun calendario",
     "calendarNotifications": "Notifiche di {{name}}",
     "calendarVisibility": "Mostra {{name}}"
@@ -193,6 +201,11 @@
     "weekStart": "La settimana inizia di",
     "sunday": "Domenica",
     "monday": "Lunedì",
+    "monthView": {
+      "title": "Vista mensile",
+      "grid": "Griglia",
+      "compact": "Compatta"
+    },
     "calendarZoom": "Zoom calendario",
     "reset": "Reimposta",
     "zoom": {

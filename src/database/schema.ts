@@ -1,7 +1,7 @@
 import { appSchema, tableSchema } from '@nozbe/watermelondb';
 
 export const mySchema = appSchema({
-  version: 7,
+  version: 9,
   tables: [
     tableSchema({
       name: 'events',
@@ -44,6 +44,8 @@ export const mySchema = appSchema({
         { name: 'sync_token', type: 'string', isOptional: true },
         { name: 'expanded_center', type: 'number', isOptional: true },
         { name: 'supports_events', type: 'boolean', isOptional: true },
+        { name: 'calendar_order', type: 'number', isOptional: true },
+        { name: 'is_shared', type: 'boolean', isOptional: true },
       ],
     }),
   ],

@@ -67,10 +67,18 @@
     "drawerAccount": "ACCOUNT",
     "manageAccounts": "Gerir los comptes →",
     "drawerCalendars": "CALENDARS",
+    "drawerShared": "CALENDIÈRS PARTEJATS",
+    "drawerDeck": "DECK",
+    "drawerTasks": "TASCAS",
     "offlineBanner": "Fòra linha — afichatge dels eveniments salvats",
     "noEvents": "Pas d'eveniment",
     "allDay": "Jorn entièr",
     "noTitle": "(Sens títol)",
+    "monthCell": {
+      "a11y": "{{date}}, eveniments : {{count}}",
+      "a11yEmpty": "{{date}}, cap d'eveniment",
+      "hint": "Dobrís la vista del jorn"
+    },
     "drawerNoCalendars": "Pas de calendari",
     "calendarNotifications": "Notificacions per {{name}}",
     "calendarVisibility": "Afichar {{name}}"
@@ -188,6 +196,11 @@
     "weekStart": "La setmana comença lo",
     "sunday": "dimenge",
     "monday": "diluns",
+    "monthView": {
+      "title": "Vista mesadièra",
+      "grid": "Grasilha",
+      "compact": "Compacta"
+    },
     "calendarZoom": "Zoom del calendari",
     "reset": "Reïnicializar",
     "zoom": {

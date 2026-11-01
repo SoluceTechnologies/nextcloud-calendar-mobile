@@ -327,6 +327,67 @@ describe('fetchCalendars', () => {
     expect(cal.sourceUrl).toBe('https://ics.example.com/f?a=1&b=2');
   });
 
+  it('reads the Nextcloud calendar-order', async () => {
+    mockFetch.mockResolvedValue({
+      status: 207,
+      text: async () => propfind(
+        'Work',
+        '<x1:calendar-order xmlns:x1="http://apple.com/ns/ical/">3</x1:calendar-order>',
+      ),
+    });
+
+    const [cal] = await fetchCalendars(account);
+
+    expect(cal.order).toBe(3);
+  });
+
+  it('defaults the calendar-order to 0 when the server has none', async () => {
+    mockFetch.mockResolvedValue({ status: 207, text: async () => propfind('Work') });
+
+    const [cal] = await fetchCalendars(account);
+
+    expect(cal.order).toBe(0);
+  });
+
+  it('flags a calendar owned by someone else as shared', async () => {
+    mockFetch.mockResolvedValue({
+      status: 207,
+      text: async () => propfind('Team', '<oc:owner-principal xmlns:oc="http://owncloud.org/ns">principals/users/jane</oc:owner-principal>'),
+    });
+
+    const [cal] = await fetchCalendars(account);
+
+    expect(cal.isShared).toBe(true);
+  });
+
+  it('does not flag own calendars or ones without an owner as shared', async () => {
+    mockFetch.mockResolvedValueOnce({
+      status: 207,
+      text: async () => propfind('Mine', '<oc:owner-principal xmlns:oc="http://owncloud.org/ns">principals/users/john</oc:owner-principal>'),
+    });
+    mockFetch.mockResolvedValueOnce({ status: 207, text: async () => propfind('Feed') });
+
+    const [mine] = await fetchCalendars(account);
+    const [feed] = await fetchCalendars(account);
+
+    expect(mine.isShared).toBe(false);
+    expect(feed.isShared).toBe(false);
+  });
+
+  it('reads the component set with the cal: prefix Nextcloud actually sends', async () => {
+    mockFetch.mockResolvedValue({
+      status: 207,
+      text: async () => propfind(
+        'Tasks',
+        '<cal:supported-calendar-component-set xmlns:cal="urn:ietf:params:xml:ns:caldav"><cal:comp name="VTODO"/></cal:supported-calendar-component-set>',
+      ),
+    });
+
+    const [cal] = await fetchCalendars(account);
+
+    expect(cal.supportsEvents).toBe(false);
+  });
+
   it('marks a calendar that supports VEVENT as event-capable', async () => {
     mockFetch.mockResolvedValue({
       status: 207,
@@ -589,6 +650,22 @@ describe('Nextcloud installed in a subdirectory', () => {
     );
 
     expect(events[0].href).toBe('https://cloud.example.com/nextcloud/remote.php/dav/calendars/john/personal/a.ics');
+  });
+
+  it('fetchEventsByHrefs keeps the subfolder in multiget request hrefs (#351)', async () => {
+    mockFetch.mockResolvedValue({
+      status: 207,
+      text: async () => '<d:multistatus xmlns:d="DAV:" xmlns:cal="urn:ietf:params:xml:ns:caldav"></d:multistatus>',
+    });
+
+    await fetchEventsByHrefs(
+      subAccount, subCal,
+      ['https://cloud.example.com/nextcloud/remote.php/dav/calendars/john/personal/a.ics'],
+      new Date('2026-01-01T00:00:00Z'), new Date('2026-12-31T00:00:00Z'),
+    );
+
+    const body = mockFetch.mock.calls[0][1].body as string;
+    expect(body).toContain('<d:href>/nextcloud/remote.php/dav/calendars/john/personal/a.ics</d:href>');
   });
 });
 

@@ -147,4 +147,16 @@ describe('syncCalendars', () => {
 
     expect(calendarsCol.prepareCreate).toHaveBeenCalledTimes(1);
   });
+
+  it('updates a row when only the server calendar-order changed', async () => {
+    const row = { ...calendarRow('cal-a'), calendarOrder: 0 };
+    const { db, batch } = makeDb({ calendarRows: [row] });
+    mockGetDb.mockReturnValue(db);
+    mockFetchCalendars.mockResolvedValue([{ ...remoteCalendar('cal-a'), order: 2 }]);
+
+    await syncCalendars(account);
+
+    expect(row.prepareUpdate).toHaveBeenCalledTimes(1);
+    expect(batch).toHaveBeenCalledTimes(1);
+  });
 });

@@ -4,6 +4,7 @@ import {
 } from '../../src/database/sync';
 import {
   syncCollection,
+  fetchEvents,
   fetchEventsByHrefs,
   fetchEventsForCalendars,
 } from '../../src/services/nextcloud/caldav';
@@ -17,6 +18,7 @@ jest.mock('../../src/database/utils/safeTransaction', () => ({
 }));
 
 const mockSyncCollection = syncCollection as jest.Mock;
+const mockFetchEvents = fetchEvents as jest.Mock;
 const mockFetchByHrefs = fetchEventsByHrefs as jest.Mock;
 const mockFetchForCalendars = fetchEventsForCalendars as jest.Mock;
 const mockGetDb = getDatabaseInstance as jest.Mock;
@@ -97,6 +99,7 @@ beforeEach(() => {
   jest.clearAllMocks();
   resetDeltaSyncThrottle();
   mockSyncCollection.mockResolvedValue({ changed: [], deleted: [], newToken: 't2', reset: false });
+  mockFetchEvents.mockResolvedValue([]);
   mockFetchByHrefs.mockResolvedValue({ events: [], returnedHrefs: new Set() });
   mockFetchForCalendars.mockResolvedValue({ events: [], syncedCalendarIds: [subscribed.id], failures: [] });
 });
@@ -247,6 +250,7 @@ describe('syncVisibleRange — throttle', () => {
     const { db } = makeDb();
     mockGetDb.mockReturnValue(db);
     mockSyncCollection.mockRejectedValueOnce(new Error('syncCollection HTTP 500'));
+    mockFetchForCalendars.mockResolvedValueOnce({ events: [], syncedCalendarIds: [], failures: [new Error('HTTP 500')] });
 
     await expect(syncVisibleRange(account, [calendar], start, end)).rejects.toThrow();
     await syncVisibleRange(account, [calendar], start, end);
@@ -271,6 +275,7 @@ describe('syncVisibleRange — failure semantics', () => {
     const { db } = makeDb();
     mockGetDb.mockReturnValue(db);
     mockSyncCollection.mockRejectedValue(new Error('syncCollection HTTP 500'));
+    mockFetchForCalendars.mockResolvedValue({ events: [], syncedCalendarIds: [], failures: [new Error('HTTP 500')] });
 
     await expect(syncVisibleRange(account, [calendar], start, end)).rejects.toThrow();
   });
@@ -282,6 +287,56 @@ describe('syncVisibleRange — failure semantics', () => {
     mockFetchForCalendars.mockResolvedValue({ events: [], syncedCalendarIds: [], failures: [new Error('HTTP 500')] });
 
     await expect(syncVisibleRange(account, [calendar, subscribed], start, end)).rejects.toThrow();
+  });
+});
+
+describe('syncVisibleRange — delta fallback to range fetch', () => {
+  it('falls back to the range fetch when sync-collection fails', async () => {
+    const { db } = makeDb();
+    mockGetDb.mockReturnValue(db);
+    mockSyncCollection.mockRejectedValue(new Error('syncCollection HTTP 501'));
+    mockFetchForCalendars.mockResolvedValue({ events: [], syncedCalendarIds: [calendar.id], failures: [] });
+
+    await expect(syncVisibleRange(account, [calendar], start, end)).resolves.toBeUndefined();
+
+    expect(mockFetchForCalendars).toHaveBeenCalledWith(account, [calendar], start, end);
+  });
+
+  it('range-fetches only the calendars whose delta sync failed', async () => {
+    const { db } = makeDb();
+    mockGetDb.mockReturnValue(db);
+    const other: CalendarMeta = { ...calendar, id: 'cal-2', url: 'https://cloud.example.com/cal2/', slug: 'cal2' };
+    mockSyncCollection
+      .mockResolvedValueOnce({ changed: [], deleted: [], newToken: 't2', reset: false })
+      .mockRejectedValueOnce(new Error('syncCollection HTTP 501'));
+
+    await syncVisibleRange(account, [calendar, other], start, end);
+
+    expect(mockSyncCollection).toHaveBeenCalledTimes(2);
+    expect(mockFetchForCalendars).toHaveBeenCalledWith(account, [other], start, end);
+  });
+
+  it('falls back when the multiget guard aborts the delta write', async () => {
+    const { db } = makeDb();
+    mockGetDb.mockReturnValue(db);
+    mockSyncCollection.mockResolvedValue({ changed: ['h1', 'h2'], deleted: [], newToken: 't2', reset: false });
+    mockFetchByHrefs.mockResolvedValue({ events: [evt('h1')], returnedHrefs: new Set(['h1']) });
+
+    await expect(syncVisibleRange(account, [calendar], start, end)).resolves.toBeUndefined();
+
+    expect(mockFetchForCalendars).toHaveBeenCalledWith(account, [calendar], start, end);
+  });
+
+  it('does not consume the delta throttle when every delta failed', async () => {
+    const { db } = makeDb();
+    mockGetDb.mockReturnValue(db);
+    mockSyncCollection.mockRejectedValueOnce(new Error('syncCollection HTTP 500'));
+    mockFetchForCalendars.mockResolvedValue({ events: [], syncedCalendarIds: [calendar.id], failures: [] });
+
+    await syncVisibleRange(account, [calendar], start, end);
+    await syncVisibleRange(account, [calendar], start, end);
+
+    expect(mockSyncCollection).toHaveBeenCalledTimes(2);
   });
 });
 

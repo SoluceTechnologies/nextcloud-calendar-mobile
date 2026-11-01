@@ -24,6 +24,11 @@ const TIME_FORMAT_OPTIONS = [
   { labelKey: 'settings.timeFormat.h12', value: '12h' },
 ] as const;
 
+const MONTH_VIEW_OPTIONS = [
+  { labelKey: 'settings.monthView.grid', value: 'grid' },
+  { labelKey: 'settings.monthView.compact', value: 'compact' },
+] as const;
+
 export default function CalendarSettingsScreen() {
   const { t } = useTranslation();
   const hourRowHeight = useCalendarStore((s) => s.hourRowHeight);
@@ -32,6 +37,8 @@ export default function CalendarSettingsScreen() {
   const setWeekStartsOn = useSettingsStore((s) => s.setWeekStartsOn);
   const timeFormat = useSettingsStore((s) => s.timeFormat);
   const setTimeFormat = useSettingsStore((s) => s.setTimeFormat);
+  const monthViewStyle = useSettingsStore((state) => state.monthViewStyle);
+  const setMonthViewStyle = useSettingsStore((state) => state.setMonthViewStyle);
 
   const [pendingWeek, setPendingWeek] = useState(weekStartsOn);
   useEffect(() => { setPendingWeek(weekStartsOn); }, [weekStartsOn]);
@@ -55,6 +62,23 @@ export default function CalendarSettingsScreen() {
               onPress={() => { setPendingWeek(opt.value); setWeekStartsOn(opt.value); }}
             >
               {t(opt.labelKey)}
+            </Chip>
+          ))}
+        </Stack>
+      </Stack>
+
+      <Stack card gap={12} padding={16} hAlign="stretch" style={cardOuter}>
+        <Typography variant="body1">{t('settings.monthView.title')}</Typography>
+        <Stack direction="horizontal" gap={8}>
+          {MONTH_VIEW_OPTIONS.map((option) => (
+            <Chip
+              key={option.value}
+              testID={`settings-month-view-${option.value}`}
+              fullWidth
+              active={monthViewStyle === option.value}
+              onPress={() => setMonthViewStyle(option.value)}
+            >
+              {t(option.labelKey)}
             </Chip>
           ))}
         </Stack>

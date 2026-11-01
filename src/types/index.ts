@@ -21,6 +21,8 @@ export type CalendarMeta = {
     isReadOnly?: boolean;
     sourceUrl?: string;
     supportsEvents?: boolean;
+    order?: number;
+    isShared?: boolean;
 };
 
 export type Attendee = {

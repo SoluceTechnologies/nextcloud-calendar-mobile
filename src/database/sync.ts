@@ -3,6 +3,7 @@ import type {Collection} from '@nozbe/watermelondb';
 
 import {
     fetchCalendars,
+    fetchEvents,
     fetchEventsForCalendars,
     fetchEventsByHrefs,
     syncCollection,
@@ -42,6 +43,8 @@ function writeCalendar(row: Calendar, c: CalendarMeta, accountId: string): void 
     row.isReadOnly = c.isReadOnly ?? false;
     row.sourceUrl = c.sourceUrl ?? undefined;
     row.supportsEvents = c.supportsEvents ?? true;
+    row.calendarOrder = c.order ?? 0;
+    row.isShared = c.isShared ?? false;
 }
 
 export function serializeAlarms(alarms?: number[]): string | undefined {
@@ -82,6 +85,8 @@ function calendarUnchanged(row: Calendar, c: CalendarMeta): boolean {
         (row.isSubscribed ?? false) === (c.isSubscribed ?? false) &&
         (row.isReadOnly ?? false) === (c.isReadOnly ?? false) &&
         (row.supportsEvents ?? true) === (c.supportsEvents ?? true) &&
+        (row.calendarOrder ?? 0) === (c.order ?? 0) &&
+        (row.isShared ?? false) === (c.isShared ?? false) &&
         (row.sourceUrl ?? undefined) === (c.sourceUrl ?? undefined)
     );
 }
@@ -254,12 +259,10 @@ export async function syncEvents(
 }
 
 const DELTA_SYNC_MIN_INTERVAL_MS = 10_000;
-// Per calendar, not per account: a calendar that just appeared (calendar list refreshed after the
-// first sync of the session) must not wait for the others' throttle to expire.
+
 const lastDeltaSyncAt = new Map<string, number>();
 const deltaKey = (account: Account, calendar: CalendarMeta) => `${account.id}\n${calendar.url}`;
 
-/** Test-only: reset the throttle between syncVisibleRange calls. */
 export function resetDeltaSyncThrottle(): void {
     lastDeltaSyncAt.clear();
 }
@@ -281,24 +284,26 @@ export async function syncVisibleRange(
     const throttled = (c: CalendarMeta) =>
         now - (lastDeltaSyncAt.get(deltaKey(account, c)) ?? 0) < DELTA_SYNC_MIN_INTERVAL_MS;
 
-    // App-generated calendars (Deck boards, …) are Nextcloud ExternalCalendars:
-    // no sync token, so sync-collection answers 415 — range fetch only.
     const rangeOnly = (c: CalendarMeta) => c.isSubscribed || c.url.includes('/app-generated--');
     const deltaCals = inHorizon ? calendars.filter((c) => !rangeOnly(c) && !throttled(c)) : [];
     const fullCals = calendars.filter((c) => rangeOnly(c) || !inHorizon);
 
     if (deltaCals.length === 0 && fullCals.length === 0) return;
-    for (const c of deltaCals) lastDeltaSyncAt.set(deltaKey(account, c), now);
 
     const {failures, fulfilledIndexes} = await settleAll(
         deltaCals.map((cal) => () => syncCalendarDelta(account, cal).then((): never[] => [])),
     );
 
+    for (const i of fulfilledIndexes) lastDeltaSyncAt.set(deltaKey(account, deltaCals[i]), now);
+
+    const fulfilled = new Set(fulfilledIndexes);
+    const rangeCals = fullCals.concat(deltaCals.filter((_, i) => !fulfilled.has(i)));
+
     let fullOk = false;
-    if (fullCals.length > 0) {
+    if (rangeCals.length > 0) {
         try {
             await syncEvents(
-                account, fullCals, start, end, deleteMissing, calendars.map((c) => c.id),
+                account, rangeCals, start, end, deleteMissing, calendars.map((c) => c.id),
             );
             fullOk = true;
         } catch (e) {
@@ -306,7 +311,7 @@ export async function syncVisibleRange(
         }
     }
 
-    const deltaOk = deltaCals.length > 0 && fulfilledIndexes.length > 0;
+    const deltaOk = fulfilledIndexes.length > 0;
     if (!deltaOk && !fullOk) {
         for (const c of deltaCals) lastDeltaSyncAt.delete(deltaKey(account, c));
         throw new Error(`[syncVisibleRange] all ${calendars.length} calendar sync(s) failed`);
@@ -345,6 +350,29 @@ export async function syncCalendarDelta(account: Account, calendar: CalendarMeta
     }
     const fullSync = result.reset || forceFull || !storedToken;
 
+    if (fullSync) {
+        const fetched = await fetchEvents(account, calendar, horizon.start, horizon.end);
+
+        const startMs = horizon.start.getTime();
+        const endMs = horizon.end.getTime();
+        await safeWrite(db, async () => {
+            const ops = [];
+            const existing = await events
+                .query(Q.where('account_id', account.id), Q.where('calendar_id', calendar.id))
+                .fetch();
+            if (localWriteEpoch() !== epoch) return;
+            for (const r of existing) {
+                if (r.start < endMs && r.end > startMs) {
+                    ops.push(r.prepareMarkAsDeleted());
+                }
+            }
+            for (const ev of fetched) ops.push(prepareCreateEvent(events, ev));
+            pushSyncTokenOp(ops, calendars, row, calendar, account, result.newToken, now);
+            if (ops.length > 0) await db.batch(ops);
+        }, 30000, 'syncCalendarDelta');
+        return;
+    }
+
     const {events: fetched, returnedHrefs} = await fetchEventsByHrefs(
         account, calendar, result.changed, horizon.start, horizon.end,
     );
@@ -352,54 +380,49 @@ export async function syncCalendarDelta(account: Account, calendar: CalendarMeta
 
     const missing = result.changed.filter((h) => !returnedHrefs.has(h));
     if (missing.length > 0) {
-        console.warn(
+        throw new Error(
             `[syncCalendarDelta] multiget returned ${returnedHrefs.size}/${changedSet.size} objects; skipping write`
         );
-        return;
     }
 
     await safeWrite(db, async () => {
         const ops = [];
         const deletedSet = new Set(result.deleted);
-
-        if (fullSync) {
-            const existing = await events
-                .query(Q.where('account_id', account.id), Q.where('calendar_id', calendar.id))
-                .fetch();
-            if (localWriteEpoch() !== epoch) return;
-            if (result.changed.length > 0) {
-                for (const r of existing) {
-                    if (!changedSet.has(r.href) || returnedHrefs.has(r.href)) {
-                        ops.push(r.prepareMarkAsDeleted());
-                    }
-                }
-            }
-        } else {
-            const touched = new Set<string>([...result.deleted, ...returnedHrefs]);
-            const existing = await collectByHref(events, account.id, touched);
-            if (localWriteEpoch() !== epoch) return;
-            for (const r of existing) {
-                if (deletedSet.has(r.href) || returnedHrefs.has(r.href)) {
-                    ops.push(r.prepareMarkAsDeleted());
-                }
+        const touched = new Set<string>([...result.deleted, ...returnedHrefs]);
+        const existing = await collectByHref(events, account.id, touched);
+        if (localWriteEpoch() !== epoch) return;
+        for (const r of existing) {
+            if (deletedSet.has(r.href) || returnedHrefs.has(r.href)) {
+                ops.push(r.prepareMarkAsDeleted());
             }
         }
 
         for (const ev of fetched) ops.push(prepareCreateEvent(events, ev));
-
-        if (row) {
-            ops.push(row.prepareUpdate((r: Calendar) => {
-                r.syncToken = result.newToken ?? r.syncToken;
-                r.expandedCenter = now.getTime();
-            }));
-        } else {
-            ops.push(calendars.prepareCreate((r: Calendar) => {
-                writeCalendar(r, calendar, account.id);
-                r.syncToken = result.newToken ?? undefined;
-                r.expandedCenter = now.getTime();
-            }));
-        }
+        pushSyncTokenOp(ops, calendars, row, calendar, account, result.newToken, now);
 
         if (ops.length > 0) await db.batch(ops);
     }, 30000, 'syncCalendarDelta');
+}
+
+function pushSyncTokenOp(
+    ops: unknown[],
+    calendars: Collection<Calendar>,
+    row: Calendar | undefined,
+    calendar: CalendarMeta,
+    account: Account,
+    newToken: string | undefined,
+    now: Date,
+): void {
+    if (row) {
+        ops.push(row.prepareUpdate((r: Calendar) => {
+            r.syncToken = newToken ?? r.syncToken;
+            r.expandedCenter = now.getTime();
+        }));
+    } else {
+        ops.push(calendars.prepareCreate((r: Calendar) => {
+            writeCalendar(r, calendar, account.id);
+            r.syncToken = newToken ?? undefined;
+            r.expandedCenter = now.getTime();
+        }));
+    }
 }

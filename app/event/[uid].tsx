@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { View, StyleSheet, ScrollView, Alert } from 'react-native';
+import { View, StyleSheet, ScrollView, Alert, Text, Linking } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
 import { haptic } from '@/utils/haptics';
@@ -38,6 +38,7 @@ import {
   type TimedAlert, type AllDayAlert,
 } from '@/features/notifications/alerts';
 import { goBackOrHome } from '@/utils/navigationGuard';
+import { linkify } from '@/utils/linkify';
 
 dayjs.extend(localizedFormat);
 
@@ -157,6 +158,11 @@ export default function EventDetailScreen() {
     if (!rule) return null;
     return formatRecurrenceRule(rule, event.dtstart, t, i18n.language);
   }, [event?.rrule, event?.dtstart, t, i18n.language]);
+
+  const descriptionParts = useMemo(
+    () => (event?.description ? linkify(event.description) : []),
+    [event?.description],
+  );
 
   const isLoading = eventsLoading;
 
@@ -323,7 +329,18 @@ export default function EventDetailScreen() {
               <Stack gap={8}>
                 <SectionHeader title={t('event.description')} />
                 <Stack card padding={16}>
-                  <Typography variant="body2" color="secondary">{event.description}</Typography>
+                  <Typography variant="body2" color="secondary" selectable>
+                    {descriptionParts.map((part, i) => part.url ? (
+                      <Text
+                        key={i}
+                        accessibilityRole="link"
+                        style={[styles.link, { color: theme.colors.primary }]}
+                        onPress={() => Linking.openURL(part.url!).catch(() => {})}
+                      >
+                        {part.text}
+                      </Text>
+                    ) : part.text)}
+                  </Typography>
                 </Stack>
               </Stack>
             )}
@@ -375,4 +392,5 @@ const styles = StyleSheet.create({
   colorBar: { height: 6 },
   content: { padding: 20 },
   footer: { borderTopWidth: StyleSheet.hairlineWidth },
+  link: { textDecorationLine: 'underline' },
 });

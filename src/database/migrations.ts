@@ -3,6 +3,24 @@ import { schemaMigrations, addColumns, unsafeExecuteSql } from '@nozbe/watermelo
 export const migrations = schemaMigrations({
   migrations: [
     {
+      toVersion: 9,
+      steps: [
+        addColumns({
+          table: 'calendars',
+          columns: [{ name: 'is_shared', type: 'boolean', isOptional: true }],
+        }),
+      ],
+    },
+    {
+      toVersion: 8,
+      steps: [
+        addColumns({
+          table: 'calendars',
+          columns: [{ name: 'calendar_order', type: 'number', isOptional: true }],
+        }),
+      ],
+    },
+    {
       toVersion: 7,
       steps: [
         addColumns({

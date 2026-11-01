@@ -2,6 +2,7 @@ import { Q } from '@nozbe/watermelondb';
 import { useEffect, useState } from 'react';
 
 import type { CalendarMeta } from '@/types';
+import { byServerOrder } from '@/utils/calendars';
 
 import { useDatabase } from './DatabaseProvider';
 import { CALENDAR_OBSERVED_COLUMNS } from './observedColumns';
@@ -20,6 +21,8 @@ export function mapCalendarToMeta(c: Calendar): CalendarMeta {
     isReadOnly: c.isReadOnly ?? undefined,
     sourceUrl: c.sourceUrl ?? undefined,
     supportsEvents: c.supportsEvents ?? undefined,
+    order: c.calendarOrder ?? undefined,
+    isShared: c.isShared ?? undefined,
   };
 }
 
@@ -37,7 +40,7 @@ export function useCalendarsFromDb(accountId: string | null): CalendarMeta[] {
       .query(Q.where('account_id', accountId))
       .observeWithColumns(CALENDAR_OBSERVED_COLUMNS)
       .subscribe((rows) => {
-        const next = rows.map(mapCalendarToMeta);
+        const next = rows.map(mapCalendarToMeta).sort(byServerOrder);
         setCalendars((prev) => (JSON.stringify(prev) === JSON.stringify(next) ? prev : next));
       });
     return () => subscription.unsubscribe();

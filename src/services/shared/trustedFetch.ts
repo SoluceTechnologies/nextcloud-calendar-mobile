@@ -60,6 +60,7 @@ type Init = {
 const DEFAULT_TIMEOUT_MS = 20000;
 const BASE_RETRY_DELAY_MS = 500;
 const MAX_RETRY_DELAY_MS = 8000;
+const NATIVE_WATCHDOG_GRACE_MS = 5000;
 
 function toRecord(h?: Record<string, string> | Headers): Record<string, string> {
     if (!h) return {};
@@ -112,13 +113,27 @@ async function doRequest(
     url: string,
     init: Init,
 ): Promise<NativeResult> {
-    return TlsTrust.request({
-        url,
-        method: init.method ?? 'GET',
-        headers: toRecord(init.headers),
-        bodyBase64: init.body != null ? utf8ToBase64(init.body) : undefined,
-        timeoutMs: init.timeoutMs ?? DEFAULT_TIMEOUT_MS,
-    });
+    const timeoutMs = init.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+    let watchdog: ReturnType<typeof setTimeout> | undefined;
+    try {
+        return await Promise.race([
+            TlsTrust.request({
+                url,
+                method: init.method ?? 'GET',
+                headers: toRecord(init.headers),
+                bodyBase64: init.body != null ? utf8ToBase64(init.body) : undefined,
+                timeoutMs,
+            }),
+            new Promise<never>((_, reject) => {
+                watchdog = setTimeout(
+                    () => reject(new Error('native request timeout (watchdog)')),
+                    timeoutMs + NATIVE_WATCHDOG_GRACE_MS,
+                );
+            }),
+        ]);
+    } finally {
+        clearTimeout(watchdog);
+    }
 }
 
 export async function trustedFetch(url: string, init: Init = {}): Promise<TrustedResponse> {

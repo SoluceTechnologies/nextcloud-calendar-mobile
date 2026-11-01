@@ -19,6 +19,7 @@ import { useCalendarNavigation } from '@/features/calendar/hooks/useCalendarNavi
 import { useCalendarData } from '@/features/calendar/hooks/useCalendarData';
 import { useCalendarDrawer } from '@/features/calendar/hooks/useCalendarDrawer';
 import { useZoom } from '@/features/calendar/hooks/useZoom';
+import { useMonthReturn } from '@/features/calendar/hooks/useMonthReturn';
 import { CalendarTopBar } from '@/features/calendar/components/CalendarTopBar';
 import { TimeGridView } from '@/features/calendar/components/TimeGridView';
 import { ViewLayer } from '@/features/calendar/components/ViewLayer';
@@ -41,6 +42,7 @@ export default function CalendarScreen() {
   const calendarApp = useAccountStore((s) => s.capabilities.calendarApp);
   const weekStartsOn = useSettingsStore((s) => s.weekStartsOn);
   const language = useSettingsStore((s) => s.language);
+  const monthViewStyle = useSettingsStore((state) => state.monthViewStyle);
   const hiddenCalendarIds = useCalendarStore((s) => s.hiddenCalendarIds);
   const toggleCalendarVisibility = useCalendarStore((s) => s.toggleCalendarVisibility);
   const notifDisabledCalendarIds = useCalendarStore((s) => s.notifDisabledCalendarIds);
@@ -48,6 +50,7 @@ export default function CalendarScreen() {
 
   const nav = useCalendarNavigation();
   const { viewMode, date, fetchDate, agendaVisibleDate } = nav;
+  const { openDay } = useMonthReturn(viewMode, nav.switchMode);
 
   const deferredViewMode = useDeferredValue(viewMode);
   const deferredDate = useDeferredValue(date);
@@ -164,13 +167,12 @@ export default function CalendarScreen() {
             onMonthChange={nav.onPageChange}
             onPressEvent={handlePressEventFromMonth}
             onPressCell={handlePressCell}
+            variant={monthViewStyle}
+            onOpenDay={openDay}
           />
         </ViewLayer>
 
         <ViewLayer visible={deferredViewMode === 'schedule'}>
-          {/* Mounted only while shown: kept alive under display:none, the list could come back
-              blank when the first sync landed as it was revealed. Its data only loads in this
-              mode anyway, so keeping it mounted saved nothing. */}
           {deferredViewMode === 'schedule' && (
             <AgendaView
               ref={nav.agendaRef}
@@ -209,7 +211,16 @@ export default function CalendarScreen() {
       {showFullOverlay && <CalendarLoadingOverlay label={t('calendar.loadingCalendar')} />}
       {showSmallLoader && <Spinner size="small" color="secondary" style={styles.smallLoader} />}
 
-      <CalendarFab onPress={() => navGuard(() => router.push('/event/new'))} />
+      <CalendarFab
+        onPress={() => navGuard(() => {
+          const shown = viewMode === 'schedule' ? agendaVisibleDate : date;
+          const now = new Date();
+          const start = new Date(
+            shown.getFullYear(), shown.getMonth(), shown.getDate(), now.getHours(), now.getMinutes()
+          );
+          router.push({ pathname: '/event/new', params: { date: start.toISOString() } });
+        })}
+      />
 
       <CalendarDrawer
         open={drawer.drawerOpen}

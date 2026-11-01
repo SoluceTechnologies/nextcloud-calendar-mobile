@@ -1,0 +1,34 @@
+appId: com.soluce.nextcloudcalendar
+---
+- runFlow: ../shared/ensure-home.yaml
+- runFlow: ../shared/open-settings.yaml
+- tapOn:
+    id: settings-calendar
+- tapOn:
+    id: settings-month-view-compact
+- assertVisible:
+    id: settings-month-view-compact
+    selected: true
+- runFlow: ../shared/open-calendar.yaml
+- tapOn:
+    id: calendar-mode-month
+- tapOn:
+    id: month-day-${TODAY}
+- extendedWaitUntil: { visible: "E2E seed", timeout: 15000 }
+- assertVisible:
+    id: calendar-mode-month
+    selected: true
+- runFlow: ../shared/open-settings.yaml
+- tapOn:
+    id: settings-calendar
+- tapOn:
+    id: settings-month-view-grid
+- assertVisible:
+    id: settings-month-view-grid
+    selected: true
+- runFlow: ../shared/open-calendar.yaml
+- tapOn:
+    id: month-day-${TODAY}
+- assertVisible:
+    id: calendar-mode-day
+    selected: true

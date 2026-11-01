@@ -17,11 +17,15 @@ appId: com.soluce.nextcloudcalendar
     id: month-day-${FAR_DAY}
 - runFlow:
     when:
-      notVisible: ${TITLE}
+      visible:
+        id: month-day-${FAR_DAY}
     commands:
       - waitForAnimationToEnd
       - tapOn:
           id: month-day-${FAR_DAY}
+- assertVisible:
+    id: calendar-mode-day
+    selected: true
 - extendedWaitUntil:
     visible: ${TITLE}
     timeout: 60000

@@ -169,6 +169,7 @@ export async function fetchCalendars(account: Account): Promise<CalendarMeta[]> 
 <d:propfind xmlns:d="DAV:" xmlns:cs="http://calendarserver.org/ns/"
             xmlns:c="urn:ietf:params:xml:ns:caldav"
             xmlns:nc="http://nextcloud.org/ns"
+            xmlns:oc="http://owncloud.org/ns"
             xmlns:ical="http://apple.com/ns/ical/">
   <d:prop>
     <d:resourcetype/>
@@ -176,6 +177,8 @@ export async function fetchCalendars(account: Account): Promise<CalendarMeta[]> 
     <d:current-user-privilege-set/>
     <nc:calendar-color/>
     <ical:calendar-color/>
+    <ical:calendar-order/>
+    <oc:owner-principal/>
     <cs:getctag/>
     <cs:source/>
     <c:supported-calendar-component-set/>
@@ -211,6 +214,12 @@ export async function fetchCalendars(account: Account): Promise<CalendarMeta[]> 
     const rawColor = colorMatch?.[1]?.trim() || '';
     const color = rawColor.startsWith('#') ? rawColor.slice(0, 7) : '#1976d2';
 
+    const orderMatch = chunk.match(/<\w+:calendar-order[^>]*>([^<]*)<\/\w+:calendar-order>/);
+    const order = Number(orderMatch?.[1]) || 0;
+
+    const ownerMatch = chunk.match(/<\w+:owner-principal[^>]*>\s*(?:<d:href>)?([^<]+)/);
+    const isShared = !!ownerMatch && extractSlug(ownerMatch[1].trim()) !== account.davUserId;
+
     const ctagMatch = chunk.match(/<cs:getctag>([^<]*)<\/cs:getctag>/);
     const ctag = ctagMatch?.[1]?.trim() || '';
 
@@ -224,7 +233,7 @@ export async function fetchCalendars(account: Account): Promise<CalendarMeta[]> 
     const isReadOnly = hasPrivilegeSet && !hasAll && !hasWrite && !hasBind;
 
     const compSetMatch = chunk.match(
-      /<c:supported-calendar-component-set[^>]*>([\s\S]*?)<\/c:supported-calendar-component-set>/,
+      /<\w+:supported-calendar-component-set[^>]*>([\s\S]*?)<\/\w+:supported-calendar-component-set>/,
     );
 
     const isDeckBoard = /app-generated--deck/i.test(path);
@@ -246,6 +255,8 @@ export async function fetchCalendars(account: Account): Promise<CalendarMeta[]> 
       isReadOnly,
       sourceUrl,
       supportsEvents,
+      order,
+      isShared,
     });
   }
   return calendars;
@@ -470,8 +481,12 @@ export async function deleteEvent(
 
 export const MULTIGET_BATCH = 50;
 
-function toPath(account: Account, absHref: string): string {
-  return absHref.startsWith(account.baseUrl) ? absHref.slice(account.baseUrl.length) : absHref;
+function toPath(absHref: string): string {
+  try {
+    return new URL(absHref).pathname;
+  } catch {
+    return absHref;
+  }
 }
 
 export interface MultigetResult {
@@ -492,7 +507,7 @@ export async function fetchEventsByHrefs(
   const out: CalendarEvent[] = [];
   for (let i = 0; i < hrefs.length; i += MULTIGET_BATCH) {
     const batch = hrefs.slice(i, i + MULTIGET_BATCH);
-    const hrefEls = batch.map((h) => `<d:href>${toPath(account, h)}</d:href>`).join('');
+    const hrefEls = batch.map((h) => `<d:href>${toPath(h)}</d:href>`).join('');
     const body = `<?xml version="1.0"?>
 <c:calendar-multiget xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav">
   <d:prop><d:getetag/><c:calendar-data/></d:prop>
