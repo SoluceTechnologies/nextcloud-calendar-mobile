@@ -347,7 +347,8 @@
     "resume": "Repréner",
     "next": "Eveniment seguent",
     "stop": "Arrestar lo briefing",
-    "emptyDay": "Cap d’eveniment uèi"
+    "emptyDay": "Cap d’eveniment uèi",
+    "emptyDayDated": "Cap d’eveniment per {{date}}"
   },
   "certTrust": {
     "title": "Certificat pas de fisança",

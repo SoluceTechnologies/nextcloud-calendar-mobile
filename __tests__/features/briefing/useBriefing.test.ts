@@ -95,6 +95,7 @@ describe('useBriefing — start', () => {
     mockedRead.mockResolvedValue([
       ev({ uid: 'finished', dtend: new Date(Date.now() - 3600e3) }), // ended earlier today
       ev({ uid: 'tail', dtend: midnight }), // ends exactly at day start — never spoken
+      ev({ uid: 'task', isTask: true, allDay: true, dtstart: midnight, dtend: midnight }), // zero-duration task belongs to today
       ev({ uid: 'ongoing', dtend: FUTURE }),
       ev({ uid: 'holiday', allDay: true, dtend: new Date(midnight.getTime() + 12 * 3600e3) }),
     ]);
@@ -105,9 +106,13 @@ describe('useBriefing — start', () => {
     });
 
     expect(mockedRead).toHaveBeenCalledWith(0, today);
-    // finished + midnight-tail dropped; in-progress and all-day kept
+    // finished + midnight-tail dropped; zero-duration task, in-progress and all-day kept
     expect(buildText).toHaveBeenCalledWith(
-      [expect.objectContaining({ uid: 'ongoing' }), expect.objectContaining({ uid: 'holiday' })],
+      [
+        expect.objectContaining({ uid: 'task' }),
+        expect.objectContaining({ uid: 'ongoing' }),
+        expect.objectContaining({ uid: 'holiday' }),
+      ],
       expect.objectContaining({ locale: 'en-US', use24h: false, now: expect.any(Date), day: today }),
     );
     expect(result.current.state).toBe('speaking');
@@ -151,9 +156,9 @@ describe('useBriefing — start', () => {
     expect(result.current.state).toBe('speaking');
   });
 
-  it('speaks the localized emptyDay line and ends done on an empty day', async () => {
+  it('speaks the localized emptyDay line and ends done on an empty today', async () => {
     buildText.mockReturnValue([]);
-    const { result } = renderHook(() => useBriefing(DAY, buildText));
+    const { result } = renderHook(() => useBriefing(new Date(), buildText));
 
     await act(async () => {
       await result.current.start();
@@ -163,6 +168,33 @@ describe('useBriefing — start', () => {
     expect(speakMock).toHaveBeenCalledWith('No events today', { language: 'en-US' });
     expect(result.current.state).toBe('done');
     expect(result.current.segments).toEqual([]);
+  });
+
+  it('names the selected day on an empty non-today briefing', async () => {
+    buildText.mockReturnValue([]);
+    const { result } = renderHook(() => useBriefing(DAY, buildText));
+
+    await act(async () => {
+      await result.current.start();
+    });
+
+    expect(speakMock).toHaveBeenCalledWith('No events on Monday, August 10', {
+      language: 'en-US',
+    });
+    expect(result.current.state).toBe('done');
+  });
+
+  it('uses an English voice for app languages without briefing text', async () => {
+    useSettingsStore.setState({ language: 'de' });
+    buildText.mockReturnValue([]);
+    const { result } = renderHook(() => useBriefing(DAY, buildText));
+
+    await act(async () => {
+      await result.current.start();
+    });
+
+    // the briefing builder has no German phrasing — the voice falls back to en-US
+    expect(speakMock).toHaveBeenCalledWith(expect.any(String), { language: 'en-US' });
   });
 
   it('warns and settles back to idle when readUpcomingEvents rejects', async () => {

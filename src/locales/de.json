@@ -360,7 +360,8 @@
     "resume": "Fortsetzen",
     "next": "Nächstes Ereignis",
     "stop": "Briefing beenden",
-    "emptyDay": "Keine Ereignisse heute"
+    "emptyDay": "Keine Ereignisse heute",
+    "emptyDayDated": "Keine Ereignisse am {{date}}"
   },
   "certTrust": {
     "title": "Nicht vertrauenswürdiges Zertifikat",

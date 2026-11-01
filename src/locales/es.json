@@ -360,7 +360,8 @@
     "resume": "Reanudar",
     "next": "Evento siguiente",
     "stop": "Detener el briefing",
-    "emptyDay": "No hay eventos hoy"
+    "emptyDay": "No hay eventos hoy",
+    "emptyDayDated": "No hay eventos el {{date}}"
   },
   "certTrust": {
     "title": "Certificado no confiable",

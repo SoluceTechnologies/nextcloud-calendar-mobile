@@ -9,7 +9,12 @@ import { resolveUse24h } from '@/utils/timeFormat';
 import { readUpcomingEvents } from '@/features/widget/core/readEvents';
 import * as tts from '@/services/voice/tts';
 
-import { buildBriefing, type BriefingEventInput } from './speechText';
+import {
+  buildBriefing,
+  briefingDayLabel,
+  briefingVoiceLocale,
+  type BriefingEventInput,
+} from './speechText';
 import type { BriefingSegment } from './types';
 
 export type BriefingTextBuilder = (
@@ -109,17 +114,22 @@ export function useBriefing(
       const dayStart = dayjs(day).startOf('day').valueOf();
       const isToday = dayjs(day).isSame(now, 'day');
       const events = (await readUpcomingEvents(0, day)).filter(
-        // a tail event ending exactly at this day's start is never spoken;
+        // an event is out only if it both started and ended before this day —
+        // zero-duration all-day tasks (dtstart === dtend === day start) belong to it;
         // finished events are dropped only when briefing today
         (e) =>
-          e.dtend.getTime() > dayStart &&
+          (e.dtend.getTime() > dayStart || e.dtstart.getTime() >= dayStart) &&
           (!isToday || e.allDay || e.dtend.getTime() > now.getTime()),
       );
       if (genRef.current !== gen) return; // a newer start()/stop() superseded this run
-      localeRef.current = locale;
+      const voice = briefingVoiceLocale(locale); // voice must match the generated text language
+      localeRef.current = voice;
       const segs = buildText(events, { locale, use24h, now, day });
       if (!segs.length) {
-        tts.speak(t('briefing.emptyDay'), { language: locale });
+        const msg = isToday
+          ? t('briefing.emptyDay')
+          : t('briefing.emptyDayDated', { date: briefingDayLabel(day, language) });
+        tts.speak(msg, { language: voice });
         setStatus('done');
         return;
       }

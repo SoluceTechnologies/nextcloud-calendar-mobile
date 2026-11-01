@@ -360,7 +360,8 @@
     "resume": "Hervatten",
     "next": "Volgende afspraak",
     "stop": "Briefing stoppen",
-    "emptyDay": "Geen afspraken vandaag"
+    "emptyDay": "Geen afspraken vandaag",
+    "emptyDayDated": "Geen afspraken op {{date}}"
   },
   "certTrust": {
     "title": "Niet-vertrouwd certificaat",

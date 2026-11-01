@@ -203,3 +203,18 @@ export function buildBriefing(
     },
   ];
 }
+
+// The voice must match the generated text — buildBriefing only produces
+// French or English, so other app languages are read with an English voice.
+export function briefingVoiceLocale(locale: string): string {
+  return /^(fr|en)/i.test(locale) ? locale : 'en-US';
+}
+
+// Localized "Monday 3 November"-style label for the dated empty-day line;
+// every LANGUAGES code maps to a loaded dayjs locale except 'oc' → 'oc-lnc'.
+export function briefingDayLabel(day: Date, language: string): string {
+  const loc = language === 'oc' ? 'oc-lnc' : language;
+  return dayjs(day)
+    .locale(loc)
+    .format(language === 'en' ? 'dddd, MMMM D' : 'dddd D MMMM');
+}

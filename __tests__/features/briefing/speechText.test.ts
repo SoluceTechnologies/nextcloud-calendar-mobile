@@ -1,4 +1,9 @@
-import { buildBriefing, type BriefingEventInput } from '@/features/briefing/speechText';
+import {
+  buildBriefing,
+  briefingDayLabel,
+  briefingVoiceLocale,
+  type BriefingEventInput,
+} from '@/features/briefing/speechText';
 
 const at = (h: number, m = 0) => new Date(2026, 7, 10, h, m); // Mon 10 Aug 2026
 const BEFORE = at(8); // 'now' before every default event
@@ -416,5 +421,22 @@ describe('buildBriefing — maxSegments overflow', () => {
     expect(keys(segs)).toEqual(['intro', 't1', 'allday', 'outro']);
     expect(segs[2].text).toBe('All day: Holiday, Offsite.');
     expect(segs[3].text).toBe("That's all for today.");
+  });
+});
+
+describe('briefing voice/day helpers', () => {
+  it('keeps the app voice for French and English, falls back to en-US otherwise', () => {
+    expect(briefingVoiceLocale('fr-FR')).toBe('fr-FR');
+    expect(briefingVoiceLocale('en-GB')).toBe('en-GB');
+    expect(briefingVoiceLocale('de-DE')).toBe('en-US');
+    expect(briefingVoiceLocale('ru-RU')).toBe('en-US');
+  });
+
+  it('labels a day in the app language with the right dayjs locale', () => {
+    const day = new Date(2026, 7, 10); // Monday 10 Aug 2026
+    expect(briefingDayLabel(day, 'en')).toBe('Monday, August 10');
+    expect(briefingDayLabel(day, 'fr')).toBe('lundi 10 août');
+    expect(briefingDayLabel(day, 'de')).toBe('Montag 10 August');
+    expect(briefingDayLabel(day, 'oc')).toBe('diluns 10 agost');
   });
 });

@@ -360,7 +360,8 @@
     "resume": "Resume",
     "next": "Next event",
     "stop": "Stop briefing",
-    "emptyDay": "No events today"
+    "emptyDay": "No events today",
+    "emptyDayDated": "No events on {{date}}"
   },
   "certTrust": {
     "title": "Untrusted certificate",
