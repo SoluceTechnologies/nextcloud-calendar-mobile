@@ -12,6 +12,8 @@ export type TextTaskState = 'idle' | 'scheduling' | 'running' | 'done' | 'failed
 
 function firstTextOutput(task: TaskProcessingTask | null): string | null {
   if (!task?.output) return null;
+  const preferred = task.output['output'];
+  if (typeof preferred === 'string' && preferred.length > 0) return preferred;
   for (const v of Object.values(task.output)) {
     if (typeof v === 'string' && v.length > 0) return v;
   }
