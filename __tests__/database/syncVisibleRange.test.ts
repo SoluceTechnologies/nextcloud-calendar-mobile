@@ -268,7 +268,7 @@ describe('syncVisibleRange — failure semantics', () => {
       .mockResolvedValueOnce({ changed: [], deleted: [], newToken: 't2', reset: false })
       .mockRejectedValueOnce(new Error('syncCollection HTTP 500'));
 
-    await expect(syncVisibleRange(account, [calendar, other], start, end)).resolves.toBeUndefined();
+    await expect(syncVisibleRange(account, [calendar, other], start, end)).resolves.toEqual({ failedCount: 1 });
   });
 
   it('throws when every calendar fails', async () => {
@@ -297,7 +297,7 @@ describe('syncVisibleRange — delta fallback to range fetch', () => {
     mockSyncCollection.mockRejectedValue(new Error('syncCollection HTTP 501'));
     mockFetchForCalendars.mockResolvedValue({ events: [], syncedCalendarIds: [calendar.id], failures: [] });
 
-    await expect(syncVisibleRange(account, [calendar], start, end)).resolves.toBeUndefined();
+    await expect(syncVisibleRange(account, [calendar], start, end)).resolves.toEqual({ failedCount: 1 });
 
     expect(mockFetchForCalendars).toHaveBeenCalledWith(account, [calendar], start, end);
   });
@@ -322,7 +322,7 @@ describe('syncVisibleRange — delta fallback to range fetch', () => {
     mockSyncCollection.mockResolvedValue({ changed: ['h1', 'h2'], deleted: [], newToken: 't2', reset: false });
     mockFetchByHrefs.mockResolvedValue({ events: [evt('h1')], returnedHrefs: new Set(['h1']) });
 
-    await expect(syncVisibleRange(account, [calendar], start, end)).resolves.toBeUndefined();
+    await expect(syncVisibleRange(account, [calendar], start, end)).resolves.toEqual({ failedCount: 1 });
 
     expect(mockFetchForCalendars).toHaveBeenCalledWith(account, [calendar], start, end);
   });
