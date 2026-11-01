@@ -3,44 +3,47 @@ export interface TextPart {
     url?: string;
 }
 
-const TLDS = 'com|org|net|edu|gov|info|biz|io|co|app|dev|cloud|eu|fr|de|es|it|nl|be|ch|at|pt|ru|uk|ca|us';
-const LINK_RE = new RegExp(
+const COMMON_TLDS = 'com|org|net|edu|gov|info|biz|io|co|app|dev|cloud|eu|fr|de|es|it|nl|be|ch|at|pt|ru|uk|ca|us';
+const LINK_PATTERN = new RegExp(
     String.raw`\b(?:https?:\/\/|www\.|mailto:|tel:)[^\s<>"]+` +
-    String.raw`|\b(?:[a-z0-9-]+\.)+(?:${TLDS})\b(?![@-])(?:\/[^\s<>"]*)?` +
+    String.raw`|\b(?:[a-z0-9-]+\.)+(?:${COMMON_TLDS})\b(?![@-])(?:\/[^\s<>"]*)?` +
     String.raw`|([\w.+-]+@[\w-]+(?:\.[\w-]+)+)` +
     String.raw`|((?:\+|\b0)\d[\d ().\/-]{6,}\d)`,
     'gi',
 );
 
-const DATE_RE = /\d{1,2}[./-]\d{1,2}[./-]\d{4}/;
+const DATE_PATTERN = /\d{1,2}[./-]\d{1,2}[./-]\d{4}/;
 
-function trimUrl(url: string): string {
+function trimTrailingPunctuation(url: string): string {
     const trimmed = url.replace(/[.,;:!?]+$/, '');
-    return trimmed.endsWith(')') && !trimmed.includes('(') ? trimUrl(trimmed.slice(0, -1)) : trimmed;
+    const hasUnbalancedClosingParen = trimmed.endsWith(')') && !trimmed.includes('(');
+    return hasUnbalancedClosingParen ? trimTrailingPunctuation(trimmed.slice(0, -1)) : trimmed;
 }
 
-function toUrl(match: string, email?: string, phone?: string): string | null {
+function toUrl(linkText: string, email?: string, phone?: string): string | null {
     if (email) return `mailto:${email}`;
     if (phone) {
-        const dial = phone.replace(/[^\d+]/g, '');
-        const digits = dial.replace('+', '').length;
-        return digits >= 9 && digits <= 15 && !DATE_RE.test(phone) ? `tel:${dial}` : null;
+        const dialNumber = phone.replace(/[^\d+]/g, '');
+        const digitCount = dialNumber.replace('+', '').length;
+        const looksLikePhone = digitCount >= 9 && digitCount <= 15 && !DATE_PATTERN.test(phone);
+        return looksLikePhone ? `tel:${dialNumber}` : null;
     }
-    return /^[a-z]+:/i.test(match) ? match : `https://${match}`;
+    const hasScheme = /^[a-z]+:/i.test(linkText);
+    return hasScheme ? linkText : `https://${linkText}`;
 }
 
 export function linkify(text: string): TextPart[] {
     const parts: TextPart[] = [];
-    let last = 0;
-    for (const m of text.matchAll(LINK_RE)) {
-        const [raw, email, phone] = m;
-        const match = email || phone ? raw : trimUrl(raw);
-        const url = toUrl(match, email, phone);
+    let plainTextStart = 0;
+    for (const match of text.matchAll(LINK_PATTERN)) {
+        const [matchedText, email, phone] = match;
+        const linkText = email || phone ? matchedText : trimTrailingPunctuation(matchedText);
+        const url = toUrl(linkText, email, phone);
         if (!url) continue;
-        if (m.index > last) parts.push({text: text.slice(last, m.index)});
-        parts.push({text: match, url});
-        last = m.index + match.length;
+        if (match.index > plainTextStart) parts.push({text: text.slice(plainTextStart, match.index)});
+        parts.push({text: linkText, url});
+        plainTextStart = match.index + linkText.length;
     }
-    if (last < text.length) parts.push({text: text.slice(last)});
+    if (plainTextStart < text.length) parts.push({text: text.slice(plainTextStart)});
     return parts;
 }
