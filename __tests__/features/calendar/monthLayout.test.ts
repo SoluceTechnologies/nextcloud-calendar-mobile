@@ -1,5 +1,5 @@
 import { dayKey } from '@/features/calendar/utils/grid';
-import { layoutWeek, linesFor, monthWeeks } from '@/features/calendar/utils/monthLayout';
+import { MONTH_NUMBER_AREA, layoutWeek, linesFor, monthWeeks } from '@/features/calendar/utils/monthLayout';
 import type { CalendarEvent } from '@/types';
 
 function ev(uid: string, dtstart: Date, dtend: Date, extra: Partial<CalendarEvent> = {}): CalendarEvent {
@@ -35,8 +35,13 @@ describe('monthWeeks', () => {
 describe('linesFor', () => {
   it('derives the number of lines from the row height', () => {
     expect(linesFor(100)).toBe(4);
-    expect(linesFor(120)).toBe(6);
+    expect(linesFor(120)).toBe(5);
     expect(linesFor(10)).toBe(1);
+  });
+
+  it('leaves a 4px gap between the day-number circle and the first chip', () => {
+    // circle: 2px top margin + 20px
+    expect(MONTH_NUMBER_AREA - (2 + 20)).toBe(4);
   });
 });
 

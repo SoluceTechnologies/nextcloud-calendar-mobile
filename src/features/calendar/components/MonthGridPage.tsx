@@ -185,7 +185,7 @@ const styles = StyleSheet.create({
   week: { flex: 1, flexDirection: 'row', borderTopWidth: StyleSheet.hairlineWidth },
   cell: { flex: 1 },
   number: {
-    width: 20, height: 20, borderRadius: 10, marginTop: 1,
+    width: 20, height: 20, borderRadius: 10, marginTop: 2,
     alignSelf: 'center', alignItems: 'center', justifyContent: 'center',
   },
   numberText: { fontSize: 12, textAlign: 'center' },

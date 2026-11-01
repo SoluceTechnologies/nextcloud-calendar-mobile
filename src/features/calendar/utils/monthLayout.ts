@@ -2,7 +2,7 @@ import dayjs from 'dayjs';
 import type { CalendarEvent } from '@/types';
 import { dayKey } from './grid';
 
-export const MONTH_NUMBER_AREA = 22;
+export const MONTH_NUMBER_AREA = 26;
 export const MONTH_LINE_HEIGHT = 16;
 export const MONTH_CHIP_HEIGHT = 14;
 
