@@ -74,6 +74,11 @@
     "noEvents": "Aucun événement",
     "allDay": "Toute la journée",
     "noTitle": "(Sans titre)",
+    "monthCell": {
+      "a11y": "{{date}}, événements : {{count}}",
+      "a11yEmpty": "{{date}}, aucun événement",
+      "hint": "Ouvre la vue jour"
+    },
     "drawerNoCalendars": "Aucun calendrier",
     "calendarNotifications": "Notifications de {{name}}",
     "calendarVisibility": "Afficher {{name}}"
@@ -196,6 +201,11 @@
     "weekStart": "Début de semaine",
     "sunday": "Dimanche",
     "monday": "Lundi",
+    "monthView": {
+      "title": "Vue mensuelle",
+      "grid": "Grille",
+      "compact": "Compacte"
+    },
     "calendarZoom": "Zoom du calendrier",
     "reset": "Réinitialiser",
     "zoom": {

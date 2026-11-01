@@ -74,6 +74,11 @@
     "noEvents": "Нет событий",
     "allDay": "Весь день",
     "noTitle": "(Без названия)",
+    "monthCell": {
+      "a11y": "{{date}}, событий: {{count}}",
+      "a11yEmpty": "{{date}}, нет событий",
+      "hint": "Открывает вид дня"
+    },
     "drawerNoCalendars": "Нет календарей",
     "calendarNotifications": "Уведомления календаря «{{name}}»",
     "calendarVisibility": "Показывать «{{name}}»"
@@ -196,6 +201,11 @@
     "weekStart": "Начало недели",
     "sunday": "Воскресенье",
     "monday": "Понедельник",
+    "monthView": {
+      "title": "Вид месяца",
+      "grid": "Сетка",
+      "compact": "Компактный"
+    },
     "calendarZoom": "Масштаб календаря",
     "reset": "Сбросить",
     "zoom": {

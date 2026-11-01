@@ -74,6 +74,11 @@
     "noEvents": "Geen afspraken",
     "allDay": "Hele dag",
     "noTitle": "(Geen titel)",
+    "monthCell": {
+      "a11y": "{{date}}, afspraken: {{count}}",
+      "a11yEmpty": "{{date}}, geen afspraken",
+      "hint": "Opent de dagweergave"
+    },
     "drawerNoCalendars": "Geen agenda",
     "calendarNotifications": "Meldingen van {{name}}",
     "calendarVisibility": "{{name}} tonen"
@@ -196,6 +201,11 @@
     "weekStart": "Week begint op",
     "sunday": "Zondag",
     "monday": "Maandag",
+    "monthView": {
+      "title": "Maandweergave",
+      "grid": "Raster",
+      "compact": "Compact"
+    },
     "calendarZoom": "Agendazoom",
     "reset": "Resetten",
     "zoom": {

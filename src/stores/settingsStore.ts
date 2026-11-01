@@ -6,12 +6,14 @@ import type { TalkOpenMode } from '@/types';
 
 export type ThemePreference = 'system' | 'light' | 'dark';
 export type TimeFormatPreference = 'auto' | '12h' | '24h';
+export type MonthViewStyle = 'grid' | 'compact';
 
 interface SettingsState {
   themePreference: ThemePreference;
   language: AppLanguage;
   weekStartsOn: 0 | 1;
   timeFormat: TimeFormatPreference;
+  monthViewStyle: MonthViewStyle;
   liveActivityEnabled: boolean;
   timedAlerts: number[];
   allDayAlerts: number[];
@@ -23,6 +25,7 @@ interface SettingsState {
   setLanguage: (lang: AppLanguage) => void;
   setWeekStartsOn: (v: 0 | 1) => void;
   setTimeFormat: (v: TimeFormatPreference) => void;
+  setMonthViewStyle: (v: MonthViewStyle) => void;
   setLiveActivityEnabled: (v: boolean) => void;
   setTimedAlerts: (v: number[]) => void;
   setAllDayAlerts: (v: number[]) => void;
@@ -39,6 +42,7 @@ export const useSettingsStore = create<SettingsState>()(
       language: getInitialLanguage(),
       weekStartsOn: getInitialWeekStartsOn(),
       timeFormat: 'auto',
+      monthViewStyle: 'grid',
       liveActivityEnabled: true,
       timedAlerts: [],
       allDayAlerts: [],
@@ -52,6 +56,7 @@ export const useSettingsStore = create<SettingsState>()(
       setLanguage: (lang) => set({ language: lang }),
       setWeekStartsOn: (v) => set({ weekStartsOn: v }),
       setTimeFormat: (v) => set({ timeFormat: v }),
+      setMonthViewStyle: (style) => set({ monthViewStyle: style }),
       setLiveActivityEnabled: (v) => set({ liveActivityEnabled: v }),
       setHapticsEnabled: (v) => set({ hapticsEnabled: v }),
       setReduceMotion: (v) => set({ reduceMotion: v }),
@@ -91,6 +96,7 @@ export const useSettingsStore = create<SettingsState>()(
         language: state.language,
         weekStartsOn: state.weekStartsOn,
         timeFormat: state.timeFormat,
+        monthViewStyle: state.monthViewStyle,
         liveActivityEnabled: state.liveActivityEnabled,
         timedAlerts: state.timedAlerts,
         allDayAlerts: state.allDayAlerts,

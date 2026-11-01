@@ -1,12 +1,13 @@
 import React from 'react';
-import { render as rtlRender } from '@testing-library/react-native';
+import { render as rtlRender, fireEvent } from '@testing-library/react-native';
 import { ThemeWrapper } from '../helpers/theme';
 import dayjs from 'dayjs';
 
 const render = (ui: React.ReactElement, opts?: Parameters<typeof rtlRender>[1]) =>
   rtlRender(ui, { wrapper: ThemeWrapper, ...opts });
 import 'dayjs/locale/fr';
-import { MonthDayView, buildMonthGrid, eventDayKeys } from '@/features/calendar/components/MonthDayView';
+import { MonthDayView } from '@/features/calendar/components/MonthDayView';
+import { buildMonthGrid, eventDayKeys } from '@/features/calendar/utils/monthLayout';
 import type { CalendarEvent } from '../../src/types';
 
 jest.mock('@react-native-async-storage/async-storage', () =>
@@ -14,6 +15,7 @@ jest.mock('@react-native-async-storage/async-storage', () =>
 );
 
 let mockCapturedPagerProps: any[] = [];
+let mockPagerMounts = 0;
 
 // Render the pager's current page directly; the real pager pulls Reanimated
 // hooks the jest mock does not provide.
@@ -22,6 +24,7 @@ jest.mock('react-native-infinite-pager', () => {
   return {
     __esModule: true,
     default: React.forwardRef((props: any, _ref: any) => {
+      React.useEffect(() => { mockPagerMounts++; }, []);
       mockCapturedPagerProps.push(props);
       return props.renderPage ? props.renderPage({ index: 0 }) : null;
     }),
@@ -49,6 +52,8 @@ function view(date: Date) {
       onMonthChange={jest.fn()}
       onPressEvent={jest.fn()}
       onPressCell={jest.fn()}
+      variant="compact"
+      onOpenDay={jest.fn()}
     />
   );
 }
@@ -167,6 +172,8 @@ describe('MonthDayView', () => {
         onMonthChange={onMonthChange}
         onPressEvent={jest.fn()}
         onPressCell={jest.fn()}
+        variant="compact"
+        onOpenDay={jest.fn()}
       />
     );
 
@@ -206,6 +213,8 @@ describe('MonthDayView multi-day all-day events', () => {
         onMonthChange={jest.fn()}
         onPressEvent={jest.fn()}
         onPressCell={jest.fn()}
+        variant="compact"
+        onOpenDay={jest.fn()}
       />
     );
   }
@@ -228,5 +237,54 @@ describe('MonthDayView multi-day all-day events', () => {
 
   it('does not list the event the day after it ends', () => {
     expect(render(allDayView(new Date(2026, 5, 18))).queryByText('Conference')).toBeNull();
+  });
+});
+
+describe('MonthDayView grid variant', () => {
+  function grid(onOpenDay = jest.fn()) {
+    return (
+      <MonthDayView
+        date={june15}
+        events={[event]}
+        weekStartsOn={0}
+        jump={{ nonce: 0, target: june15 }}
+        onSelectDate={jest.fn()}
+        onMonthChange={jest.fn()}
+        onPressEvent={jest.fn()}
+        onPressCell={jest.fn()}
+        variant="grid"
+        onOpenDay={onOpenDay}
+      />
+    );
+  }
+  const layout = { nativeEvent: { layout: { x: 0, y: 0, width: 390, height: 600 } } };
+
+  it('shows event titles in the grid once measured, and no day list', () => {
+    const { getByTestId, getByText, queryByText } = render(grid());
+    fireEvent(getByTestId('month-grid-pager'), 'layout', layout);
+    expect(getByText('Birthday Party', { includeHiddenElements: true })).toBeTruthy();
+    expect(queryByText('No events')).toBeNull();
+  });
+
+  it('opens the tapped day', () => {
+    const onOpenDay = jest.fn();
+    const { getByTestId } = render(grid(onOpenDay));
+    fireEvent(getByTestId('month-grid-pager'), 'layout', layout);
+    fireEvent.press(getByTestId('month-day-2026-06-20'));
+    expect(onOpenDay.mock.calls[0][0]).toEqual(new Date(2026, 5, 20));
+  });
+
+  it('mounts the pager before the grid is measured, so jumps reach it', () => {
+    mockPagerMounts = 0;
+    render(grid());
+    expect(mockPagerMounts).toBe(1);
+  });
+
+  it('keeps the same pager when switching between compact and grid', () => {
+    mockPagerMounts = 0;
+    const screen = render(view(june15));
+    screen.rerender(grid());
+    fireEvent(screen.getByTestId('month-grid-pager'), 'layout', layout);
+    expect(mockPagerMounts).toBe(1);
   });
 });

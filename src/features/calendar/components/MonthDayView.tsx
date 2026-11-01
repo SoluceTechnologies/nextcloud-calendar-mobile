@@ -1,17 +1,18 @@
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
   View, Text, TouchableOpacity, FlatList, StyleSheet,
-  useWindowDimensions,
+  useWindowDimensions, type LayoutChangeEvent,
 } from 'react-native';
 import dayjs from 'dayjs';
 import localizedFormat from 'dayjs/plugin/localizedFormat';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from 'expo-router';
-import { dayKey } from '../utils/grid';
+import { eventCoversDay, eventDayKeys, buildMonthGrid } from '../utils/monthLayout';
 import InfinitePager, { type InfinitePagerImperativeApi } from 'react-native-infinite-pager';
-import { useSettingsStore } from '@/stores/settingsStore';
+import { useSettingsStore, type MonthViewStyle } from '@/stores/settingsStore';
 import { useTimeFormat } from '@/hooks/useTimeFormat';
 import type { CalendarEvent } from '@/types';
+import { MonthGridPage } from './MonthGridPage';
 
 dayjs.extend(localizedFormat);
 
@@ -26,87 +27,8 @@ interface Props {
   onMonthChange: (d: Date) => void;
   onPressEvent: (e: CalendarEvent) => void;
   onPressCell: (d: Date) => void;
-}
-
-export function buildMonthGrid(year: number, month: number, weekStartsOn: 0 | 1): (dayjs.Dayjs | null)[][] {
-  const firstOfMonth = dayjs(new Date(year, month, 1));
-
-  const offset = (firstOfMonth.day() - weekStartsOn + 7) % 7;
-
-  const rows: (dayjs.Dayjs | null)[][] = [];
-  let cursor = firstOfMonth.subtract(offset, 'day');
-  for (let row = 0; row < 6; row++) {
-    const week: (dayjs.Dayjs | null)[] = [];
-    for (let col = 0; col < 7; col++) {
-      week.push(cursor.month() === month ? cursor : null);
-      cursor = cursor.add(1, 'day');
-    }
-    const allNull = week.every((d) => d === null);
-    if (allNull) break;
-    rows.push(week);
-    if (cursor.month() !== month && row >= 3) break;
-  }
-  return rows;
-}
-
-const START_OF_DAY_MS = 86400000;
-
-function startOfDay(d: Date): Date {
-  return new Date(d.getFullYear(), d.getMonth(), d.getDate());
-}
-
-function lastDayOf(e: CalendarEvent): Date {
-  const end = startOfDay(e.dtend);
-  if (e.allDay) return end;
-  const exactMidnight =
-    e.dtend.getHours() === 0 &&
-    e.dtend.getMinutes() === 0 &&
-    e.dtend.getSeconds() === 0 &&
-    e.dtend.getMilliseconds() === 0;
-  if (exactMidnight) {
-    return new Date(end.getTime() - 1);
-  }
-  return end;
-}
-
-const EVENT_DAY_KEYS_CACHE = new Map<string, string[]>();
-const EVENT_DAY_KEYS_CACHE_LIMIT = 200;
-
-function cacheKeyFor(e: CalendarEvent): string {
-  return `${e.uid}:${e.calendarId}:${e.dtstart.getTime()}:${e.dtend.getTime()}:${e.allDay}`;
-}
-
-export function eventDayKeys(e: CalendarEvent): string[] {
-  const key = cacheKeyFor(e);
-  const cached = EVENT_DAY_KEYS_CACHE.get(key);
-  if (cached) return cached;
-
-  const start = startOfDay(e.dtstart);
-  const end = lastDayOf(e);
-  const keys: string[] = [];
-  let cur = start;
-  const limit = 366;
-  while (cur.getTime() <= end.getTime() && keys.length <= limit) {
-    keys.push(dayKey(cur));
-    cur = new Date(cur.getFullYear(), cur.getMonth(), cur.getDate() + 1);
-  }
-
-  const result = keys.length ? keys : [dayKey(start)];
-
-  if (EVENT_DAY_KEYS_CACHE.size >= EVENT_DAY_KEYS_CACHE_LIMIT) {
-    const first = EVENT_DAY_KEYS_CACHE.keys().next().value;
-    if (first !== undefined) EVENT_DAY_KEYS_CACHE.delete(first);
-  }
-  EVENT_DAY_KEYS_CACHE.set(key, result);
-
-  return result;
-}
-
-export function eventCoversDay(e: CalendarEvent, key: string): boolean {
-  const startKey = dayKey(startOfDay(e.dtstart));
-  const end = lastDayOf(e);
-  const endKey = dayKey(end);
-  return key >= startKey && key <= (endKey < startKey ? startKey : endKey);
+  variant: MonthViewStyle;
+  onOpenDay: (day: Date) => void;
 }
 
 function monthDiff(from: Date, to: Date): number {
@@ -180,7 +102,10 @@ const MonthGrid = memo(function MonthGrid({
   );
 });
 
-function MonthDayViewImpl({ date, events, weekStartsOn, jump, onSelectDate, onMonthChange, onPressEvent, onPressCell }: Props) {
+function MonthDayViewImpl({
+  date, events, weekStartsOn, jump, onSelectDate, onMonthChange, onPressEvent, onPressCell, variant, onOpenDay,
+}: Props) {
+  const isGrid = variant === 'grid';
   const theme = useTheme();
   const { t } = useTranslation();
   const language = useSettingsStore((s) => s.language);
@@ -191,6 +116,7 @@ function MonthDayViewImpl({ date, events, weekStartsOn, jump, onSelectDate, onMo
 
   const dotMap = useMemo(() => {
     const map = new Map<string, Set<string>>();
+    if (isGrid) return map;
     const add = (key: string, color: string) => {
       let set = map.get(key);
       if (!set) { set = new Set(); map.set(key, set); }
@@ -201,14 +127,15 @@ function MonthDayViewImpl({ date, events, weekStartsOn, jump, onSelectDate, onMo
       for (const key of eventDayKeys(ev)) add(key, ev.color);
     }
     return map;
-  }, [events]);
+  }, [events, isGrid]);
 
   const dayEvents = useMemo(() => {
+    if (isGrid) return [];
     const sel = selected.format('YYYY-MM-DD');
     return events
       .filter((e) => eventCoversDay(e, sel))
       .sort((a, b) => a.dtstart.getTime() - b.dtstart.getTime());
-  }, [events, selected]);
+  }, [events, selected, isGrid]);
 
   const todayKey = dayjs().format('YYYY-MM-DD');
   const today = useMemo(() => dayjs(todayKey), [todayKey]);
@@ -227,6 +154,11 @@ function MonthDayViewImpl({ date, events, weekStartsOn, jump, onSelectDate, onMo
   }, [weekStartsOn, language]);
 
   const gridHeight = height * 0.44;
+  const [pagerHeight, setPagerHeight] = useState(0);
+  const handlePagerLayout = useCallback((event: LayoutChangeEvent) => {
+    const measuredHeight = event.nativeEvent.layout.height;
+    if (measuredHeight > 0) setPagerHeight(measuredHeight);
+  }, []);
   const [localAnchor, setLocalAnchor] = useState(date);
   const [pagerKey, setPagerKey] = useState(0);
   const pagerRef = useRef<InfinitePagerImperativeApi>(null);
@@ -268,8 +200,22 @@ function MonthDayViewImpl({ date, events, weekStartsOn, jump, onSelectDate, onMo
   }, [onMonthChange]);
 
   const renderPage = useCallback(({ index }: { index: number }) => {
-    const m = dayjs(localAnchor).add(index, 'month');
-    const weeks = buildMonthGrid(m.year(), m.month(), weekStartsOn);
+    const pageMonth = dayjs(localAnchor).add(index, 'month');
+    if (isGrid) {
+      return (
+        <MonthGridPage
+          year={pageMonth.year()}
+          month={pageMonth.month()}
+          weekStartsOn={weekStartsOn}
+          events={events}
+          height={pagerHeight}
+          todayKey={todayKey}
+          onOpenDay={onOpenDay}
+          onLongPressDay={onPressCell}
+        />
+      );
+    }
+    const weeks = buildMonthGrid(pageMonth.year(), pageMonth.month(), weekStartsOn);
     return (
       <MonthGrid
         weeks={weeks}
@@ -281,62 +227,81 @@ function MonthDayViewImpl({ date, events, weekStartsOn, jump, onSelectDate, onMo
         onPressCell={onPressCell}
       />
     );
-  }, [localAnchor, weekStartsOn, selected, today, dotMap, theme.colors, handleDayPress, onPressCell]);
+  }, [
+    localAnchor, weekStartsOn, selected, today, dotMap, theme.colors, handleDayPress, onPressCell,
+    isGrid, events, pagerHeight, todayKey, onOpenDay,
+  ]);
+
+  const header = (
+    <View style={styles.dowRow}>
+      {dayHeaders.map((label, index) => (
+        <Text key={index} style={[styles.dowLabel, { color: theme.colors.textTertiary }]}>{label}</Text>
+      ))}
+    </View>
+  );
+  const pager = (
+    <InfinitePager
+      key={pagerKey}
+      ref={pagerRef}
+      style={styles.fill}
+      pageWrapperStyle={styles.fill}
+      renderPage={renderPage}
+      onPageChange={handlePageChange}
+      pageBuffer={1}
+    />
+  );
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      <View style={[styles.grid, { height: gridHeight, borderBottomColor: theme.colors.border }]}>
-        <View style={styles.dowRow}>
-          {dayHeaders.map((d, i) => (
-            <Text key={i} style={[styles.dowLabel, { color: theme.colors.textTertiary }]}>{d}</Text>
-          ))}
-        </View>
-
-        <View style={styles.pagerWrap}>
-          <InfinitePager
-            key={pagerKey}
-            ref={pagerRef}
-            style={styles.fill}
-            pageWrapperStyle={styles.fill}
-            renderPage={renderPage}
-            onPageChange={handlePageChange}
-            pageBuffer={1}
-          />
+      <View
+        style={isGrid
+          ? styles.fill
+          : [styles.grid, { height: gridHeight, borderBottomColor: theme.colors.border }]}
+      >
+        {header}
+        <View
+          testID="month-grid-pager"
+          style={styles.pagerWrap}
+          onLayout={isGrid ? handlePagerLayout : undefined}
+        >
+          {pager}
         </View>
       </View>
 
-      <View style={styles.dayList}>
-        <Text style={[styles.dayListHeader, { color: theme.colors.textSecondary }]}>
-          {selected.locale(language).format('dddd, LL')}
-        </Text>
-        {dayEvents.length === 0 ? (
-          <Text style={[styles.emptyText, { color: theme.colors.textTertiary }]}>{t('calendar.noEvents')}</Text>
-        ) : (
-          <FlatList
-            data={dayEvents}
-            keyExtractor={(e, i) => `${e.calendarId}-${e.uid}-${e.dtstart.getTime()}-${i}`}
-            renderItem={({ item }) => (
-              <TouchableOpacity
-                style={[styles.eventRow, { borderLeftColor: item.color, backgroundColor: theme.colors.surface }]}
-                onPress={() => onPressEvent(item)}
-              >
-                <View style={[styles.eventColorBar, { backgroundColor: item.color }]} />
-                <View style={styles.eventInfo}>
-                  <Text style={[styles.eventTitle, { color: theme.colors.text }]} numberOfLines={1}>
-                    {item.summary}
-                  </Text>
-                  <Text style={[styles.eventTime, { color: theme.colors.textSecondary }]}>
-                    {item.allDay
-                      ? t('calendar.allDay')
-                      : `${formatTime(item.dtstart)} – ${formatTime(item.dtend)}`}
-                  </Text>
-                </View>
-              </TouchableOpacity>
-            )}
-            contentContainerStyle={{ paddingBottom: 16 }}
-          />
-        )}
-      </View>
+      {!isGrid && (
+        <View style={styles.dayList}>
+          <Text style={[styles.dayListHeader, { color: theme.colors.textSecondary }]}>
+            {selected.locale(language).format('dddd, LL')}
+          </Text>
+          {dayEvents.length === 0 ? (
+            <Text style={[styles.emptyText, { color: theme.colors.textTertiary }]}>{t('calendar.noEvents')}</Text>
+          ) : (
+            <FlatList
+              data={dayEvents}
+              keyExtractor={(event, index) => `${event.calendarId}-${event.uid}-${event.dtstart.getTime()}-${index}`}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={[styles.eventRow, { borderLeftColor: item.color, backgroundColor: theme.colors.surface }]}
+                  onPress={() => onPressEvent(item)}
+                >
+                  <View style={[styles.eventColorBar, { backgroundColor: item.color }]} />
+                  <View style={styles.eventInfo}>
+                    <Text style={[styles.eventTitle, { color: theme.colors.text }]} numberOfLines={1}>
+                      {item.summary}
+                    </Text>
+                    <Text style={[styles.eventTime, { color: theme.colors.textSecondary }]}>
+                      {item.allDay
+                        ? t('calendar.allDay')
+                        : `${formatTime(item.dtstart)} – ${formatTime(item.dtend)}`}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              )}
+              contentContainerStyle={{ paddingBottom: 16 }}
+            />
+          )}
+        </View>
+      )}
     </View>
   );
 }
