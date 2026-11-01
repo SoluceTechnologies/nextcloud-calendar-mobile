@@ -354,6 +354,14 @@
       "tomorrow": "Tomorrow"
     }
   },
+  "briefing": {
+    "listen": "Listen to my day",
+    "pause": "Pause",
+    "resume": "Resume",
+    "next": "Next event",
+    "stop": "Stop briefing",
+    "emptyDay": "No events today"
+  },
   "certTrust": {
     "title": "Untrusted certificate",
     "body": "The server {{host}} presented a certificate that isn't signed by a known authority.",

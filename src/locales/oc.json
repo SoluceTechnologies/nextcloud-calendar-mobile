@@ -341,6 +341,14 @@
       "tomorrow": "Deman"
     }
   },
+  "briefing": {
+    "listen": "Escotar ma jornada",
+    "pause": "Pausa",
+    "resume": "Repréner",
+    "next": "Eveniment seguent",
+    "stop": "Arrestar lo briefing",
+    "emptyDay": "Cap d’eveniment uèi"
+  },
   "certTrust": {
     "title": "Certificat pas de fisança",
     "body": "Lo servidor {{host}} a presentat un certificat qu'es pas signat per una autoritat coneguda.",

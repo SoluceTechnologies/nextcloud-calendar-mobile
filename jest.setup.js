@@ -72,6 +72,15 @@ jest.mock('react-native-webview', () => {
   };
 });
 
+jest.mock('expo-speech', () => ({
+  speak: jest.fn(),
+  stop: jest.fn(),
+  pause: jest.fn(),
+  resume: jest.fn(),
+  isSpeakingAsync: jest.fn().mockResolvedValue(false),
+  getAvailableVoicesAsync: jest.fn().mockResolvedValue([]),
+}));
+
 jest.mock('react-native-reanimated', () => {
   const { View, ScrollView } = require('react-native');
   return {

@@ -354,6 +354,14 @@
       "tomorrow": "Demain"
     }
   },
+  "briefing": {
+    "listen": "Écouter ma journée",
+    "pause": "Pause",
+    "resume": "Reprendre",
+    "next": "Événement suivant",
+    "stop": "Arrêter le briefing",
+    "emptyDay": "Aucun événement aujourd'hui"
+  },
   "certTrust": {
     "title": "Certificat non approuvé",
     "body": "Le serveur {{host}} a présenté un certificat qui n'est pas signé par une autorité connue.",

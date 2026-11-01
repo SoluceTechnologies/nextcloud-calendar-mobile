@@ -354,6 +354,14 @@
       "tomorrow": "Domani"
     }
   },
+  "briefing": {
+    "listen": "Ascolta la mia giornata",
+    "pause": "Pausa",
+    "resume": "Riprendi",
+    "next": "Evento successivo",
+    "stop": "Interrompi il briefing",
+    "emptyDay": "Nessun evento oggi"
+  },
   "certTrust": {
     "title": "Certificato non attendibile",
     "body": "Il server {{host}} ha presentato un certificato non firmato da un'autorità nota.",
