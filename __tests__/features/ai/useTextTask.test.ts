@@ -233,14 +233,14 @@ describe('useTextTask', () => {
     expect(result.current.output).toBeNull();
   });
 
-  it('strips markdown emphasis markers from the task output', async () => {
+  it('strips markdown emphasis markers but preserves literal __x__ text', async () => {
     activate(account('md-1'), true);
     schedule.mockResolvedValue({ id: 51, type: 'core:text2text', status: 1 });
     poll.mockResolvedValue({
       id: 51,
       type: 'core:text2text',
       status: 3,
-      output: { output: 'Busy **morning** ahead' },
+      output: { output: 'Busy **morning**, discuss __init__ at https://x.co/__docs__/' },
     });
 
     const { result } = renderHook(() => useTextTask());
@@ -248,7 +248,9 @@ describe('useTextTask', () => {
     await act(async () => {
       await result.current.run('prompt');
     });
-    expect(result.current.output).toBe('Busy morning ahead');
+    expect(result.current.output).toBe(
+      'Busy morning, discuss __init__ at https://x.co/__docs__/'
+    );
   });
 
   it('continues polling once when the first poll times out', async () => {

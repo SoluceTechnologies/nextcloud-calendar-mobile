@@ -15,8 +15,10 @@ import { useTaskTypes } from './useTaskTypes';
 
 export type TextTaskState = 'idle' | 'scheduling' | 'running' | 'done' | 'failed';
 
+// Only `**...**` is stripped: `__x__` is also valid inside identifiers and
+// URLs (e.g. `__init__`, `/__docs__/`), where stripping would corrupt text.
 function stripMdEmphasis(text: string): string {
-  return text.replace(/(\*\*|__)([^*_]+)\1/g, '$2');
+  return text.replace(/\*\*([^*]+)\*\*/g, '$1');
 }
 
 function firstTextOutput(task: TaskProcessingTask | null): string | null {
