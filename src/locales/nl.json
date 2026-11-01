@@ -501,5 +501,32 @@
     "offlineNote": "Offline — alleen lokale resultaten",
     "serverFailed": "Server niet bereikbaar — alleen lokale resultaten",
     "openFailed": "Kan deze afspraak niet openen"
+  },
+  "ai": {
+    "title": "AI-assistent",
+    "enable": "AI-functies inschakelen",
+    "provider": "AI-provider",
+    "providerAvailable": "Beschikbaar: {{name}}",
+    "providerUnavailable": "Geen AI-provider beschikbaar op deze server",
+    "privacyNotice": "Indien ingeschakeld worden titels, tijden en locaties van afspraken naar je Nextcloud-server gestuurd zodat diens AI-provider samenvattingen en concepten kan genereren. Gegevens blijven op je server; de app stuurt niets naar diensten van derden.",
+    "disclosure": "Gegenereerd door de AI van je server",
+    "regenerate": "Opnieuw genereren",
+    "thinking": "Aan het nadenken…",
+    "copy": "Kopiëren",
+    "descriptionDraft": "Concept met AI",
+    "error": "Het AI-verzoek is mislukt. Probeer opnieuw.",
+    "summary": {
+      "empty": "Geen afspraken",
+      "events_one": "{{count}} afspraak",
+      "events_other": "{{count}} afspraken",
+      "events_few": "{{count}} afspraken",
+      "events_many": "{{count}} afspraken",
+      "tasks_one": "{{count}} taak",
+      "tasks_other": "{{count}} taken",
+      "tasks_few": "{{count}} taken",
+      "tasks_many": "{{count}} taken",
+      "next": "volgende:",
+      "at": "om"
+    }
   }
 }

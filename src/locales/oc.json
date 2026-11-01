@@ -480,5 +480,32 @@
     "offlineNote": "Fòra linha — resultats locals solament",
     "serverFailed": "Servidor injonhible — resultats locals solament",
     "openFailed": "Impossible de dobrir aqueste eveniment"
+  },
+  "ai": {
+    "title": "Assistent IA",
+    "enable": "Activar las foncions IA",
+    "provider": "Proveïdor d'IA",
+    "providerAvailable": "Disponible : {{name}}",
+    "providerUnavailable": "Cap de proveïdor d'IA pas disponible sus aqueste servidor",
+    "privacyNotice": "Quand es activada, los títols, oraris e luòcs dels eveniments son mandats a vòstre servidor Nextcloud per que son proveïdor d'IA genere de resumits e de borrolhs. Las donadas demòran sus vòstre servidor ; l'aplicacion manda res a de servicis tèrces.",
+    "disclosure": "Generat per l'IA de vòstre servidor",
+    "regenerate": "Tornar generar",
+    "thinking": "Reflexion…",
+    "copy": "Copiar",
+    "descriptionDraft": "Redigir amb l'IA",
+    "error": "La requèsta IA a fracassat. Tornatz ensajar.",
+    "summary": {
+      "empty": "Cap d'eveniment",
+      "events_one": "{{count}} eveniment",
+      "events_other": "{{count}} eveniments",
+      "events_few": "{{count}} eveniments",
+      "events_many": "{{count}} eveniments",
+      "tasks_one": "{{count}} tasca",
+      "tasks_other": "{{count}} tasques",
+      "tasks_few": "{{count}} tasques",
+      "tasks_many": "{{count}} tasques",
+      "next": "seguent :",
+      "at": "a"
+    }
   }
 }
