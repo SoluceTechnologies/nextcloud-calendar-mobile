@@ -73,6 +73,7 @@ export default function CalendarSettingsScreen() {
           {MONTH_VIEW_OPTIONS.map((option) => (
             <Chip
               key={option.value}
+              testID={`settings-month-view-${option.value}`}
               fullWidth
               active={monthViewStyle === option.value}
               onPress={() => setMonthViewStyle(option.value)}

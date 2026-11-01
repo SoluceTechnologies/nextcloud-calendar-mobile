@@ -17,8 +17,16 @@ appId: com.soluce.nextcloudcalendar
 - extendedWaitUntil: { visible: "E2E seed", timeout: 15000 }
 - tapOn:
     id: calendar-mode-month
+- extendedWaitUntil:
+    visible:
+      id: month-day-${TODAY}
+      text: ".*events: [1-9].*"
+    timeout: 15000
 - tapOn:
     id: month-day-${TODAY}
+- assertVisible:
+    id: calendar-mode-day
+    selected: true
 - extendedWaitUntil: { visible: "E2E seed", timeout: 15000 }
 - tapOn:
     id: calendar-mode-schedule

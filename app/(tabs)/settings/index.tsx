@@ -68,6 +68,7 @@ export default function SettingsScreen() {
                 onPress={() => router.push('/(tabs)/settings/appearance')}
               />
               <SettingsLink
+                testID="settings-calendar"
                 title={t('settings.calendar')}
                 icon={<CalendarDays />}
                 onPress={() => router.push('/(tabs)/settings/calendar')}
