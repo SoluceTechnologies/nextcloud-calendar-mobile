@@ -1,4 +1,5 @@
 import { useSettingsStore } from '../../src/stores/settingsStore';
+import { zustandStorage } from '../../src/storage';
 
 jest.mock('@react-native-async-storage/async-storage', () =>
   require('@react-native-async-storage/async-storage/jest/async-storage-mock')
@@ -97,5 +98,29 @@ describe('alert defaults', () => {
     expect(migrated.timedAlerts).toEqual([15]);
     expect(migrated.allDayAlerts).toEqual([]);
     expect(migrated.timedAlert).toBeUndefined();
+  });
+});
+
+describe('month view style', () => {
+  beforeEach(() => {
+    zustandStorage.removeItem('settings-store');
+  });
+
+  it('defaults to the grid month view', () => {
+    expect(useSettingsStore.getState().monthViewStyle).toBe('grid');
+  });
+
+  it('existing users without the key rehydrate to grid', async () => {
+    useSettingsStore.setState({ monthViewStyle: 'grid' });
+    zustandStorage.setItem('settings-store', JSON.stringify({ state: { weekStartsOn: 1 }, version: 2 }));
+    await useSettingsStore.persist.rehydrate();
+    expect(useSettingsStore.getState().monthViewStyle).toBe('grid');
+    expect(useSettingsStore.getState().weekStartsOn).toBe(1);
+  });
+
+  it('persists the chosen style', () => {
+    useSettingsStore.getState().setMonthViewStyle('compact');
+    const stored = JSON.parse(zustandStorage.getItem('settings-store')!);
+    expect(stored.state.monthViewStyle).toBe('compact');
   });
 });

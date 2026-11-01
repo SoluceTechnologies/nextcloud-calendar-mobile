@@ -196,6 +196,11 @@
     "weekStart": "Week Starts On",
     "sunday": "Sunday",
     "monday": "Monday",
+    "monthView": {
+      "title": "Month view",
+      "grid": "Grid",
+      "compact": "Compact"
+    },
     "calendarZoom": "Calendar Zoom",
     "reset": "Reset",
     "zoom": {

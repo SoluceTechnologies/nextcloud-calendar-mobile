@@ -196,6 +196,11 @@
     "weekStart": "Début de semaine",
     "sunday": "Dimanche",
     "monday": "Lundi",
+    "monthView": {
+      "title": "Vue mensuelle",
+      "grid": "Grille",
+      "compact": "Compacte"
+    },
     "calendarZoom": "Zoom du calendrier",
     "reset": "Réinitialiser",
     "zoom": {

@@ -196,6 +196,11 @@
     "weekStart": "Week begint op",
     "sunday": "Zondag",
     "monday": "Maandag",
+    "monthView": {
+      "title": "Maandweergave",
+      "grid": "Raster",
+      "compact": "Compact"
+    },
     "calendarZoom": "Agendazoom",
     "reset": "Resetten",
     "zoom": {

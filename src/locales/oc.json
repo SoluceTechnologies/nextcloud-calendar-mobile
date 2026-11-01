@@ -191,6 +191,11 @@
     "weekStart": "La setmana comença lo",
     "sunday": "dimenge",
     "monday": "diluns",
+    "monthView": {
+      "title": "Vista mesadièra",
+      "grid": "Grasilha",
+      "compact": "Compacta"
+    },
     "calendarZoom": "Zoom del calendari",
     "reset": "Reïnicializar",
     "zoom": {

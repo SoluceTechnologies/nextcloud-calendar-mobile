@@ -196,6 +196,11 @@
     "weekStart": "Woche beginnt am",
     "sunday": "Sonntag",
     "monday": "Montag",
+    "monthView": {
+      "title": "Monatsansicht",
+      "grid": "Raster",
+      "compact": "Kompakt"
+    },
     "calendarZoom": "Kalender-Zoom",
     "reset": "Zurücksetzen",
     "zoom": {

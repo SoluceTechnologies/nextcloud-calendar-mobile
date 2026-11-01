@@ -196,6 +196,11 @@
     "weekStart": "La settimana inizia di",
     "sunday": "Domenica",
     "monday": "Lunedì",
+    "monthView": {
+      "title": "Vista mensile",
+      "grid": "Griglia",
+      "compact": "Compatta"
+    },
     "calendarZoom": "Zoom calendario",
     "reset": "Reimposta",
     "zoom": {
