@@ -2,10 +2,12 @@ import { act, renderHook, waitFor } from '@testing-library/react-native';
 
 import { useTextTask } from '@/features/ai/useTextTask';
 import {
+  cancelTask,
   fetchTaskTypes,
   hasTextTaskType,
   pollTask,
   scheduleTask,
+  TaskPollTimeout,
 } from '@/services/nextcloud/taskprocessing';
 import { HttpError } from '@/services/shared/errors';
 import { setAccounts } from '@/hooks/useAccounts';
@@ -16,6 +18,7 @@ import type { Account, TaskProcessingTask, TaskTypeInfo } from '@/types';
 jest.mock(
   '@/services/nextcloud/taskprocessing',
   () => ({
+    ...jest.requireActual('@/services/nextcloud/taskprocessing'),
     fetchTaskTypes: jest.fn(),
     scheduleTask: jest.fn(),
     getTask: jest.fn(),
@@ -30,6 +33,7 @@ const fetchTypes = fetchTaskTypes as jest.Mock;
 const pickText = hasTextTaskType as jest.Mock;
 const schedule = scheduleTask as jest.Mock;
 const poll = pollTask as jest.Mock;
+const cancel = cancelTask as jest.Mock;
 
 const types: Record<string, TaskTypeInfo> = {
   'core:text2text': {
@@ -225,6 +229,110 @@ describe('useTextTask', () => {
     await act(async () => {
       polled.resolve({ id: 12, type: 'core:text2text', status: 3, output: { output: 'stale' } });
     });
+    expect(result.current.state).toBe('idle');
+    expect(result.current.output).toBeNull();
+  });
+
+  it('strips markdown emphasis markers from the task output', async () => {
+    activate(account('md-1'), true);
+    schedule.mockResolvedValue({ id: 51, type: 'core:text2text', status: 1 });
+    poll.mockResolvedValue({
+      id: 51,
+      type: 'core:text2text',
+      status: 3,
+      output: { output: 'Busy **morning** ahead' },
+    });
+
+    const { result } = renderHook(() => useTextTask());
+    await settleTaskTypes();
+    await act(async () => {
+      await result.current.run('prompt');
+    });
+    expect(result.current.output).toBe('Busy morning ahead');
+  });
+
+  it('continues polling once when the first poll times out', async () => {
+    activate(account('to-1'), true);
+    schedule.mockResolvedValue({ id: 21, type: 'core:text2text', status: 1 });
+    poll
+      .mockRejectedValueOnce(new TaskPollTimeout({ id: 21, type: 'core:text2text', status: 2 }))
+      .mockResolvedValueOnce({
+        id: 21,
+        type: 'core:text2text',
+        status: 3,
+        output: { output: 'late but done' },
+      });
+
+    const { result } = renderHook(() => useTextTask());
+    await settleTaskTypes();
+    await act(async () => {
+      await result.current.run('prompt');
+    });
+    expect(poll).toHaveBeenCalledTimes(2);
+    expect(result.current.state).toBe('done');
+    expect(result.current.output).toBe('late but done');
+  });
+
+  it('fails and best-effort cancels the lingering task after a second timeout', async () => {
+    activate(account('to-2'), true);
+    schedule.mockResolvedValue({ id: 22, type: 'core:text2text', status: 1 });
+    poll.mockRejectedValue(new TaskPollTimeout({ id: 22, type: 'core:text2text', status: 2 }));
+
+    const { result } = renderHook(() => useTextTask());
+    await settleTaskTypes();
+    await act(async () => {
+      await result.current.run('prompt');
+    });
+    expect(result.current.state).toBe('failed');
+    expect(cancel).toHaveBeenCalledWith(expect.objectContaining({ id: 'to-2' }), 22);
+  });
+
+  it('cancels on the scheduling account when the user switches accounts mid-run', async () => {
+    const a = account('sw-a');
+    const b = account('sw-b');
+    activate(a, true);
+    schedule.mockResolvedValue({ id: 31, type: 'core:text2text', status: 1 });
+    const polled = deferred<TaskProcessingTask>();
+    poll.mockReturnValue(polled.promise);
+
+    const { result } = renderHook(() => useTextTask());
+    await settleTaskTypes();
+    await act(async () => {
+      void result.current.run('prompt');
+      await Promise.resolve();
+    });
+    expect(result.current.state).toBe('running');
+
+    await act(async () => {
+      setAccounts([b]);
+      useAccountStore.getState().setActiveAccountId(b.id);
+    });
+    // Task 31 lives on account A — cancelling on B would hit a foreign task.
+    expect(cancel).toHaveBeenCalledWith(a, 31);
+    expect(result.current.state).toBe('idle');
+  });
+
+  it('cancels a task that only resolves from schedule after the run was reset', async () => {
+    const a = account('orph-1');
+    activate(a, true);
+    const sched = deferred<TaskProcessingTask>();
+    schedule.mockReturnValue(sched.promise);
+
+    const { result } = renderHook(() => useTextTask());
+    await settleTaskTypes();
+    await act(async () => {
+      void result.current.run('prompt');
+      await Promise.resolve();
+    });
+    expect(result.current.state).toBe('scheduling');
+
+    act(() => result.current.reset());
+    await act(async () => {
+      sched.resolve({ id: 41, type: 'core:text2text', status: 1 });
+      await Promise.resolve();
+    });
+    // The server-side task exists now but the run is dead — it must not leak.
+    expect(cancel).toHaveBeenCalledWith(a, 41);
     expect(result.current.state).toBe('idle');
     expect(result.current.output).toBeNull();
   });

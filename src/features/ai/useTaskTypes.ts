@@ -6,17 +6,30 @@ import { useAccountStore } from '@/stores/accountStore';
 import { useSettingsStore } from '@/stores/settingsStore';
 import type { Account, TaskTypeInfo } from '@/types';
 
-const taskTypesCache = new Map<string, Record<string, TaskTypeInfo>>();
+const CACHE_TTL_MS = 10 * 60 * 1000;
+const taskTypesCache = new Map<
+  string,
+  { types: Record<string, TaskTypeInfo>; appPassword: string; at: number }
+>();
 const inflight = new Map<string, Promise<Record<string, TaskTypeInfo>>>();
 
 function loadTaskTypes(account: Account): Promise<Record<string, TaskTypeInfo>> {
   const cached = taskTypesCache.get(account.id);
-  if (cached) return Promise.resolve(cached);
+  // Reconnects keep the account id but change credentials; server-side provider
+  // changes are picked up through the TTL.
+  if (
+    cached &&
+    cached.appPassword === account.appPassword &&
+    Date.now() - cached.at < CACHE_TTL_MS
+  ) {
+    return Promise.resolve(cached.types);
+  }
+  taskTypesCache.delete(account.id);
   let p = inflight.get(account.id);
   if (!p) {
     p = fetchTaskTypes(account)
       .then((types) => {
-        taskTypesCache.set(account.id, types);
+        taskTypesCache.set(account.id, { types, appPassword: account.appPassword, at: Date.now() });
         inflight.delete(account.id);
         return types;
       })
@@ -42,9 +55,11 @@ export function useTaskTypes(): {
 
   const [loaded, setLoaded] = useState<{ id: string; types: Record<string, TaskTypeInfo> } | null>(
     () => {
-      if (!aiEnabled || !accountId) return null;
+      if (!aiEnabled || !accountId || !account) return null;
       const cached = taskTypesCache.get(accountId);
-      return cached ? { id: accountId, types: cached } : null;
+      return cached && cached.appPassword === account.appPassword
+        ? { id: accountId, types: cached.types }
+        : null;
     }
   );
   const [loading, setLoading] = useState(false);
@@ -56,10 +71,18 @@ export function useTaskTypes(): {
       return;
     }
     const id = account.id;
-    if (loaded?.id === id) {
+    const cached = taskTypesCache.get(id);
+    const cacheValid =
+      !!cached &&
+      cached.appPassword === account.appPassword &&
+      Date.now() - cached.at < CACHE_TTL_MS;
+    if (cacheValid) {
+      if (loaded?.id !== id) setLoaded({ id, types: cached.types });
       setLoading(false);
       return;
     }
+    // Credentials changed or the entry expired — drop stale types and reload.
+    if (loaded?.id === id) setLoaded(null);
     let cancelled = false;
     setLoading(true);
     loadTaskTypes(account)

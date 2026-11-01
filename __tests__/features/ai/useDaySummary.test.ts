@@ -12,12 +12,14 @@ import {
 import { useEventsForRange } from '@/database/useEvents';
 import { setAccounts } from '@/hooks/useAccounts';
 import { useAccountStore } from '@/stores/accountStore';
+import { useCalendarStore } from '@/stores/calendarStore';
 import { useSettingsStore } from '@/stores/settingsStore';
 import type { Account, CalendarEvent, TaskTypeInfo } from '@/types';
 
 jest.mock(
   '@/services/nextcloud/taskprocessing',
   () => ({
+    ...jest.requireActual('@/services/nextcloud/taskprocessing'),
     fetchTaskTypes: jest.fn(),
     scheduleTask: jest.fn(),
     getTask: jest.fn(),
@@ -101,6 +103,7 @@ beforeEach(() => {
   setAccounts([]);
   useAccountStore.getState().setActiveAccountId(null);
   useSettingsStore.getState().setAiEnabled(false);
+  useCalendarStore.setState({ hiddenCalendarIds: [] });
   fetchTypes.mockResolvedValue(types);
   pickText.mockImplementation((t) =>
     t && Object.keys(t).length > 0 ? 'core:text2text' : null
@@ -198,5 +201,53 @@ describe('useDaySummary', () => {
     await waitFor(() => expect(result.current.state).toBe('failed'));
     expect(result.current.summary).toBe('TEMPLATE');
     expect(result.current.fromAi).toBe(false);
+  });
+
+  it('excludes hidden-calendar events from the template and the AI prompt', async () => {
+    const a = account('a7');
+    activate(a, true);
+    const hiddenEvent = {
+      ...event,
+      uid: 'u2',
+      href: 'h2',
+      calendarId: 'cal-hidden',
+      summary: 'Doctor appointment',
+      accountId: a.id,
+    };
+    eventsForRange.mockReturnValue([{ ...event, accountId: a.id }, hiddenEvent]);
+    useCalendarStore.setState({ hiddenCalendarIds: ['cal-hidden'] });
+
+    const { result } = renderHook(() => useDaySummary('2025-01-15'));
+    await waitFor(() => expect(result.current.state).toBe('done'));
+    expect(toPrompt).toHaveBeenCalledWith(
+      [expect.objectContaining({ summary: 'Standup' })],
+      expect.objectContaining({ locale: expect.any(String) })
+    );
+    expect(toPrompt.mock.calls[0][0]).toHaveLength(1);
+  });
+
+  it('falls back to the live template when the event set changes after a run', async () => {
+    const a = account('a8');
+    activate(a, true);
+    const { result, rerender } = renderHook(
+      ({ day }: { day: string }) => useDaySummary(day),
+      { initialProps: { day: '2025-01-15' } }
+    );
+    await waitFor(() => expect(result.current.state).toBe('done'));
+    expect(result.current.summary).toBe('AI TEXT');
+
+    // A sync adds an event — the previous AI output no longer describes the day.
+    act(() => {
+      eventsForRange.mockReturnValue([
+        { ...event, accountId: a.id },
+        { ...event, uid: 'u9', href: 'h9', summary: 'Late sync', accountId: a.id },
+      ]);
+      rerender({ day: '2025-01-15' });
+    });
+    await waitFor(() => expect(result.current.fromAi).toBe(false));
+    expect(result.current.summary).toBe('TEMPLATE');
+    expect(result.current.state).toBe('idle');
+    // No automatic refire — the provider is not spammed by sync bursts.
+    expect(schedule).toHaveBeenCalledTimes(1);
   });
 });

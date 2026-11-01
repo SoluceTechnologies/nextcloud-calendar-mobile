@@ -132,4 +132,22 @@ describe('useTaskTypes', () => {
     expect(fetchTypes).toHaveBeenCalledTimes(2);
     second.unmount();
   });
+
+  it('refetches when the account credentials change (reconnect)', async () => {
+    const a = account('recon-1');
+    activate(a, true);
+    const first = renderHook(() => useTaskTypes());
+    await waitFor(() => expect(first.result.current.taskTypes).toEqual(types));
+    expect(fetchTypes).toHaveBeenCalledTimes(1);
+    first.unmount();
+
+    // Reconnect keeps the account id but replaces the app password.
+    const reconnected = { ...a, appPassword: 'new-app-password' };
+    activate(reconnected, true);
+    const second = renderHook(() => useTaskTypes());
+    await waitFor(() => expect(fetchTypes).toHaveBeenCalledTimes(2));
+    expect(fetchTypes).toHaveBeenLastCalledWith(reconnected);
+    await waitFor(() => expect(second.result.current.taskTypes).toEqual(types));
+    second.unmount();
+  });
 });

@@ -244,6 +244,7 @@ export const EventForm = forwardRef<EventFormHandle, Props>(function EventForm({
         start: dtstart.toISOString(),
         end: dtend.toISOString(),
         location: location.trim() || undefined,
+        locale: language,
       })
     );
   }

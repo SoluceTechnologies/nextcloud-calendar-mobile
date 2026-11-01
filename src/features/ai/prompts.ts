@@ -63,9 +63,12 @@ export function draftDescriptionPrompt(input: {
   start?: string;
   end?: string;
   location?: string;
+  locale?: string;
 }): string {
   const lines = [
-    'Write a short description (1–2 sentences) for this calendar event, in the same language as its title.',
+    `Write a short description (1–2 sentences) for this calendar event.${
+      input.locale ? ` Reply in the language of locale "${input.locale}".` : ' Use the same language as its title.'
+    }`,
     'Neutral tone. Do not invent facts; only use the details below.',
     `Title: ${input.summary}`,
   ];

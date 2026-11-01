@@ -2,20 +2,29 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { useActiveAccount } from '@/hooks/useAccounts';
 import { describeMutationError } from '@/services/shared/errors';
-import { cancelTask, pollTask, scheduleTask } from '@/services/nextcloud/taskprocessing';
+import {
+  cancelTask,
+  pollTask,
+  scheduleTask,
+  TaskPollTimeout,
+} from '@/services/nextcloud/taskprocessing';
 import { useAccountStore } from '@/stores/accountStore';
-import type { TaskProcessingTask } from '@/types';
+import type { Account, TaskProcessingTask } from '@/types';
 
 import { useTaskTypes } from './useTaskTypes';
 
 export type TextTaskState = 'idle' | 'scheduling' | 'running' | 'done' | 'failed';
 
+function stripMdEmphasis(text: string): string {
+  return text.replace(/(\*\*|__)([^*_]+)\1/g, '$2');
+}
+
 function firstTextOutput(task: TaskProcessingTask | null): string | null {
   if (!task?.output) return null;
   const preferred = task.output['output'];
-  if (typeof preferred === 'string' && preferred.length > 0) return preferred;
+  if (typeof preferred === 'string' && preferred.length > 0) return stripMdEmphasis(preferred);
   for (const v of Object.values(task.output)) {
-    if (typeof v === 'string' && v.length > 0) return v;
+    if (typeof v === 'string' && v.length > 0) return stripMdEmphasis(v);
   }
   return null;
 }
@@ -36,14 +45,15 @@ export function useTextTask(): {
   const [error, setError] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const runIdRef = useRef(0);
-  const taskIdRef = useRef<number | null>(null);
-  const accountRef = useRef(account);
-  accountRef.current = account;
+  // Task IDs are scoped to the scheduling account — keep it alongside the ID so
+  // a later account switch cannot cancel a foreign task (or the wrong task).
+  const taskRef = useRef<{ account: Account; id: number } | null>(null);
+  const prevAccountIdRef = useRef(account?.id ?? null);
 
   const cancelScheduled = useCallback(() => {
-    const id = taskIdRef.current;
-    taskIdRef.current = null;
-    if (id != null && accountRef.current) void cancelTask(accountRef.current, id);
+    const t = taskRef.current;
+    taskRef.current = null;
+    if (t) void cancelTask(t.account, t.id);
   }, []);
 
   useEffect(
@@ -65,6 +75,13 @@ export function useTextTask(): {
     setOutput(null);
     setError(null);
   }, [cancelScheduled]);
+
+  useEffect(() => {
+    const id = account?.id ?? null;
+    if (prevAccountIdRef.current === id) return;
+    prevAccountIdRef.current = id;
+    reset();
+  }, [account?.id, reset]);
 
   const run = useCallback(
     async (prompt: string, opts?: { customId?: string }) => {
@@ -97,12 +114,25 @@ export function useTextTask(): {
           { [inputSlot]: prompt },
           opts?.customId
         );
-        taskIdRef.current = scheduled.id;
-        if (runId !== runIdRef.current) return;
+        if (runId !== runIdRef.current || ctrl.signal.aborted) {
+          // Run was dismissed while scheduling — don't orphan the server task.
+          void cancelTask(account, scheduled.id);
+          return;
+        }
+        taskRef.current = { account, id: scheduled.id };
         setState('running');
-        const done = await pollTask(account, scheduled.id, { signal: ctrl.signal });
+        let done: TaskProcessingTask;
+        try {
+          done = await pollTask(account, scheduled.id, { signal: ctrl.signal });
+        } catch (e) {
+          if (!(e instanceof TaskPollTimeout)) throw e;
+          // Still running at the deadline is not a failure — keep waiting once
+          // more before surfacing a timeout to the user.
+          if (runId !== runIdRef.current || ctrl.signal.aborted) return;
+          done = await pollTask(account, scheduled.id, { signal: ctrl.signal });
+        }
         if (runId !== runIdRef.current || ctrl.signal.aborted) return;
-        taskIdRef.current = null;
+        taskRef.current = null;
         if (done && done.status === 3) {
           const text = firstTextOutput(done);
           if (text) {
@@ -122,6 +152,9 @@ export function useTextTask(): {
         }
       } catch (e) {
         if (runId !== runIdRef.current || ctrl.signal.aborted) return;
+        // A task still running after the extended deadline keeps consuming the
+        // provider — cancel it best-effort before surfacing the timeout.
+        if (e instanceof TaskPollTimeout) cancelScheduled();
         setError(describeMutationError(e));
         setState('failed');
       }
