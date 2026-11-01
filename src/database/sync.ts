@@ -14,6 +14,7 @@ import {expansionHorizon, needsHorizonReset} from '@/features/calendar/utils/hor
 import {settleAll} from '@/utils/settle';
 
 import {getDatabaseInstance} from './DatabaseProvider';
+import { localWriteEpoch, markLocalWrite } from './localWriteEpoch';
 import Calendar from './models/Calendar';
 import Event from './models/Event';
 import {safeWrite} from './utils/safeTransaction';
@@ -152,16 +153,6 @@ export async function syncCalendars(account: Account): Promise<CalendarMeta[]> {
     return remote;
 }
 
-
-let localWrites = 0;
-
-export function markLocalWrite(): void {
-    localWrites += 1;
-}
-
-export function localWriteEpoch(): number {
-    return localWrites;
-}
 
 export function seriesBaseUid(uid: string): string {
     const i = uid.indexOf('_occ_');
