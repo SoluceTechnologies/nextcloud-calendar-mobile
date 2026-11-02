@@ -14,7 +14,6 @@ type TabItem = {
   sf: IconState<SFSymbol>;
   md: IconState<AndroidSymbol>;
   Icon: LucideIcon;
-  role?: 'search';
 };
 
 const TAB_ITEMS: TabItem[] = [
@@ -31,7 +30,6 @@ const TAB_ITEMS: TabItem[] = [
     sf: { default: 'magnifyingglass', selected: 'magnifyingglass' },
     md: { default: 'search', selected: 'search' },
     Icon: Search,
-    role: 'search',
   },
   {
     name: 'settings',
@@ -49,7 +47,7 @@ function NativeTabsLayout() {
   return (
       <NativeTabs labelStyle={{ color: theme.colors.text }} tintColor={theme.colors.primary}>
         {TAB_ITEMS.map((tab) => (
-            <NativeTabs.Trigger key={tab.name} name={tab.name} role={tab.role}>
+            <NativeTabs.Trigger key={tab.name} name={tab.name}>
               <NativeTabs.Trigger.Label>{t(tab.labelKey)}</NativeTabs.Trigger.Label>
               <NativeTabs.Trigger.Icon sf={tab.sf} md={tab.md} />
             </NativeTabs.Trigger>
