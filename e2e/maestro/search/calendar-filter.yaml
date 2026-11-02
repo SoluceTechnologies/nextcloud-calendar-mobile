@@ -1,0 +1,29 @@
+appId: com.soluce.nextcloudcalendar
+---
+- runFlow:
+    file: ../shared/home-and-wait.yaml
+    env: { TITLE: "${ELSEWHERE_TITLE}" }
+- tapOn:
+    id: tab-search
+- tapOn:
+    id: search-input
+- inputText: ${PREFIX}
+- extendedWaitUntil:
+    visible:
+      id: result-event-${HERE_UID}
+    timeout: 15000
+- assertVisible:
+    id: result-event-${ELSEWHERE_UID}
+- inputText: " calendar:"
+- extendedWaitUntil:
+    visible:
+      id: suggestion-${CAL_NAME}
+    timeout: 15000
+- tapOn:
+    id: suggestion-${CAL_NAME}
+- extendedWaitUntil:
+    visible:
+      id: result-event-${ELSEWHERE_UID}
+    timeout: 15000
+- assertNotVisible:
+    id: result-event-${HERE_UID}
