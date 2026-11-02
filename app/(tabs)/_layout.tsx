@@ -1,6 +1,6 @@
 import { Tabs, useTheme } from 'expo-router';
 import { NativeTabs } from 'expo-router/unstable-native-tabs';
-import { Calendar, Settings as SettingsIcon, type LucideIcon } from 'lucide-react-native';
+import { Calendar, Search, Settings as SettingsIcon, type LucideIcon } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 import type { SFSymbol } from 'sf-symbols-typescript';
 import type { AndroidSymbol } from 'expo-symbols';
@@ -14,6 +14,7 @@ type TabItem = {
   sf: IconState<SFSymbol>;
   md: IconState<AndroidSymbol>;
   Icon: LucideIcon;
+  role?: 'search';
 };
 
 const TAB_ITEMS: TabItem[] = [
@@ -23,6 +24,14 @@ const TAB_ITEMS: TabItem[] = [
     sf: { default: 'calendar', selected: 'calendar' },
     md: { default: 'calendar_month', selected: 'calendar_month' },
     Icon: Calendar,
+  },
+  {
+    name: 'search/index',
+    labelKey: 'tabs.search',
+    sf: { default: 'magnifyingglass', selected: 'magnifyingglass' },
+    md: { default: 'search', selected: 'search' },
+    Icon: Search,
+    role: 'search',
   },
   {
     name: 'settings',
@@ -40,7 +49,7 @@ function NativeTabsLayout() {
   return (
       <NativeTabs labelStyle={{ color: theme.colors.text }} tintColor={theme.colors.primary}>
         {TAB_ITEMS.map((tab) => (
-            <NativeTabs.Trigger key={tab.name} name={tab.name}>
+            <NativeTabs.Trigger key={tab.name} name={tab.name} role={tab.role}>
               <NativeTabs.Trigger.Label>{t(tab.labelKey)}</NativeTabs.Trigger.Label>
               <NativeTabs.Trigger.Icon sf={tab.sf} md={tab.md} />
             </NativeTabs.Trigger>
