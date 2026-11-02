@@ -1,7 +1,7 @@
-import { useCallback, useDeferredValue, useMemo, useRef } from 'react';
+import { useCallback, useDeferredValue, useEffect, useMemo, useRef } from 'react';
 import { View, StyleSheet } from 'react-native';
 import { useTranslation } from 'react-i18next';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import dayjs from 'dayjs';
 import isoWeek from 'dayjs/plugin/isoWeek';
@@ -75,6 +75,16 @@ export default function CalendarScreen() {
   const handleListen = useCallback(() => {
     void startBriefing();
   }, [startBriefing]);
+
+  // nextcloud-calendar://listen (home-widget button) redirects here with
+  // ?autolisten=1 — start the briefing once, then clear the param so the next
+  // widget tap re-triggers.
+  const { autolisten } = useLocalSearchParams<{ autolisten?: string }>();
+  useEffect(() => {
+    if (autolisten !== '1') return;
+    void startBriefing();
+    router.setParams({ autolisten: undefined });
+  }, [autolisten, startBriefing, router]);
 
   const calendarEvents = useMemo(() => toGridEvents(allEvents), [allEvents]);
 

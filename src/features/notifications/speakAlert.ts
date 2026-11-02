@@ -3,6 +3,7 @@ import * as TaskManager from 'expo-task-manager';
 import i18n from '@/utils/i18n';
 
 import { readUpcomingEvents } from '@/features/widget/core/readEvents';
+import { stripUrls } from '@/features/widget/core/liveEvent';
 import { useSettingsStore } from '@/stores/settingsStore';
 import { getNativePickerLocale } from '@/utils/i18n';
 import { resolveUse24h } from '@/utils/timeFormat';
@@ -11,10 +12,14 @@ import {
   briefingVoiceLocale,
   type BriefingEventInput,
 } from '@/features/briefing/speechText';
+import { openMaps } from '@/features/map/utils/mapLinks';
+import { parseLocation } from '@/features/map/utils/parseLocation';
 import * as tts from '@/services/voice/tts';
 
 export const ALERT_CATEGORY = 'event-alert';
+export const ALERT_NAV_CATEGORY = 'event-alert-nav';
 export const ALERT_SPEAK_ACTION = 'speak';
+export const ALERT_NAVIGATE_ACTION = 'navigate';
 export const SPEAK_ALERT_TASK = 'alert-speak-task';
 
 export interface AlertSpeakData {
@@ -29,14 +34,22 @@ export interface AlertSpeakData {
 }
 
 // "Écouter"/"Listen" button on reminder notifications — registered (again) on
-// every reschedule so the label follows the app language.
+// every reschedule so the label follows the app language. A second category adds
+// "Itinéraire"/"Directions" for events with a physical location.
 export async function registerAlertSpeakCategory(): Promise<void> {
   try {
-    await Notifications.setNotificationCategoryAsync(ALERT_CATEGORY, [
+    const speakAction = {
+      identifier: ALERT_SPEAK_ACTION,
+      buttonTitle: i18n.t('briefing.listenAction'),
+      options: { opensAppToForeground: false },
+    };
+    await Notifications.setNotificationCategoryAsync(ALERT_CATEGORY, [speakAction]);
+    await Notifications.setNotificationCategoryAsync(ALERT_NAV_CATEGORY, [
+      speakAction,
       {
-        identifier: ALERT_SPEAK_ACTION,
-        buttonTitle: i18n.t('briefing.listenAction'),
-        options: { opensAppToForeground: false },
+        identifier: ALERT_NAVIGATE_ACTION,
+        buttonTitle: i18n.t('briefing.navigateAction'),
+        options: { opensAppToForeground: true },
       },
     ]);
   } catch (error) {
@@ -93,10 +106,43 @@ export async function speakAlertNotification(
   }
 }
 
+// Resolves a notification location to a maps destination: embedded geo:/maps
+// coordinates win, otherwise the location text minus any conferencing URLs.
+// Returns null for empty or URL-only locations (online meetings aren't places).
+export function alertNavTarget(
+  location?: string,
+): { query: string; lat?: number; lon?: number } | null {
+  const trimmed = location?.trim();
+  if (!trimmed) return null;
+  const coords = parseLocation(trimmed);
+  const cleaned = stripUrls(trimmed).replace(/^geo:/i, '').replace(/\s+/g, ' ').trim();
+  if (coords) {
+    return { query: cleaned || `${coords.lat},${coords.lon}`, lat: coords.lat, lon: coords.lon };
+  }
+  return cleaned ? { query: cleaned } : null;
+}
+
+export function hasNavigableLocation(location?: string): boolean {
+  return alertNavTarget(location) !== null;
+}
+
+export function navigateToAlertLocation(data: AlertSpeakData): void {
+  const target = alertNavTarget(data.location);
+  if (!target) return;
+  void openMaps(target.query, target.lat, target.lon);
+}
+
 export function handleAlertResponse(response: Notifications.NotificationResponse): boolean {
-  if (response.actionIdentifier !== ALERT_SPEAK_ACTION) return false;
+  const { actionIdentifier } = response;
+  if (actionIdentifier !== ALERT_SPEAK_ACTION && actionIdentifier !== ALERT_NAVIGATE_ACTION) {
+    return false;
+  }
   const data = (response.notification.request.content.data ?? {}) as AlertSpeakData;
-  void speakAlertNotification(data);
+  if (actionIdentifier === ALERT_NAVIGATE_ACTION) {
+    navigateToAlertLocation(data);
+  } else {
+    void speakAlertNotification(data);
+  }
   return true;
 }
 
@@ -106,9 +152,11 @@ export function handleAlertResponse(response: Notifications.NotificationResponse
 TaskManager.defineTask<Notifications.NotificationTaskPayload>(SPEAK_ALERT_TASK, async ({ data }) => {
   if (data && typeof data === 'object' && 'actionIdentifier' in data) {
     const response = data as Notifications.NotificationResponse;
+    const d = (response.notification.request.content.data ?? {}) as AlertSpeakData;
     if (response.actionIdentifier === ALERT_SPEAK_ACTION) {
-      const d = (response.notification.request.content.data ?? {}) as AlertSpeakData;
       await speakAlertNotification(d);
+    } else if (response.actionIdentifier === ALERT_NAVIGATE_ACTION) {
+      navigateToAlertLocation(d);
     }
   }
 });

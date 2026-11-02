@@ -357,6 +357,7 @@
   "briefing": {
     "listen": "Ouvir o meu dia",
     "listenAction": "Ouvir",
+    "navigateAction": "Rotas",
     "pause": "Pausar",
     "resume": "Retomar",
     "next": "Próximo evento",

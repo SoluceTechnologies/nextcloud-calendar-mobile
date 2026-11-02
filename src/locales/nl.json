@@ -357,6 +357,7 @@
   "briefing": {
     "listen": "Mijn dag beluisteren",
     "listenAction": "Luisteren",
+    "navigateAction": "Route",
     "pause": "Pauzeren",
     "resume": "Hervatten",
     "next": "Volgende afspraak",

@@ -63,6 +63,10 @@ export function eventDeepLink(uid: string): string {
   return `${APP_SCHEME}://event/${encodeURIComponent(uid)}`;
 }
 
+export function listenDeepLink(): string {
+  return `${APP_SCHEME}://listen`;
+}
+
 export function openAppLink(): string {
   return `${APP_SCHEME}:///`;
 }

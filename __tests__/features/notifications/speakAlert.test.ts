@@ -1,7 +1,11 @@
 import {
   ALERT_CATEGORY,
+  ALERT_NAV_CATEGORY,
+  ALERT_NAVIGATE_ACTION,
   ALERT_SPEAK_ACTION,
+  alertNavTarget,
   handleAlertResponse,
+  hasNavigableLocation,
   registerAlertSpeakCategory,
   speakAlertNotification,
   type AlertSpeakData,
@@ -39,10 +43,18 @@ jest.mock('@/services/voice/tts', () => ({
   isSpeaking: jest.fn(() => Promise.resolve(false)),
 }));
 
+jest.mock('@/features/map/utils/mapLinks', () => ({
+  openMaps: jest.fn(() => Promise.resolve()),
+  openMapsUrl: jest.fn(() => 'geo:0,0?q=x'),
+}));
+
 const Notifications = jest.requireMock('expo-notifications') as {
   setNotificationCategoryAsync: jest.Mock;
 };
 const speakMock = tts.speak as jest.Mock;
+const { openMaps: openMapsMock } = jest.requireMock('@/features/map/utils/mapLinks') as {
+  openMaps: jest.Mock;
+};
 
 const TRIGGER: AlertSpeakData = {
   uid: 'e1',
@@ -75,6 +87,59 @@ describe('speakAlert — category', () => {
         options: { opensAppToForeground: false },
       }),
     ]);
+  });
+
+  it('registers a navigate category adding the directions button', async () => {
+    await registerAlertSpeakCategory();
+    expect(Notifications.setNotificationCategoryAsync).toHaveBeenCalledWith(ALERT_NAV_CATEGORY, [
+      expect.objectContaining({ identifier: ALERT_SPEAK_ACTION }),
+      expect.objectContaining({
+        identifier: ALERT_NAVIGATE_ACTION,
+        buttonTitle: 'Directions',
+        options: { opensAppToForeground: true },
+      }),
+    ]);
+  });
+});
+
+describe('speakAlert — navigate action', () => {
+  it('opens maps with the event location on tap', () => {
+    expect(handleAlertResponse(responseWith(TRIGGER, ALERT_NAVIGATE_ACTION))).toBe(true);
+    expect(openMapsMock).toHaveBeenCalledWith('Cabinet Nord', undefined, undefined);
+    expect(speakMock).not.toHaveBeenCalled();
+  });
+
+  it('returns true but does not navigate without a location', () => {
+    expect(
+      handleAlertResponse(responseWith({ ...TRIGGER, location: undefined }, ALERT_NAVIGATE_ACTION)),
+    ).toBe(true);
+    expect(openMapsMock).not.toHaveBeenCalled();
+  });
+});
+
+describe('alertNavTarget', () => {
+  it('uses coordinates embedded in the location', () => {
+    expect(alertNavTarget('geo:48.8566,2.3522')).toEqual({
+      query: '48.8566,2.3522',
+      lat: 48.8566,
+      lon: 2.3522,
+    });
+  });
+
+  it('strips conferencing URLs from a mixed location', () => {
+    expect(alertNavTarget('Salle 3 https://meet.example.com/x')).toEqual({ query: 'Salle 3' });
+  });
+
+  it('rejects URL-only and empty locations', () => {
+    expect(alertNavTarget('https://meet.example.com/x')).toBeNull();
+    expect(alertNavTarget('  ')).toBeNull();
+    expect(alertNavTarget(undefined)).toBeNull();
+  });
+
+  it('hasNavigableLocation mirrors the same rules', () => {
+    expect(hasNavigableLocation('94 bd Blanqui, Paris')).toBe(true);
+    expect(hasNavigableLocation('https://meet.example.com/x')).toBe(false);
+    expect(hasNavigableLocation(undefined)).toBe(false);
   });
 });
 

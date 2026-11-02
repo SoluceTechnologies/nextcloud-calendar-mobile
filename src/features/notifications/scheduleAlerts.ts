@@ -10,6 +10,8 @@ import { alertBody } from './alertContent';
 import { alertTimes } from './alerts';
 import {
   ALERT_CATEGORY,
+  ALERT_NAV_CATEGORY,
+  hasNavigableLocation,
   registerAlertSpeakCategory,
   registerAlertSpeakTask,
   type AlertSpeakData,
@@ -88,7 +90,9 @@ export async function scheduleEventAlerts(now: Date = new Date()): Promise<void>
           content: {
             title: event.summary,
             body: alertBody(event, at),
-            categoryIdentifier: ALERT_CATEGORY,
+            categoryIdentifier: hasNavigableLocation(event.location)
+              ? ALERT_NAV_CATEGORY
+              : ALERT_CATEGORY,
             data: speakData,
           },
           trigger: {

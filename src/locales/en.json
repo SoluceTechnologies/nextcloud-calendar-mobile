@@ -357,6 +357,7 @@
   "briefing": {
     "listen": "Listen to my day",
     "listenAction": "Listen",
+    "navigateAction": "Directions",
     "pause": "Pause",
     "resume": "Resume",
     "next": "Next event",
