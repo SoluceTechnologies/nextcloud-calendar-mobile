@@ -196,6 +196,47 @@ describe('speakAlert — response handling', () => {
     expect(speakMock).not.toHaveBeenCalled();
   });
 
+  it('still speaks an untitled reminder via the fallback label', async () => {
+    await speakAlertNotification({ ...TRIGGER, summary: '' }, async () => []);
+    expect(speakMock).toHaveBeenCalledTimes(1);
+    expect(speakMock.mock.calls[0][0]).toContain('untitled event');
+  });
+
+  it('reads following events on the trigger day, not today', async () => {
+    const reader = jest.fn(async (_day: Date) => []);
+    const wednesday = {
+      ...TRIGGER,
+      dtstart: new Date(2026, 7, 12, 9).toISOString(), // Wed Aug 12
+      dtend: new Date(2026, 7, 12, 10).toISOString(),
+    };
+    await speakAlertNotification(wednesday, reader);
+    const arg = reader.mock.calls[0][0] as Date;
+    expect(arg.toISOString()).toBe(wednesday.dtstart);
+  });
+
+  it('drops following events that land on a different day', async () => {
+    const following = [
+      {
+        uid: 'same',
+        summary: 'Same day',
+        dtstart: new Date(2026, 7, 10, 20),
+        dtend: new Date(2026, 7, 10, 21),
+        allDay: false,
+      },
+      {
+        uid: 'next',
+        summary: 'Next day',
+        dtstart: new Date(2026, 7, 11, 9),
+        dtend: new Date(2026, 7, 11, 10),
+        allDay: false,
+      },
+    ];
+    await speakAlertNotification(TRIGGER, async () => following);
+    const texts = speakMock.mock.calls.map((c) => c[0] as string);
+    expect(texts.some((t) => t.includes('Same day'))).toBe(true);
+    expect(texts.some((t) => t.includes('Next day'))).toBe(false);
+  });
+
   it('uses an English voice when the app language lacks briefing phrasing', async () => {
     useSettingsStore.setState({ language: 'de' });
     await speakAlertNotification(TRIGGER, async () => []);

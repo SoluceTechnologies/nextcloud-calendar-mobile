@@ -460,18 +460,40 @@ describe('buildReminderBriefing', () => {
     expect(segs[0].text).toBe('Reminder: Dentist, all day.');
   });
 
-  it('lists the events that follow, capped by maxSegments', () => {
+  it('lists the events that follow and never exceeds maxSegments', () => {
     const following = [1, 2, 3].map((i) =>
       ev({ uid: `f${i}`, summary: `Evt${i}`, dtstart: at(19 + i), dtend: at(19 + i, 30) }),
     );
+    // reminder + then + outro are fixed — cap 3 leaves no room for following
+    expect(
+      buildReminderBriefing(trigger(), following, { locale: 'en', now: BEFORE, maxSegments: 3 }),
+    ).toHaveLength(1);
     const segs = buildReminderBriefing(trigger(), following, {
       locale: 'en',
       now: BEFORE,
-      maxSegments: 3,
+      maxSegments: 5,
     });
     expect(segs[1].text).toBe('Then 2 events to follow.');
     expect(segs).toHaveLength(5); // reminder + then + 2 following + outro
     expect(segs[segs.length - 1].text).toBe("That's all.");
+  });
+
+  it('dispatches all-day and task followers to their own phrasing', () => {
+    const following = [
+      ev({ uid: 'f1', summary: 'Dinner', dtstart: at(20), dtend: at(21) }),
+      ev({ uid: 'f2', summary: 'Holiday', allDay: true }),
+      ev({ uid: 'f3', summary: 'File taxes', isTask: true }),
+    ];
+    const segs = buildReminderBriefing(trigger(), following, {
+      locale: 'en',
+      now: BEFORE,
+      maxSegments: 10,
+    });
+    const texts = segs.map((s) => s.text);
+    expect(texts[1]).toBe('Then 3 events to follow.');
+    expect(texts.some((t) => t === 'At 8 PM: Dinner, for one hour.')).toBe(true);
+    expect(texts).toContain('All day: Holiday.');
+    expect(texts).toContain('Deadline: File taxes.');
   });
 
   it('speaks French phrasing', () => {

@@ -233,18 +233,40 @@ export function buildReminderBriefing(
     { key: 'reminder', text: `${head}, ${clauses.join(', ')}.`, eventUid: trigger.uid },
   ];
 
-  const budget = Math.max(0, (opts.maxSegments ?? 6) - 1);
-  const timed = following
-    .filter((e) => e.uid !== trigger.uid)
-    .sort(byStart)
-    .slice(0, budget);
-  if (timed.length) {
+  // reminder + then + outro are fixed slots — the following budget is what remains
+  const budget = Math.max(0, (opts.maxSegments ?? 6) - 3);
+  const rest = following.filter((e) => e.uid !== trigger.uid);
+  const timed = rest.filter((e) => !e.isTask && !e.allDay).sort(byStart);
+  const allDay = rest.filter((e) => !e.isTask && e.allDay).sort(byStart);
+  const tasks = rest.filter((e) => e.isTask).sort(byStart);
+
+  const slots: { seg: BriefingSegment; count: number }[] = [
+    ...timed.map((e) => ({ seg: { key: e.uid, text: timedLine(e, ctx), eventUid: e.uid }, count: 1 })),
+    ...(allDay.length
+      ? [
+          {
+            seg: {
+              key: 'allday',
+              text: fr
+                ? `Toute la journée : ${allDay.map((e) => titleOf(e, true)).join(', ')}.`
+                : `All day: ${allDay.map((e) => titleOf(e, false)).join(', ')}.`,
+            },
+            count: allDay.length,
+          },
+        ]
+      : []),
+    ...tasks.map((e) => ({ seg: { key: e.uid, text: taskLine(e, fr), eventUid: e.uid }, count: 1 })),
+  ];
+
+  const picked = slots.slice(0, budget);
+  if (picked.length) {
+    const n = picked.reduce((acc, s) => acc + s.count, 0);
     segs.push({
       key: 'then',
-      text: fr ? `Puis ${timed.length} événement${timed.length > 1 ? 's' : ''} à suivre.` : `Then ${timed.length} event${timed.length === 1 ? '' : 's'} to follow.`,
+      text: fr ? `Puis ${n} événement${n > 1 ? 's' : ''} à suivre.` : `Then ${n} event${n === 1 ? '' : 's'} to follow.`,
     });
-    for (const e of timed) {
-      segs.push({ key: e.uid, text: timedLine(e, ctx), eventUid: e.uid });
+    for (const s of picked) {
+      segs.push(s.seg);
     }
     segs.push({ key: 'outro', text: fr ? "C'est tout." : "That's all." });
   }

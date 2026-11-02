@@ -57,8 +57,16 @@ export async function registerAlertSpeakCategory(): Promise<void> {
   }
 }
 
+function sameLocalDay(a: Date, b: Date): boolean {
+  return (
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate()
+  );
+}
+
 function triggerFromData(data: AlertSpeakData): BriefingEventInput | null {
-  if (!data.uid || !data.summary || !data.dtstart || !data.dtend) return null;
+  if (!data.uid || data.summary == null || !data.dtstart || !data.dtend) return null;
   const dtstart = new Date(data.dtstart);
   const dtend = new Date(data.dtend);
   if (Number.isNaN(dtstart.getTime()) || Number.isNaN(dtend.getTime())) return null;
@@ -76,9 +84,8 @@ function triggerFromData(data: AlertSpeakData): BriefingEventInput | null {
 
 export async function speakAlertNotification(
   data: AlertSpeakData,
-  readFollowing: () => Promise<BriefingEventInput[]> = async () => {
-    const now = new Date();
-    const events = await readUpcomingEvents(0, now);
+  readFollowing: (day: Date) => Promise<BriefingEventInput[]> = async (day) => {
+    const events = await readUpcomingEvents(0, day);
     return events as BriefingEventInput[];
   },
 ): Promise<void> {
@@ -92,8 +99,9 @@ export async function speakAlertNotification(
 
   let following: BriefingEventInput[] = [];
   try {
-    following = (await readFollowing()).filter(
-      (e) => e.dtstart.getTime() > trigger.dtstart.getTime(),
+    // Read the trigger's own day — advance reminders may fire days early.
+    following = (await readFollowing(trigger.dtstart)).filter(
+      (e) => e.dtstart.getTime() > trigger.dtstart.getTime() && sameLocalDay(e.dtstart, trigger.dtstart),
     );
   } catch (error) {
     if (__DEV__) console.warn('[alerts] following events unavailable, speaking reminder only', error);
