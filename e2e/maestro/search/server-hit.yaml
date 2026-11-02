@@ -5,9 +5,9 @@ appId: com.soluce.nextcloudcalendar
     env: { TITLE: "E2E seed" }
 - tapOn:
     id: tab-search
-- tapOn:
-    id: search-input
-- inputText: ${TITLE}
+- runFlow:
+    file: ../shared/type-text.yaml
+    env: { FIELD: search-input, TEXT: "${TITLE}" }
 - extendedWaitUntil:
     visible:
       id: result-server-${HREF_PATH}

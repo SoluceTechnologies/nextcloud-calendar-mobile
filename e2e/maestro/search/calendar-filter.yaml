@@ -5,9 +5,9 @@ appId: com.soluce.nextcloudcalendar
     env: { TITLE: "${ELSEWHERE_TITLE}" }
 - tapOn:
     id: tab-search
-- tapOn:
-    id: search-input
-- inputText: ${PREFIX}
+- runFlow:
+    file: ../shared/type-text.yaml
+    env: { FIELD: search-input, TEXT: "${PREFIX}" }
 - extendedWaitUntil:
     visible:
       id: result-event-${HERE_UID}
