@@ -28,7 +28,7 @@ const HEADER_HEIGHT = 57;
 const EVENT_ROW_HEIGHT = 72;
 
 const TODAY_JUMP_GUARD_MS = 500;
-const JUMP_VERIFY_WINDOW_MS = 1200;
+const JUMP_VERIFY_WINDOW_MS = 5000;
 const JUMP_CHECK_DELAY_MS = 120;
 
 interface DayHeaderProps {
@@ -169,10 +169,17 @@ const AgendaViewImpl = forwardRef<AgendaViewHandle, Props>(function AgendaView(
   const anchorRef = useRef({ key: todayKey, delta: 0 });
   const layoutRef = useRef({ rows, offsets });
   const userScrollingRef = useRef(false);
-  const onUserScrollStart = useCallback(() => { userScrollingRef.current = true; }, []);
+  const pendingJumpRef = useRef<{ key: string; expiresAt: number } | null>(null);
+
+  const onScrollBeginDrag = useCallback(() => {
+    pendingJumpRef.current = null;
+    userScrollingRef.current = true;
+  }, []);
+  const onMomentumScrollBegin = useCallback(() => {
+    if (!pendingJumpRef.current) userScrollingRef.current = true;
+  }, []);
   const onUserScrollEnd = useCallback(() => { userScrollingRef.current = false; }, []);
 
-  const pendingJumpRef = useRef<{ key: string; expiresAt: number } | null>(null);
   const jumpTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const offsetForKey = useCallback((key: string): number | null => {
@@ -296,10 +303,12 @@ const AgendaViewImpl = forwardRef<AgendaViewHandle, Props>(function AgendaView(
       style={{ flex: 1, backgroundColor: theme.colors.background }}
       contentContainerStyle={{ paddingBottom: 80 }}
       onScroll={onScroll}
-      onScrollBeginDrag={onUserScrollStart}
+      onScrollBeginDrag={onScrollBeginDrag}
       onScrollEndDrag={onUserScrollEnd}
-      onMomentumScrollBegin={onUserScrollStart}
+      onMomentumScrollBegin={onMomentumScrollBegin}
       onMomentumScrollEnd={onUserScrollEnd}
+      onContentSizeChange={issuePendingJump}
+      onLayout={issuePendingJump}
       scrollEventThrottle={32}
       onViewableItemsChanged={onViewableItemsChanged}
       viewabilityConfig={viewabilityConfig.current}

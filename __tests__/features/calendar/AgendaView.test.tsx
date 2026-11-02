@@ -100,4 +100,30 @@ describe('AgendaView scrollToToday', () => {
 
     expect(scrollSpy).toHaveBeenCalledTimes(1);
   });
+
+  it('re-issues the jump when the list (re)measures its content', () => {
+    const { ref, list } = renderAgenda();
+
+    ref.current!.scrollToToday();
+    expect(scrollSpy).toHaveBeenCalledTimes(1);
+
+    list.props.onContentSizeChange(0, 100000);
+    expect(scrollSpy).toHaveBeenCalledTimes(2);
+
+    list.props.onLayout({ nativeEvent: { layout: { x: 0, y: 0, width: 400, height: 800 } } });
+    expect(scrollSpy).toHaveBeenCalledTimes(3);
+  });
+
+  it('ignores leftover momentum events while a jump is pending (#348)', () => {
+    const { ref, list } = renderAgenda();
+
+    ref.current!.scrollToToday();
+    expect(scrollSpy).toHaveBeenCalledTimes(1);
+
+    // A stale momentum-begin must not mark "user scrolling" mid-jump — the
+    // pending jump would be dropped and every retry would no-op.
+    list.props.onMomentumScrollBegin();
+    list.props.onScroll(scrollEventAt(0));
+    expect(scrollSpy).toHaveBeenCalledTimes(2);
+  });
 });
