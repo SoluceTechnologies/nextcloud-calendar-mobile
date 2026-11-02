@@ -16,7 +16,8 @@
   },
   "tabs": {
     "calendar": "Calendario",
-    "settings": "Ajustes"
+    "settings": "Ajustes",
+    "search": "Buscar"
   },
   "setup": {
     "brand": "Calendario",
@@ -373,5 +374,54 @@
     "remedy": "Opciones más seguras: llegar al servidor mediante una VPN como Tailscale o WireGuard, o configurar un certificado gratuito con DuckDNS y Let's Encrypt.",
     "connect": "Conectar de todos modos",
     "cancel": "Cancelar"
+  },
+  "search": {
+    "title": "Buscar",
+    "placeholder": "Buscar eventos…",
+    "filters": "FILTROS",
+    "filter": {
+      "calendar": "En un calendario",
+      "attendee": "Con un asistente",
+      "date": "Fecha",
+      "title": "En el título",
+      "location": "En la ubicación",
+      "description": "En la descripción"
+    },
+    "hint": {
+      "name": "nombre",
+      "person": "persona",
+      "text": "texto"
+    },
+    "more": "Más filtros",
+    "moreHint": "título, ubicación, descripción",
+    "recent": "RECIENTES",
+    "removeRecent": "Quitar de recientes",
+    "removeFilter": "Quitar el filtro {{filter}}",
+    "use": "Usar «{{value}}»",
+    "filterHint": "Filtrar:",
+    "short": {
+      "calendar": "Calendario",
+      "attendee": "Asistente",
+      "date": "Fecha"
+    },
+    "date": {
+      "today": "Hoy",
+      "tomorrow": "Mañana",
+      "week": "En los próximos 7 días",
+      "month": "En el próximo mes",
+      "upcoming": "Próximos",
+      "past": "Pasados",
+      "before": "Antes de una fecha…",
+      "after": "Después de una fecha…"
+    },
+    "upcoming": "PRÓXIMOS",
+    "past": "PASADOS",
+    "truncated": "Se muestran los primeros {{count}}; añade un filtro para acotar",
+    "fromServer": "MÁS RESULTADOS DEL SERVIDOR",
+    "noResults": "Sin resultados",
+    "noResultsHint": "Prueba con menos filtros o una palabra más simple.",
+    "offlineNote": "Sin conexión — mostrando solo resultados locales",
+    "serverFailed": "No se pudo contactar con el servidor — mostrando solo resultados locales",
+    "openFailed": "No se pudo abrir este evento"
   }
 }
