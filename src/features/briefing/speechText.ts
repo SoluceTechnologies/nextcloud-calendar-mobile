@@ -204,6 +204,53 @@ export function buildBriefing(
   ];
 }
 
+// Spoken script for a reminder notification action: the reminded event first,
+// then the events that follow it on the same day ("et ceux à suivre").
+export function buildReminderBriefing(
+  trigger: BriefingEventInput,
+  following: BriefingEventInput[],
+  opts: { locale?: string; use24h?: boolean; now?: Date; maxSegments?: number },
+): BriefingSegment[] {
+  const fr = (opts.locale ?? '').toLowerCase().startsWith('fr');
+  const now = opts.now ?? new Date();
+  const ctx: Ctx = { fr, use24h: opts.use24h ?? fr, now, locale: opts.locale, sameDay: true };
+
+  const head = fr ? `Rappel : ${titleOf(trigger, true)}` : `Reminder: ${titleOf(trigger, false)}`;
+  const clauses: string[] = [];
+  if (trigger.allDay) {
+    clauses.push(fr ? "toute la journée" : 'all day');
+  } else {
+    clauses.push(fr ? `à ${timeText(trigger.dtstart, true, ctx.use24h)}` : `at ${timeText(trigger.dtstart, false, ctx.use24h)}`);
+    const mins = Math.round((trigger.dtend.getTime() - trigger.dtstart.getTime()) / 60000);
+    if (mins > 0) clauses.push(fr ? `pendant ${durationText(mins, true)}` : `for ${durationText(mins, false)}`);
+  }
+  const loc = locationClause(trigger, ctx);
+  if (loc) clauses.push(loc);
+  const att = withClause(trigger, fr);
+  if (att) clauses.push(att);
+
+  const segs: BriefingSegment[] = [
+    { key: 'reminder', text: `${head}, ${clauses.join(', ')}.`, eventUid: trigger.uid },
+  ];
+
+  const budget = Math.max(0, (opts.maxSegments ?? 6) - 1);
+  const timed = following
+    .filter((e) => e.uid !== trigger.uid)
+    .sort(byStart)
+    .slice(0, budget);
+  if (timed.length) {
+    segs.push({
+      key: 'then',
+      text: fr ? `Puis ${timed.length} événement${timed.length > 1 ? 's' : ''} à suivre.` : `Then ${timed.length} event${timed.length === 1 ? '' : 's'} to follow.`,
+    });
+    for (const e of timed) {
+      segs.push({ key: e.uid, text: timedLine(e, ctx), eventUid: e.uid });
+    }
+    segs.push({ key: 'outro', text: fr ? "C'est tout." : "That's all." });
+  }
+  return segs;
+}
+
 // The voice must match the generated text — buildBriefing only produces
 // French or English, so other app languages are read with an English voice.
 export function briefingVoiceLocale(locale: string): string {

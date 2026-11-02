@@ -343,6 +343,7 @@
   },
   "briefing": {
     "listen": "Escotar ma jornada",
+    "listenAction": "Escotar",
     "pause": "Pausa",
     "resume": "Repréner",
     "next": "Eveniment seguent",

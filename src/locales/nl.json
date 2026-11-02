@@ -356,6 +356,7 @@
   },
   "briefing": {
     "listen": "Mijn dag beluisteren",
+    "listenAction": "Luisteren",
     "pause": "Pauzeren",
     "resume": "Hervatten",
     "next": "Volgende afspraak",

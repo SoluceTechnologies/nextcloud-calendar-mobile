@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { AppState, type AppStateStatus } from 'react-native';
+import * as Notifications from 'expo-notifications';
 
 import { useAccountStore } from '@/stores/accountStore';
 import { EVENT_OBSERVED_COLUMNS } from '@/database/observedColumns';
@@ -8,6 +9,7 @@ import { useCalendarStore } from '@/stores/calendarStore';
 import { observeTodayEventsQuery } from '@/features/widget/core/readEvents';
 
 import { scheduleEventAlerts } from './scheduleAlerts';
+import { handleAlertResponse } from './speakAlert';
 
 export function useEventAlerts(): void {
   const activeAccountId = useAccountStore((s) => s.activeAccountId);
@@ -31,9 +33,17 @@ export function useEventAlerts(): void {
     };
     const appSub = AppState.addEventListener('change', onAppState);
 
+    // "Écouter" tapped while the app is alive; cold-start taps surface via
+    // getLastNotificationResponseAsync on the next launch.
+    const responseSub = Notifications.addNotificationResponseReceivedListener(handleAlertResponse);
+    void Notifications.getLastNotificationResponseAsync().then((response) => {
+      if (response) handleAlertResponse(response);
+    });
+
     return () => {
       sub.unsubscribe();
       appSub.remove();
+      responseSub.remove();
     };
   }, [activeAccountId, timedAlerts, allDayAlerts, notifDisabledCalendarIds]);
 }

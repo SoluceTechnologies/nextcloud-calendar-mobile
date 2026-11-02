@@ -1,5 +1,6 @@
 import {
   buildBriefing,
+  buildReminderBriefing,
   briefingDayLabel,
   briefingVoiceLocale,
   type BriefingEventInput,
@@ -438,5 +439,46 @@ describe('briefing voice/day helpers', () => {
     expect(briefingDayLabel(day, 'fr')).toBe('lundi 10 août');
     expect(briefingDayLabel(day, 'de')).toBe('Montag 10 August');
     expect(briefingDayLabel(day, 'oc')).toBe('diluns 10 agost');
+  });
+});
+
+describe('buildReminderBriefing', () => {
+  const trigger = (partial: Partial<BriefingEventInput> = {}): BriefingEventInput =>
+    ev({ uid: 'trig', summary: 'Dentist', dtstart: at(18), dtend: at(19), ...partial });
+
+  it('speaks the reminded event with time, duration and location', () => {
+    const segs = buildReminderBriefing(trigger({ location: 'Cabinet Nord' }), [], {
+      locale: 'en',
+      now: BEFORE,
+    });
+    expect(segs).toHaveLength(1);
+    expect(segs[0].text).toBe('Reminder: Dentist, at 6 PM, for one hour, Cabinet Nord.');
+  });
+
+  it('announces an all-day trigger without a time clause', () => {
+    const segs = buildReminderBriefing(trigger({ allDay: true }), [], { locale: 'en', now: BEFORE });
+    expect(segs[0].text).toBe('Reminder: Dentist, all day.');
+  });
+
+  it('lists the events that follow, capped by maxSegments', () => {
+    const following = [1, 2, 3].map((i) =>
+      ev({ uid: `f${i}`, summary: `Evt${i}`, dtstart: at(19 + i), dtend: at(19 + i, 30) }),
+    );
+    const segs = buildReminderBriefing(trigger(), following, {
+      locale: 'en',
+      now: BEFORE,
+      maxSegments: 3,
+    });
+    expect(segs[1].text).toBe('Then 2 events to follow.');
+    expect(segs).toHaveLength(5); // reminder + then + 2 following + outro
+    expect(segs[segs.length - 1].text).toBe("That's all.");
+  });
+
+  it('speaks French phrasing', () => {
+    const segs = buildReminderBriefing(trigger({ location: 'Cabinet Nord' }), [], {
+      locale: 'fr',
+      now: BEFORE,
+    });
+    expect(segs[0].text).toBe('Rappel : Dentist, à 18 h, pendant une heure, Cabinet Nord.');
   });
 });

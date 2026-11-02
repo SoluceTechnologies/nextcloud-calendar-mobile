@@ -356,6 +356,7 @@
   },
   "briefing": {
     "listen": "Listen to my day",
+    "listenAction": "Listen",
     "pause": "Pause",
     "resume": "Resume",
     "next": "Next event",
