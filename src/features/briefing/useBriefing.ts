@@ -129,7 +129,8 @@ export function useBriefing(
         const msg = isToday
           ? t('briefing.emptyDay')
           : t('briefing.emptyDayDated', { date: briefingDayLabel(day, language) });
-        tts.speak(msg, { language: voice });
+        // the empty-day line is translated — it takes the app voice, not `voice`
+        tts.speak(msg, { language: locale });
         setStatus('done');
         return;
       }

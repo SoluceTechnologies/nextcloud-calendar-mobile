@@ -184,7 +184,7 @@ describe('useBriefing — start', () => {
     expect(result.current.state).toBe('done');
   });
 
-  it('uses an English voice for app languages without briefing text', async () => {
+  it('keeps the app voice for the translated empty-day line in any language', async () => {
     useSettingsStore.setState({ language: 'de' });
     buildText.mockReturnValue([]);
     const { result } = renderHook(() => useBriefing(DAY, buildText));
@@ -193,8 +193,21 @@ describe('useBriefing — start', () => {
       await result.current.start();
     });
 
-    // the briefing builder has no German phrasing — the voice falls back to en-US
-    expect(speakMock).toHaveBeenCalledWith(expect.any(String), { language: 'en-US' });
+    // the empty-day sentence is translated — it is spoken with the app voice
+    // (getNativePickerLocale uses the device region: 'de' + US region → 'de-US')
+    expect(speakMock).toHaveBeenCalledWith(expect.any(String), { language: 'de-US' });
+  });
+
+  it('uses an English voice for briefing segments in app languages without phrasing', async () => {
+    useSettingsStore.setState({ language: 'de' });
+    const { result } = renderHook(() => useBriefing(DAY, buildText));
+
+    await act(async () => {
+      await result.current.start();
+    });
+
+    // buildBriefing produces English for 'de' — segments take the en-US voice
+    expect(speakMock).toHaveBeenCalledWith('Intro.', expect.objectContaining({ language: 'en-US' }));
   });
 
   it('warns and settles back to idle when readUpcomingEvents rejects', async () => {
