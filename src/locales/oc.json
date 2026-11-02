@@ -16,7 +16,8 @@
   },
   "tabs": {
     "calendar": "Calendari",
-    "settings": "Paramètres"
+    "settings": "Paramètres",
+    "search": "Recercar"
   },
   "setup": {
     "brand": "Calendari",
@@ -352,5 +353,54 @@
     "validTo": "Valid fins a",
     "trust": "Far fisança e se connectar",
     "cancel": "Anullar"
+  },
+  "search": {
+    "title": "Recercar",
+    "placeholder": "Recercar d'eveniments…",
+    "filters": "FILTRES",
+    "filter": {
+      "calendar": "Dins un calendari",
+      "attendee": "Amb un participant",
+      "date": "Data",
+      "title": "Dins lo títol",
+      "location": "Dins lo luòc",
+      "description": "Dins la descripcion"
+    },
+    "hint": {
+      "name": "nom",
+      "person": "persona",
+      "text": "tèxte"
+    },
+    "more": "Mai de filtres",
+    "moreHint": "títol, luòc, descripcion",
+    "recent": "RECENTAS",
+    "removeRecent": "Levar de las recentas",
+    "removeFilter": "Levar lo filtre {{filter}}",
+    "use": "Utilizar « {{value}} »",
+    "filterHint": "Filtrar :",
+    "short": {
+      "calendar": "Calendari",
+      "attendee": "Participant",
+      "date": "Data"
+    },
+    "date": {
+      "today": "Uèi",
+      "tomorrow": "Deman",
+      "week": "Dins los 7 jorns",
+      "month": "Dins lo mes",
+      "upcoming": "A venir",
+      "past": "Passats",
+      "before": "Abans una data…",
+      "after": "Aprèp una data…"
+    },
+    "upcoming": "A VENIR",
+    "past": "PASSATS",
+    "truncated": "Los {{count}} primièrs son afichats, apondètz un filtre per afinar",
+    "fromServer": "AUTRES RESULTATS DEL SERVIDOR",
+    "noResults": "Cap de resultat",
+    "noResultsHint": "Ensajatz mens de filtres o un mot mai simple.",
+    "offlineNote": "Fòra linha — resultats locals solament",
+    "serverFailed": "Servidor injonhible — resultats locals solament",
+    "openFailed": "Impossible de dobrir aqueste eveniment"
   }
 }
