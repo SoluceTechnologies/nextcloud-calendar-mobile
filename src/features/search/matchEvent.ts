@@ -24,17 +24,21 @@ export function foldText(text: string): string {
   return text.normalize('NFD').replace(/[̀-ͯ]/g, '').toLocaleLowerCase();
 }
 
-export function toSearchable(event: CalendarEvent, calendarName: string): SearchableEvent {
+export function toSearchable(
+  event: CalendarEvent,
+  calendarName: string,
+  fold: (text: string) => string = foldText,
+): SearchableEvent {
   return {
     event,
-    title: foldText(event.summary ?? ''),
-    location: foldText(event.location ?? ''),
-    description: foldText(event.description ?? ''),
-    calendarName: foldText(calendarName),
+    title: fold(event.summary ?? ''),
+    location: fold(event.location ?? ''),
+    description: fold(event.description ?? ''),
+    calendarName: fold(calendarName),
     attendees: event.attendees
       .flatMap((attendee) => [attendee.displayName ?? '', attendee.email])
       .filter((value) => value.length > 0)
-      .map(foldText),
+      .map(fold),
     start: event.dtstart.getTime(),
     end: event.allDay ? dayjs(event.dtend).endOf('day').valueOf() : event.dtend.getTime(),
   };

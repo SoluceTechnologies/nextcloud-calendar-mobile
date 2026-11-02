@@ -29,13 +29,21 @@ jest.mock('react-i18next', () => ({
 jest.mock('react-native-safe-area-context', () => require('react-native-safe-area-context/jest/mock').default);
 jest.mock('expo-router', () => {
   const mockRouter = { push: jest.fn(), back: jest.fn(), replace: jest.fn() };
+  const mockNavigation = {
+    getState: () => mockTabState,
+    addListener: jest.fn(() => () => {}),
+  };
   return {
     ...jest.requireActual('expo-router'),
     router: mockRouter,
     useRouter: () => mockRouter,
     useIsFocused: jest.fn(() => true),
+    useNavigation: () => mockNavigation,
+    useRoute: () => ({ key: 'search-key', name: 'search/index' }),
   };
 });
+
+const mockTabState = { index: 1, routes: [{ key: 'calendar-key' }, { key: 'search-key' }] };
 
 const HOUR_MS = 3_600_000;
 const DAY_MS = 24 * HOUR_MS;
@@ -101,6 +109,7 @@ const recentTerms = () => (useRecentSearchStore.getState().byAccount.a1 ?? []).m
 beforeEach(() => {
   jest.clearAllMocks();
   (useIsFocused as jest.Mock).mockReturnValue(true);
+  mockTabState.index = 1;
   (useIsOnline as jest.Mock).mockReturnValue(true);
   (useEventsForRange as jest.Mock).mockImplementation((accountId: string) => (accountId ? events : []));
   (useCalendarsFromDb as jest.Mock).mockImplementation((accountId: string | null) =>
@@ -206,8 +215,26 @@ it('shows the empty state when nothing matches', async () => {
   expect(await screen.findByTestId('search-empty')).toBeTruthy();
 });
 
-it('does not subscribe to events while unfocused', () => {
+it('keeps results while an event screen is pushed on top', async () => {
+  renderScreen();
+  fireEvent.changeText(input(), 'dentist');
+  expect(await screen.findByTestId('result-event-dentist')).toBeTruthy();
   (useIsFocused as jest.Mock).mockReturnValue(false);
+  (useEventsForRange as jest.Mock).mockClear();
+  fireEvent.changeText(input(), 'dentist ');
+  for (const [accountId] of (useEventsForRange as jest.Mock).mock.calls) expect(accountId).toBe('a1');
+  expect(screen.getByTestId('result-event-dentist')).toBeTruthy();
+});
+
+it('shows a server hit for a stored event that local search did not match', async () => {
+  (useRemoteSearch as jest.Mock).mockReturnValue({ entries: [knownEntry], loading: false, failed: false });
+  renderScreen();
+  fireEvent.changeText(input(), 'organizer');
+  expect(await screen.findByTestId('result-server-/remote.php/dav/calendars/alice/work/lunch-work.ics')).toBeTruthy();
+});
+
+it('does not subscribe to events while another tab is selected', () => {
+  mockTabState.index = 0;
   renderScreen();
   fireEvent.changeText(input(), 'dentist');
   for (const [accountId] of (useEventsForRange as jest.Mock).mock.calls) expect(accountId).toBe('');

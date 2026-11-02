@@ -103,6 +103,7 @@ describe('searchEvents', () => {
       past: [],
       upcomingTotal: 0,
       pastTotal: 0,
+      matchedHrefs: new Set(),
     });
   });
 });
@@ -162,14 +163,40 @@ describe('useLocalSearch', () => {
     });
   });
 
-  it('knownHrefs holds decoded row paths', () => {
-    const { result } = renderHook(() => useLocalSearch('account-1', ''));
-    expect(result.current.knownHrefs).toEqual(
-      new Set([
-        '/remote.php/dav/calendars/alice/work/work-lunch.ics',
-        '/remote.php/dav/calendars/alice/my perso/perso-lunch.ics',
-      ]),
+  it('matchedHrefs holds decoded paths of the matching rows only', async () => {
+    const { result } = renderHook(() => useLocalSearch('account-1', 'lunch calendar:perso'));
+    await waitFor(() =>
+      expect(result.current.matchedHrefs).toEqual(new Set(['/remote.php/dav/calendars/alice/my perso/perso-lunch.ics'])),
     );
-    expect(result.current.isEmpty).toBe(true);
+  });
+
+  it('matchedHrefs keeps every matching occurrence, not only the series representative', () => {
+    const series = [-2, -1, 1].map(occurrence);
+    const result = searchEvents(series.map((event) => toSearchable(event, 'Work')), parseQuery('standup'), now);
+    expect(result.matchedHrefs.size).toBe(3);
+  });
+
+  it('dedupes suggestion people by email across occurrences', () => {
+    const repeated = Array.from({ length: 30 }, (_, index) =>
+      makeEvent(`weekly_occ_${index}`, now + index * DAY_MS, {
+        attendees: [
+          { email: 'Bob@Example.org', displayName: 'Bob' },
+          { email: 'bob@example.org', displayName: 'Bob' },
+        ],
+      }),
+    );
+    (useEventsForRange as jest.Mock).mockReturnValue(repeated);
+    const { result } = renderHook(() => useLocalSearch('account-1', ''));
+    expect(result.current.suggestionData.people).toEqual([{ email: 'Bob@Example.org', displayName: 'Bob' }]);
+  });
+
+  it('folds each distinct text once across occurrences', () => {
+    const repeated = Array.from({ length: 40 }, (_, index) =>
+      makeEvent(`weekly_occ_${index}`, now + index * DAY_MS, { description: 'Same long agenda', location: 'Room 4' }),
+    );
+    (useEventsForRange as jest.Mock).mockReturnValue(repeated);
+    const normalize = jest.spyOn(String.prototype, 'normalize');
+    renderHook(() => useLocalSearch('account-1', ''));
+    expect(normalize.mock.calls.length).toBeLessThan(20);
   });
 });

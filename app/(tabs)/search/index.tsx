@@ -1,7 +1,7 @@
-import { useCallback, useMemo, useReducer, useRef, useState } from 'react';
+import { useCallback, useMemo, useReducer, useRef, useState, useSyncExternalStore } from 'react';
 import { Alert, Keyboard, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useIsFocused, useRouter } from 'expo-router';
+import { useNavigation, useRoute, useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 
 import { useActiveAccount } from '@/hooks/useAccounts';
@@ -34,10 +34,20 @@ function reducer(model: SearchModel, { action, resolve }: Dispatched): SearchMod
   return reduceSearch(model, action, resolve);
 }
 
+function useIsSelectedTab(): boolean {
+  const navigation = useNavigation();
+  const { key } = useRoute();
+  const isSelected = () => {
+    const state = navigation.getState();
+    return state?.routes[state.index]?.key === key;
+  };
+  return useSyncExternalStore((onChange) => navigation.addListener('state', onChange), isSelected, isSelected);
+}
+
 export default function SearchScreen() {
   const { t } = useTranslation();
   const router = useRouter();
-  const focused = useIsFocused();
+  const selected = useIsSelectedTab();
   const accountId = useAccountStore((state) => state.activeAccountId);
   const account = useActiveAccount(accountId);
   const hiddenCalendarIds = useCalendarStore((state) => state.hiddenCalendarIds);
@@ -46,24 +56,24 @@ export default function SearchScreen() {
   const [openingHref, setOpeningHref] = useState<string | null>(null);
 
   const [model, dispatch] = useReducer(reducer, EMPTY_MODEL);
-  const local = useLocalSearch(focused ? accountId : null, toTerm(model));
+  const local = useLocalSearch(selected ? accountId : null, toTerm(model));
   const data = local.suggestionData;
   const resolve = useCallback<Resolve>((key, raw) => resolveValue(key, raw, data), [data]);
   const send = useCallback((action: SearchAction) => dispatch({ action, resolve }), [resolve]);
 
   const request = useMemo(() => serverRequest(local.query, Date.now()), [local.query]);
-  const remote = useRemoteSearch(focused ? accountId : null, request);
+  const remote = useRemoteSearch(selected ? accountId : null, request);
   const server = useMemo<ServerResults>(() => {
     if (!request || !account) return { hits: [], loading: false, failed: false };
     const hits = toServerHits(remote.entries, {
       baseUrl: account.baseUrl,
       calendars: local.calendars,
       hiddenCalendarIds,
-      knownHrefs: local.knownHrefs,
+      knownHrefs: local.matchedHrefs,
       query: local.query,
     });
     return { hits, loading: remote.loading, failed: remote.failed };
-  }, [request, account, remote, local.calendars, local.knownHrefs, local.query, hiddenCalendarIds]);
+  }, [request, account, remote, local.calendars, local.matchedHrefs, local.query, hiddenCalendarIds]);
 
   const recent = useRecentSearchStore((state) => (accountId ? state.byAccount[accountId] ?? NO_RECENT : NO_RECENT));
   const addRecent = useRecentSearchStore((state) => state.add);
