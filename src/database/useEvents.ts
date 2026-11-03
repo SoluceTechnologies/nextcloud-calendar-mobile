@@ -30,6 +30,8 @@ function rowKey(r: Event): string {
     r.recurrenceId ?? null,
     r.alarmMinutes ?? null,
     !!r.isTask,
+    r.transp ?? null,
+    r.status ?? null,
   ]);
 }
 

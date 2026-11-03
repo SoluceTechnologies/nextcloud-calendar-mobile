@@ -69,6 +69,10 @@ export type TalkRoomType = 'public' | 'private';
 
 export type TalkOpenMode = 'app' | 'browser' | 'ask';
 
+export type EventTransp = 'opaque' | 'transparent';
+
+export type EventStatus = 'confirmed' | 'tentative' | 'cancelled';
+
 export type CalendarEvent = {
     uid: string;
     href: string;
@@ -90,6 +94,8 @@ export type CalendarEvent = {
     alarms?: number[];
     isTask?: boolean;
     readOnly?: boolean;
+    transp?: EventTransp;
+    status?: EventStatus;
 };
 
 export type CreateEventInput = {
@@ -107,6 +113,8 @@ export type CreateEventInput = {
     organizerName: string;
     rrule?: RecurrenceRule;
     alarms?: number[];
+    transp?: EventTransp;
+    status?: EventStatus;
 };
 
 export type CalendarAppStatus = 'unknown' | 'available' | 'unconfigured';
