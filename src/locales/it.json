@@ -189,7 +189,15 @@
         "deleteQueued": "Eliminato in locale — sarà rimosso dal server quando torna la connessione.",
         "queueCreateDropped": "Impossibile inviare la creazione al server — l'evento locale è stato rimosso.",
         "queueDeleteDropped": "Impossibile inviare l'eliminazione al server — l'evento riapparirà alla prossima sincronizzazione.",
-        "queueUpdateDropped": "Impossibile inviare la modifica al server — l'evento verrà risincronizzato."
+        "queueUpdateDropped": "Impossibile inviare la modifica al server — l'evento verrà risincronizzato.",
+    "alerts": "Avvisi",
+    "availability": "Disponibilità",
+    "availabilityBusy": "Occupato",
+    "availabilityFree": "Libero",
+    "status": "Stato",
+    "statusConfirmed": "Confermato",
+    "statusTentative": "Provvisorio",
+    "statusCancelled": "Annullato"
   },
   "settings": {
     "title": "Impostazioni",

@@ -5,7 +5,7 @@ import * as Clipboard from 'expo-clipboard';
 import { haptic } from '@/utils/haptics';
 import {
   Pencil, Clock, CalendarDays, MapPin, Video, Repeat, Trash2, Copy, Check, Bell,
-  Navigation,
+  Navigation, Ban, Info, EyeOff,
 } from 'lucide-react-native';
 import { useLocalSearchParams, useNavigation, useRouter, useTheme } from 'expo-router';
 import dayjs from 'dayjs';
@@ -238,7 +238,12 @@ export default function EventDetailScreen() {
         <ScrollView style={styles.flex} contentContainerStyle={[styles.content, { paddingBottom: 24 }]}>
           <Stack gap={20}>
             <Stack gap={10}>
-              <Typography variant="h3">{event.summary}</Typography>
+              <Typography
+                variant="h3"
+                style={event.status === 'cancelled' ? styles.cancelledTitle : undefined}
+              >
+                {event.summary}
+              </Typography>
               {event.isRecurring && (
                 <Stack direction="horizontal" gap={6}>
                   <Repeat size={16} color={theme.colors.primary} />
@@ -293,6 +298,28 @@ export default function EventDetailScreen() {
                       </IconButton>
                     </Stack>
                   }
+                />
+              )}
+              {event.status && event.status !== 'confirmed' && (
+                <Item
+                  leading={
+                    <Icon size={20}>
+                      {event.status === 'cancelled'
+                        ? <Ban color={theme.colors.textSecondary} />
+                        : <Info color={theme.colors.textSecondary} />}
+                    </Icon>
+                  }
+                  title={t('event.status')}
+                  description={event.status === 'cancelled'
+                    ? t('event.statusCancelled')
+                    : t('event.statusTentative')}
+                />
+              )}
+              {event.transp === 'transparent' && (
+                <Item
+                  leading={<Icon size={20}><EyeOff color={theme.colors.textSecondary} /></Icon>}
+                  title={t('event.availability')}
+                  description={t('event.availabilityFree')}
                 />
               )}
             </List>
@@ -401,4 +428,5 @@ const styles = StyleSheet.create({
   content: { padding: 20 },
   footer: { borderTopWidth: StyleSheet.hairlineWidth },
   link: { textDecorationLine: 'underline' },
+  cancelledTitle: { textDecorationLine: 'line-through', opacity: 0.5 },
 });

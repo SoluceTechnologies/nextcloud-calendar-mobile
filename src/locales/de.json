@@ -189,7 +189,15 @@
         "deleteQueued": "Lokal gelöscht — wird entfernt, sobald die Verbindung zurück ist.",
         "queueCreateDropped": "Die Erstellung konnte nicht an den Server gesendet werden — das lokale Ereignis wurde entfernt.",
         "queueDeleteDropped": "Das Löschen konnte nicht an den Server gesendet werden — das Ereignis erscheint bei der nächsten Synchronisation erneut.",
-        "queueUpdateDropped": "Die Änderung konnte nicht an den Server gesendet werden — das Ereignis wird erneut synchronisiert."
+        "queueUpdateDropped": "Die Änderung konnte nicht an den Server gesendet werden — das Ereignis wird erneut synchronisiert.",
+    "alerts": "Erinnerungen",
+    "availability": "Verfügbarkeit",
+    "availabilityBusy": "Beschäftigt",
+    "availabilityFree": "Frei",
+    "status": "Status",
+    "statusConfirmed": "Bestätigt",
+    "statusTentative": "Vorläufig",
+    "statusCancelled": "Abgesagt"
   },
   "settings": {
     "title": "Einstellungen",
