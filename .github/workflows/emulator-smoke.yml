@@ -26,6 +26,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # Must run BEFORE setup-java/setup-node: this deletes $AGENT_TOOLSDIRECTORY,
+      # which is where those actions install the JDK/Node they then rely on.
+      - name: Free disk space (~10 GB of unused toolchains)
+        run: |
+          df -h /
+          sudo rm -rf /usr/share/dotnet "$AGENT_TOOLSDIRECTORY" /opt/ghc /usr/local/share/boost || true
+          df -h /
+
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
@@ -65,11 +73,6 @@ jobs:
           restore-keys: |
             gradle-${{ runner.os }}-
 
-      - name: Free disk space (~10 GB of unused toolchains)
-        run: |
-          sudo rm -rf /usr/share/dotnet "$AGENT_TOOLSDIRECTORY" /opt/ghc /usr/local/share/boost || true
-          df -h /
-
       - name: Generate android project (prebuild)
         run: EXPO_NO_GIT_STATUS=1 yarn expo prebuild --platform android --clean --no-install
 
@@ -82,7 +85,11 @@ jobs:
       # android-emulator-runner shells out to `sdkmanager`, which lives in
       # cmdline-tools on ubuntu-24.04 but isn't on PATH by default.
       - name: Put sdkmanager on PATH
-        run: echo "$ANDROID_HOME/cmdline-tools/latest/bin" >> "$GITHUB_PATH"
+        run: |
+          echo "$ANDROID_HOME/cmdline-tools/latest/bin" >> "$GITHUB_PATH"
+          # Sanity: surface silent sdkmanager failures early (needs JAVA_HOME).
+          java -version
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --version
 
       - name: Build, boot and render
         uses: reactivecircus/android-emulator-runner@c9c93e6ba9c4194322e114c40970d5983d9a07cc # v2.38.0
