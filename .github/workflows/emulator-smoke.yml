@@ -148,6 +148,8 @@ jobs:
             sleep 150
             adb shell input keyevent 4 || true   # dismiss the dev-client welcome sheet
             sleep 3
+            adb shell monkey -p com.soluce.nextcloudcalendar -c android.intent.category.LAUNCHER 1 || true
+            sleep 5
             adb exec-out screencap -p > smoke-app.png
             adb logcat -d -s ReactNativeJS:V > js.log || true
 
