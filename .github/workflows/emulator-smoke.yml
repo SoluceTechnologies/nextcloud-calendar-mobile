@@ -141,6 +141,9 @@ jobs:
             adb shell wm dismiss-keyguard || true
 
             adb install -r android/app/build/outputs/apk/debug/app-debug.apk
+            # Grant upfront: the app requests POST_NOTIFICATIONS during first sync and the
+            # runtime dialog would block Maestro flows (no testId on a system dialog).
+            adb shell pm grant com.soluce.nextcloudcalendar android.permission.POST_NOTIFICATIONS || true
 
             nohup yarn expo start --dev-client --port 8081 > metro.log 2>&1 &
             for i in $(seq 60); do curl -sf http://localhost:8081/status | grep -q running && break; sleep 2; done
