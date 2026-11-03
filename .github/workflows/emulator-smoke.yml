@@ -1,0 +1,122 @@
+name: Emulator smoke
+
+# Boots the dev-client APK on a hardware-accelerated Android emulator and
+# renders the app from Metro — proves the build, native modules and JS bundle
+# work on a real Android runtime. Screenshots land in the run artifacts.
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [dev, main]
+
+concurrency:
+  group: emulator-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    name: Boot app on API 35 emulator
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 'lts/*'
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Locate Yarn cache
+        id: yarn-cache
+        run: echo "dir=$(yarn config get cacheFolder)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Yarn downloads
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.yarn-cache.outputs.dir }}
+          key: yarn-${{ runner.os }}-${{ hashFiles('yarn.lock') }}
+          restore-keys: |
+            yarn-${{ runner.os }}-
+
+      - name: Install dependencies
+        run: yarn install --immutable
+
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ runner.os }}-${{ hashFiles('android/**/*.gradle*', 'android/gradle/wrapper/gradle-wrapper.properties') }}
+          restore-keys: |
+            gradle-${{ runner.os }}-
+
+      - name: Free disk space (~10 GB of unused toolchains)
+        run: |
+          sudo rm -rf /usr/share/dotnet "$AGENT_TOOLSDIRECTORY" /opt/ghc /usr/local/share/boost || true
+          df -h /
+
+      - name: Generate android project (prebuild)
+        run: EXPO_NO_GIT_STATUS=1 yarn expo prebuild --platform android --clean --no-install
+
+      - name: Enable KVM group perms
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Build, boot and render
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          arch: x86_64
+          profile: pixel
+          cores: 4
+          ram-size: 4096M
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -netdelay none -netspeed full
+          script: |
+            set -e
+            cd android && ./gradlew assembleDebug --no-daemon && cd ..
+
+            adb wait-for-device
+            until [ "$(adb shell getprop sys.boot_completed | tr -d '\r')" = "1" ]; do sleep 3; done
+            adb shell wm dismiss-keyguard || true
+
+            adb install -r android/app/build/outputs/apk/debug/app-debug.apk
+
+            nohup yarn expo start --dev-client --port 8081 > metro.log 2>&1 &
+            for i in $(seq 60); do curl -sf http://localhost:8081/status | grep -q running && break; sleep 2; done
+            adb reverse tcp:8081 tcp:8081
+
+            adb shell am start -a android.intent.action.VIEW \
+              -d "nextcloud-calendar://expo-development-client/?url=http://localhost:8081"
+
+            # Wait for Metro bundling + JS evaluation + first render.
+            sleep 150
+            adb exec-out screencap -p > smoke-app.png
+            adb logcat -d -s ReactNativeJS:V > js.log || true
+
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: emulator-smoke-${{ github.run_number }}
+          path: |
+            smoke-app.png
+            js.log
+            metro.log
+          retention-days: 30
