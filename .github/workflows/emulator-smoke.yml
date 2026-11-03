@@ -146,6 +146,8 @@ jobs:
 
             # Wait for Metro bundling + JS evaluation + first render.
             sleep 150
+            adb shell input keyevent 4 || true   # dismiss the dev-client welcome sheet
+            sleep 3
             adb exec-out screencap -p > smoke-app.png
             adb logcat -d -s ReactNativeJS:V > js.log || true
 
