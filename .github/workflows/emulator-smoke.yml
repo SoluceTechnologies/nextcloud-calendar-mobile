@@ -153,13 +153,36 @@ jobs:
             adb exec-out screencap -p > smoke-app.png
             adb logcat -d -s ReactNativeJS:V > js.log || true
 
+            # E2E #377: real Nextcloud in Docker + Maestro flows driven directly
+            # (no clearState — the dev client must keep its Metro URL).
+            docker run -d --name nc-e2e -p 80 -e SQLITE_DATABASE=nextcloud -e NEXTCLOUD_ADMIN_USER=e2e -e NEXTCLOUD_ADMIN_PASSWORD='Ncm-E2e-Passw0rd-2026' -e NEXTCLOUD_TRUSTED_DOMAINS='localhost 10.0.2.2' nextcloud:34-apache > nc-docker.log 2>&1
+            NC_PORT=$(docker port nc-e2e 80 | head -1 | cut -d: -f2)
+            for i in $(seq 140); do curl -sf "http://localhost:$NC_PORT/status.php" | grep -q '"installed":true' && break; sleep 3; done
+            docker exec -u www-data -w /var/www/html nc-e2e php occ app:install calendar >> nc-docker.log 2>&1 || true
+            docker exec -u www-data -w /var/www/html nc-e2e php occ config:system:set auth.bruteforce.protection.enabled --type=boolean --value=false >> nc-docker.log 2>&1 || true
+
+            curl -fsSL https://get.maestro.mobile.dev | bash > maestro-install.log 2>&1
+            $HOME/.maestro/bin/maestro test e2e/maestro/shared/login.yaml -e NC_URL="http://10.0.2.2:$NC_PORT" -e NC_USER=e2e -e NC_PASS='Ncm-E2e-Passw0rd-2026' || { adb exec-out screencap -p > smoke-login-fail.png || true; exit 1; }
+            $HOME/.maestro/bin/maestro test e2e/maestro/event/transp-status.yaml -e TITLE='E2E ts smoke' -e TRANSP=transparent -e STATUS=tentative || { adb exec-out screencap -p > smoke-e2e-fail.png || true; exit 1; }
+            $HOME/.maestro/bin/maestro test e2e/maestro/event/status-edit.yaml -e TITLE='E2E ts smoke' -e STATUS=cancelled || { adb exec-out screencap -p > smoke-e2e-fail.png || true; exit 1; }
+            adb exec-out screencap -p > smoke-e2e.png || true
+
+            # The app's CalDAV write is async — give it a moment, then assert the ICS.
+            sleep 10
+            ICS=""
+            for cal in $(curl -su e2e:'Ncm-E2e-Passw0rd-2026' -X PROPFIND -H 'Depth: 1' "http://localhost:$NC_PORT/remote.php/dav/calendars/e2e/" | grep -o 'calendars/e2e/[^<]*/' | sed 's|calendars/e2e/||;s|/$||' | sort -u); do ICS="$ICS$(curl -su e2e:'Ncm-E2e-Passw0rd-2026' "http://localhost:$NC_PORT/remote.php/dav/calendars/e2e/$cal/?export")"; done
+            echo "$ICS" | grep -q 'STATUS:CANCELLED' || { echo "STATUS:CANCELLED missing from server ICS"; echo "$ICS" | tail -30; exit 1; }
+            echo "$ICS" | grep -q 'TRANSP:TRANSPARENT' || { echo "TRANSP:TRANSPARENT missing from server ICS"; echo "$ICS" | tail -30; exit 1; }
+
       - name: Upload evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: emulator-smoke-${{ github.run_number }}
           path: |
-            smoke-app.png
+            smoke-*.png
             js.log
             metro.log
+            nc-docker.log
+            maestro-install.log
           retention-days: 30
