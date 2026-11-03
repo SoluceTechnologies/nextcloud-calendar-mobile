@@ -79,6 +79,11 @@ jobs:
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
 
+      # android-emulator-runner shells out to `sdkmanager`, which lives in
+      # cmdline-tools on ubuntu-24.04 but isn't on PATH by default.
+      - name: Put sdkmanager on PATH
+        run: echo "$ANDROID_HOME/cmdline-tools/latest/bin" >> "$GITHUB_PATH"
+
       - name: Build, boot and render
         uses: reactivecircus/android-emulator-runner@v2
         with:
