@@ -251,7 +251,11 @@ export function buildExceptionIcs(params: BuildIcsParams & { recurrenceId: Date;
         `DTSTAMP:${utcStamp(new Date())}`,
         `SEQUENCE:${sequence}`,
         ...dates,
-        ...textLines(summary, description, location, status, transp),
+        ...textLines(summary, description, location),
+        // Absent properties inherit the master in our parser, so an exception must
+        // state STATUS/TRANSP explicitly — even at their RFC defaults — to override.
+        ...(status ? [`STATUS:${status.toUpperCase()}`] : []),
+        ...(transp ? [`TRANSP:${transp.toUpperCase()}`] : []),
         ...schedulingLines(organizerName, organizerEmail, attendees),
         ...extraLines,
         ...alarmLines(alarms),

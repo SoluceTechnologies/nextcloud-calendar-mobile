@@ -413,6 +413,43 @@ describe('buildExceptionIcs', () => {
     expect(ics).toContain('DTSTART;VALUE=DATE:20261009');
     expect(ics).toContain('DTEND;VALUE=DATE:20261010');
   });
+
+  it('emits explicit STATUS/TRANSP, including RFC defaults, so an occurrence can override a non-default master', () => {
+    const ics = buildExceptionIcs({
+      ...base,
+      timezone: 'Europe/Paris',
+      recurrenceId: new Date(2026, 9, 9),
+      status: 'confirmed',
+      transp: 'opaque',
+    });
+
+    expect(ics).toContain('STATUS:CONFIRMED\r\n');
+    expect(ics).toContain('TRANSP:OPAQUE\r\n');
+  });
+
+  it('emits non-default STATUS/TRANSP explicitly', () => {
+    const ics = buildExceptionIcs({
+      ...base,
+      timezone: 'Europe/Paris',
+      recurrenceId: new Date(2026, 9, 9),
+      status: 'cancelled',
+      transp: 'transparent',
+    });
+
+    expect(ics).toContain('STATUS:CANCELLED\r\n');
+    expect(ics).toContain('TRANSP:TRANSPARENT\r\n');
+  });
+
+  it('omits STATUS/TRANSP when unset, keeping master inheritance', () => {
+    const ics = buildExceptionIcs({
+      ...base,
+      timezone: 'Europe/Paris',
+      recurrenceId: new Date(2026, 9, 9),
+    });
+
+    expect(ics).not.toContain('STATUS:');
+    expect(ics).not.toContain('TRANSP:');
+  });
 });
 
 describe('truncateRruleUntil', () => {
