@@ -5,6 +5,7 @@ import dayjs from 'dayjs';
 
 import type { Account, Attendee, CalendarEvent, CalendarMeta } from '@/types';
 import { useSettingsStore } from '@/stores/settingsStore';
+import { useCalendarStore } from '@/stores/calendarStore';
 import { getNativePickerLocale } from '@/utils/i18n';
 import { resolveUse24h } from '@/utils/timeFormat';
 import { eventToInput } from '@/features/calendar/utils/eventToInput';
@@ -25,6 +26,7 @@ import { parseUtterance, type VoiceIntent } from '@/services/voice/intents';
 import { askAgent, isAgentAvailable, AgentError } from '@/services/voice/agent';
 import {
     eventsOnDay,
+    busyCalendarIds,
     findFreeSlots,
     type FreeSlot,
     nextEventAfter,
@@ -279,8 +281,12 @@ export function useVoiceAssistant(account: Account | null, calendars: CalendarMe
                     case 'slot': {
                         const events = await eventsOnDay(account.id, intent.day);
                         if (genRef.current !== gen) return;
+                        const busyIds = busyCalendarIds(
+                            calendars,
+                            useCalendarStore.getState().availabilityCalendarOverrides,
+                        );
                         const now = new Date();
-                        const slots = findFreeSlots(events, intent.day, {
+                        const slots = findFreeSlots(events.filter((e) => busyIds.has(e.calendarId)), intent.day, {
                             durationMin: intent.durationMin,
                             minStart: dayjs(intent.day).isSame(now, 'day') ? now : undefined,
                         });

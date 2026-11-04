@@ -337,7 +337,9 @@
     },
     "voice": {
       "title": "Spraakassistent",
-      "tierNote": "Lokale opdrachten blijven op het apparaat; vrije vragen gebruiken de Nextcloud-assistent wanneer de server die aanbiedt."
+      "tierNote": "Lokale opdrachten blijven op het apparaat; vrije vragen gebruiken de Nextcloud-assistent wanneer de server die aanbiedt.",
+      "availabilityTitle": "Agenda's die meetellen voor beschikbaarheid",
+      "availabilityHint": "Slotzoekopdracht negeert uitgeschakelde agenda's."
     }
   },
   "widget": {
@@ -389,6 +391,7 @@
     "nothingFound": "Geen afspraak gevonden.",
     "chooseOne": "Welke?",
     "whichCalendar": "In welke agenda?",
+    "calendarReadOnly": "alleen-lezen",
     "noWritableCalendar": "Geen beschrijfbare agenda gevonden.",
     "whichSlot": "Welk tijdslot op {{date}}?",
     "noFreeSlot": "Geen vrij tijdslot op {{date}}.",

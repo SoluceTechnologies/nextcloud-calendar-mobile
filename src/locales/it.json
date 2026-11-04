@@ -337,7 +337,9 @@
     },
     "voice": {
       "title": "Assistente vocale",
-      "tierNote": "I comandi locali restano sul dispositivo; le domande libere usano l'assistente Nextcloud quando il server lo offre."
+      "tierNote": "I comandi locali restano sul dispositivo; le domande libere usano l'assistente Nextcloud quando il server lo offre.",
+      "availabilityTitle": "Calendari che contano per la disponibilità",
+      "availabilityHint": "La ricerca di fasce ignora i calendari disattivati."
     }
   },
   "widget": {
@@ -389,6 +391,7 @@
     "nothingFound": "Nessun evento trovato.",
     "chooseOne": "Quale?",
     "whichCalendar": "In quale calendario?",
+    "calendarReadOnly": "sola lettura",
     "noWritableCalendar": "Nessun calendario modificabile.",
     "whichSlot": "Quale fascia il {{date}}?",
     "noFreeSlot": "Nessuno spazio libero il {{date}}.",

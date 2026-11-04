@@ -3,6 +3,7 @@ import { renderHook, act, waitFor } from '@testing-library/react-native';
 import type { Account, CalendarEvent, CalendarMeta } from '@/types';
 import type { VoiceIntent } from '@/services/voice/intents';
 import { useSettingsStore } from '@/stores/settingsStore';
+import { useCalendarStore } from '@/stores/calendarStore';
 
 jest.mock('expo-localization', () => ({
     getCalendars: jest.fn(() => [{ uses24hourClock: false }]),
@@ -111,6 +112,7 @@ beforeEach(() => {
     mockResolveAttendees.mockResolvedValue({ attendees: [], ambiguous: [] });
     mockParse.mockReturnValue({ kind: 'unknown', raw: '' });
     useSettingsStore.setState({ defaultCalendarByAccount: {} });
+    useCalendarStore.setState({ availabilityCalendarOverrides: {} });
 });
 
 describe('open / listen', () => {
@@ -392,6 +394,37 @@ describe('slot — free-slot proposals', () => {
         expect(input.dtstart).toEqual(at(14, 30));
         expect(input.dtend).toEqual(at(15, 30));
         expect(input.attendees).toEqual([{ email: 'devin@nc.test', displayName: 'Devin' }]);
+    });
+
+    it('events on a read-only informational calendar do not block by default', async () => {
+        const cals = [
+            { id: 'cal1', displayName: 'Personnel' },
+            { id: 'clara', displayName: 'Planning clara', isReadOnly: true },
+        ] as CalendarMeta[];
+        mockParse.mockReturnValue(slotIntent);
+        // busy 09–12 but on clara's read-only calendar → still free
+        mockEventsOnDay.mockResolvedValue([ev({ calendarId: 'clara', dtstart: at(9), dtend: at(12) })]);
+        const { result } = renderHook(() => useVoiceAssistant(account, cals));
+        await act(async () => result.current.open());
+        await act(async () => result.current.submitText('trouve une dispo demain'));
+        await waitFor(() => expect(result.current.state).toBe('disambiguating'));
+        expect(result.current.candidates).toEqual(['09:00 – 10:00', '13:00 – 14:00', '17:00 – 18:00']);
+    });
+
+    it('marking that calendar as blocking in settings makes its events count', async () => {
+        const cals = [
+            { id: 'cal1', displayName: 'Personnel' },
+            { id: 'clara', displayName: 'Planning clara', isReadOnly: true },
+        ] as CalendarMeta[];
+        useCalendarStore.setState({ availabilityCalendarOverrides: { clara: true } });
+        mockParse.mockReturnValue(slotIntent);
+        mockEventsOnDay.mockResolvedValue([ev({ calendarId: 'clara', dtstart: at(9), dtend: at(12) })]);
+        const { result } = renderHook(() => useVoiceAssistant(account, cals));
+        await act(async () => result.current.open());
+        await act(async () => result.current.submitText('trouve une dispo demain'));
+        await waitFor(() => expect(result.current.state).toBe('disambiguating'));
+        // clara now blocks 09–12 → gap 12–18 → starts 12, 14:30, 17
+        expect(result.current.candidates).toEqual(['12:00 – 13:00', '14:30 – 15:30', '17:00 – 18:00']);
     });
 
     it('no free gap → error, nothing created', async () => {

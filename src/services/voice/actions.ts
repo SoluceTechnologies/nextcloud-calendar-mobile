@@ -72,6 +72,18 @@ export async function findEventTargets(
     return matches;
 }
 
+/**
+ * Calendars that count as "busy" for availability search. Default: writable
+ * calendars count, read-only ones (other people's shares, holiday feeds) are
+ * informational. `overrides` = the user's per-calendar flag.
+ */
+export function busyCalendarIds(
+    calendars: { id: string; isReadOnly?: boolean }[],
+    overrides: Record<string, boolean> = {},
+): Set<string> {
+    return new Set(calendars.filter((c) => overrides[c.id] ?? !c.isReadOnly).map((c) => c.id));
+}
+
 export interface FreeSlot {
     start: Date;
     end: Date;

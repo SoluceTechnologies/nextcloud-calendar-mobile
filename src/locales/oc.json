@@ -324,7 +324,9 @@
     "accountActive": "Actiu",
     "voice": {
       "title": "Assistent vocal",
-      "tierNote": "Las comandas localas demòran sus l'aparelh ; las questions liuras utilizan l'assistent Nextcloud quand lo servidor o prepausa."
+      "tierNote": "Las comandas localas demòran sus l'aparelh ; las questions liuras utilizan l'assistent Nextcloud quand lo servidor o prepausa.",
+      "availabilityTitle": "Agendas comptant per la disponibilitat",
+      "availabilityHint": "La recèrca de traucs ignora los agendas desactivats."
     }
   },
   "widget": {
@@ -376,6 +378,7 @@
     "nothingFound": "Cap d’eveniment trobat.",
     "chooseOne": "Loquin ?",
     "whichCalendar": "Dins quin agenda ?",
+    "calendarReadOnly": "lectura sola",
     "noWritableCalendar": "Cap d'agenda modificable.",
     "whichSlot": "Quin trauc lo {{date}} ?",
     "noFreeSlot": "Cap de trauc liure lo {{date}}.",

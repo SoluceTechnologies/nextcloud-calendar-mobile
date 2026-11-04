@@ -337,7 +337,9 @@
     },
     "voice": {
       "title": "Assistant vocal",
-      "tierNote": "Les commandes locales restent sur l'appareil ; les questions libres utilisent l'assistant Nextcloud quand le serveur le propose."
+      "tierNote": "Les commandes locales restent sur l'appareil ; les questions libres utilisent l'assistant Nextcloud quand le serveur le propose.",
+      "availabilityTitle": "Agendas comptant pour la dispo",
+      "availabilityHint": "La recherche de créneaux ignore les agendas désactivés."
     }
   },
   "widget": {
@@ -389,6 +391,7 @@
     "nothingFound": "Aucun événement trouvé.",
     "chooseOne": "Lequel ?",
     "whichCalendar": "Dans quel agenda ?",
+    "calendarReadOnly": "lecture seule",
     "noWritableCalendar": "Aucun agenda modifiable.",
     "whichSlot": "Quel créneau le {{date}} ?",
     "noFreeSlot": "Aucun créneau libre le {{date}}.",

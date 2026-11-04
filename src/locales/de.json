@@ -337,7 +337,9 @@
     },
     "voice": {
       "title": "Sprachassistent",
-      "tierNote": "Lokale Befehle laufen auf dem Gerät; freie Fragen nutzen den Nextcloud-Assistenten, sofern der Server ihn bereitstellt."
+      "tierNote": "Lokale Befehle laufen auf dem Gerät; freie Fragen nutzen den Nextcloud-Assistenten, sofern der Server ihn bereitstellt.",
+      "availabilityTitle": "Kalender, die für Verfügbarkeit zählen",
+      "availabilityHint": "Die Slot-Suche ignoriert deaktivierte Kalender."
     }
   },
   "widget": {
@@ -389,6 +391,7 @@
     "nothingFound": "Kein Termin gefunden.",
     "chooseOne": "Welcher?",
     "whichCalendar": "In welchem Kalender?",
+    "calendarReadOnly": "schreibgeschützt",
     "noWritableCalendar": "Kein schreibbarer Kalender gefunden.",
     "whichSlot": "Welcher Terminslot am {{date}}?",
     "noFreeSlot": "Kein freier Slot am {{date}}.",

@@ -32,6 +32,7 @@ import {
     inputFromCreateIntent,
     movedDates,
     findFreeSlots,
+    busyCalendarIds,
 } from '@/services/voice/actions';
 
 function ev(partial: Partial<CalendarEvent> & { dtstart: Date; dtend: Date }): CalendarEvent {
@@ -206,5 +207,26 @@ describe('findFreeSlots', () => {
     it('minStart keeps today proposals in the future', () => {
         const slots = findFreeSlots([], day, { minStart: at(15, 20) });
         expect(hours(slots)).toEqual([[15.5, 16.5], [16.5, 17.5], [17, 18]]);
+    });
+});
+
+describe('busyCalendarIds', () => {
+    const cals = [
+        { id: 'perso' },
+        { id: 'boulot' },
+        { id: 'clara', isReadOnly: true },
+        { id: 'deck', isReadOnly: true },
+    ];
+
+    it('defaults: writable counts, read-only is informational', () => {
+        expect(busyCalendarIds(cals)).toEqual(new Set(['perso', 'boulot']));
+    });
+
+    it('override can mark a read-only calendar as blocking', () => {
+        expect(busyCalendarIds(cals, { clara: true })).toEqual(new Set(['perso', 'boulot', 'clara']));
+    });
+
+    it('override can mark a writable calendar as non-blocking', () => {
+        expect(busyCalendarIds(cals, { boulot: false })).toEqual(new Set(['perso']));
     });
 });

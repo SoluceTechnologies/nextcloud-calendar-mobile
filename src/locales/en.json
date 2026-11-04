@@ -337,7 +337,9 @@
     },
     "voice": {
       "title": "Voice assistant",
-      "tierNote": "Local commands run on-device; free-form questions use the Nextcloud assistant when the server provides it."
+      "tierNote": "Local commands run on-device; free-form questions use the Nextcloud assistant when the server provides it.",
+      "availabilityTitle": "Calendars counting for availability",
+      "availabilityHint": "Slot search ignores calendars that are off."
     }
   },
   "widget": {
@@ -389,6 +391,7 @@
     "nothingFound": "No event found.",
     "chooseOne": "Which one?",
     "whichCalendar": "Which calendar?",
+    "calendarReadOnly": "read-only",
     "noWritableCalendar": "No writable calendar found.",
     "whichSlot": "Which slot on {{date}}?",
     "noFreeSlot": "No free slot on {{date}}.",

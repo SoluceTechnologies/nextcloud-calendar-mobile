@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 
 import { useSettingsStore } from '@/stores/settingsStore';
+import { AvailabilityCalendarSettings } from '@/features/settings/components/AvailabilityCalendarSettings';
 import { SettingsPage } from '@/features/settings/components/SettingsPage';
 import { Stack, Toggle, Typography } from '@/ui/components';
 
@@ -27,6 +28,7 @@ export default function VoiceSettingsScreen() {
           />
         </Stack>
       </Stack>
+      {enabled && <AvailabilityCalendarSettings />}
       <Stack card gap={8} padding={16} hAlign="stretch" style={cardOuter}>
         <Typography variant="caption" color="secondary">{t('settings.voice.tierNote')}</Typography>
       </Stack>

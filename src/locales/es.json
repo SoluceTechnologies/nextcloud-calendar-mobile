@@ -337,7 +337,9 @@
     },
     "voice": {
       "title": "Asistente de voz",
-      "tierNote": "Los comandos locales se ejecutan en el dispositivo; las preguntas libres usan el asistente de Nextcloud cuando el servidor lo ofrece."
+      "tierNote": "Los comandos locales se ejecutan en el dispositivo; las preguntas libres usan el asistente de Nextcloud cuando el servidor lo ofrece.",
+      "availabilityTitle": "Calendarios que cuentan para la disponibilidad",
+      "availabilityHint": "La búsqueda de huecos ignora los calendarios desactivados."
     }
   },
   "widget": {
@@ -389,6 +391,7 @@
     "nothingFound": "No se encontró ningún evento.",
     "chooseOne": "¿Cuál?",
     "whichCalendar": "¿En qué agenda?",
+    "calendarReadOnly": "solo lectura",
     "noWritableCalendar": "No hay ningún calendario editable.",
     "whichSlot": "¿Qué franja el {{date}}?",
     "noFreeSlot": "No hay hueco libre el {{date}}.",
