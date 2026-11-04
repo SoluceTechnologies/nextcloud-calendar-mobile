@@ -82,7 +82,8 @@
     },
     "drawerNoCalendars": "Nessun calendario",
     "calendarNotifications": "Notifiche di {{name}}",
-    "calendarVisibility": "Mostra {{name}}"
+        "calendarVisibility": "Mostra {{name}}",
+        "pendingSync": "{{count}} modifica/he in attesa — tocca per riprovare"
   },
   "event": {
     "titleLabel": "Titolo *",
@@ -182,7 +183,9 @@
         "findTimeTitle": "Trova un orario",
         "findTimeLoading": "Ricerca degli orari liberi…",
         "findTimeNone": "Nessun orario libero quel giorno.",
-        "findTimeError": "Impossibile caricare le disponibilità."
+        "findTimeError": "Impossibile caricare le disponibilità.",
+        "createQueued": "Salvato in locale — sarà inviato al server quando torna la connessione.",
+        "deleteQueued": "Eliminato in locale — sarà rimosso dal server quando torna la connessione."
   },
   "settings": {
     "title": "Impostazioni",

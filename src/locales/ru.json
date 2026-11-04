@@ -82,7 +82,8 @@
     },
     "drawerNoCalendars": "Нет календарей",
     "calendarNotifications": "Уведомления календаря «{{name}}»",
-    "calendarVisibility": "Показывать «{{name}}»"
+        "calendarVisibility": "Показывать «{{name}}»",
+        "pendingSync": "{{count}} изменение(й) ожидает — нажмите, чтобы повторить"
   },
   "event": {
     "titleLabel": "Название *",
@@ -182,7 +183,9 @@
         "findTimeTitle": "Найти время",
         "findTimeLoading": "Поиск свободного времени…",
         "findTimeNone": "В этот день нет свободного времени.",
-        "findTimeError": "Не удалось загрузить занятость."
+        "findTimeError": "Не удалось загрузить занятость.",
+        "createQueued": "Сохранено локально — будет отправлено при восстановлении связи.",
+        "deleteQueued": "Удалено локально — будет удалено с сервера при восстановлении связи."
   },
   "settings": {
     "title": "Настройки",

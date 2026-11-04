@@ -82,7 +82,8 @@
     },
     "drawerNoCalendars": "No calendar",
     "calendarNotifications": "Notifications for {{name}}",
-    "calendarVisibility": "Show {{name}}"
+        "calendarVisibility": "Show {{name}}",
+        "pendingSync": "{{count}} change(s) pending sync — tap to retry"
   },
   "event": {
     "titleLabel": "Title *",
@@ -182,7 +183,9 @@
         "findTimeTitle": "Find a time",
         "findTimeLoading": "Searching for free slots…",
         "findTimeNone": "No free slot that day.",
-        "findTimeError": "Could not load availability."
+        "findTimeError": "Could not load availability.",
+        "createQueued": "Saved locally — will be sent to the server when the connection returns.",
+        "deleteQueued": "Deleted locally — will be removed from the server when the connection returns."
   },
   "settings": {
     "title": "Settings",

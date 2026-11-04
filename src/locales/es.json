@@ -82,7 +82,8 @@
     },
     "drawerNoCalendars": "Ningún calendario",
     "calendarNotifications": "Notificaciones de {{name}}",
-    "calendarVisibility": "Mostrar {{name}}"
+        "calendarVisibility": "Mostrar {{name}}",
+        "pendingSync": "{{count}} cambio(s) pendiente(s) — tocar para reintentar"
   },
   "event": {
     "titleLabel": "Título *",
@@ -182,7 +183,9 @@
         "findTimeTitle": "Buscar horario",
         "findTimeLoading": "Buscando huecos libres…",
         "findTimeNone": "No hay hueco libre ese día.",
-        "findTimeError": "No se pudo cargar la disponibilidad."
+        "findTimeError": "No se pudo cargar la disponibilidad.",
+        "createQueued": "Guardado en local — se enviará cuando vuelva la conexión.",
+        "deleteQueued": "Eliminado en local — se quitará del servidor cuando vuelva la conexión."
   },
   "settings": {
     "title": "Ajustes",

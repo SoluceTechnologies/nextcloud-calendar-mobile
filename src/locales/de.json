@@ -82,7 +82,8 @@
     },
     "drawerNoCalendars": "Kein Kalender",
     "calendarNotifications": "Benachrichtigungen für {{name}}",
-    "calendarVisibility": "{{name}} anzeigen"
+        "calendarVisibility": "{{name}} anzeigen",
+        "pendingSync": "{{count}} Änderung(en) ausstehend — zum Wiederholen tippen"
   },
   "event": {
     "titleLabel": "Titel *",
@@ -182,7 +183,9 @@
         "findTimeTitle": "Zeit finden",
         "findTimeLoading": "Freie Zeiten werden gesucht…",
         "findTimeNone": "Kein freier Zeitraum an diesem Tag.",
-        "findTimeError": "Verfügbarkeit konnte nicht geladen werden."
+        "findTimeError": "Verfügbarkeit konnte nicht geladen werden.",
+        "createQueued": "Lokal gespeichert — wird gesendet, sobald die Verbindung zurück ist.",
+        "deleteQueued": "Lokal gelöscht — wird entfernt, sobald die Verbindung zurück ist."
   },
   "settings": {
     "title": "Einstellungen",

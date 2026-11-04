@@ -82,7 +82,8 @@
     },
     "drawerNoCalendars": "Geen agenda",
     "calendarNotifications": "Meldingen van {{name}}",
-    "calendarVisibility": "{{name}} tonen"
+        "calendarVisibility": "{{name}} tonen",
+        "pendingSync": "{{count}} wijziging(en) in de wacht — tik om opnieuw te proberen"
   },
   "event": {
     "titleLabel": "Titel *",
@@ -182,7 +183,9 @@
         "findTimeTitle": "Tijd vinden",
         "findTimeLoading": "Vrije tijden zoeken…",
         "findTimeNone": "Geen vrije tijd die dag.",
-        "findTimeError": "Beschikbaarheid kon niet worden geladen."
+        "findTimeError": "Beschikbaarheid kon niet worden geladen.",
+        "createQueued": "Lokaal opgeslagen — wordt verzonden zodra de verbinding terug is.",
+        "deleteQueued": "Lokaal verwijderd — wordt verwijderd van de server zodra de verbinding terug is."
   },
   "settings": {
     "title": "Instellingen",

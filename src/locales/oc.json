@@ -82,7 +82,8 @@
     },
     "drawerNoCalendars": "Pas de calendari",
     "calendarNotifications": "Notificacions per {{name}}",
-    "calendarVisibility": "Afichar {{name}}"
+        "calendarVisibility": "Afichar {{name}}",
+        "pendingSync": "{{count}} modificacion(s) en espèra — tocar per tornar ensajar"
   },
   "event": {
     "titleLabel": "Títol *",
@@ -177,7 +178,9 @@
         "findTimeTitle": "Trobar un crenech",
         "findTimeLoading": "Recèrca dels crenechs liures…",
         "findTimeNone": "Cap de crenech liure aquel jorn.",
-        "findTimeError": "Impossible de cargar las disponibilitats."
+        "findTimeError": "Impossible de cargar las disponibilitats.",
+        "createQueued": "Enregistrat en local — serà mandat al servidor quora la retorna la connexion.",
+        "deleteQueued": "Suprimit en local — serà levat del servidor quora la retorna la connexion."
   },
   "settings": {
     "title": "Paramètres",

@@ -82,7 +82,8 @@
     },
     "drawerNoCalendars": "Aucun calendrier",
     "calendarNotifications": "Notifications de {{name}}",
-    "calendarVisibility": "Afficher {{name}}"
+        "calendarVisibility": "Afficher {{name}}",
+        "pendingSync": "{{count}} modification(s) en attente — toucher pour réessayer"
   },
   "event": {
     "titleLabel": "Titre *",
@@ -182,7 +183,9 @@
         "findTimeTitle": "Trouver un créneau",
         "findTimeLoading": "Recherche des créneaux libres…",
         "findTimeNone": "Aucun créneau libre ce jour.",
-        "findTimeError": "Impossible de charger les disponibilités."
+        "findTimeError": "Impossible de charger les disponibilités.",
+        "createQueued": "Enregistré en local — sera envoyé au serveur dès le retour du réseau.",
+        "deleteQueued": "Supprimé en local — sera retiré du serveur dès le retour du réseau."
   },
   "settings": {
     "title": "Paramètres",

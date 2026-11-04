@@ -11,6 +11,8 @@ import { useSettingsStore } from '@/stores/settingsStore';
 import { ViewContainer, Spinner } from '@/ui/components';
 import { CalendarDrawer } from '@/features/calendar/components/CalendarDrawer';
 import { OfflineBanner } from '@/features/calendar/components/OfflineBanner';
+import { useIsOnline } from '@/services/shared/network';
+import { drainPending } from '@/services/pendingMutations';
 import { MonthDayView } from '@/features/calendar/components/MonthDayView';
 import { AgendaView } from '@/features/calendar/components/AgendaView';
 import { createNavigationGuard } from '@/utils/navigationGuard';
@@ -89,6 +91,11 @@ export default function CalendarScreen() {
     void startBriefing();
     router.setParams({ autolisten: undefined });
   }, [autolisten, startBriefing, router]);
+
+  const online = useIsOnline();
+  useEffect(() => {
+    if (online && activeAccount) void drainPending(activeAccount);
+  }, [online, activeAccount]);
 
   const calendarEvents = useMemo(() => toGridEvents(allEvents), [allEvents]);
 
@@ -176,7 +183,7 @@ export default function CalendarScreen() {
         onOpenVoice={voiceAssistantEnabled ? voice.open : undefined}
       />
 
-      <OfflineBanner />
+      <OfflineBanner account={activeAccount ?? null} />
 
       <View style={styles.viewArea}>
         <ViewLayer visible={deferredViewMode === 'month'}>

@@ -6,6 +6,7 @@ import dayjs from 'dayjs';
 import { putEvent, updateEvent, deleteEvent, moveEvent, fetchEventIcs } from '@/services/nextcloud/caldav';
 import { createTalkRoom } from '@/services/nextcloud/talk';
 import { describeMutationError } from '@/services/shared/errors';
+import { enqueue, isNetworkFailure } from '@/services/pendingMutations';
 import { buildIcs, buildAllDayIcs, buildExceptionIcs, injectExdate, truncateRruleUntil, shiftIcsDates, upsertOverride } from '@/utils/ics';
 import { parseIcsObjects, extractDtstartTzid, extractSequence, extractDtstartDtend, extractExtraVeventLines } from '@/utils/caldav-parse';
 import { isValidTimeZone } from '@/utils/timezone';
@@ -206,10 +207,11 @@ export function useCreateEvent(account: Account, calendars: CalendarMeta[]) {
         : [eventFromInput(uid, input, calendar, account)];
       await insertEvents(optimistic);
 
+      let ics = '';
       try {
         const resolved = await resolveLocationAndDescription(account, input);
         const timezone = resolveTimezone(account);
-        const ics = buildIcsForInput(uid, input, resolved.location, resolved.description, timezone);
+        ics = buildIcsForInput(uid, input, resolved.location, resolved.description, timezone);
         await putEvent(account, calendar, uid, ics);
 
         const real = input.rrule
@@ -217,6 +219,12 @@ export function useCreateEvent(account: Account, calendars: CalendarMeta[]) {
           : [eventFromInput(uid, input, calendar, account, resolved)];
         await insertEvents(real);
       } catch (error) {
+        if (isNetworkFailure(error) && ics) {
+          // Offline: keep the optimistic event and replay the PUT later.
+          enqueue({ kind: 'create', accountId: account.id, calendar, uid, ics });
+          Alert.alert(i18n.t('event.createQueued'), describeMutationError(error));
+          return;
+        }
         await removeWhere(account.id, (e) => seriesBaseUid(e.uid) === uid);
         Alert.alert(i18n.t('event.errorCreateFailed'), describeMutationError(error));
       }
@@ -370,6 +378,12 @@ export function useDeleteEvent(account: Account) {
           await updateEvent(account, event.href, truncateRruleUntil(masterIcs, oneDayBefore));
         }
       } catch (error) {
+        if (isNetworkFailure(error) && (!event.isRecurring || scope === 'all')) {
+          // Offline: rows stay removed locally; the DELETE is replayed later.
+          enqueue({ kind: 'delete', accountId: account.id, href: event.href });
+          Alert.alert(i18n.t('event.deleteQueued'), describeMutationError(error));
+          return;
+        }
         await insertEvents(removed);
         Alert.alert(i18n.t('event.errorDeleteFailed'), describeMutationError(error));
       }
