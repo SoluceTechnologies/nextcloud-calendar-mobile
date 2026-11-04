@@ -96,6 +96,17 @@ describe('eventToInput', () => {
       expect(eventToInput(base, noEmail).organizerEmail).toBe('charlie@cloud.example.org');
     });
 
+    it('ignores a stored email that is not email-shaped (stale username value)', () => {
+      const stale: Account = { ...account, email: 'ARASABruno', username: 'charlie' };
+      // 'ARASABruno' fails EMAIL_RE → falls through to username@host
+      expect(eventToInput(base, stale).organizerEmail).toBe('charlie@cloud.example.org');
+    });
+
+    it('prefers a valid username email over a stale non-email account.email', () => {
+      const stale: Account = { ...account, email: 'ARASABruno', username: 'bruno.arasa@laposte.net' };
+      expect(eventToInput(base, stale).organizerEmail).toBe('bruno.arasa@laposte.net');
+    });
+
     it("ignores the event's own stored organizer entirely", () => {
       const otherOrganizer: CalendarEvent = { ...base, organizerEmail: 'someone-else@example.org' };
       expect(eventToInput(otherOrganizer, account).organizerEmail).toBe('charlie@example.org');
