@@ -185,7 +185,10 @@
         "findTimeNone": "Geen vrije tijd die dag.",
         "findTimeError": "Beschikbaarheid kon niet worden geladen.",
         "createQueued": "Lokaal opgeslagen — wordt verzonden zodra de verbinding terug is.",
-        "deleteQueued": "Lokaal verwijderd — wordt verwijderd van de server zodra de verbinding terug is."
+        "deleteQueued": "Lokaal verwijderd — wordt verwijderd van de server zodra de verbinding terug is.",
+        "queueCreateDropped": "De aanmaak kon niet naar de server worden verzonden — de lokale gebeurtenis is verwijderd.",
+        "queueDeleteDropped": "Het verwijderen kon niet naar de server worden verzonden — de gebeurtenis verschijnt opnieuw bij de volgende synchronisatie.",
+        "queueUpdateDropped": "De wijziging kon niet naar de server worden verzonden — de gebeurtenis wordt opnieuw gesynchroniseerd."
   },
   "settings": {
     "title": "Instellingen",

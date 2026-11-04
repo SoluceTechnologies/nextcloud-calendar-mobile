@@ -185,7 +185,10 @@
         "findTimeNone": "No hay hueco libre ese día.",
         "findTimeError": "No se pudo cargar la disponibilidad.",
         "createQueued": "Guardado en local — se enviará cuando vuelva la conexión.",
-        "deleteQueued": "Eliminado en local — se quitará del servidor cuando vuelva la conexión."
+        "deleteQueued": "Eliminado en local — se quitará del servidor cuando vuelva la conexión.",
+        "queueCreateDropped": "No se pudo enviar la creación al servidor — el evento local se ha eliminado.",
+        "queueDeleteDropped": "No se pudo enviar la eliminación al servidor — el evento reaparecerá en la próxima sincronización.",
+        "queueUpdateDropped": "No se pudo enviar la modificación al servidor — el evento se resincronizará."
   },
   "settings": {
     "title": "Ajustes",

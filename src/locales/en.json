@@ -185,7 +185,10 @@
         "findTimeNone": "No free slot that day.",
         "findTimeError": "Could not load availability.",
         "createQueued": "Saved locally — will be sent to the server when the connection returns.",
-        "deleteQueued": "Deleted locally — will be removed from the server when the connection returns."
+        "deleteQueued": "Deleted locally — will be removed from the server when the connection returns.",
+        "queueCreateDropped": "The creation could not be sent to the server — the local event was removed.",
+        "queueDeleteDropped": "The deletion could not be sent to the server — the event will reappear at the next sync.",
+        "queueUpdateDropped": "The change could not be sent to the server — the event will resync."
   },
   "settings": {
     "title": "Settings",

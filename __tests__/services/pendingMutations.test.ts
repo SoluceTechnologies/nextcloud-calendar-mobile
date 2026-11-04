@@ -18,8 +18,20 @@ jest.mock('@/storage', () => ({
     },
 }));
 
+jest.mock('@/database/eventWrites', () => ({
+    removeWhere: jest.fn(async () => []),
+    seriesBaseUid: (uid: string) => uid,
+}));
+
+jest.mock('@/utils/i18n', () => ({
+    __esModule: true,
+    default: { t: (k: string) => k },
+}));
+
+import { Alert } from 'react-native';
 import { enqueue, drainPending, pendingCount, isNetworkFailure } from '@/services/pendingMutations';
 import { putEvent, deleteEvent } from '@/services/nextcloud/caldav';
+import { removeWhere } from '@/database/eventWrites';
 import { HttpError } from '@/services/shared/errors';
 import type { Account, CalendarMeta } from '@/types';
 
@@ -58,6 +70,28 @@ describe('pendingMutations outbox', () => {
         enqueue({ kind: 'delete', accountId: 'acc1', href: 'https://x/e.ics' });
         await drainPending(account);
         expect(pendingCount()).toBe(0);
+    });
+
+    it('a dropped create reconciles the optimistic event and alerts', async () => {
+        const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+        (putEvent as jest.Mock).mockRejectedValue(new HttpError(403, 'putEvent'));
+        enqueue({ kind: 'create', accountId: 'acc1', calendar: cal, uid: 'u9', ics: 'ICS' });
+        await drainPending(account);
+        expect(pendingCount()).toBe(0);
+        expect(removeWhere).toHaveBeenCalledWith('acc1', expect.any(Function));
+        expect(alert).toHaveBeenCalledWith('event.queueCreateDropped', expect.anything());
+        alert.mockRestore();
+    });
+
+    it('a dropped delete keeps nothing queued and alerts', async () => {
+        const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+        (deleteEvent as jest.Mock).mockRejectedValue(new HttpError(500, 'deleteEvent'));
+        enqueue({ kind: 'delete', accountId: 'acc1', href: 'https://x/e.ics' });
+        await drainPending(account);
+        expect(pendingCount()).toBe(0);
+        expect(removeWhere).not.toHaveBeenCalled();
+        expect(alert).toHaveBeenCalledWith('event.queueDeleteDropped', expect.anything());
+        alert.mockRestore();
     });
 
     it('ops of other accounts are left untouched', async () => {

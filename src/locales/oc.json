@@ -180,7 +180,10 @@
         "findTimeNone": "Cap de crenech liure aquel jorn.",
         "findTimeError": "Impossible de cargar las disponibilitats.",
         "createQueued": "Enregistrat en local — serà mandat al servidor quora la retorna la connexion.",
-        "deleteQueued": "Suprimit en local — serà levat del servidor quora la retorna la connexion."
+        "deleteQueued": "Suprimit en local — serà levat del servidor quora la retorna la connexion.",
+        "queueCreateDropped": "Impossible de mandar la creacion al servidor — l'eveniment local foguèt suprimit.",
+        "queueDeleteDropped": "Impossible de mandar la supression al servidor — l'eveniment tornarà aparéisser a la sincronizacion venenta.",
+        "queueUpdateDropped": "Impossible de mandar la modificacion al servidor — l'eveniment serà sincronizat de nòu."
   },
   "settings": {
     "title": "Paramètres",

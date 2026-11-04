@@ -185,7 +185,10 @@
         "findTimeNone": "Kein freier Zeitraum an diesem Tag.",
         "findTimeError": "Verfügbarkeit konnte nicht geladen werden.",
         "createQueued": "Lokal gespeichert — wird gesendet, sobald die Verbindung zurück ist.",
-        "deleteQueued": "Lokal gelöscht — wird entfernt, sobald die Verbindung zurück ist."
+        "deleteQueued": "Lokal gelöscht — wird entfernt, sobald die Verbindung zurück ist.",
+        "queueCreateDropped": "Die Erstellung konnte nicht an den Server gesendet werden — das lokale Ereignis wurde entfernt.",
+        "queueDeleteDropped": "Das Löschen konnte nicht an den Server gesendet werden — das Ereignis erscheint bei der nächsten Synchronisation erneut.",
+        "queueUpdateDropped": "Die Änderung konnte nicht an den Server gesendet werden — das Ereignis wird erneut synchronisiert."
   },
   "settings": {
     "title": "Einstellungen",

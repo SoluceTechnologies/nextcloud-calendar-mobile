@@ -185,7 +185,10 @@
         "findTimeNone": "Sem horário livre nesse dia.",
         "findTimeError": "Não foi possível carregar as disponibilidades.",
         "createQueued": "Guardado localmente — será enviado quando a ligação voltar.",
-        "deleteQueued": "Eliminado localmente — será removido do servidor quando a ligação voltar."
+        "deleteQueued": "Eliminado localmente — será removido do servidor quando a ligação voltar.",
+        "queueCreateDropped": "Não foi possível enviar a criação ao servidor — o evento local foi removido.",
+        "queueDeleteDropped": "Não foi possível enviar a eliminação ao servidor — o evento reaparecerá na próxima sincronização.",
+        "queueUpdateDropped": "Não foi possível enviar a alteração ao servidor — o evento será ressincronizado."
   },
   "settings": {
     "title": "Definições",

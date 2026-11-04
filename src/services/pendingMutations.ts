@@ -1,9 +1,12 @@
 import { useSyncExternalStore } from 'react';
+import { Alert } from 'react-native';
 import { storage } from '@/storage';
 import type { Account, CalendarMeta } from '@/types';
 import { putEvent, updateEvent, deleteEvent, moveEvent } from '@/services/nextcloud/caldav';
-import { HttpError } from '@/services/shared/errors';
+import { HttpError, describeMutationError } from '@/services/shared/errors';
 import { getIsOnline } from '@/services/shared/network';
+import { removeWhere, seriesBaseUid } from '@/database/eventWrites';
+import i18n from '@/utils/i18n';
 
 const KEY = 'pendingMutations.v1';
 const MAX_TRIES = 10;
@@ -48,8 +51,10 @@ type DistributiveOmit<T, K extends keyof T> = T extends unknown ? Omit<T, K> : n
 
 export function enqueue(op: DistributiveOmit<PendingOp, 'id' | 'tries' | 'createdAt'>): void {
     const queue = readQueue();
-    queue.push({ ...op, id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, tries: 0, createdAt: Date.now() } as PendingOp);
+    const queued = { ...op, id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, tries: 0, createdAt: Date.now() } as PendingOp;
+    queue.push(queued);
     writeQueue(queue);
+    console.info(`[pendingMutations] queued ${queued.kind} op ${queued.id}`);
 }
 
 export function pendingCount(): number {
@@ -81,13 +86,25 @@ export async function drainPending(account: Account): Promise<number> {
                 else await moveEvent(account, op.fromHref, op.targetCalendar, op.uid);
                 writeQueue(queue.filter((o) => o.id !== op.id));
                 flushed++;
+                console.info(`[pendingMutations] replayed ${op.kind} op ${op.id}`);
             } catch (error) {
                 if (isNetworkFailure(error) && op.tries + 1 < MAX_TRIES) {
                     writeQueue(queue.map((o) => (o.id === op.id ? { ...o, tries: o.tries + 1 } : o)));
+                    console.warn(`[pendingMutations] replay of ${op.kind} op ${op.id} failed (${op.tries + 1}/${MAX_TRIES}), staying queued:`, error);
                     break; // still offline — stop the loop, retry on next online transition
                 }
-                // HTTP verdict or exhausted: drop, local state stays as the user saw it
+                // HTTP verdict or exhausted: drop and reconcile — never leave a
+                // local change the server refused without telling the user.
+                console.warn(`[pendingMutations] dropping ${op.kind} op ${op.id}:`, error);
                 writeQueue(queue.filter((o) => o.id !== op.id));
+                if (op.kind === 'create') {
+                    await removeWhere(op.accountId, (e) => seriesBaseUid(e.uid) === op.uid).catch(() => undefined);
+                    Alert.alert(i18n.t('event.queueCreateDropped'), describeMutationError(error));
+                } else if (op.kind === 'delete') {
+                    Alert.alert(i18n.t('event.queueDeleteDropped'), describeMutationError(error));
+                } else {
+                    Alert.alert(i18n.t('event.queueUpdateDropped'), describeMutationError(error));
+                }
             }
         }
     } finally {

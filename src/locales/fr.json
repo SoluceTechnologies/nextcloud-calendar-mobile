@@ -185,7 +185,10 @@
         "findTimeNone": "Aucun créneau libre ce jour.",
         "findTimeError": "Impossible de charger les disponibilités.",
         "createQueued": "Enregistré en local — sera envoyé au serveur dès le retour du réseau.",
-        "deleteQueued": "Supprimé en local — sera retiré du serveur dès le retour du réseau."
+        "deleteQueued": "Supprimé en local — sera retiré du serveur dès le retour du réseau.",
+        "queueCreateDropped": "Impossible d'envoyer la création au serveur — l'événement local a été retiré.",
+        "queueDeleteDropped": "Impossible d'envoyer la suppression au serveur — l'événement réapparaîtra à la prochaine synchronisation.",
+        "queueUpdateDropped": "Impossible d'envoyer la modification au serveur — l'événement sera resynchronisé."
   },
   "settings": {
     "title": "Paramètres",

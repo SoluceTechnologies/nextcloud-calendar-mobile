@@ -74,9 +74,9 @@ jest.mock('@/services/voice/tts', () => ({
     isSpeaking: jest.fn(async () => false),
 }));
 
-const mockCreateMutate = jest.fn(async () => {});
-const mockUpdateMutate = jest.fn(async () => {});
-const mockDeleteMutate = jest.fn(async () => {});
+const mockCreateMutate = jest.fn(async () => 'ok');
+const mockUpdateMutate = jest.fn(async () => 'ok');
+const mockDeleteMutate = jest.fn(async () => 'ok');
 jest.mock('@/features/event/hooks/useMutateEvent', () => ({
     useCreateEvent: () => ({ mutateAsync: mockCreateMutate }),
     useUpdateEvent: () => ({ mutateAsync: mockUpdateMutate }),
@@ -195,6 +195,34 @@ describe('mutations behind the confirmation gate', () => {
         await act(async () => result.current.confirm());
         await waitFor(() => expect(result.current.state).toBe('replying'));
         expect(mockCreateMutate).toHaveBeenCalledTimes(1);
+    });
+
+    it('create queued offline → honest reply, not "created"', async () => {
+        const start = new Date(2030, 0, 5, 14, 30);
+        mockParse.mockReturnValue({ kind: 'create', summary: 'Dentiste', start, names: [] });
+        mockCreateMutate.mockResolvedValueOnce('queued');
+        const { result } = renderAssistant();
+        await act(async () => result.current.open());
+        await act(async () => result.current.submitText('crée dentiste lundi 14h30'));
+        await waitFor(() => expect(result.current.state).toBe('confirming'));
+
+        await act(async () => result.current.confirm());
+        await waitFor(() => expect(result.current.state).toBe('replying'));
+        expect(result.current.reply).toBe('Saved locally — will be sent to the server when the connection returns.');
+    });
+
+    it('create failed → error state, no fake success', async () => {
+        const start = new Date(2030, 0, 5, 14, 30);
+        mockParse.mockReturnValue({ kind: 'create', summary: 'Dentiste', start, names: [] });
+        mockCreateMutate.mockResolvedValueOnce('failed');
+        const { result } = renderAssistant();
+        await act(async () => result.current.open());
+        await act(async () => result.current.submitText('crée dentiste lundi 14h30'));
+        await waitFor(() => expect(result.current.state).toBe('confirming'));
+
+        await act(async () => result.current.confirm());
+        await waitFor(() => expect(result.current.state).toBe('error'));
+        expect(result.current.reply).toBeUndefined();
     });
 
     it('delete with several matches → disambiguating → pick → confirm → delete', async () => {

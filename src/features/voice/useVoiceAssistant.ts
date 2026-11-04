@@ -537,25 +537,29 @@ export function useVoiceAssistant(account: Account | null, calendars: CalendarMe
         const gen = genRef.current;
         setStatus('executing');
         try {
-            if (op.kind === 'create') {
-                await createEvent.mutateAsync(op.input);
-                if (genRef.current !== gen) return;
-                replyWith(t('voice.created'));
-            } else if (op.kind === 'move') {
-                await updateEvent.mutateAsync({
-                    event: op.event,
-                    input: { ...eventToInput(op.event, account), dtstart: op.dtstart, dtend: op.dtend },
-                    datesOnly: true,
-                });
-                if (genRef.current !== gen) return;
-                replyWith(t('voice.moved'));
-            } else {
-                await deleteEvent.mutateAsync({ event: op.event });
-                if (genRef.current !== gen) return;
-                replyWith(t('voice.deleted'));
-            }
+            const result =
+                op.kind === 'create'
+                    ? await createEvent.mutateAsync(op.input)
+                    : op.kind === 'move'
+                      ? await updateEvent.mutateAsync({
+                            event: op.event,
+                            input: { ...eventToInput(op.event, account), dtstart: op.dtstart, dtend: op.dtend },
+                            datesOnly: true,
+                        })
+                      : await deleteEvent.mutateAsync({ event: op.event });
+            if (genRef.current !== gen) return;
             pendingRef.current = null;
             pendingIntentRef.current = null;
+            if (result === 'failed') {
+                setErrorText(t('voice.serverError'));
+                setStatus('error');
+                return;
+            }
+            replyWith(
+                result === 'queued'
+                    ? t(op.kind === 'delete' ? 'event.deleteQueued' : 'event.createQueued')
+                    : t(op.kind === 'create' ? 'voice.created' : op.kind === 'move' ? 'voice.moved' : 'voice.deleted'),
+            );
         } catch (e) {
             if (__DEV__) console.warn('[voice] mutation failed', e);
             if (genRef.current === gen) {
