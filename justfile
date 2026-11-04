@@ -10,6 +10,9 @@ seed *args:
 unseed *args:
     bash ./scripts/seed-nextcloud.sh --wipe "$@"
 
+theme-parity:
+    python3 ./scripts/check-theme-parity.py
+
 android:
     yarn android
 

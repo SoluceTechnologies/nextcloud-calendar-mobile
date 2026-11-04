@@ -68,3 +68,6 @@ android/*
 # Devin CLI working files (skills, plans, agents) — like .claude/.codex
 .devin/
 .fdroid/
+
+# Penpot: extracted .penpot export is regenerable — keep only tokens.json + *.penpot
+/penpot/*/
