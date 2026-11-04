@@ -414,7 +414,8 @@
     "confirmDelete": "Eliminare «{{title}}»?",
     "untitled": "Senza titolo",
     "nothingOnDay": "Niente il {{date}}.",
-    "attendeesDropped": "invitati non riconosciuti: {{names}}"
+        "attendeesDropped": "invitati non riconosciuti: {{names}}",
+        "withAttendees": "con {{names}}"
   },
   "certTrust": {
     "title": "Certificato non attendibile",

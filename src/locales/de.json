@@ -414,7 +414,8 @@
     "confirmDelete": "„{{title}}“ löschen?",
     "untitled": "Ohne Titel",
     "nothingOnDay": "Nichts am {{date}}.",
-    "attendeesDropped": "Teilnehmer nicht erkannt: {{names}}"
+        "attendeesDropped": "Teilnehmer nicht erkannt: {{names}}",
+        "withAttendees": "mit {{names}}"
   },
   "certTrust": {
     "title": "Nicht vertrauenswürdiges Zertifikat",

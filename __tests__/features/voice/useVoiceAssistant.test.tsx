@@ -392,6 +392,7 @@ describe('slot — free-slot proposals', () => {
         await act(async () => result.current.pickCandidate(0));
         await waitFor(() => expect(result.current.state).toBe('confirming'));
         expect(result.current.intentDescription).toContain('Personnel');
+        expect(result.current.intentDescription).toContain('Devin');
 
         await act(async () => result.current.confirm());
         await waitFor(() => expect(result.current.state).toBe('replying'));

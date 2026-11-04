@@ -93,6 +93,7 @@ export function useVoiceAssistant(account: Account | null, calendars: CalendarMe
     const pendingSlotsRef = useRef<FreeSlot[]>([]);
     const preResolvedAttendeesRef = useRef<{ attendees: Attendee[]; dropped: string[] } | null>(null);
     const pendingAttendeesRef = useRef<Attendee[]>([]);
+    const pendingNotesRef = useRef('');
     const pendingIntentRef = useRef<VoiceIntent | null>(null);
     const abortRef = useRef<AbortController | null>(null);
 
@@ -192,6 +193,13 @@ export function useVoiceAssistant(account: Account | null, calendars: CalendarMe
                 dropped = resolved.ambiguous;
             }
             if (genRef.current !== gen) return;
+            const withNote = attendees.length
+                ? ` — ${t('voice.withAttendees', { names: attendees.map((a) => a.displayName || a.email).join(', ') })}`
+                : '';
+            const droppedNote = dropped.length
+                ? ` — ${t('voice.attendeesDropped', { names: dropped.join(', ') })}`
+                : '';
+            pendingNotesRef.current = withNote + droppedNote;
 
             const writable = calendars.filter((c) => !c.isReadOnly);
             if (!writable.length) {
@@ -241,10 +249,8 @@ export function useVoiceAssistant(account: Account | null, calendars: CalendarMe
                     attendees,
                 }),
             };
-            const droppedNote = dropped.length
-                ? ` — ${t('voice.attendeesDropped', { names: dropped.join(', ') })}`
-                : '';
-            setIntentDescription(describeIntent(intent, calendar.displayName) + droppedNote);
+            setIntentDescription(describeIntent(intent, calendar.displayName) + pendingNotesRef.current);
+            pendingNotesRef.current = '';
             setStatus('confirming');
         },
         [account, calendars, describeIntent, setStatus, t],
@@ -423,6 +429,7 @@ export function useVoiceAssistant(account: Account | null, calendars: CalendarMe
             candidateEventsRef.current = [];
             candidateCalendarsRef.current = [];
             pendingAttendeesRef.current = [];
+            pendingNotesRef.current = '';
             pendingSlotsRef.current = [];
             preResolvedAttendeesRef.current = null;
             setCandidates([]);
@@ -489,6 +496,7 @@ export function useVoiceAssistant(account: Account | null, calendars: CalendarMe
         candidateEventsRef.current = [];
         candidateCalendarsRef.current = [];
         pendingAttendeesRef.current = [];
+        pendingNotesRef.current = '';
         pendingSlotsRef.current = [];
         preResolvedAttendeesRef.current = null;
         pendingIntentRef.current = null;
@@ -513,6 +521,7 @@ export function useVoiceAssistant(account: Account | null, calendars: CalendarMe
         candidateEventsRef.current = [];
         candidateCalendarsRef.current = [];
         pendingAttendeesRef.current = [];
+        pendingNotesRef.current = '';
         pendingSlotsRef.current = [];
         preResolvedAttendeesRef.current = null;
         setCandidates([]);
@@ -597,7 +606,8 @@ export function useVoiceAssistant(account: Account | null, calendars: CalendarMe
                 candidateCalendarsRef.current = [];
                 pendingAttendeesRef.current = [];
                 setCandidates([]);
-                setIntentDescription(describeIntent(intent, cal.displayName));
+                setIntentDescription(describeIntent(intent, cal.displayName) + pendingNotesRef.current);
+                pendingNotesRef.current = '';
                 setStatus('confirming');
                 return;
             }

@@ -401,7 +401,8 @@
     "confirmDelete": "Suprimir « {{title}} » ?",
     "untitled": "Sens títol",
     "nothingOnDay": "Res lo {{date}}.",
-    "attendeesDropped": "convidats pas reconeguts : {{names}}"
+        "attendeesDropped": "convidats pas reconeguts : {{names}}",
+        "withAttendees": "amb {{names}}"
   },
   "certTrust": {
     "title": "Certificat pas de fisança",

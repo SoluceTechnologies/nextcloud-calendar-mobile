@@ -414,7 +414,8 @@
     "confirmDelete": "Удалить «{{title}}»?",
     "untitled": "Без названия",
     "nothingOnDay": "На {{date}} ничего нет.",
-    "attendeesDropped": "участники не распознаны: {{names}}"
+        "attendeesDropped": "участники не распознаны: {{names}}",
+        "withAttendees": "с {{names}}"
   },
   "certTrust": {
     "title": "Недоверенный сертификат",

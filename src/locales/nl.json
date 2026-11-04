@@ -414,7 +414,8 @@
     "confirmDelete": "„{{title}}” verwijderen?",
     "untitled": "Zonder titel",
     "nothingOnDay": "Niets op {{date}}.",
-    "attendeesDropped": "genodigden niet herkend: {{names}}"
+        "attendeesDropped": "genodigden niet herkend: {{names}}",
+        "withAttendees": "met {{names}}"
   },
   "certTrust": {
     "title": "Niet-vertrouwd certificaat",

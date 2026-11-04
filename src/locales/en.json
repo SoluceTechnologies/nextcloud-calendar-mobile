@@ -414,7 +414,8 @@
     "confirmDelete": "Delete \"{{title}}\"?",
     "untitled": "Untitled",
     "nothingOnDay": "Nothing on {{date}}.",
-    "attendeesDropped": "attendees not recognized: {{names}}"
+        "attendeesDropped": "attendees not recognized: {{names}}",
+        "withAttendees": "with {{names}}"
   },
   "certTrust": {
     "title": "Untrusted certificate",
