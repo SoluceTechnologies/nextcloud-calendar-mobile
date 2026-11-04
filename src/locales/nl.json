@@ -334,6 +334,10 @@
       "openInApp": "Nextcloud Talk app",
       "openInBrowser": "Browser",
       "askEachTime": "Ask each time"
+    },
+    "voice": {
+      "title": "Spraakassistent",
+      "tierNote": "Lokale opdrachten blijven op het apparaat; vrije vragen gebruiken de Nextcloud-assistent wanneer de server die aanbiedt."
     }
   },
   "widget": {
@@ -365,6 +369,38 @@
     "stop": "Briefing stoppen",
     "emptyDay": "Geen afspraken vandaag",
     "emptyDayDated": "Geen afspraken op {{date}}"
+  },
+  "voice": {
+    "open": "Spraakassistent",
+    "listening": "Ik luister…",
+    "hint": "Probeer: „tandartsafspraak morgen om 14 uur”",
+    "inputPlaceholder": "Typ een opdracht…",
+    "send": "Verzenden",
+    "confirm": "Bevestigen",
+    "cancel": "Annuleren",
+    "retry": "Opnieuw proberen",
+    "thinking": "De server denkt na…",
+    "notUnderstood": "Ik heb het niet begrepen, herformuleer.",
+    "sttUnavailable": "Spraakherkenning niet beschikbaar — gebruik typen.",
+    "permissionDenied": "Microfoontoegang geweigerd.",
+    "created": "Afspraak aangemaakt.",
+    "moved": "Afspraak verplaatst.",
+    "deleted": "Afspraak verwijderd.",
+    "nothingFound": "Geen afspraak gevonden.",
+    "chooseOne": "Welke?",
+    "enabled": "Spraakassistent",
+    "enabledHint": "Toont de microfoonknop om de agenda met spraak of tekst te bedienen.",
+    "agentAvailable": "Serverassistent beschikbaar.",
+    "agentUnavailable": "Serverassistent niet beschikbaar — alleen lokale opdrachten.",
+    "serverError": "De server heeft niet geantwoord.",
+    "stillThinking": "De server denkt nog na, probeer het later opnieuw.",
+    "tapToSpeak": "Tik om te spreken",
+    "confirmCreate": "„{{title}}” op {{when}} aanmaken?",
+    "confirmMove": "„{{title}}” verplaatsen naar {{when}}?",
+    "confirmDelete": "„{{title}}” verwijderen?",
+    "untitled": "Zonder titel",
+    "nothingOnDay": "Niets op {{date}}.",
+    "attendeesDropped": "genodigden niet herkend: {{names}}"
   },
   "certTrust": {
     "title": "Niet-vertrouwd certificaat",

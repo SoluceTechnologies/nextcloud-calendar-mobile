@@ -334,6 +334,10 @@
       "openInApp": "Nextcloud Talk app",
       "openInBrowser": "Browser",
       "askEachTime": "Ask each time"
+    },
+    "voice": {
+      "title": "Voice assistant",
+      "tierNote": "Local commands run on-device; free-form questions use the Nextcloud assistant when the server provides it."
     }
   },
   "widget": {
@@ -365,6 +369,38 @@
     "stop": "Stop briefing",
     "emptyDay": "No events today",
     "emptyDayDated": "No events on {{date}}"
+  },
+  "voice": {
+    "open": "Voice assistant",
+    "listening": "Listening…",
+    "hint": "Try: \"dentist appointment tomorrow at 2 pm\"",
+    "inputPlaceholder": "Type a command…",
+    "send": "Send",
+    "confirm": "Confirm",
+    "cancel": "Cancel",
+    "retry": "Retry",
+    "thinking": "The server is thinking…",
+    "notUnderstood": "I didn't understand, please rephrase.",
+    "sttUnavailable": "Voice recognition unavailable — use typing instead.",
+    "permissionDenied": "Microphone permission denied.",
+    "created": "Event created.",
+    "moved": "Event moved.",
+    "deleted": "Event deleted.",
+    "nothingFound": "No event found.",
+    "chooseOne": "Which one?",
+    "enabled": "Voice assistant",
+    "enabledHint": "Show the microphone button to control the calendar by voice or text.",
+    "agentAvailable": "Server assistant available.",
+    "agentUnavailable": "Server assistant unavailable — local commands only.",
+    "serverError": "The server didn't respond.",
+    "stillThinking": "The server is still thinking, try again later.",
+    "tapToSpeak": "Tap to speak",
+    "confirmCreate": "Create \"{{title}}\" on {{when}}?",
+    "confirmMove": "Move \"{{title}}\" to {{when}}?",
+    "confirmDelete": "Delete \"{{title}}\"?",
+    "untitled": "Untitled",
+    "nothingOnDay": "Nothing on {{date}}.",
+    "attendeesDropped": "attendees not recognized: {{names}}"
   },
   "certTrust": {
     "title": "Untrusted certificate",

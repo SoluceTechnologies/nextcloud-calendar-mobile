@@ -334,6 +334,10 @@
       "openInApp": "Nextcloud Talk app",
       "openInBrowser": "Browser",
       "askEachTime": "Ask each time"
+    },
+    "voice": {
+      "title": "Sprachassistent",
+      "tierNote": "Lokale Befehle laufen auf dem Gerät; freie Fragen nutzen den Nextcloud-Assistenten, sofern der Server ihn bereitstellt."
     }
   },
   "widget": {
@@ -365,6 +369,38 @@
     "stop": "Briefing beenden",
     "emptyDay": "Keine Ereignisse heute",
     "emptyDayDated": "Keine Ereignisse am {{date}}"
+  },
+  "voice": {
+    "open": "Sprachassistent",
+    "listening": "Ich höre zu…",
+    "hint": "Versuchen Sie: „Zahnarzttermin morgen um 14 Uhr“",
+    "inputPlaceholder": "Befehl eingeben…",
+    "send": "Senden",
+    "confirm": "Bestätigen",
+    "cancel": "Abbrechen",
+    "retry": "Erneut versuchen",
+    "thinking": "Der Server denkt nach…",
+    "notUnderstood": "Ich habe nicht verstanden, bitte umformulieren.",
+    "sttUnavailable": "Spracherkennung nicht verfügbar — bitte tippen.",
+    "permissionDenied": "Mikrofonzugriff verweigert.",
+    "created": "Termin erstellt.",
+    "moved": "Termin verschoben.",
+    "deleted": "Termin gelöscht.",
+    "nothingFound": "Kein Termin gefunden.",
+    "chooseOne": "Welcher?",
+    "enabled": "Sprachassistent",
+    "enabledHint": "Zeigt die Mikrofontaste, um den Kalender per Sprache oder Text zu steuern.",
+    "agentAvailable": "Server-Assistent verfügbar.",
+    "agentUnavailable": "Server-Assistent nicht verfügbar — nur lokale Befehle.",
+    "serverError": "Der Server hat nicht geantwortet.",
+    "stillThinking": "Der Server denkt noch nach, versuchen Sie es später erneut.",
+    "tapToSpeak": "Zum Sprechen tippen",
+    "confirmCreate": "„{{title}}“ am {{when}} erstellen?",
+    "confirmMove": "„{{title}}“ auf {{when}} verschieben?",
+    "confirmDelete": "„{{title}}“ löschen?",
+    "untitled": "Ohne Titel",
+    "nothingOnDay": "Nichts am {{date}}.",
+    "attendeesDropped": "Teilnehmer nicht erkannt: {{names}}"
   },
   "certTrust": {
     "title": "Nicht vertrauenswürdiges Zertifikat",

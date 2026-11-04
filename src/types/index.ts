@@ -90,9 +90,41 @@ export type CreateEventInput = {
 
 export type CalendarAppStatus = 'unknown' | 'available' | 'unconfigured';
 
+export type TaskTypeSlotShape = {
+    name: string;
+    description: string;
+    /** ShapeEnum — int on older NC, enum name string on newer ones. */
+    type: number | string;
+    mandatory: boolean;
+};
+
+export type TaskTypeInfo = {
+    name: string;
+    description: string;
+    inputShape: Record<string, TaskTypeSlotShape>;
+    outputShape: Record<string, TaskTypeSlotShape>;
+    isInternal?: boolean;
+};
+
+export type TaskProcessingStatus = 0 | 1 | 2 | 3 | 4 | 5;
+// 0 unknown, 1 scheduled, 2 running, 3 successful, 4 failed, 5 cancelled
+
+export type TaskProcessingTask = {
+    id: number;
+    type: string;
+    status: TaskProcessingStatus;
+    input?: Record<string, unknown>;
+    output?: Record<string, unknown> | null;
+    message?: string;
+    userId?: string;
+    appId?: string;
+    customId?: string;
+};
+
 export type ServerCapabilities = {
     talkEnabled: boolean;
     calendarApp: CalendarAppStatus;
+    taskTypes?: Record<string, TaskTypeInfo>;
 };
 
 export type ViewMode = 'month' | 'week' | '3days' | 'day' | 'schedule';

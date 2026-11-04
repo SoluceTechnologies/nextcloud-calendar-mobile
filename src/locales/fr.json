@@ -334,6 +334,10 @@
       "openInApp": "Application Nextcloud Talk",
       "openInBrowser": "Navigateur",
       "askEachTime": "Demander à chaque fois"
+    },
+    "voice": {
+      "title": "Assistant vocal",
+      "tierNote": "Les commandes locales restent sur l'appareil ; les questions libres utilisent l'assistant Nextcloud quand le serveur le propose."
     }
   },
   "widget": {
@@ -365,6 +369,38 @@
     "stop": "Arrêter le briefing",
     "emptyDay": "Aucun événement aujourd'hui",
     "emptyDayDated": "Aucun événement le {{date}}"
+  },
+  "voice": {
+    "open": "Assistant vocal",
+    "listening": "Je vous écoute…",
+    "hint": "Essayez : « rendez-vous dentiste demain à 14 h »",
+    "inputPlaceholder": "Saisissez une commande…",
+    "send": "Envoyer",
+    "confirm": "Confirmer",
+    "cancel": "Annuler",
+    "retry": "Réessayer",
+    "thinking": "Le serveur réfléchit…",
+    "notUnderstood": "Je n'ai pas compris, reformulez.",
+    "sttUnavailable": "Reconnaissance vocale indisponible — utilisez la saisie.",
+    "permissionDenied": "Accès au microphone refusé.",
+    "created": "Événement créé.",
+    "moved": "Événement déplacé.",
+    "deleted": "Événement supprimé.",
+    "nothingFound": "Aucun événement trouvé.",
+    "chooseOne": "Lequel ?",
+    "enabled": "Assistant vocal",
+    "enabledHint": "Affiche le bouton micro pour piloter l'agenda à la voix ou au clavier.",
+    "agentAvailable": "Assistant serveur disponible.",
+    "agentUnavailable": "Assistant serveur indisponible — commandes locales uniquement.",
+    "serverError": "Le serveur n'a pas répondu.",
+    "stillThinking": "Le serveur réfléchit encore, réessayez plus tard.",
+    "tapToSpeak": "Touchez pour parler",
+    "confirmCreate": "Créer « {{title}} » le {{when}} ?",
+    "confirmMove": "Déplacer « {{title}} » au {{when}} ?",
+    "confirmDelete": "Supprimer « {{title}} » ?",
+    "untitled": "Sans titre",
+    "nothingOnDay": "Rien le {{date}}.",
+    "attendeesDropped": "invités non reconnus : {{names}}"
   },
   "certTrust": {
     "title": "Certificat non approuvé",

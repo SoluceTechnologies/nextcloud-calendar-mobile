@@ -334,6 +334,10 @@
       "openInApp": "Nextcloud Talk app",
       "openInBrowser": "Browser",
       "askEachTime": "Ask each time"
+    },
+    "voice": {
+      "title": "Assistente de voz",
+      "tierNote": "Os comandos locais correm no dispositivo; as perguntas livres usam o assistente Nextcloud quando o servidor o disponibiliza."
     }
   },
   "widget": {
@@ -365,6 +369,38 @@
     "stop": "Parar o briefing",
     "emptyDay": "Sem eventos hoje",
     "emptyDayDated": "Sem eventos em {{date}}"
+  },
+  "voice": {
+    "open": "Assistente de voz",
+    "listening": "Estou a ouvir…",
+    "hint": "Experimente: «consulta no dentista amanhã às 14 h»",
+    "inputPlaceholder": "Escreva um comando…",
+    "send": "Enviar",
+    "confirm": "Confirmar",
+    "cancel": "Cancelar",
+    "retry": "Tentar novamente",
+    "thinking": "O servidor está a pensar…",
+    "notUnderstood": "Não percebi, reformule.",
+    "sttUnavailable": "Reconhecimento de voz indisponível — use a escrita.",
+    "permissionDenied": "Permissão de microfone negada.",
+    "created": "Evento criado.",
+    "moved": "Evento movido.",
+    "deleted": "Evento eliminado.",
+    "nothingFound": "Nenhum evento encontrado.",
+    "chooseOne": "Qual?",
+    "enabled": "Assistente de voz",
+    "enabledHint": "Mostra o botão de microfone para controlar a agenda por voz ou texto.",
+    "agentAvailable": "Assistente do servidor disponível.",
+    "agentUnavailable": "Assistente do servidor indisponível — apenas comandos locais.",
+    "serverError": "O servidor não respondeu.",
+    "stillThinking": "O servidor ainda está a pensar, tente mais tarde.",
+    "tapToSpeak": "Toque para falar",
+    "confirmCreate": "Criar «{{title}}» em {{when}}?",
+    "confirmMove": "Mover «{{title}}» para {{when}}?",
+    "confirmDelete": "Eliminar «{{title}}»?",
+    "untitled": "Sem título",
+    "nothingOnDay": "Nada em {{date}}.",
+    "attendeesDropped": "convidados não reconhecidos: {{names}}"
   },
   "certTrust": {
     "title": "Certificado não confiável",

@@ -81,6 +81,28 @@ jest.mock('expo-speech', () => ({
   getAvailableVoicesAsync: jest.fn().mockResolvedValue([]),
 }));
 
+jest.mock('expo-speech-recognition', () => ({
+  ExpoSpeechRecognitionModule: {
+    start: jest.fn(),
+    stop: jest.fn(),
+    abort: jest.fn(),
+    addListener: jest.fn(() => ({ remove: jest.fn() })),
+    requestPermissionsAsync: jest.fn(async () => ({
+      granted: true,
+      canAskAgain: true,
+      status: 'granted',
+    })),
+    getPermissionsAsync: jest.fn(async () => ({
+      granted: true,
+      canAskAgain: true,
+      status: 'granted',
+    })),
+    isRecognitionAvailable: jest.fn(() => true),
+    getStateAsync: jest.fn(async () => 'inactive'),
+  },
+  useSpeechRecognitionEvent: jest.fn(),
+}));
+
 jest.mock('react-native-reanimated', () => {
   const { View, ScrollView } = require('react-native');
   return {

@@ -34,6 +34,8 @@ import { useUpdateEvent } from '@/features/event/hooks/useMutateEvent';
 import { askRecurrenceScope } from '@/features/event/recurrenceScope';
 import { useBriefing } from '@/features/briefing/useBriefing';
 import { BriefingBar } from '@/features/briefing/BriefingBar';
+import { useVoiceAssistant } from '@/features/voice/useVoiceAssistant';
+import { VoiceAssistantSheet } from '@/features/voice/VoiceAssistantSheet';
 
 dayjs.extend(isoWeek);
 
@@ -49,6 +51,7 @@ export default function CalendarScreen() {
   const toggleCalendarVisibility = useCalendarStore((s) => s.toggleCalendarVisibility);
   const notifDisabledCalendarIds = useCalendarStore((s) => s.notifDisabledCalendarIds);
   const toggleCalendarNotifications = useCalendarStore((s) => s.toggleCalendarNotifications);
+  const voiceAssistantEnabled = useSettingsStore((s) => s.voiceAssistantEnabled);
 
   const nav = useCalendarNavigation();
   const { viewMode, date, fetchDate, agendaVisibleDate } = nav;
@@ -70,6 +73,7 @@ export default function CalendarScreen() {
   } = useCalendarData(fetchDate, viewMode === 'schedule');
   const insets = useSafeAreaInsets();
   const drawer = useCalendarDrawer();
+  const voice = useVoiceAssistant(activeAccount, calendars);
   const briefing = useBriefing(displayedDay);
   const { start: startBriefing } = briefing;
   const handleListen = useCallback(() => {
@@ -169,6 +173,7 @@ export default function CalendarScreen() {
         onToday={nav.goToday}
         onSwitchMode={nav.switchMode}
         onListen={handleListen}
+        onOpenVoice={voiceAssistantEnabled ? voice.open : undefined}
       />
 
       <OfflineBanner />
@@ -236,6 +241,22 @@ export default function CalendarScreen() {
         onNext={briefing.next}
         onStop={briefing.stop}
         style={StyleSheet.flatten([styles.briefingBar, { bottom: insets.bottom + 76 }])}
+      />
+
+      <VoiceAssistantSheet
+        visible={voice.visible}
+        state={voice.state === 'idle' ? 'listening' : voice.state}
+        transcript={voice.transcript}
+        intentDescription={voice.intentDescription}
+        candidates={voice.candidates}
+        reply={voice.reply}
+        errorText={voice.errorText}
+        onSubmitText={voice.submitText}
+        onConfirm={voice.confirm}
+        onCancel={voice.close}
+        onPickCandidate={voice.pickCandidate}
+        onRelisten={voice.relisten}
+        onClose={voice.close}
       />
 
       <CalendarFab

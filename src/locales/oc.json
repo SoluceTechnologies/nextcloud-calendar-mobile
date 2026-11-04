@@ -321,7 +321,11 @@
       "defaultCalendarHint": "Presseleccionat a la creacion d'un eveniment.",
       "defaultCalendarAuto": "Automatic"
     },
-    "accountActive": "Actiu"
+    "accountActive": "Actiu",
+    "voice": {
+      "title": "Assistent vocal",
+      "tierNote": "Las comandas localas demòran sus l'aparelh ; las questions liuras utilizan l'assistent Nextcloud quand lo servidor o prepausa."
+    }
   },
   "widget": {
     "liveRemaining": "Demòra {{duration}}",
@@ -352,6 +356,38 @@
     "stop": "Arrestar lo briefing",
     "emptyDay": "Cap d’eveniment uèi",
     "emptyDayDated": "Cap d’eveniment per {{date}}"
+  },
+  "voice": {
+    "open": "Assistent vocal",
+    "listening": "Vos escoti…",
+    "hint": "Ensajatz : « rendètz-vos dentista deman a 14 oras »",
+    "inputPlaceholder": "Picatz una comanda…",
+    "send": "Enviar",
+    "confirm": "Confirmar",
+    "cancel": "Anullar",
+    "retry": "Tornar ensajar",
+    "thinking": "Lo servidor reflechís…",
+    "notUnderstood": "Ai pas comprés, reformulatz.",
+    "sttUnavailable": "Reconéissença vocala indisponibla — utilizatz lo clavièr.",
+    "permissionDenied": "Accès al microfòn refusat.",
+    "created": "Eveniment creat.",
+    "moved": "Eveniment desplaçat.",
+    "deleted": "Eveniment suprimit.",
+    "nothingFound": "Cap d’eveniment trobat.",
+    "chooseOne": "Loquin ?",
+    "enabled": "Assistent vocal",
+    "enabledHint": "Aficha lo boton microfòn per pilotar l’agenda a la votz o al clavièr.",
+    "agentAvailable": "Assistent servidor disponible.",
+    "agentUnavailable": "Assistent servidor indisponible — comandas localas unicament.",
+    "serverError": "Lo servidor a pas respondut.",
+    "stillThinking": "Lo servidor reflechís encara, tornatz ensajar mai tard.",
+    "tapToSpeak": "Tocatz per parlar",
+    "confirmCreate": "Crear « {{title}} » lo {{when}} ?",
+    "confirmMove": "Desplaçar « {{title}} » al {{when}} ?",
+    "confirmDelete": "Suprimir « {{title}} » ?",
+    "untitled": "Sens títol",
+    "nothingOnDay": "Res lo {{date}}.",
+    "attendeesDropped": "convidats pas reconeguts : {{names}}"
   },
   "certTrust": {
     "title": "Certificat pas de fisança",

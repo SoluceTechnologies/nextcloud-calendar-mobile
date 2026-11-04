@@ -334,6 +334,10 @@
       "openInApp": "Nextcloud Talk app",
       "openInBrowser": "Browser",
       "askEachTime": "Ask each time"
+    },
+    "voice": {
+      "title": "Asistente de voz",
+      "tierNote": "Los comandos locales se ejecutan en el dispositivo; las preguntas libres usan el asistente de Nextcloud cuando el servidor lo ofrece."
     }
   },
   "widget": {
@@ -365,6 +369,38 @@
     "stop": "Detener el briefing",
     "emptyDay": "No hay eventos hoy",
     "emptyDayDated": "No hay eventos el {{date}}"
+  },
+  "voice": {
+    "open": "Asistente de voz",
+    "listening": "Te escucho…",
+    "hint": "Prueba: «cita con el dentista mañana a las 14 h»",
+    "inputPlaceholder": "Escribe un comando…",
+    "send": "Enviar",
+    "confirm": "Confirmar",
+    "cancel": "Cancelar",
+    "retry": "Reintentar",
+    "thinking": "El servidor está pensando…",
+    "notUnderstood": "No te he entendido, reformula.",
+    "sttUnavailable": "Reconocimiento de voz no disponible — usa el teclado.",
+    "permissionDenied": "Permiso de micrófono denegado.",
+    "created": "Evento creado.",
+    "moved": "Evento movido.",
+    "deleted": "Evento eliminado.",
+    "nothingFound": "No se encontró ningún evento.",
+    "chooseOne": "¿Cuál?",
+    "enabled": "Asistente de voz",
+    "enabledHint": "Muestra el botón de micrófono para controlar el calendario por voz o texto.",
+    "agentAvailable": "Asistente del servidor disponible.",
+    "agentUnavailable": "Asistente del servidor no disponible — solo comandos locales.",
+    "serverError": "El servidor no respondió.",
+    "stillThinking": "El servidor sigue pensando, inténtalo más tarde.",
+    "tapToSpeak": "Toca para hablar",
+    "confirmCreate": "¿Crear «{{title}}» el {{when}}?",
+    "confirmMove": "¿Mover «{{title}}» al {{when}}?",
+    "confirmDelete": "¿Eliminar «{{title}}»?",
+    "untitled": "Sin título",
+    "nothingOnDay": "Nada el {{date}}.",
+    "attendeesDropped": "asistentes no reconocidos: {{names}}"
   },
   "certTrust": {
     "title": "Certificado no confiable",
