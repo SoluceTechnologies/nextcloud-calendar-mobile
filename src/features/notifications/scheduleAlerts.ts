@@ -8,6 +8,14 @@ import i18n from '@/utils/i18n';
 
 import { alertBody } from './alertContent';
 import { alertTimes } from './alerts';
+import {
+  ALERT_CATEGORY,
+  ALERT_NAV_CATEGORY,
+  hasNavigableLocation,
+  registerAlertSpeakCategory,
+  registerAlertSpeakTask,
+  type AlertSpeakData,
+} from './speakAlert';
 
 const CHANNEL_ID = 'event-alerts';
 const HORIZON_DAYS = 30;
@@ -54,6 +62,8 @@ export async function scheduleEventAlerts(now: Date = new Date()): Promise<void>
       if (!(await hasAlertPermission())) return;
 
       await ensureChannel();
+      await registerAlertSpeakCategory();
+      await registerAlertSpeakTask();
 
       const notifDisabled = useCalendarStore.getState().notifDisabledCalendarIds;
       const events = (await readUpcomingEvents(HORIZON_DAYS, now))
@@ -66,11 +76,24 @@ export async function scheduleEventAlerts(now: Date = new Date()): Promise<void>
         .slice(0, MAX_SCHEDULED);
 
       for (const { event, at } of due) {
+        const speakData: AlertSpeakData & Record<string, unknown> = {
+          uid: event.uid,
+          summary: event.summary,
+          dtstart: event.dtstart.toISOString(),
+          dtend: event.dtend.toISOString(),
+          allDay: event.allDay,
+          location: event.location,
+          talkUrl: event.talkUrl,
+          isTask: event.isTask,
+        };
         await Notifications.scheduleNotificationAsync({
           content: {
             title: event.summary,
             body: alertBody(event, at),
-            data: { uid: event.uid },
+            categoryIdentifier: hasNavigableLocation(event.location)
+              ? ALERT_NAV_CATEGORY
+              : ALERT_CATEGORY,
+            data: speakData,
           },
           trigger: {
             type: Notifications.SchedulableTriggerInputTypes.DATE,

@@ -354,6 +354,17 @@
       "tomorrow": "Morgen"
     }
   },
+  "briefing": {
+    "listen": "Mijn dag beluisteren",
+    "listenAction": "Luisteren",
+    "navigateAction": "Route",
+    "pause": "Pauzeren",
+    "resume": "Hervatten",
+    "next": "Volgende afspraak",
+    "stop": "Briefing stoppen",
+    "emptyDay": "Geen afspraken vandaag",
+    "emptyDayDated": "Geen afspraken op {{date}}"
+  },
   "certTrust": {
     "title": "Niet-vertrouwd certificaat",
     "body": "De server {{host}} heeft een certificaat aangeboden dat niet is ondertekend door een bekende autoriteit.",

@@ -354,6 +354,17 @@
       "tomorrow": "Morgen"
     }
   },
+  "briefing": {
+    "listen": "Meinen Tag anhören",
+    "listenAction": "Anhören",
+    "navigateAction": "Route",
+    "pause": "Pause",
+    "resume": "Fortsetzen",
+    "next": "Nächstes Ereignis",
+    "stop": "Briefing beenden",
+    "emptyDay": "Keine Ereignisse heute",
+    "emptyDayDated": "Keine Ereignisse am {{date}}"
+  },
   "certTrust": {
     "title": "Nicht vertrauenswürdiges Zertifikat",
     "body": "Der Server {{host}} hat ein Zertifikat vorgelegt, das nicht von einer bekannten Zertifizierungsstelle signiert ist.",

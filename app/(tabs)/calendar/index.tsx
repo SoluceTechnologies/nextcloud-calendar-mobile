@@ -1,7 +1,7 @@
-import { useCallback, useDeferredValue, useMemo, useRef } from 'react';
+import { useCallback, useDeferredValue, useEffect, useMemo, useRef } from 'react';
 import { View, StyleSheet } from 'react-native';
 import { useTranslation } from 'react-i18next';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import dayjs from 'dayjs';
 import isoWeek from 'dayjs/plugin/isoWeek';
@@ -32,6 +32,8 @@ import { isCalMode, type CalMode } from '@/features/calendar/constants';
 import { CalendarUnavailable } from '@/features/calendar/components/CalendarUnavailable';
 import { useUpdateEvent } from '@/features/event/hooks/useMutateEvent';
 import { askRecurrenceScope } from '@/features/event/recurrenceScope';
+import { useBriefing } from '@/features/briefing/useBriefing';
+import { BriefingBar } from '@/features/briefing/BriefingBar';
 
 dayjs.extend(isoWeek);
 
@@ -50,6 +52,7 @@ export default function CalendarScreen() {
 
   const nav = useCalendarNavigation();
   const { viewMode, date, fetchDate, agendaVisibleDate } = nav;
+  const displayedDay = viewMode === 'schedule' ? agendaVisibleDate : date;
   const { openDay } = useMonthReturn(viewMode, nav.switchMode);
 
   const deferredViewMode = useDeferredValue(viewMode);
@@ -67,6 +70,21 @@ export default function CalendarScreen() {
   } = useCalendarData(fetchDate, viewMode === 'schedule');
   const insets = useSafeAreaInsets();
   const drawer = useCalendarDrawer();
+  const briefing = useBriefing(displayedDay);
+  const { start: startBriefing } = briefing;
+  const handleListen = useCallback(() => {
+    void startBriefing();
+  }, [startBriefing]);
+
+  // nextcloud-calendar://listen (home-widget button) redirects here with
+  // ?autolisten=1 — start the briefing once, then clear the param so the next
+  // widget tap re-triggers.
+  const { autolisten } = useLocalSearchParams<{ autolisten?: string }>();
+  useEffect(() => {
+    if (autolisten !== '1') return;
+    void startBriefing();
+    router.setParams({ autolisten: undefined });
+  }, [autolisten, startBriefing, router]);
 
   const calendarEvents = useMemo(() => toGridEvents(allEvents), [allEvents]);
 
@@ -126,18 +144,16 @@ export default function CalendarScreen() {
     [activeAccount, mutateAsync, t, recurrenceScopeStrings]
   );
 
-  const isToday = viewMode === 'schedule'
-    ? dayjs(agendaVisibleDate).isSame(dayjs(), 'day')
-    : dayjs(date).isSame(dayjs(), 'day');
+  const isToday = dayjs(displayedDay).isSame(dayjs(), 'day');
 
   const headerTitle = useMemo(() => {
-    const d = dayjs(viewMode === 'schedule' ? agendaVisibleDate : date);
+    const d = dayjs(displayedDay);
     const monthYear = d.locale(language).format('MMMM YYYY');
     if (viewMode === 'week' || viewMode === '3days' || viewMode === 'day') {
       return `${monthYear}  ·  ${t('calendar.weekAbbr')}${d.isoWeek()}`;
     }
     return monthYear;
-  }, [date, agendaVisibleDate, viewMode, language, t]);
+  }, [displayedDay, viewMode, language, t]);
 
   if (calendarApp === 'unconfigured') {
     return <CalendarUnavailable />;
@@ -152,6 +168,7 @@ export default function CalendarScreen() {
         onOpenDrawer={drawer.openDrawer}
         onToday={nav.goToday}
         onSwitchMode={nav.switchMode}
+        onListen={handleListen}
       />
 
       <OfflineBanner />
@@ -211,9 +228,19 @@ export default function CalendarScreen() {
       {showFullOverlay && <CalendarLoadingOverlay label={t('calendar.loadingCalendar')} />}
       {showSmallLoader && <Spinner size="small" color="secondary" style={styles.smallLoader} />}
 
+      <BriefingBar
+        status={briefing.state === 'done' ? 'idle' : briefing.state}
+        currentText={briefing.segments[briefing.index]?.text ?? ''}
+        onPause={briefing.pause}
+        onResume={briefing.resume}
+        onNext={briefing.next}
+        onStop={briefing.stop}
+        style={StyleSheet.flatten([styles.briefingBar, { bottom: insets.bottom + 76 }])}
+      />
+
       <CalendarFab
         onPress={() => navGuard(() => {
-          const shown = viewMode === 'schedule' ? agendaVisibleDate : date;
+          const shown = displayedDay;
           const now = new Date();
           const start = new Date(
             shown.getFullYear(), shown.getMonth(), shown.getDate(), now.getHours(), now.getMinutes()
@@ -247,4 +274,5 @@ export default function CalendarScreen() {
 const styles = StyleSheet.create({
   viewArea: { flex: 1 },
   smallLoader: { position: 'absolute', bottom: 24, left: 16, zIndex: 5 },
+  briefingBar: { position: 'absolute', left: 16, right: 16, zIndex: 8 },
 });

@@ -2,7 +2,7 @@ import { memo } from 'react';
 import { ScrollView, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
-import { Menu } from 'lucide-react-native';
+import { Menu, Headphones } from 'lucide-react-native';
 import { useTheme } from 'expo-router';
 import { Stack, Typography, Chip, Icon, AnimatedPressable } from '@/ui/components';
 import type { ViewMode } from '@/types';
@@ -15,6 +15,7 @@ interface Props {
   onOpenDrawer: () => void;
   onToday: () => void;
   onSwitchMode: (mode: ViewMode) => void;
+  onListen?: () => void;
 }
 
 const VIEW_MODE_KEYS: Record<ViewMode, string> = {
@@ -25,7 +26,7 @@ const VIEW_MODE_KEYS: Record<ViewMode, string> = {
   schedule: 'calendar.schedule',
 };
 
-function CalendarTopBarImpl({ headerTitle, isToday, viewMode, onOpenDrawer, onToday, onSwitchMode }: Props) {
+function CalendarTopBarImpl({ headerTitle, isToday, viewMode, onOpenDrawer, onToday, onSwitchMode, onListen }: Props) {
   const { colors } = useTheme();
   const { t } = useTranslation();
   const todayDisabled = isToday;
@@ -54,6 +55,20 @@ function CalendarTopBarImpl({ headerTitle, isToday, viewMode, onOpenDrawer, onTo
         >
           {headerTitle}
         </Typography>
+
+        {onListen ? (
+          <AnimatedPressable
+            testID="calendar-listen"
+            accessibilityLabel={t('briefing.listen')}
+            onPress={onListen}
+            hitSlop={8}
+            style={styles.listenBtn}
+          >
+            <Icon size={22}>
+              <Headphones color={colors.primary} />
+            </Icon>
+          </AnimatedPressable>
+        ) : null}
 
         <AnimatedPressable
           testID="calendar-today"
@@ -84,6 +99,7 @@ export const CalendarTopBar = memo(CalendarTopBarImpl);
 const styles = StyleSheet.create({
   headerRow: { height: 44, paddingHorizontal: 12, paddingBottom: 4, alignItems: 'center' },
   hamburger: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', marginLeft: -4 },
+  listenBtn: { width: 40, height: 44, alignItems: 'center', justifyContent: 'center' },
   title: { flex: 1, marginHorizontal: 4 },
   todayBtn: { minWidth: 44, height: 44, paddingLeft: 6, alignItems: 'flex-end', justifyContent: 'center' },
   pills: { paddingHorizontal: 12, paddingBottom: 8, gap: 8 },

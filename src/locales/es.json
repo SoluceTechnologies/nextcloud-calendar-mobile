@@ -354,6 +354,17 @@
       "tomorrow": "Mañana"
     }
   },
+  "briefing": {
+    "listen": "Escuchar mi día",
+    "listenAction": "Escuchar",
+    "navigateAction": "Cómo llegar",
+    "pause": "Pausar",
+    "resume": "Reanudar",
+    "next": "Evento siguiente",
+    "stop": "Detener el briefing",
+    "emptyDay": "No hay eventos hoy",
+    "emptyDayDated": "No hay eventos el {{date}}"
+  },
   "certTrust": {
     "title": "Certificado no confiable",
     "body": "El servidor {{host}} presentó un certificado que no está firmado por una autoridad conocida.",
