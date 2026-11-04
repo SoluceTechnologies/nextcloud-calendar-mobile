@@ -9,6 +9,9 @@ import { useCalendarStore } from '@/stores/calendarStore';
 import { getNativePickerLocale } from '@/utils/i18n';
 import { resolveUse24h } from '@/utils/timeFormat';
 import { eventToInput } from '@/features/calendar/utils/eventToInput';
+import { resolveOrganizer } from '@/features/event/utils/organizer';
+import { fetchFreeBusy } from '@/services/nextcloud/freeBusy';
+import { mergeBusySlots } from '@/utils/freeBusy';
 import {
     useCreateEvent,
     useDeleteEvent,
@@ -88,6 +91,7 @@ export function useVoiceAssistant(account: Account | null, calendars: CalendarMe
     const candidateEventsRef = useRef<CalendarEvent[]>([]);
     const candidateCalendarsRef = useRef<CalendarMeta[]>([]);
     const pendingSlotsRef = useRef<FreeSlot[]>([]);
+    const preResolvedAttendeesRef = useRef<{ attendees: Attendee[]; dropped: string[] } | null>(null);
     const pendingAttendeesRef = useRef<Attendee[]>([]);
     const pendingIntentRef = useRef<VoiceIntent | null>(null);
     const abortRef = useRef<AbortController | null>(null);
@@ -178,7 +182,11 @@ export function useVoiceAssistant(account: Account | null, calendars: CalendarMe
             const names = intent.names ?? [];
             let attendees = [] as Awaited<ReturnType<typeof resolveAttendeeNames>>['attendees'];
             let dropped: string[] = [];
-            if (names.length) {
+            if (preResolvedAttendeesRef.current) {
+                attendees = preResolvedAttendeesRef.current.attendees;
+                dropped = preResolvedAttendeesRef.current.dropped;
+                preResolvedAttendeesRef.current = null;
+            } else if (names.length) {
                 const resolved = await resolveAttendeeNames(account, names);
                 attendees = resolved.attendees;
                 dropped = resolved.ambiguous;
@@ -229,8 +237,7 @@ export function useVoiceAssistant(account: Account | null, calendars: CalendarMe
                 kind: 'create',
                 input: inputFromCreateIntent(intent, {
                     calendarId: calendar.id,
-                    organizerEmail: account.username,
-                    organizerName: account.username,
+                    ...resolveOrganizer(account),
                     attendees,
                 }),
             };
@@ -285,8 +292,35 @@ export function useVoiceAssistant(account: Account | null, calendars: CalendarMe
                             calendars,
                             useCalendarStore.getState().availabilityCalendarOverrides,
                         );
+                        const busyEvents = events.filter((e) => busyIds.has(e.calendarId));
+                        // Resolve named attendees first: a good slot is free for them too.
+                        let attendees: Attendee[] = [];
+                        if (intent.names?.length) {
+                            const resolved = await resolveAttendeeNames(account, intent.names);
+                            if (genRef.current !== gen) return;
+                            attendees = resolved.attendees;
+                            preResolvedAttendeesRef.current = { attendees, dropped: resolved.ambiguous };
+                        }
+                        if (attendees.length) {
+                            try {
+                                const { organizerEmail, organizerName } = resolveOrganizer(account);
+                                const organizer: Attendee = { email: organizerEmail, displayName: organizerName };
+                                const day0 = dayjs(intent.day).startOf('day').toDate();
+                                const day1 = dayjs(intent.day).endOf('day').toDate();
+                                const avail = await fetchFreeBusy(account, organizer, attendees, day0, day1);
+                                if (genRef.current !== gen) return;
+                                for (const b of mergeBusySlots(avail)) {
+                                    busyEvents.push({
+                                        dtstart: b.start, dtend: b.end, allDay: false, isTask: false,
+                                        calendarId: '__freebusy__',
+                                    } as CalendarEvent);
+                                }
+                            } catch {
+                                // free/busy unreachable → propose on own calendars only
+                            }
+                        }
                         const now = new Date();
-                        const slots = findFreeSlots(events.filter((e) => busyIds.has(e.calendarId)), intent.day, {
+                        const slots = findFreeSlots(busyEvents, intent.day, {
                             durationMin: intent.durationMin,
                             minStart: dayjs(intent.day).isSame(now, 'day') ? now : undefined,
                         });
@@ -390,6 +424,7 @@ export function useVoiceAssistant(account: Account | null, calendars: CalendarMe
             candidateCalendarsRef.current = [];
             pendingAttendeesRef.current = [];
             pendingSlotsRef.current = [];
+            preResolvedAttendeesRef.current = null;
             setCandidates([]);
             setTranscript(trimmed);
             setReply(undefined);
@@ -455,6 +490,7 @@ export function useVoiceAssistant(account: Account | null, calendars: CalendarMe
         candidateCalendarsRef.current = [];
         pendingAttendeesRef.current = [];
         pendingSlotsRef.current = [];
+        preResolvedAttendeesRef.current = null;
         pendingIntentRef.current = null;
         setVisible(false);
         setStatus('idle');
@@ -478,6 +514,7 @@ export function useVoiceAssistant(account: Account | null, calendars: CalendarMe
         candidateCalendarsRef.current = [];
         pendingAttendeesRef.current = [];
         pendingSlotsRef.current = [];
+        preResolvedAttendeesRef.current = null;
         setCandidates([]);
         stt.cancelListening();
         abortRef.current?.abort();
@@ -553,8 +590,7 @@ export function useVoiceAssistant(account: Account | null, calendars: CalendarMe
                     kind: 'create',
                     input: inputFromCreateIntent(intent, {
                         calendarId: cal.id,
-                        organizerEmail: account.username,
-                        organizerName: account.username,
+                        ...resolveOrganizer(account),
                         attendees: pendingAttendeesRef.current,
                     }),
                 };

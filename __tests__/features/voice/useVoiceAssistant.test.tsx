@@ -59,6 +59,13 @@ jest.mock('@/services/voice/actions', () => {
     };
 });
 
+const mockFetchFreeBusy = jest.fn();
+jest.mock('@/services/nextcloud/freeBusy', () => ({
+    fetchFreeBusy: (...a: unknown[]) => mockFetchFreeBusy(...(a as [])),
+    schedulingOutboxUrl: () => 'https://test/outbox/',
+    buildFreeBusyIcs: () => '',
+}));
+
 jest.mock('@/services/voice/tts', () => ({
     speak: jest.fn((t: string, o?: { onDone?: () => void }) => o?.onDone?.()),
     stop: jest.fn(),
@@ -110,6 +117,7 @@ beforeEach(() => {
     mockNextEvent.mockResolvedValue(undefined);
     mockFindTargets.mockResolvedValue([]);
     mockResolveAttendees.mockResolvedValue({ attendees: [], ambiguous: [] });
+    mockFetchFreeBusy.mockResolvedValue([]);
     mockParse.mockReturnValue({ kind: 'unknown', raw: '' });
     useSettingsStore.setState({ defaultCalendarByAccount: {} });
     useCalendarStore.setState({ availabilityCalendarOverrides: {} });
@@ -425,6 +433,48 @@ describe('slot — free-slot proposals', () => {
         await waitFor(() => expect(result.current.state).toBe('disambiguating'));
         // clara now blocks 09–12 → gap 12–18 → starts 12, 14:30, 17
         expect(result.current.candidates).toEqual(['12:00 – 13:00', '14:30 – 15:30', '17:00 – 18:00']);
+    });
+
+    it('attendee free/busy periods block proposed slots', async () => {
+        const cals = [{ id: 'cal1', displayName: 'Personnel' }] as CalendarMeta[];
+        mockParse.mockReturnValue(slotIntent); // names:['Devin']
+        mockEventsOnDay.mockResolvedValue([]); // own day is empty
+        mockResolveAttendees.mockResolvedValue({
+            attendees: [{ email: 'devin@nc.test', displayName: 'Devin' }],
+            ambiguous: [],
+        });
+        mockFetchFreeBusy.mockResolvedValue([{
+            email: 'devin@nc.test', displayName: 'Devin', available: true, color: '#000',
+            slots: [{ start: at(9), end: at(12), fbType: 'BUSY', attendees: ['devin@nc.test'] }],
+        }]);
+        const { result } = renderHook(() => useVoiceAssistant(account, cals));
+        await act(async () => result.current.open());
+        await act(async () => result.current.submitText('trouve une dispo avec Devin demain'));
+        await waitFor(() => expect(result.current.state).toBe('disambiguating'));
+        // Devin busy 09–12 → gap 12–18 → starts 12, 14:30, 17
+        expect(result.current.candidates).toEqual(['12:00 – 13:00', '14:30 – 15:30', '17:00 – 18:00']);
+        expect(mockFetchFreeBusy).toHaveBeenCalled();
+        // pick a slot → resolved attendees must be reused (no second sharee lookup)
+        const callsBefore = mockResolveAttendees.mock.calls.length;
+        await act(async () => result.current.pickCandidate(0));
+        await waitFor(() => expect(result.current.state).toBe('confirming'));
+        expect(mockResolveAttendees.mock.calls.length).toBe(callsBefore);
+    });
+
+    it('free/busy failure falls back to own calendars only', async () => {
+        const cals = [{ id: 'cal1', displayName: 'Personnel' }] as CalendarMeta[];
+        mockParse.mockReturnValue(slotIntent);
+        mockEventsOnDay.mockResolvedValue([]);
+        mockResolveAttendees.mockResolvedValue({
+            attendees: [{ email: 'devin@nc.test', displayName: 'Devin' }],
+            ambiguous: [],
+        });
+        mockFetchFreeBusy.mockRejectedValue(new Error('network'));
+        const { result } = renderHook(() => useVoiceAssistant(account, cals));
+        await act(async () => result.current.open());
+        await act(async () => result.current.submitText('trouve une dispo avec Devin demain'));
+        await waitFor(() => expect(result.current.state).toBe('disambiguating'));
+        expect(result.current.candidates).toEqual(['09:00 – 10:00', '13:00 – 14:00', '17:00 – 18:00']);
     });
 
     it('no free gap → error, nothing created', async () => {
