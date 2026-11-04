@@ -298,7 +298,13 @@ export function useVoiceAssistant(account: Account | null, calendars: CalendarMe
         (text: string) => {
             const trimmed = text.trim();
             if (!trimmed) return;
+            // a new utterance always starts a fresh round — drop any pending op
+            genRef.current += 1;
             const gen = genRef.current;
+            pendingRef.current = null;
+            pendingIntentRef.current = null;
+            candidateEventsRef.current = [];
+            setCandidates([]);
             setTranscript(trimmed);
             setReply(undefined);
             setStatus('parsed');
@@ -377,6 +383,10 @@ export function useVoiceAssistant(account: Account | null, calendars: CalendarMe
 
     const relisten = useCallback(() => {
         genRef.current += 1;
+        pendingRef.current = null;
+        pendingIntentRef.current = null;
+        candidateEventsRef.current = [];
+        setCandidates([]);
         stt.cancelListening();
         abortRef.current?.abort();
         tts.stop();

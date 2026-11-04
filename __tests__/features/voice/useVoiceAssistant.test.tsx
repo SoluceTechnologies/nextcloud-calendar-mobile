@@ -206,6 +206,23 @@ describe('mutations behind the confirmation gate', () => {
             expect.objectContaining({ event: expect.objectContaining({ uid: 'c2' }) }),
         );
     });
+
+    it('a new utterance while confirming drops the pending op — confirm() becomes a no-op', async () => {
+        const start = new Date(2030, 0, 5, 14, 30);
+        mockParse
+            .mockReturnValueOnce({ kind: 'create', summary: 'Dentiste', start, names: [] })
+            .mockReturnValue({ kind: 'next' });
+        const { result } = renderAssistant();
+        await act(async () => result.current.open());
+        await act(async () => result.current.submitText('crée dentiste'));
+        await waitFor(() => expect(result.current.state).toBe('confirming'));
+
+        await act(async () => result.current.submitText('prochain événement'));
+        await waitFor(() => expect(result.current.state).toBe('replying'));
+
+        await act(async () => result.current.confirm());
+        expect(mockCreateMutate).not.toHaveBeenCalled();
+    });
 });
 
 describe('freeform → tier 2 agent', () => {
