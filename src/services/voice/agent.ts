@@ -17,8 +17,12 @@ const COOLDOWN_MS = 60_000;
 const TEXT_SLOT = 1; // OCP\TaskProcessing\ShapeEnum::Text
 
 // Lazily fetched per account — the tasktypes payload is big enough that we don't
-// want it on every app start, only when the assistant is actually used.
-const taskTypesCache = new Map<string, Record<string, TaskTypeInfo> | null>();
+// want it on every app start, only when the assistant is actually used. Only
+// successful discoveries are cached; a network failure just defers the next
+// attempt briefly so a transient outage does not disable the agent for good.
+const FAILED_RETRY_MS = 60_000;
+const taskTypesCache = new Map<string, Record<string, TaskTypeInfo>>();
+const failedUntil = new Map<string, number>();
 const cooldownUntil = new Map<string, number>();
 
 export function hasAgentTaskType(taskTypes: Record<string, TaskTypeInfo> | null | undefined): string | null {
@@ -29,14 +33,16 @@ export function hasAgentTaskType(taskTypes: Record<string, TaskTypeInfo> | null 
 export async function isAgentAvailable(account: TaskAccount): Promise<boolean> {
     const key = account.baseUrl + account.username;
     if ((cooldownUntil.get(key) ?? 0) > Date.now()) return false;
+    if ((failedUntil.get(key) ?? 0) > Date.now()) return false;
     let types = taskTypesCache.get(key);
     if (types === undefined) {
         try {
             types = await fetchTaskTypes(account);
+            taskTypesCache.set(key, types);
         } catch {
-            types = null;
+            failedUntil.set(key, Date.now() + FAILED_RETRY_MS);
+            return false;
         }
-        taskTypesCache.set(key, types);
     }
     return hasAgentTaskType(types) !== null;
 }
@@ -44,6 +50,7 @@ export async function isAgentAvailable(account: TaskAccount): Promise<boolean> {
 export function invalidateAgentCache(account: TaskAccount): void {
     const key = account.baseUrl + account.username;
     taskTypesCache.delete(key);
+    failedUntil.delete(key);
     cooldownUntil.delete(key);
 }
 
@@ -92,8 +99,15 @@ export async function askAgent(
         throw new AgentError('cooldown', 'agent rate-limited, try again shortly');
     }
 
-    const types = taskTypesCache.get(key) ?? (await fetchTaskTypes(account).catch(() => null));
-    taskTypesCache.set(key, types);
+    let types = taskTypesCache.get(key);
+    if (types === undefined) {
+        types = await fetchTaskTypes(account).catch(() => undefined);
+        if (!types) {
+            failedUntil.set(key, Date.now() + FAILED_RETRY_MS);
+            throw new AgentError('unavailable', 'context agent discovery failed');
+        }
+        taskTypesCache.set(key, types);
+    }
     const taskTypeId = hasAgentTaskType(types);
     if (!taskTypeId) throw new AgentError('unavailable', 'context agent not advertised by server');
 

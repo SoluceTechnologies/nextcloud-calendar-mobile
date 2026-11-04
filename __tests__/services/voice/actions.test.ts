@@ -104,6 +104,15 @@ describe('findEventTargets', () => {
         const found = await findEventTargets('a1', {});
         expect(found).toHaveLength(3);
     });
+
+    it('a spoken day with no match returns nothing — never another day', async () => {
+        mockFetch.mockResolvedValueOnce(rows);
+        const found = await findEventTargets('a1', {
+            title: 'call',
+            when: new Date(2026, 10, 10, 15, 0), // no 'call' on Nov 10
+        });
+        expect(found).toEqual([]);
+    });
 });
 
 describe('resolveAttendeeNames', () => {
@@ -162,6 +171,18 @@ describe('inputFromCreateIntent / movedDates', () => {
             new Date(2026, 10, 4, 15),
         );
         expect(input.dtstart).toEqual(new Date(2026, 10, 5, 9, 0));
+    });
+
+    it('a past spoken interval is shifted forward — never emits dtend <= dtstart', () => {
+        const now = new Date(2026, 10, 4, 16, 0);
+        const input = inputFromCreateIntent(
+            { kind: 'create', summary: 'call', start: new Date(2026, 10, 4, 14), end: new Date(2026, 10, 4, 15) },
+            ctx,
+            now,
+        );
+        expect(input.dtstart).toEqual(now);
+        expect(input.dtend.getTime()).toBeGreaterThan(input.dtstart.getTime());
+        expect(input.dtend.getTime() - input.dtstart.getTime()).toBe(3_600_000); // spoken duration kept
     });
 
     it('movedDates preserves the duration', () => {

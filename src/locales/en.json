@@ -418,6 +418,7 @@
     "confirmCreate": "Create \"{{title}}\" on {{when}} in {{calendar}}?",
     "confirmMove": "Move \"{{title}}\" to {{when}}?",
     "confirmDelete": "Delete \"{{title}}\"?",
+        "confirmAgent": "Send this request to the Nextcloud agent? It can modify your calendar.",
     "untitled": "Untitled",
     "nothingOnDay": "Nothing on {{date}}.",
         "attendeesDropped": "attendees not recognized: {{names}}",

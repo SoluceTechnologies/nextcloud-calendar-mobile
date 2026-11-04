@@ -11,7 +11,7 @@ export type VoiceIntent =
   | { kind: 'next' }
   | { kind: 'create'; summary?: string; start: Date; end?: Date; names?: string[]; calendarName?: string }
   | { kind: 'slot'; day: Date; durationMin?: number; summary?: string; names?: string[]; calendarName?: string }
-  | { kind: 'move'; target: { title?: string; when?: Date }; newStart: Date }
+  | { kind: 'move'; target: { title?: string; when?: Date }; newStart: Date; newStartHasTime?: boolean }
   | { kind: 'delete'; target: { title?: string; when?: Date } }
   | { kind: 'freeform'; text: string }
   | { kind: 'unknown'; raw: string };
@@ -97,6 +97,14 @@ interface Tag {
 }
 
 // group order = contract priority (agenda > next > create > move > delete)
+// imperative mutation verbs — a free-form utterance carrying one is delegated
+// to the context agent ONLY after explicit confirmation, never silently, since
+// the agent can change events server-side (same gate as local mutations).
+export const MUTATION_LIKE = new RegExp(
+  `\\b(?:${[...CREATE_VERB, ...MOVE, ...DELETE].join('|')})\\b`,
+  'i',
+);
+
 const GROUPS: { kind: Kind; noun?: boolean; res: RegExp[] }[] = [
   { kind: 'agenda', res: AGENDA.map(rx) },
   { kind: 'next', res: NEXT.map(rx) },
@@ -217,6 +225,7 @@ export function parseUtterance(text: string, opts: { locale?: string; now?: Date
         when: moms.length > 1 ? momentToDate(moms[0].moment) : undefined,
       },
       newStart: momentToDate(last.moment),
+      newStartHasTime: last.hasTime,
     };
   }
 

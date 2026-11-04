@@ -3,7 +3,7 @@ import { AppState } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import dayjs from 'dayjs';
 
-import type { Account, Attendee, CalendarEvent, CalendarMeta } from '@/types';
+import type { Account, Attendee, CalendarEvent, CalendarMeta, RecurrenceEditScope } from '@/types';
 import { useSettingsStore } from '@/stores/settingsStore';
 import { useCalendarStore } from '@/stores/calendarStore';
 import { getNativePickerLocale } from '@/utils/i18n';
@@ -25,7 +25,8 @@ import {
 import type { BriefingSegment } from '@/features/briefing/types';
 import * as tts from '@/services/voice/tts';
 import * as stt from '@/services/voice/stt';
-import { parseUtterance, type VoiceIntent } from '@/services/voice/intents';
+import { parseUtterance, MUTATION_LIKE, type VoiceIntent } from '@/services/voice/intents';
+import { decideMoveEventScope } from '@/features/calendar/utils/moveEventScope';
 import { askAgent, isAgentAvailable, AgentError } from '@/services/voice/agent';
 import {
     eventsOnDay,
@@ -53,8 +54,9 @@ export type VoiceState =
 
 type PendingOp =
     | { kind: 'create'; input: ReturnType<typeof inputFromCreateIntent> }
-    | { kind: 'move'; event: CalendarEvent; dtstart: Date; dtend: Date }
-    | { kind: 'delete'; event: CalendarEvent };
+    | { kind: 'move'; event: CalendarEvent; dtstart: Date; dtend: Date; scope?: RecurrenceEditScope }
+    | { kind: 'delete'; event: CalendarEvent; scope?: RecurrenceEditScope }
+    | { kind: 'agent'; text: string };
 
 export interface VoiceAssistant {
     visible: boolean;
@@ -95,6 +97,7 @@ export function useVoiceAssistant(account: Account | null, calendars: CalendarMe
     const pendingAttendeesRef = useRef<Attendee[]>([]);
     const pendingNotesRef = useRef('');
     const pendingIntentRef = useRef<VoiceIntent | null>(null);
+    const scopePickRef = useRef<{ event: CalendarEvent; intent: VoiceIntent } | null>(null);
     const abortRef = useRef<AbortController | null>(null);
 
     const createEvent = useCreateEvent(account!, calendars);
@@ -163,7 +166,10 @@ export function useVoiceAssistant(account: Account | null, calendars: CalendarMe
                 case 'move':
                     return t('voice.confirmMove', {
                         title: intent.target.title || t('voice.untitled'),
-                        when: fmt(intent.newStart),
+                        when:
+                            intent.newStartHasTime === false
+                                ? dayjs(intent.newStart).locale(l).format('dddd D MMMM')
+                                : fmt(intent.newStart),
                     });
                 case 'delete':
                     return t('voice.confirmDelete', { title: intent.target.title || t('voice.untitled') });
@@ -254,6 +260,65 @@ export function useVoiceAssistant(account: Account | null, calendars: CalendarMe
             setStatus('confirming');
         },
         [account, calendars, describeIntent, setStatus, t],
+    );
+
+    // --- move/delete arming: a day-only destination keeps the event's clock
+    // time; a recurring match asks for the edit scope before confirming ---
+    const moveTargetDates = useCallback(
+        (event: CalendarEvent, intent: Extract<VoiceIntent, { kind: 'move' }>) => {
+            const dest = intent.newStart;
+            const start =
+                intent.newStartHasTime === false
+                    ? new Date(
+                          dest.getFullYear(),
+                          dest.getMonth(),
+                          dest.getDate(),
+                          new Date(event.dtstart).getHours(),
+                          new Date(event.dtstart).getMinutes(),
+                          new Date(event.dtstart).getSeconds(),
+                          new Date(event.dtstart).getMilliseconds(),
+                      )
+                    : dest;
+            return movedDates(event, start);
+        },
+        [],
+    );
+
+    const armTarget = useCallback(
+        (event: CalendarEvent, intent: VoiceIntent, scope?: RecurrenceEditScope) => {
+            if (intent.kind !== 'move' && intent.kind !== 'delete') return;
+            pendingRef.current =
+                intent.kind === 'move'
+                    ? { kind: 'move', event, scope, ...moveTargetDates(event, intent) }
+                    : { kind: 'delete', event, scope };
+            setIntentDescription(describeIntent(intent));
+            setStatus('confirming');
+        },
+        [describeIntent, moveTargetDates, setStatus],
+    );
+
+    const armWithScopeDecision = useCallback(
+        (event: CalendarEvent, intent: VoiceIntent) => {
+            if (intent.kind !== 'move' && intent.kind !== 'delete') return;
+            const decision = decideMoveEventScope(event);
+            if (decision.kind === 'prompt') {
+                // one voice command must not silently rewrite a whole series —
+                // ask for the scope, then land on the confirmation card.
+                scopePickRef.current = { event, intent };
+                candidateEventsRef.current = [];
+                pendingIntentRef.current = intent;
+                setCandidates([
+                    t('event.scopeThisOnly'),
+                    t('event.scopeThisAndFollowingBtn'),
+                    t('event.scopeAllEvents'),
+                ]);
+                setIntentDescription(t('event.recurrenceScopeMessage'));
+                setStatus('disambiguating');
+                return;
+            }
+            armTarget(event, intent, decision.scope);
+        },
+        [armTarget, setStatus, t],
     );
 
     // --- routing ---
@@ -367,12 +432,7 @@ export function useVoiceAssistant(account: Account | null, calendars: CalendarMe
                             return;
                         }
                         const event = matches[0];
-                        pendingRef.current =
-                            intent.kind === 'move'
-                                ? { kind: 'move', event, ...movedDates(event, intent.newStart) }
-                                : { kind: 'delete', event };
-                        setIntentDescription(describeIntent(intent));
-                        setStatus('confirming');
+                        armWithScopeDecision(event, intent);
                         return;
                     }
                     case 'freeform': {
@@ -380,6 +440,16 @@ export function useVoiceAssistant(account: Account | null, calendars: CalendarMe
                         if (genRef.current !== gen) return;
                         if (!available) {
                             replyWith(t('voice.notUnderstood'));
+                            return;
+                        }
+                        if (MUTATION_LIKE.test(intent.text)) {
+                            // the context agent can mutate the calendar
+                            // server-side — gate it behind the same explicit
+                            // confirmation as local mutations.
+                            pendingRef.current = { kind: 'agent', text: intent.text };
+                            pendingIntentRef.current = intent;
+                            setIntentDescription(t('voice.confirmAgent'));
+                            setStatus('confirming');
                             return;
                         }
                         setStatus('thinking');
@@ -414,7 +484,7 @@ export function useVoiceAssistant(account: Account | null, calendars: CalendarMe
                 }
             }
         },
-        [account, calendars, locale, describeIntent, replyWith, setStatus, t],
+        [account, calendars, locale, describeIntent, replyWith, setStatus, armWithScopeDecision, t],
     );
 
     const handleUtterance = useCallback(
@@ -426,6 +496,7 @@ export function useVoiceAssistant(account: Account | null, calendars: CalendarMe
             const gen = genRef.current;
             pendingRef.current = null;
             pendingIntentRef.current = null;
+            scopePickRef.current = null;
             candidateEventsRef.current = [];
             candidateCalendarsRef.current = [];
             pendingAttendeesRef.current = [];
@@ -493,6 +564,7 @@ export function useVoiceAssistant(account: Account | null, calendars: CalendarMe
         stt.cancelListening();
         tts.stop();
         pendingRef.current = null;
+        scopePickRef.current = null;
         candidateEventsRef.current = [];
         candidateCalendarsRef.current = [];
         pendingAttendeesRef.current = [];
@@ -518,6 +590,7 @@ export function useVoiceAssistant(account: Account | null, calendars: CalendarMe
         genRef.current += 1;
         pendingRef.current = null;
         pendingIntentRef.current = null;
+        scopePickRef.current = null;
         candidateEventsRef.current = [];
         candidateCalendarsRef.current = [];
         pendingAttendeesRef.current = [];
@@ -536,6 +609,27 @@ export function useVoiceAssistant(account: Account | null, calendars: CalendarMe
         if (!account || !op) return;
         const gen = genRef.current;
         setStatus('executing');
+        if (op.kind === 'agent') {
+            pendingRef.current = null;
+            pendingIntentRef.current = null;
+            setIntentDescription('');
+            setStatus('thinking');
+            try {
+                const answer = await askAgent(account, op.text);
+                if (genRef.current !== gen) return;
+                replyWith(answer);
+            } catch (e) {
+                if (genRef.current !== gen) return;
+                const key =
+                    e instanceof AgentError
+                        ? e.reason === 'timeout'
+                            ? 'voice.stillThinking'
+                            : 'voice.agentUnavailable'
+                        : 'voice.serverError';
+                replyWith(t(key));
+            }
+            return;
+        }
         try {
             const result =
                 op.kind === 'create'
@@ -544,9 +638,10 @@ export function useVoiceAssistant(account: Account | null, calendars: CalendarMe
                       ? await updateEvent.mutateAsync({
                             event: op.event,
                             input: { ...eventToInput(op.event, account), dtstart: op.dtstart, dtend: op.dtend },
+                            scope: op.scope,
                             datesOnly: true,
                         })
-                      : await deleteEvent.mutateAsync({ event: op.event });
+                      : await deleteEvent.mutateAsync({ event: op.event, scope: op.scope });
             if (genRef.current !== gen) return;
             pendingRef.current = null;
             pendingIntentRef.current = null;
@@ -571,6 +666,14 @@ export function useVoiceAssistant(account: Account | null, calendars: CalendarMe
 
     const pickCandidate = useCallback(
         (index: number) => {
+            const scopePick = scopePickRef.current;
+            if (scopePick) {
+                scopePickRef.current = null;
+                const scope: RecurrenceEditScope = index === 0 ? 'this' : index === 1 ? 'thisAndFollowing' : 'all';
+                setCandidates([]);
+                armTarget(scopePick.event, scopePick.intent, scope);
+                return;
+            }
             const intent = pendingIntentRef.current;
             if (!intent) return;
             if (intent.kind === 'slot') {
@@ -617,16 +720,11 @@ export function useVoiceAssistant(account: Account | null, calendars: CalendarMe
             }
             const event = candidateEventsRef.current[index];
             if (!event || (intent.kind !== 'move' && intent.kind !== 'delete')) return;
-            pendingRef.current =
-                intent.kind === 'move'
-                    ? { kind: 'move', event, ...movedDates(event, intent.newStart) }
-                    : { kind: 'delete', event };
             candidateEventsRef.current = [];
             setCandidates([]);
-            setIntentDescription(describeIntent(intent));
-            setStatus('confirming');
+            armWithScopeDecision(event, intent);
         },
-        [account, describeIntent, routeCreate, setStatus, t],
+        [account, describeIntent, routeCreate, setStatus, armTarget, armWithScopeDecision, t],
     );
 
     useEffect(() => {

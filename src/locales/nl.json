@@ -418,6 +418,7 @@
     "confirmCreate": "„{{title}}” op {{when}} in {{calendar}} aanmaken?",
     "confirmMove": "„{{title}}” verplaatsen naar {{when}}?",
     "confirmDelete": "„{{title}}” verwijderen?",
+        "confirmAgent": "Dit verzoek naar de Nextcloud-agent sturen? Deze kan je agenda wijzigen.",
     "untitled": "Zonder titel",
     "nothingOnDay": "Niets op {{date}}.",
         "attendeesDropped": "genodigden niet herkend: {{names}}",

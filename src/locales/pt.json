@@ -418,6 +418,7 @@
     "confirmCreate": "Criar «{{title}}» em {{when}} no calendário {{calendar}}?",
     "confirmMove": "Mover «{{title}}» para {{when}}?",
     "confirmDelete": "Eliminar «{{title}}»?",
+        "confirmAgent": "Enviar este pedido ao agente Nextcloud? Ele pode modificar o seu calendário.",
     "untitled": "Sem título",
     "nothingOnDay": "Nada em {{date}}.",
         "attendeesDropped": "convidados não reconhecidos: {{names}}",

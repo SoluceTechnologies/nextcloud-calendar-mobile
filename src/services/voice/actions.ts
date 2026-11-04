@@ -64,10 +64,11 @@ export async function findEventTargets(
         matches = events.filter((e) => (e.summary ?? '').toLowerCase().includes(needle));
     }
     if (target.when) {
+        // a spoken day bounds the search — never fall back to a title match on
+        // another day, or a single unrelated event gets moved/deleted.
         const sameDay = matches.filter((e) => dayjs(e.dtstart).isSame(target.when, 'day'));
         const sameHour = sameDay.filter((e) => dayjs(e.dtstart).hour() === dayjs(target.when).hour());
-        if (sameHour.length) return sameHour;
-        if (sameDay.length) return sameDay;
+        return sameHour.length ? sameHour : sameDay;
     }
     return matches;
 }
@@ -180,7 +181,14 @@ export function inputFromCreateIntent(
     now: Date = new Date(),
 ): CreateEventInput {
     const start = effectiveStart(intent, now);
-    const end = intent.end ?? new Date(start.getTime() + 60 * 60 * 1000);
+    // a past spoken start is clamped to now — keep the spoken end only when it
+    // still comes after; otherwise preserve the spoken duration (never emit
+    // dtend <= dtstart).
+    const spoken = intent.end ? intent.end.getTime() - intent.start.getTime() : 0;
+    const end =
+        intent.end && intent.end.getTime() > start.getTime()
+            ? intent.end
+            : new Date(start.getTime() + (spoken > 0 ? spoken : 60 * 60 * 1000));
     return {
         summary: intent.summary?.trim() || 'Sans titre',
         calendarId: ctx.calendarId,

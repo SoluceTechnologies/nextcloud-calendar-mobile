@@ -33,6 +33,7 @@ jest.mock('@/services/voice/stt', () => ({
 
 const mockParse = jest.fn(() => ({ kind: 'unknown', raw: '' } as VoiceIntent));
 jest.mock('@/services/voice/intents', () => ({
+    ...jest.requireActual('@/services/voice/intents'),
     parseUtterance: () => mockParse(),
 }));
 
@@ -245,6 +246,95 @@ describe('mutations behind the confirmation gate', () => {
         expect(mockDeleteMutate).toHaveBeenCalledWith(
             expect.objectContaining({ event: expect.objectContaining({ uid: 'c2' }) }),
         );
+    });
+
+    it('a recurring event asks for the edit scope before confirming a delete', async () => {
+        mockParse.mockReturnValue({ kind: 'delete', target: { title: 'standup' } });
+        mockFindTargets.mockResolvedValue([
+            ev({
+                uid: 'r1', summary: 'Standup', isRecurring: true, rrule: 'FREQ=DAILY',
+                dtstart: new Date(2030, 0, 5, 9), dtend: new Date(2030, 0, 5, 9, 30),
+            }),
+        ]);
+        const { result } = renderAssistant();
+        await act(async () => result.current.open());
+        await act(async () => result.current.submitText('supprime standup'));
+        await waitFor(() => expect(result.current.state).toBe('disambiguating'));
+        expect(result.current.candidates).toEqual([
+            'This event only',
+            'This and following events',
+            'All events',
+        ]);
+        expect(mockDeleteMutate).not.toHaveBeenCalled();
+
+        await act(async () => result.current.pickCandidate(0)); // this occurrence
+        await waitFor(() => expect(result.current.state).toBe('confirming'));
+        await act(async () => result.current.confirm());
+        await waitFor(() => expect(result.current.state).toBe('replying'));
+        expect(mockDeleteMutate).toHaveBeenCalledWith(
+            expect.objectContaining({ scope: 'this' }),
+        );
+    });
+
+    it('a non-recurring event skips the scope prompt (scope defaults to all)', async () => {
+        mockParse.mockReturnValue({ kind: 'delete', target: { title: 'call' } });
+        mockFindTargets.mockResolvedValue([
+            ev({ uid: 'c1', summary: 'Call', dtstart: new Date(2030, 0, 5, 15), dtend: new Date(2030, 0, 5, 16) }),
+        ]);
+        const { result } = renderAssistant();
+        await act(async () => result.current.open());
+        await act(async () => result.current.submitText('supprime call'));
+        await waitFor(() => expect(result.current.state).toBe('confirming'));
+        await act(async () => result.current.confirm());
+        await waitFor(() => expect(result.current.state).toBe('replying'));
+        expect(mockDeleteMutate).toHaveBeenCalledWith(expect.objectContaining({ scope: 'all' }));
+    });
+
+    it('a day-only move keeps the event clock time on the new day', async () => {
+        mockParse.mockReturnValue({
+            kind: 'move',
+            target: { title: 'call' },
+            newStart: new Date(2030, 0, 8, 0, 0),
+            newStartHasTime: false,
+        });
+        mockFindTargets.mockResolvedValue([
+            ev({ uid: 'm1', summary: 'Call', dtstart: new Date(2030, 0, 5, 15, 0), dtend: new Date(2030, 0, 5, 16, 30) }),
+        ]);
+        const { result } = renderAssistant();
+        await act(async () => result.current.open());
+        await act(async () => result.current.submitText('décale call à mercredi'));
+        await waitFor(() => expect(result.current.state).toBe('confirming'));
+        await act(async () => result.current.confirm());
+        await waitFor(() => expect(result.current.state).toBe('replying'));
+        const call = (mockUpdateMutate.mock.calls as unknown[][])[0][0] as {
+            input: { dtstart: Date; dtend: Date };
+        };
+        // same 15:00–16:30 on Jan 8 — not a midnight move
+        expect(call.input.dtstart).toEqual(new Date(2030, 0, 8, 15, 0));
+        expect(call.input.dtend).toEqual(new Date(2030, 0, 8, 16, 30));
+    });
+
+    it('a move with an explicit time uses it verbatim', async () => {
+        mockParse.mockReturnValue({
+            kind: 'move',
+            target: { title: 'call' },
+            newStart: new Date(2030, 0, 8, 11, 0),
+            newStartHasTime: true,
+        });
+        mockFindTargets.mockResolvedValue([
+            ev({ uid: 'm1', summary: 'Call', dtstart: new Date(2030, 0, 5, 15, 0), dtend: new Date(2030, 0, 5, 16, 30) }),
+        ]);
+        const { result } = renderAssistant();
+        await act(async () => result.current.open());
+        await act(async () => result.current.submitText('décale call à mercredi 11h'));
+        await waitFor(() => expect(result.current.state).toBe('confirming'));
+        await act(async () => result.current.confirm());
+        await waitFor(() => expect(result.current.state).toBe('replying'));
+        const call = (mockUpdateMutate.mock.calls as unknown[][])[0][0] as {
+            input: { dtstart: Date; dtend: Date };
+        };
+        expect(call.input.dtstart).toEqual(new Date(2030, 0, 8, 11, 0));
+        expect(call.input.dtend).toEqual(new Date(2030, 0, 8, 12, 30));
     });
 
     it('a new utterance while confirming drops the pending op — confirm() becomes a no-op', async () => {
@@ -537,6 +627,31 @@ describe('freeform → tier 2 agent', () => {
         await act(async () => result.current.submitText('suis-je libre jeudi ?'));
         await waitFor(() => expect(result.current.state).toBe('replying'));
         expect(result.current.reply).toBe('Vous êtes libre jeudi après-midi.');
+    });
+
+    it('a mutation-shaped freeform request is gated behind confirmation', async () => {
+        mockParse.mockReturnValue({ kind: 'freeform', text: 'crée un événement bizarre dans mon agenda' });
+        mockIsAgentAvailable.mockResolvedValue(true);
+        const { result } = renderAssistant();
+        await act(async () => result.current.open());
+        await act(async () => result.current.submitText('crée un événement bizarre dans mon agenda'));
+        await waitFor(() => expect(result.current.state).toBe('confirming'));
+        expect(mockAskAgent).not.toHaveBeenCalled();
+
+        await act(async () => result.current.confirm());
+        await waitFor(() => expect(result.current.state).toBe('replying'));
+        expect(mockAskAgent).toHaveBeenCalled();
+        expect((mockAskAgent.mock.calls as unknown[][])[0][1]).toBe('crée un événement bizarre dans mon agenda');
+    });
+
+    it('a read-only freeform request still goes straight to the agent', async () => {
+        mockParse.mockReturnValue({ kind: 'freeform', text: 'quel temps fera-t-il demain ?' });
+        mockIsAgentAvailable.mockResolvedValue(true);
+        const { result } = renderAssistant();
+        await act(async () => result.current.open());
+        await act(async () => result.current.submitText('quel temps fera-t-il demain ?'));
+        await waitFor(() => expect(result.current.state).toBe('replying'));
+        expect(mockAskAgent).toHaveBeenCalled();
     });
 });
 

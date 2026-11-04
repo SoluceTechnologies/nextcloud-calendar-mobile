@@ -405,6 +405,7 @@
     "confirmCreate": "Crear « {{title}} » lo {{when}} dins {{calendar}} ?",
     "confirmMove": "Desplaçar « {{title}} » al {{when}} ?",
     "confirmDelete": "Suprimir « {{title}} » ?",
+        "confirmAgent": "Mandar aquesta demanda a l'agent Nextcloud ? Pòt modificar vòstre agenda.",
     "untitled": "Sens títol",
     "nothingOnDay": "Res lo {{date}}.",
         "attendeesDropped": "convidats pas reconeguts : {{names}}",

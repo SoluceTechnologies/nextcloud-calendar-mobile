@@ -80,6 +80,21 @@ describe('isAgentAvailable', () => {
         await expect(isAgentAvailable(account)).resolves.toBe(false);
     });
 
+    it('a failed discovery is retried after a short window, not cached forever', async () => {
+        jest.useFakeTimers().setSystemTime(1_000);
+        mockFetchTaskTypes.mockRejectedValueOnce(new HttpError(500, 'tasktypes'));
+        await expect(isAgentAvailable(account)).resolves.toBe(false);
+        // inside the retry window → no refetch, still unavailable
+        jest.setSystemTime(30_000);
+        await expect(isAgentAvailable(account)).resolves.toBe(false);
+        expect(mockFetchTaskTypes).toHaveBeenCalledTimes(1);
+        // after the window → refetch succeeds and the agent recovers
+        jest.setSystemTime(70_000);
+        mockFetchTaskTypes.mockResolvedValueOnce(agentTypes);
+        await expect(isAgentAvailable(account)).resolves.toBe(true);
+        jest.useRealTimers();
+    });
+
     it('caches per account — second call skips the fetch', async () => {
         mockFetchTaskTypes.mockResolvedValueOnce(agentTypes);
         await isAgentAvailable(account);

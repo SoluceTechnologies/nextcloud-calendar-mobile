@@ -172,6 +172,7 @@ describe('move', () => {
       kind: 'move',
       target: { title: 'call', when: at(12, 15) },
       newStart: at(12, 16),
+      newStartHasTime: true,
     });
   });
 
@@ -180,6 +181,7 @@ describe('move', () => {
       kind: 'move',
       target: { title: 'call', when: at(12, 15) },
       newStart: at(12, 16),
+      newStartHasTime: true,
     });
   });
 
@@ -188,16 +190,19 @@ describe('move', () => {
       kind: 'move',
       target: { title: 'rdv', when: undefined },
       newStart: day(13),
+      newStartHasTime: false,
     });
     expect(U('décale le rdv de demain à vendredi')).toEqual({
       kind: 'move',
       target: { title: 'rdv', when: day(13) },
       newStart: day(14),
+      newStartHasTime: false,
     });
     expect(U('décale mon meeting de 14h à demain 15h')).toEqual({
       kind: 'move',
       target: { title: 'meeting', when: at(12, 14) },
       newStart: at(13, 15),
+      newStartHasTime: true,
     });
   });
 
