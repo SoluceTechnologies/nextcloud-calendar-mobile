@@ -164,6 +164,20 @@ export function useVoiceAssistant(account: Account | null, calendars: CalendarMe
         [],
     );
 
+    // every interactive state (question, confirmation card, error) is spoken,
+    // not just shown — a voice assistant must answer with its voice.
+    const promptWith = useCallback(
+        (text: string, s: 'confirming' | 'disambiguating' | 'error', gen?: number) => {
+            const g = gen ?? genRef.current;
+            const { voice } = locale();
+            if (s === 'error') setErrorText(text);
+            else setIntentDescription(text);
+            setStatus(s);
+            if (text) say(text, g, voice);
+        },
+        [locale, say, setStatus],
+    );
+
     const replyWith = useCallback(
         (text: string, opts?: { segs?: BriefingSegment[] }) => {
             const gen = genRef.current;
@@ -238,8 +252,7 @@ export function useVoiceAssistant(account: Account | null, calendars: CalendarMe
 
             const writable = calendars.filter((c) => !c.isReadOnly);
             if (!writable.length) {
-                setErrorText(t('voice.noWritableCalendar'));
-                setStatus('error');
+                promptWith(t('voice.noWritableCalendar'), 'error', gen);
                 return;
             }
             const fold = (s: string) =>
@@ -249,8 +262,7 @@ export function useVoiceAssistant(account: Account | null, calendars: CalendarMe
                 pendingAttendeesRef.current = attendees;
                 candidateCalendarsRef.current = pool;
                 setCandidates(pool.slice(0, 6).map((c) => c.displayName));
-                setIntentDescription(t('voice.whichCalendar'));
-                setStatus('disambiguating');
+                promptWith(t('voice.whichCalendar'), 'disambiguating', gen);
             };
             let calendar: CalendarMeta | undefined;
             if (intent.calendarName?.trim()) {
@@ -284,11 +296,10 @@ export function useVoiceAssistant(account: Account | null, calendars: CalendarMe
                     attendees,
                 }),
             };
-            setIntentDescription(describeIntent(intent, calendar.displayName) + pendingNotesRef.current);
+            promptWith(describeIntent(intent, calendar.displayName) + pendingNotesRef.current, 'confirming', gen);
             pendingNotesRef.current = '';
-            setStatus('confirming');
         },
-        [account, calendars, describeIntent, setStatus, t],
+        [account, calendars, describeIntent, promptWith, t],
     );
 
     // --- move/delete arming: a day-only destination keeps the event's clock
@@ -320,10 +331,9 @@ export function useVoiceAssistant(account: Account | null, calendars: CalendarMe
                 intent.kind === 'move'
                     ? { kind: 'move', event, scope, ...moveTargetDates(event, intent) }
                     : { kind: 'delete', event, scope };
-            setIntentDescription(describeIntent(intent));
-            setStatus('confirming');
+            promptWith(describeIntent(intent), 'confirming');
         },
-        [describeIntent, moveTargetDates, setStatus],
+        [describeIntent, moveTargetDates, promptWith],
     );
 
     const armWithScopeDecision = useCallback(
@@ -341,13 +351,12 @@ export function useVoiceAssistant(account: Account | null, calendars: CalendarMe
                     t('event.scopeThisAndFollowingBtn'),
                     t('event.scopeAllEvents'),
                 ]);
-                setIntentDescription(t('event.recurrenceScopeMessage'));
-                setStatus('disambiguating');
+                promptWith(t('event.recurrenceScopeMessage'), 'disambiguating');
                 return;
             }
             armTarget(event, intent, decision.scope);
         },
-        [armTarget, setStatus, t],
+        [armTarget, promptWith, t],
     );
 
     // --- routing ---
@@ -426,16 +435,14 @@ export function useVoiceAssistant(account: Account | null, calendars: CalendarMe
                         });
                         const date = dayjs(intent.day).locale(loc).format('dddd D MMMM');
                         if (!slots.length) {
-                            setErrorText(t('voice.noFreeSlot', { date }));
-                            setStatus('error');
+                            promptWith(t('voice.noFreeSlot', { date }), 'error', gen);
                             return;
                         }
                         pendingSlotsRef.current = slots;
                         pendingIntentRef.current = intent;
                         const fmtT = (d: Date) => dayjs(d).locale(loc).format('HH:mm');
                         setCandidates(slots.map((s) => `${fmtT(s.start)} – ${fmtT(s.end)}`));
-                        setIntentDescription(t('voice.whichSlot', { date }));
-                        setStatus('disambiguating');
+                        promptWith(t('voice.whichSlot', { date }), 'disambiguating', gen);
                         return;
                     }
                     case 'move':
@@ -457,7 +464,7 @@ export function useVoiceAssistant(account: Account | null, calendars: CalendarMe
                                             .format('dd DD/MM HH:mm')}`,
                                 ),
                             );
-                            setStatus('disambiguating');
+                            promptWith(t('voice.whichEvent'), 'disambiguating', gen);
                             return;
                         }
                         const event = matches[0];
@@ -477,8 +484,7 @@ export function useVoiceAssistant(account: Account | null, calendars: CalendarMe
                             // confirmation as local mutations.
                             pendingRef.current = { kind: 'agent', text: intent.text };
                             pendingIntentRef.current = intent;
-                            setIntentDescription(t('voice.confirmAgent'));
-                            setStatus('confirming');
+                            promptWith(t('voice.confirmAgent'), 'confirming', gen);
                             return;
                         }
                         setStatus('thinking');
@@ -508,12 +514,11 @@ export function useVoiceAssistant(account: Account | null, calendars: CalendarMe
             } catch (e) {
                 if (__DEV__) console.warn('[voice] intent failed', e);
                 if (genRef.current === gen) {
-                    setErrorText(t('voice.serverError'));
-                    setStatus('error');
+                    promptWith(t('voice.serverError'), 'error', gen);
                 }
             }
         },
-        [account, calendars, locale, describeIntent, replyWith, setStatus, armWithScopeDecision, t],
+        [account, calendars, locale, describeIntent, replyWith, setStatus, armWithScopeDecision, promptWith, t],
     );
 
     const handleUtterance = useCallback(
@@ -548,15 +553,13 @@ export function useVoiceAssistant(account: Account | null, calendars: CalendarMe
         setTranscript('');
         setReply(undefined);
         if (!stt.isSttAvailable()) {
-            setErrorText(t('voice.sttUnavailable'));
-            setStatus('error');
+            promptWith(t('voice.sttUnavailable'), 'error', gen);
             return;
         }
         const granted = await stt.requestSttPermissions();
         if (genRef.current !== gen) return;
         if (!granted) {
-            setErrorText(t('voice.permissionDenied'));
-            setStatus('error');
+            promptWith(t('voice.permissionDenied'), 'error', gen);
             return;
         }
         setStatus('listening');
@@ -570,11 +573,10 @@ export function useVoiceAssistant(account: Account | null, calendars: CalendarMe
             },
             onError: () => {
                 if (genRef.current !== gen) return;
-                setErrorText(t('voice.sttUnavailable'));
-                setStatus('error');
+                promptWith(t('voice.sttUnavailable'), 'error', gen);
             },
         });
-    }, [handleUtterance, locale, setStatus, t]);
+    }, [handleUtterance, locale, setStatus, promptWith, t]);
 
     const open = useCallback(() => {
         genRef.current += 1;
@@ -680,8 +682,7 @@ export function useVoiceAssistant(account: Account | null, calendars: CalendarMe
             pendingRef.current = null;
             pendingIntentRef.current = null;
             if (result === 'failed') {
-                setErrorText(t('voice.serverError'));
-                setStatus('error');
+                promptWith(t('voice.serverError'), 'error', gen);
                 return;
             }
             replyWith(
@@ -692,11 +693,10 @@ export function useVoiceAssistant(account: Account | null, calendars: CalendarMe
         } catch (e) {
             if (__DEV__) console.warn('[voice] mutation failed', e);
             if (genRef.current === gen) {
-                setErrorText(t('voice.serverError'));
-                setStatus('error');
+                promptWith(t('voice.serverError'), 'error', gen);
             }
         }
-    }, [account, createEvent, updateEvent, deleteEvent, replyWith, setStatus, cancelAutoClose, t]);
+    }, [account, createEvent, updateEvent, deleteEvent, replyWith, setStatus, cancelAutoClose, promptWith, t]);
 
     const pickCandidate = useCallback(
         (index: number) => {
@@ -748,9 +748,8 @@ export function useVoiceAssistant(account: Account | null, calendars: CalendarMe
                 candidateCalendarsRef.current = [];
                 pendingAttendeesRef.current = [];
                 setCandidates([]);
-                setIntentDescription(describeIntent(intent, cal.displayName) + pendingNotesRef.current);
+                promptWith(describeIntent(intent, cal.displayName) + pendingNotesRef.current, 'confirming');
                 pendingNotesRef.current = '';
-                setStatus('confirming');
                 return;
             }
             const event = candidateEventsRef.current[index];
@@ -759,7 +758,7 @@ export function useVoiceAssistant(account: Account | null, calendars: CalendarMe
             setCandidates([]);
             armWithScopeDecision(event, intent);
         },
-        [account, describeIntent, routeCreate, setStatus, armTarget, armWithScopeDecision, cancelAutoClose, t],
+        [account, describeIntent, routeCreate, setStatus, armTarget, armWithScopeDecision, cancelAutoClose, promptWith, t],
     );
 
     // auto-close timer needs the latest close() without re-creating replyWith
@@ -783,10 +782,11 @@ export function useVoiceAssistant(account: Account | null, calendars: CalendarMe
             sub.remove();
             if (bgTimer) clearTimeout(bgTimer);
             genRef.current += 1;
+            cancelAutoClose();
             stt.cancelListening();
             tts.stop();
         };
-    }, [close]);
+    }, [close, cancelAutoClose]);
 
     return {
         visible,

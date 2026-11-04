@@ -402,6 +402,7 @@
     "nothingFound": "Nessun evento trovato.",
     "chooseOne": "Quale?",
     "whichCalendar": "In quale calendario?",
+        "whichEvent": "Quale?",
     "calendarReadOnly": "sola lettura",
     "noWritableCalendar": "Nessun calendario modificabile.",
     "whichSlot": "Quale fascia il {{date}}?",

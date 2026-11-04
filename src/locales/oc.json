@@ -389,6 +389,7 @@
     "nothingFound": "Cap d’eveniment trobat.",
     "chooseOne": "Loquin ?",
     "whichCalendar": "Dins quin agenda ?",
+        "whichEvent": "Loqual ?",
     "calendarReadOnly": "lectura sola",
     "noWritableCalendar": "Cap d'agenda modificable.",
     "whichSlot": "Quin trauc lo {{date}} ?",

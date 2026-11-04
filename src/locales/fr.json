@@ -402,6 +402,7 @@
     "nothingFound": "Aucun événement trouvé.",
     "chooseOne": "Lequel ?",
     "whichCalendar": "Dans quel agenda ?",
+        "whichEvent": "Lequel ?",
     "calendarReadOnly": "lecture seule",
     "noWritableCalendar": "Aucun agenda modifiable.",
     "whichSlot": "Quel créneau le {{date}} ?",

@@ -402,6 +402,7 @@
     "nothingFound": "Geen afspraak gevonden.",
     "chooseOne": "Welke?",
     "whichCalendar": "In welke agenda?",
+        "whichEvent": "Welke?",
     "calendarReadOnly": "alleen-lezen",
     "noWritableCalendar": "Geen beschrijfbare agenda gevonden.",
     "whichSlot": "Welk tijdslot op {{date}}?",

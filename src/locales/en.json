@@ -402,6 +402,7 @@
     "nothingFound": "No event found.",
     "chooseOne": "Which one?",
     "whichCalendar": "Which calendar?",
+        "whichEvent": "Which one?",
     "calendarReadOnly": "read-only",
     "noWritableCalendar": "No writable calendar found.",
     "whichSlot": "Which slot on {{date}}?",

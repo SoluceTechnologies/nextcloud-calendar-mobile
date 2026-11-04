@@ -402,6 +402,7 @@
     "nothingFound": "Kein Termin gefunden.",
     "chooseOne": "Welcher?",
     "whichCalendar": "In welchem Kalender?",
+        "whichEvent": "Welcher?",
     "calendarReadOnly": "schreibgeschützt",
     "noWritableCalendar": "Kein schreibbarer Kalender gefunden.",
     "whichSlot": "Welcher Terminslot am {{date}}?",

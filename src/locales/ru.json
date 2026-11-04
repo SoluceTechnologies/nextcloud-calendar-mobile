@@ -402,6 +402,7 @@
     "nothingFound": "События не найдены.",
     "chooseOne": "Какое?",
     "whichCalendar": "В каком календаре?",
+        "whichEvent": "Какой?",
     "calendarReadOnly": "только чтение",
     "noWritableCalendar": "Нет доступного для записи календаря.",
     "whichSlot": "Какой слот {{date}}?",

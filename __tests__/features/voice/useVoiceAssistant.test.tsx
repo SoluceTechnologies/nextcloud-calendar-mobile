@@ -89,6 +89,7 @@ jest.mock('@/features/calendar/utils/eventToInput', () => ({
 }));
 
 import { useVoiceAssistant } from '@/features/voice/useVoiceAssistant';
+import { speak as mockSpeak } from '@/services/voice/tts';
 
 const account = {
     id: 'a1', baseUrl: 'https://nc.test', username: 'u', appPassword: 'p',
@@ -682,6 +683,29 @@ describe('lifecycle', () => {
         expect(result.current.visible).toBe(false);
         expect(result.current.state).toBe('idle');
         jest.useRealTimers();
+    });
+
+    it('speaks prompts aloud — question, confirmation card and error alike', async () => {
+        const multi = [
+            { id: 'cal1', displayName: 'Personnel' },
+            { id: 'cal2', displayName: 'Pro' },
+        ] as CalendarMeta[];
+        const start = new Date(2030, 0, 5, 14, 30);
+        mockParse.mockReturnValue({ kind: 'create', summary: 'Dentiste', start, names: [] });
+        const { result } = renderHook(() => useVoiceAssistant(account, multi));
+        await act(async () => result.current.open());
+        await act(async () => result.current.submitText('crée dentiste demain 14h30'));
+        // disambiguation question is spoken, not just shown
+        await waitFor(() => expect(result.current.state).toBe('disambiguating'));
+        expect(mockSpeak).toHaveBeenCalledWith('Which calendar?', expect.anything());
+
+        await act(async () => result.current.pickCandidate(0));
+        // confirmation card is spoken too
+        await waitFor(() => expect(result.current.state).toBe('confirming'));
+        expect(mockSpeak).toHaveBeenCalledWith(
+            expect.stringContaining('Dentiste'),
+            expect.anything(),
+        );
     });
 
     it('a new utterance cancels the pending auto-close', async () => {
