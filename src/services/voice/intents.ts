@@ -153,7 +153,10 @@ function titleBefore(body: string, moms: MomentMatch[], upto: number): string | 
 }
 
 const WORD = /[a-zàâäçéèêëîïôöùûüÿœ0-9]/i;
-const NAMES_RE = new RegExp(`(^|[^${A}0-9])((?:avec|with|and|et)\\s+)([A-ZÀ-Ý])`);
+// names are matched case-insensitively — STT often returns lowercase ("avec
+// devin") and dropping such a name silently loses the attendee. An unmatched
+// name lands in `dropped` and is shown on the confirmation card instead.
+const NAMES_RE = new RegExp(`(^|[^${A}0-9])((?:avec|with|and|et)\\s+)([${A}])`, 'i');
 // calendar clause — the agenda/calendar keyword is REQUIRED so « dans 2 heures »
 // stays a duration. FR puts the name AFTER the keyword (« dans l'agenda planning
 // clara »), EN BEFORE it ("in my work calendar") — both orders are supported.
@@ -243,7 +246,7 @@ export function parseUtterance(text: string, opts: { locale?: string; now?: Date
       const rawNames = norm
         .slice(nameStart, nextMom ? nextMom.start : norm.length)
         .split(/\s*(?:,|\bet\b|\band\b)\s*/i)
-        .map((chunk) => chunk.split(/\s+/).filter((w) => /^[A-ZÀ-Ý]/.test(w)).join(' '))
+        .map((chunk) => chunk.split(/\s+/).filter((w) => WORD.test(w) && !BARE.test(w)).join(' '))
         .filter(Boolean);
       if (rawNames.length) snames = rawNames;
     }
@@ -325,7 +328,7 @@ export function parseUtterance(text: string, opts: { locale?: string; now?: Date
       .map((chunk) =>
         chunk
           .split(/\s+/)
-          .filter((w) => /^[A-ZÀ-Ý]/.test(w))
+          .filter((w) => WORD.test(w) && !BARE.test(w))
           .join(' '),
       )
       .filter(Boolean);
