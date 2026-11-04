@@ -177,7 +177,12 @@
     "errorCreateFailed": "Creazione dell'evento non riuscita",
     "errorUpdateFailed": "Aggiornamento dell'evento non riuscito",
     "errorDeleteFailed": "Eliminazione dell'evento non riuscita",
-    "alerts": "Avvisi"
+        "alerts": "Avvisi",
+        "findTime": "Trova un orario",
+        "findTimeTitle": "Trova un orario",
+        "findTimeLoading": "Ricerca degli orari liberi…",
+        "findTimeNone": "Nessun orario libero quel giorno.",
+        "findTimeError": "Impossibile caricare le disponibilità."
   },
   "settings": {
     "title": "Impostazioni",

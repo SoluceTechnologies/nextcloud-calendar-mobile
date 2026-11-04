@@ -177,7 +177,12 @@
     "errorCreateFailed": "Не удалось создать событие",
     "errorUpdateFailed": "Не удалось обновить событие",
     "errorDeleteFailed": "Не удалось удалить событие",
-    "alerts": "Напоминания"
+        "alerts": "Напоминания",
+        "findTime": "Найти время",
+        "findTimeTitle": "Найти время",
+        "findTimeLoading": "Поиск свободного времени…",
+        "findTimeNone": "В этот день нет свободного времени.",
+        "findTimeError": "Не удалось загрузить занятость."
   },
   "settings": {
     "title": "Настройки",

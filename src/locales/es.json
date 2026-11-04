@@ -177,7 +177,12 @@
     "errorCreateFailed": "No se pudo crear el evento",
     "errorUpdateFailed": "No se pudo actualizar el evento",
     "errorDeleteFailed": "No se pudo eliminar el evento",
-    "alerts": "Avisos"
+        "alerts": "Avisos",
+        "findTime": "Buscar horario",
+        "findTimeTitle": "Buscar horario",
+        "findTimeLoading": "Buscando huecos libres…",
+        "findTimeNone": "No hay hueco libre ese día.",
+        "findTimeError": "No se pudo cargar la disponibilidad."
   },
   "settings": {
     "title": "Ajustes",

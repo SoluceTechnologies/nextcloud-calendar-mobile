@@ -177,7 +177,12 @@
     "errorCreateFailed": "Falha ao criar o evento",
     "errorUpdateFailed": "Falha ao atualizar o evento",
     "errorDeleteFailed": "Falha ao eliminar o evento",
-    "alerts": "Alertas"
+        "alerts": "Alertas",
+        "findTime": "Encontrar horário",
+        "findTimeTitle": "Encontrar horário",
+        "findTimeLoading": "A procurar horários livres…",
+        "findTimeNone": "Sem horário livre nesse dia.",
+        "findTimeError": "Não foi possível carregar as disponibilidades."
   },
   "settings": {
     "title": "Definições",

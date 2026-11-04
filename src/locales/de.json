@@ -177,7 +177,12 @@
     "errorCreateFailed": "Ereignis konnte nicht erstellt werden",
     "errorUpdateFailed": "Ereignis konnte nicht aktualisiert werden",
     "errorDeleteFailed": "Ereignis konnte nicht gelöscht werden",
-    "alerts": "Erinnerungen"
+        "alerts": "Erinnerungen",
+        "findTime": "Zeit finden",
+        "findTimeTitle": "Zeit finden",
+        "findTimeLoading": "Freie Zeiten werden gesucht…",
+        "findTimeNone": "Kein freier Zeitraum an diesem Tag.",
+        "findTimeError": "Verfügbarkeit konnte nicht geladen werden."
   },
   "settings": {
     "title": "Einstellungen",

@@ -172,7 +172,12 @@
     "errorCreateFailed": "La creacion de l'eveniment a pas capitat",
     "errorUpdateFailed": "La mesa a jorn de l'eveniment a pas capitat",
     "errorDeleteFailed": "La supression de l'eveniment a pas capitat",
-    "alerts": "Alèrtas"
+        "alerts": "Alèrtas",
+        "findTime": "Trobar un crenech",
+        "findTimeTitle": "Trobar un crenech",
+        "findTimeLoading": "Recèrca dels crenechs liures…",
+        "findTimeNone": "Cap de crenech liure aquel jorn.",
+        "findTimeError": "Impossible de cargar las disponibilitats."
   },
   "settings": {
     "title": "Paramètres",

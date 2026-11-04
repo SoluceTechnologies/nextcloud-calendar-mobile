@@ -177,7 +177,12 @@
     "errorCreateFailed": "Failed to create event",
     "errorUpdateFailed": "Failed to update event",
     "errorDeleteFailed": "Failed to delete event",
-    "alerts": "Alerts"
+        "alerts": "Alerts",
+        "findTime": "Find a time",
+        "findTimeTitle": "Find a time",
+        "findTimeLoading": "Searching for free slots…",
+        "findTimeNone": "No free slot that day.",
+        "findTimeError": "Could not load availability."
   },
   "settings": {
     "title": "Settings",

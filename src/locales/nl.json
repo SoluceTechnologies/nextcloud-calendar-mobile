@@ -177,7 +177,12 @@
     "errorCreateFailed": "Aanmaken van afspraak mislukt",
     "errorUpdateFailed": "Bijwerken van afspraak mislukt",
     "errorDeleteFailed": "Verwijderen van afspraak mislukt",
-    "alerts": "Herinneringen"
+        "alerts": "Herinneringen",
+        "findTime": "Tijd vinden",
+        "findTimeTitle": "Tijd vinden",
+        "findTimeLoading": "Vrije tijden zoeken…",
+        "findTimeNone": "Geen vrije tijd die dag.",
+        "findTimeError": "Beschikbaarheid kon niet worden geladen."
   },
   "settings": {
     "title": "Instellingen",

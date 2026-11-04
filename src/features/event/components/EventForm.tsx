@@ -7,6 +7,7 @@ import { useTranslation } from 'react-i18next';
 import { useTheme } from 'expo-router';
 import { TalkToggle } from './TalkToggle';
 import { AttendeesField } from './AttendeesField';
+import { FindTimeSheet } from './FindTimeSheet';
 import { requestAlertPermission } from '@/features/notifications/scheduleAlerts';
 import { useSettingsStore } from '@/stores/settingsStore';
 import { isWritableCalendar } from '@/utils/calendars';
@@ -14,7 +15,7 @@ import { useTimeFormat } from '@/hooks/useTimeFormat';
 import { getNativePickerLocale } from '@/utils/i18n';
 import { AlertPicker } from './AlertPicker';
 import { RecurrencePicker } from './RecurrencePicker';
-import { Stack, Typography, TextField, DateField, Chip, Toggle } from '@/ui/components';
+import { Stack, Typography, TextField, DateField, Chip, Toggle, Button } from '@/ui/components';
 import type { CalendarMeta, Attendee, CreateEventInput, RecurrenceRule, TalkRoomType, Account } from '@/types';
 
 dayjs.extend(localizedFormat);
@@ -40,7 +41,7 @@ interface Props {
   onSubmit: (input: CreateEventInput) => void;
   initialValues?: InitialValues;
   disableCalendarChange?: boolean;
-  account?: Pick<Account, 'id' | 'baseUrl' | 'username' | 'appPassword'> | null;
+  account?: (Pick<Account, 'id' | 'baseUrl' | 'username' | 'appPassword'> & Partial<Account>) | null;
 }
 
 export interface EventFormHandle {
@@ -94,6 +95,7 @@ export const EventForm = forwardRef<EventFormHandle, Props>(function EventForm({
   const [endError, setEndError] = useState<string | null>(null);
 
   const [androidStep, setAndroidStep] = useState<AndroidPickerStep>(null);
+  const [findTimeOpen, setFindTimeOpen] = useState(false);
 
   const scrollRef = useRef<ScrollView>(null);
   const inputOffsets = useRef<Record<string, number>>({});
@@ -337,6 +339,14 @@ export const EventForm = forwardRef<EventFormHandle, Props>(function EventForm({
           {endBlock}
         </Stack>
 
+        {account && !allDay && (
+          <Button
+            testID="event-form-find-time"
+            title={t('event.findTime')}
+            onPress={() => setFindTimeOpen(true)}
+          />
+        )}
+
         {Platform.OS === 'android' && androidStep !== null && (
           <DateTimePicker
             key={`android-picker-${androidStep.target}-${androidStep.step}`}
@@ -404,6 +414,19 @@ export const EventForm = forwardRef<EventFormHandle, Props>(function EventForm({
           roomType={talkRoomType}
           onRoomTypeChange={setTalkRoomType}
         />
+
+        {account && findTimeOpen && (
+          <FindTimeSheet
+            visible
+            onClose={() => setFindTimeOpen(false)}
+            account={account}
+            calendars={calendars}
+            day={dtstart}
+            durationMin={Math.max(15, Math.round((dtend.getTime() - dtstart.getTime()) / 60000))}
+            attendees={attendees}
+            onPick={(slot) => { setDtstart(slot.start); setDtend(slot.end); }}
+          />
+        )}
       </Stack>
     </ScrollView>
     </KeyboardAvoidingView>
