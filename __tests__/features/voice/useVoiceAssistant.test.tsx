@@ -1,7 +1,8 @@
 import { renderHook, act, waitFor } from '@testing-library/react-native';
 
-import type { Account, CalendarEvent } from '@/types';
+import type { Account, CalendarEvent, CalendarMeta } from '@/types';
 import type { VoiceIntent } from '@/services/voice/intents';
+import { useSettingsStore } from '@/stores/settingsStore';
 
 jest.mock('expo-localization', () => ({
     getCalendars: jest.fn(() => [{ uses24hourClock: false }]),
@@ -83,7 +84,7 @@ import { useVoiceAssistant } from '@/features/voice/useVoiceAssistant';
 const account = {
     id: 'a1', baseUrl: 'https://nc.test', username: 'u', appPassword: 'p',
 } as unknown as Account;
-const calendars = [{ id: 'cal1' }] as never[];
+const calendars = [{ id: 'cal1', displayName: 'Personnel' }] as never[];
 
 function ev(partial: Partial<CalendarEvent> & { dtstart: Date; dtend: Date }): CalendarEvent {
     return {
@@ -109,6 +110,7 @@ beforeEach(() => {
     mockFindTargets.mockResolvedValue([]);
     mockResolveAttendees.mockResolvedValue({ attendees: [], ambiguous: [] });
     mockParse.mockReturnValue({ kind: 'unknown', raw: '' });
+    useSettingsStore.setState({ defaultCalendarByAccount: {} });
 });
 
 describe('open / listen', () => {
@@ -222,6 +224,124 @@ describe('mutations behind the confirmation gate', () => {
 
         await act(async () => result.current.confirm());
         expect(mockCreateMutate).not.toHaveBeenCalled();
+    });
+});
+
+describe('create — calendar resolution', () => {
+    const start = new Date(2030, 0, 5, 14, 30);
+    const multi = [
+        { id: 'cal1', displayName: 'Personnel' },
+        { id: 'cal2', displayName: 'Planning clara' },
+        { id: 'cal3', displayName: 'Perma SIPC' },
+    ] as CalendarMeta[];
+    const renderMulti = () => renderHook(() => useVoiceAssistant(account, multi));
+
+    it('several calendars + no default → disambiguating → pick → create on the chosen calendar', async () => {
+        mockParse.mockReturnValue({ kind: 'create', summary: 'Dentiste', start, names: [] });
+        const { result } = renderMulti();
+        await act(async () => result.current.open());
+        await act(async () => result.current.submitText('crée dentiste demain 14h30'));
+        await waitFor(() => expect(result.current.state).toBe('disambiguating'));
+        expect(result.current.candidates).toEqual(['Personnel', 'Planning clara', 'Perma SIPC']);
+        expect(mockCreateMutate).not.toHaveBeenCalled();
+
+        await act(async () => result.current.pickCandidate(1));
+        await waitFor(() => expect(result.current.state).toBe('confirming'));
+        expect(result.current.intentDescription).toContain('Planning clara');
+
+        await act(async () => result.current.confirm());
+        await waitFor(() => expect(result.current.state).toBe('replying'));
+        expect(mockCreateMutate).toHaveBeenCalledWith(
+            expect.objectContaining({ calendarId: 'cal2' }),
+        );
+    });
+
+    it('spoken agenda name → direct confirmation on the matching calendar', async () => {
+        mockParse.mockReturnValue({
+            kind: 'create', summary: 'rdv', start, names: [], calendarName: 'clara',
+        });
+        const { result } = renderMulti();
+        await act(async () => result.current.open());
+        await act(async () => result.current.submitText("crée un rdv demain dans l'agenda clara"));
+        await waitFor(() => expect(result.current.state).toBe('confirming'));
+        expect(result.current.intentDescription).toContain('Planning clara');
+        expect(result.current.candidates).toEqual([]);
+
+        await act(async () => result.current.confirm());
+        await waitFor(() => expect(result.current.state).toBe('replying'));
+        expect(mockCreateMutate).toHaveBeenCalledWith(
+            expect.objectContaining({ calendarId: 'cal2' }),
+        );
+    });
+
+    it('configured default calendar is used without asking', async () => {
+        useSettingsStore.setState({ defaultCalendarByAccount: { a1: 'cal3' } });
+        mockParse.mockReturnValue({ kind: 'create', summary: 'Dentiste', start, names: [] });
+        const { result } = renderMulti();
+        await act(async () => result.current.open());
+        await act(async () => result.current.submitText('crée dentiste demain 14h30'));
+        await waitFor(() => expect(result.current.state).toBe('confirming'));
+        expect(result.current.intentDescription).toContain('Perma SIPC');
+
+        await act(async () => result.current.confirm());
+        await waitFor(() => expect(result.current.state).toBe('replying'));
+        expect(mockCreateMutate).toHaveBeenCalledWith(
+            expect.objectContaining({ calendarId: 'cal3' }),
+        );
+    });
+
+    it('unknown spoken calendar name → asks instead of silently defaulting', async () => {
+        mockParse.mockReturnValue({
+            kind: 'create', summary: 'rdv', start, names: [], calendarName: 'inconnu',
+        });
+        const { result } = renderMulti();
+        await act(async () => result.current.open());
+        await act(async () => result.current.submitText("crée un rdv demain dans l'agenda inconnu"));
+        await waitFor(() => expect(result.current.state).toBe('disambiguating'));
+        expect(result.current.candidates).toEqual(['Personnel', 'Planning clara', 'Perma SIPC']);
+        expect(mockCreateMutate).not.toHaveBeenCalled();
+    });
+
+    it('read-only calendars are excluded from the candidates', async () => {
+        const mixed = [
+            { id: 'ro', displayName: 'Jours fériés', isReadOnly: true },
+            { id: 'cal1', displayName: 'Personnel' },
+            { id: 'cal2', displayName: 'Pro' },
+        ] as CalendarMeta[];
+        mockParse.mockReturnValue({ kind: 'create', summary: 'Dentiste', start, names: [] });
+        const { result } = renderHook(() => useVoiceAssistant(account, mixed));
+        await act(async () => result.current.open());
+        await act(async () => result.current.submitText('crée dentiste demain 14h30'));
+        await waitFor(() => expect(result.current.state).toBe('disambiguating'));
+        expect(result.current.candidates).toEqual(['Personnel', 'Pro']);
+    });
+
+    it('all calendars read-only → error, no mutation', async () => {
+        const readOnly = [
+            { id: 'ro1', displayName: 'A', isReadOnly: true },
+            { id: 'ro2', displayName: 'B', isReadOnly: true },
+        ] as CalendarMeta[];
+        mockParse.mockReturnValue({ kind: 'create', summary: 'Dentiste', start, names: [] });
+        const { result } = renderHook(() => useVoiceAssistant(account, readOnly));
+        await act(async () => result.current.open());
+        await act(async () => result.current.submitText('crée dentiste demain 14h30'));
+        await waitFor(() => expect(result.current.state).toBe('error'));
+        expect(mockCreateMutate).not.toHaveBeenCalled();
+    });
+
+    it('default pointing at a read-only calendar is ignored → asks', async () => {
+        useSettingsStore.setState({ defaultCalendarByAccount: { a1: 'ro' } });
+        const mixed = [
+            { id: 'ro', displayName: 'Jours fériés', isReadOnly: true },
+            { id: 'cal1', displayName: 'Personnel' },
+            { id: 'cal2', displayName: 'Pro' },
+        ] as CalendarMeta[];
+        mockParse.mockReturnValue({ kind: 'create', summary: 'Dentiste', start, names: [] });
+        const { result } = renderHook(() => useVoiceAssistant(account, mixed));
+        await act(async () => result.current.open());
+        await act(async () => result.current.submitText('crée dentiste demain 14h30'));
+        await waitFor(() => expect(result.current.state).toBe('disambiguating'));
+        expect(result.current.candidates).toEqual(['Personnel', 'Pro']);
     });
 });
 

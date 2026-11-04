@@ -1,11 +1,10 @@
-import React, { useState } from 'react';
-import { KeyboardAvoidingView, Modal, Platform, StyleSheet, View } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { BackHandler, KeyboardAvoidingView, Platform, Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { AlertCircle, Check, Mic, Send, X } from 'lucide-react-native';
 import {
-  AnimatedPressable,
   Button,
   Icon,
   IconButton,
@@ -50,7 +49,7 @@ export function VoiceAssistantSheet({
   onPickCandidate,
   onClose,
   onRelisten,
-}: VoiceSheetProps): React.JSX.Element {
+}: VoiceSheetProps): React.JSX.Element | null {
   const { colors, radius } = useTheme();
   const insets = useSafeAreaInsets();
   const { t } = useTranslation();
@@ -67,9 +66,20 @@ export function VoiceAssistantSheet({
     setDraft('');
   };
 
+  useEffect(() => {
+    if (!visible) return undefined;
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      onClose();
+      return true;
+    });
+    return () => sub.remove();
+  }, [visible, onClose]);
+
+  if (!visible) return null;
+
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <AnimatedPressable animated={false} onPress={onClose} style={styles.backdrop}>
+    <View style={styles.overlay}>
+      <Pressable onPress={onClose} style={styles.backdrop}>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.kav}>
           <View
             onStartShouldSetResponder={() => true}
@@ -151,7 +161,7 @@ export function VoiceAssistantSheet({
 
               {state === 'disambiguating' ? (
                 <Stack gap={8}>
-                  <Typography variant="body2">{t('voice.chooseOne')}</Typography>
+                  <Typography variant="body2">{intentDescription ?? t('voice.chooseOne')}</Typography>
                   {(candidates ?? []).map((label, i) => (
                     <Button
                       key={`${i}`}
@@ -264,12 +274,20 @@ export function VoiceAssistantSheet({
             </Stack>
           </View>
         </KeyboardAvoidingView>
-      </AnimatedPressable>
-    </Modal>
+      </Pressable>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  overlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 100,
+  },
   backdrop: {
     flex: 1,
     justifyContent: 'flex-end',

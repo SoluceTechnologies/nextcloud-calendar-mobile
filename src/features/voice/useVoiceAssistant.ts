@@ -3,7 +3,7 @@ import { AppState } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import dayjs from 'dayjs';
 
-import type { Account, CalendarEvent, CalendarMeta } from '@/types';
+import type { Account, Attendee, CalendarEvent, CalendarMeta } from '@/types';
 import { useSettingsStore } from '@/stores/settingsStore';
 import { getNativePickerLocale } from '@/utils/i18n';
 import { resolveUse24h } from '@/utils/timeFormat';
@@ -82,6 +82,8 @@ export function useVoiceAssistant(account: Account | null, calendars: CalendarMe
     const stateRef = useRef<VoiceState>('idle');
     const pendingRef = useRef<PendingOp | null>(null);
     const candidateEventsRef = useRef<CalendarEvent[]>([]);
+    const candidateCalendarsRef = useRef<CalendarMeta[]>([]);
+    const pendingAttendeesRef = useRef<Attendee[]>([]);
     const pendingIntentRef = useRef<VoiceIntent | null>(null);
     const abortRef = useRef<AbortController | null>(null);
 
@@ -138,7 +140,7 @@ export function useVoiceAssistant(account: Account | null, calendars: CalendarMe
 
     // --- intent description shown on the confirmation card ---
     const describeIntent = useCallback(
-        (intent: VoiceIntent): string => {
+        (intent: VoiceIntent, calendarName?: string): string => {
             const l = getNativePickerLocale(language);
             const fmt = (d: Date) => dayjs(d).locale(l).format('dddd D MMMM · HH:mm');
             switch (intent.kind) {
@@ -146,6 +148,7 @@ export function useVoiceAssistant(account: Account | null, calendars: CalendarMe
                     return t('voice.confirmCreate', {
                         title: intent.summary?.trim() || t('voice.untitled'),
                         when: fmt(effectiveStart(intent)),
+                        calendar: calendarName ?? '',
                     });
                 case 'move':
                     return t('voice.confirmMove', {
@@ -204,11 +207,51 @@ export function useVoiceAssistant(account: Account | null, calendars: CalendarMe
                             dropped = resolved.ambiguous;
                         }
                         if (genRef.current !== gen) return;
+
+                        const writable = calendars.filter((c) => !c.isReadOnly);
+                        if (!writable.length) {
+                            setErrorText(t('voice.noWritableCalendar'));
+                            setStatus('error');
+                            return;
+                        }
+                        const fold = (s: string) =>
+                            s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim();
+                        const askCalendar = (pool: CalendarMeta[]) => {
+                            pendingIntentRef.current = intent;
+                            pendingAttendeesRef.current = attendees;
+                            candidateCalendarsRef.current = pool;
+                            setCandidates(pool.slice(0, 6).map((c) => c.displayName));
+                            setIntentDescription(t('voice.whichCalendar'));
+                            setStatus('disambiguating');
+                        };
+                        let calendar: CalendarMeta | undefined;
+                        if (intent.calendarName?.trim()) {
+                            const n = fold(intent.calendarName);
+                            const matches = writable.filter(
+                                (c) => fold(c.displayName).includes(n) || n.includes(fold(c.displayName)),
+                            );
+                            if (matches.length === 1) calendar = matches[0];
+                            else {
+                                askCalendar(matches.length > 1 ? matches : writable);
+                                return;
+                            }
+                        }
+                        if (!calendar) {
+                            const defId = useSettingsStore.getState().defaultCalendarByAccount[account.id];
+                            calendar =
+                                writable.find((c) => c.id === defId) ??
+                                (writable.length === 1 ? writable[0] : undefined);
+                        }
+                        if (!calendar) {
+                            askCalendar(writable);
+                            return;
+                        }
+
                         pendingIntentRef.current = intent;
                         pendingRef.current = {
                             kind: 'create',
                             input: inputFromCreateIntent(intent, {
-                                calendarId: calendars[0]?.id ?? '',
+                                calendarId: calendar.id,
                                 organizerEmail: account.username,
                                 organizerName: account.username,
                                 attendees,
@@ -217,7 +260,7 @@ export function useVoiceAssistant(account: Account | null, calendars: CalendarMe
                         const droppedNote = dropped.length
                             ? ` — ${t('voice.attendeesDropped', { names: dropped.join(', ') })}`
                             : '';
-                        setIntentDescription(describeIntent(intent) + droppedNote);
+                        setIntentDescription(describeIntent(intent, calendar.displayName) + droppedNote);
                         setStatus('confirming');
                         return;
                     }
@@ -304,6 +347,8 @@ export function useVoiceAssistant(account: Account | null, calendars: CalendarMe
             pendingRef.current = null;
             pendingIntentRef.current = null;
             candidateEventsRef.current = [];
+            candidateCalendarsRef.current = [];
+            pendingAttendeesRef.current = [];
             setCandidates([]);
             setTranscript(trimmed);
             setReply(undefined);
@@ -366,6 +411,8 @@ export function useVoiceAssistant(account: Account | null, calendars: CalendarMe
         tts.stop();
         pendingRef.current = null;
         candidateEventsRef.current = [];
+        candidateCalendarsRef.current = [];
+        pendingAttendeesRef.current = [];
         pendingIntentRef.current = null;
         setVisible(false);
         setStatus('idle');
@@ -386,6 +433,8 @@ export function useVoiceAssistant(account: Account | null, calendars: CalendarMe
         pendingRef.current = null;
         pendingIntentRef.current = null;
         candidateEventsRef.current = [];
+        candidateCalendarsRef.current = [];
+        pendingAttendeesRef.current = [];
         setCandidates([]);
         stt.cancelListening();
         abortRef.current?.abort();
@@ -430,8 +479,28 @@ export function useVoiceAssistant(account: Account | null, calendars: CalendarMe
     const pickCandidate = useCallback(
         (index: number) => {
             const intent = pendingIntentRef.current;
+            if (!intent) return;
+            if (intent.kind === 'create') {
+                const cal = candidateCalendarsRef.current[index];
+                if (!cal || !account) return;
+                pendingRef.current = {
+                    kind: 'create',
+                    input: inputFromCreateIntent(intent, {
+                        calendarId: cal.id,
+                        organizerEmail: account.username,
+                        organizerName: account.username,
+                        attendees: pendingAttendeesRef.current,
+                    }),
+                };
+                candidateCalendarsRef.current = [];
+                pendingAttendeesRef.current = [];
+                setCandidates([]);
+                setIntentDescription(describeIntent(intent, cal.displayName));
+                setStatus('confirming');
+                return;
+            }
             const event = candidateEventsRef.current[index];
-            if (!intent || !event || (intent.kind !== 'move' && intent.kind !== 'delete')) return;
+            if (!event || (intent.kind !== 'move' && intent.kind !== 'delete')) return;
             pendingRef.current =
                 intent.kind === 'move'
                     ? { kind: 'move', event, ...movedDates(event, intent.newStart) }
@@ -441,15 +510,24 @@ export function useVoiceAssistant(account: Account | null, calendars: CalendarMe
             setIntentDescription(describeIntent(intent));
             setStatus('confirming');
         },
-        [describeIntent, setStatus],
+        [account, describeIntent, setStatus],
     );
 
     useEffect(() => {
+        let bgTimer: ReturnType<typeof setTimeout> | undefined;
         const sub = AppState.addEventListener('change', (status) => {
-            if (status === 'background') close();
+            if (status === 'background') {
+                bgTimer = setTimeout(() => {
+                    if (AppState.currentState === 'background') close();
+                }, 1200);
+            } else if (bgTimer) {
+                clearTimeout(bgTimer);
+                bgTimer = undefined;
+            }
         });
         return () => {
             sub.remove();
+            if (bgTimer) clearTimeout(bgTimer);
             genRef.current += 1;
             stt.cancelListening();
             tts.stop();

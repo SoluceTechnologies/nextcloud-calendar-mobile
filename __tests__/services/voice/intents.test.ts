@@ -98,6 +98,43 @@ describe('create', () => {
     expect(U('crée un truc')).toEqual({ kind: 'freeform', text: 'crée un truc' });
     expect(U('schedule meeting', 'en')).toEqual({ kind: 'freeform', text: 'schedule meeting' });
   });
+
+  it("«dans l'agenda X» → calendarName, stripped from the summary", () => {
+    const i = U("crée un rdv demain à 15h dans l'agenda personnel");
+    expect(i).toEqual({
+      kind: 'create', summary: 'rdv', start: at(13, 15), end: undefined, names: undefined,
+      calendarName: 'personnel',
+    });
+    expect(U("ajoute un point mardi à 10h dans mon agenda planning clara")).toEqual({
+      kind: 'create', summary: 'point', start: at(18, 10), end: undefined, names: undefined,
+      calendarName: 'planning clara',
+    });
+  });
+
+  it('EN "in X calendar" mirrors', () => {
+    expect(U('schedule a call friday at 5pm in work calendar', 'en')).toEqual({
+      kind: 'create', summary: 'call', start: at(14, 17), end: undefined, names: undefined,
+      calendarName: 'work',
+    });
+    expect(U('create lunch tomorrow at noon in my personal calendar', 'en')).toEqual({
+      kind: 'create', summary: 'lunch', start: at(13, 12), end: undefined, names: undefined,
+      calendarName: 'personal',
+    });
+  });
+
+  it('«dans 2 heures» stays a duration — no agenda/calendar keyword, no calendarName', () => {
+    const i = U('crée un rappel dans 2 heures');
+    expect(i).toEqual({
+      kind: 'create', summary: 'rappel', start: at(12, 12), end: undefined, names: undefined,
+      calendarName: undefined,
+    });
+  });
+
+  it("empty calendar clause («dans l'agenda» alone) → no calendarName", () => {
+    const i = U("crée un rdv demain à 15h dans l'agenda");
+    expect(i.kind).toBe('create');
+    if (i.kind === 'create') expect(i.calendarName).toBeUndefined();
+  });
 });
 
 describe('move', () => {

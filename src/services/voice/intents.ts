@@ -9,7 +9,7 @@ import { extractMoments, momentToDate, startOfDay, type MomentMatch } from './da
 export type VoiceIntent =
   | { kind: 'agenda'; day: Date }
   | { kind: 'next' }
-  | { kind: 'create'; summary?: string; start: Date; end?: Date; names?: string[] }
+  | { kind: 'create'; summary?: string; start: Date; end?: Date; names?: string[]; calendarName?: string }
   | { kind: 'move'; target: { title?: string; when?: Date }; newStart: Date }
   | { kind: 'delete'; target: { title?: string; when?: Date } }
   | { kind: 'freeform'; text: string }
@@ -137,6 +137,17 @@ function titleBefore(body: string, moms: MomentMatch[], upto: number): string | 
 
 const WORD = /[a-zàâäçéèêëîïôöùûüÿœ0-9]/i;
 const NAMES_RE = new RegExp(`(^|[^${A}0-9])((?:avec|with|and|et)\\s+)([A-ZÀ-Ý])`);
+// calendar clause — the agenda/calendar keyword is REQUIRED so « dans 2 heures »
+// stays a duration. FR puts the name AFTER the keyword (« dans l'agenda planning
+// clara »), EN BEFORE it ("in my work calendar") — both orders are supported.
+const CAL_AFTER = new RegExp(
+  `(^|[^${A}0-9])((?:dans|sur|in|on|into|onto)\\s+(?:(?:l['’\\s]|le\\s+|la\\s+|les\\s+|mon\\s+|ma\\s+|mes\\s+|my\\s+|the\\s+|a\\s+|an\\s+))?(?:agenda|calendrier|calendar)\\b\\s*(?:(?:de|du|des|d['’]|of|for|pour)\\s+)?)`,
+  'i',
+);
+const CAL_BEFORE = new RegExp(
+  `(^|[^${A}0-9])((?:dans|sur|in|on|into|onto)\\s+(?:(?:my|the|a|an|mon|ma|mes|le|la|les|l['’\\s])\\s*)?)([${A}0-9][${A}0-9'’\\s-]*?\\s+)(?:agenda|calendrier|calendar)\\b`,
+  'i',
+);
 const FROM_CONN = /^(?:de|du|des|d['’]|from|since|depuis)$/i;
 const UNTIL_RE = /(?:jusqu['’][aà]|until|up\s+to|bis|au\s+plus\s+tard)\s*$/i;
 
@@ -217,6 +228,30 @@ export function parseUtterance(text: string, opts: { locale?: string; now?: Date
   const nm = NAMES_RE.exec(body);
   let names: string[] | undefined;
   let cut = moms[0].start;
+
+  let calendarName: string | undefined;
+  const cmA = CAL_AFTER.exec(body);
+  if (cmA) {
+    const nameStart = cmA.index + cmA[0].length;
+    const nextMom = moms.find((m) => m.start >= nameStart);
+    const nameEnd = nextMom ? nextMom.start : body.length;
+    calendarName = body.slice(nameStart, nameEnd).replace(PUNCT, '').trim() || undefined;
+    if (calendarName) {
+      cut = Math.min(cut, cmA.index + cmA[1].length);
+    }
+  }
+  if (!calendarName) {
+    const cmB = CAL_BEFORE.exec(body);
+    if (cmB) {
+      const name = cmB[3].replace(PUNCT, '').trim();
+      // a name containing a connector swallows two clauses (« in 2h in work calendar »)
+      if (name && !BARE.test(name) && !new RegExp(`(^|\\s)(dans|sur|in|on|into|onto)\\s`, 'i').test(name)) {
+        calendarName = name;
+        cut = Math.min(cut, cmB.index + cmB[1].length);
+      }
+    }
+  }
+
   if (nm) {
     const connStart = nm.index + nm[1].length;
     const nameStart = connStart + nm[2].length;
@@ -236,5 +271,5 @@ export function parseUtterance(text: string, opts: { locale?: string; now?: Date
   }
 
   const summary = cleanTitle(body.slice(0, cut));
-  return { kind: 'create', summary, start, end, names };
+  return { kind: 'create', summary, start, end, names, calendarName };
 }
