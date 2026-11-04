@@ -16,7 +16,8 @@
   },
   "tabs": {
     "calendar": "Calendrier",
-    "settings": "Paramètres"
+    "settings": "Paramètres",
+    "search": "Recherche"
   },
   "setup": {
     "brand": "Calendrier",
@@ -384,5 +385,54 @@
     "remedy": "Options plus sûres : joindre le serveur via un VPN comme Tailscale ou WireGuard, ou installer un certificat gratuit avec DuckDNS et Let's Encrypt.",
     "connect": "Se connecter quand même",
     "cancel": "Annuler"
+  },
+  "search": {
+    "title": "Rechercher",
+    "placeholder": "Rechercher des événements…",
+    "filters": "FILTRES",
+    "filter": {
+      "calendar": "Dans un calendrier",
+      "attendee": "Avec un participant",
+      "date": "Date",
+      "title": "Dans le titre",
+      "location": "Dans le lieu",
+      "description": "Dans la description"
+    },
+    "hint": {
+      "name": "nom",
+      "person": "personne",
+      "text": "texte"
+    },
+    "more": "Plus de filtres",
+    "moreHint": "titre, lieu, description",
+    "recent": "RÉCENTES",
+    "removeRecent": "Retirer des recherches récentes",
+    "removeFilter": "Retirer le filtre {{filter}}",
+    "use": "Utiliser « {{value}} »",
+    "filterHint": "Filtrer :",
+    "short": {
+      "calendar": "Calendrier",
+      "attendee": "Participant",
+      "date": "Date"
+    },
+    "date": {
+      "today": "Aujourd'hui",
+      "tomorrow": "Demain",
+      "week": "Dans les 7 jours",
+      "month": "Dans le mois",
+      "upcoming": "À venir",
+      "past": "Passés",
+      "before": "Avant une date…",
+      "after": "Après une date…"
+    },
+    "upcoming": "À VENIR",
+    "past": "PASSÉS",
+    "truncated": "Les {{count}} premiers sont affichés, ajoutez un filtre pour affiner",
+    "fromServer": "AUTRES RÉSULTATS DU SERVEUR",
+    "noResults": "Aucun résultat",
+    "noResultsHint": "Essayez moins de filtres ou un mot plus simple.",
+    "offlineNote": "Hors ligne — résultats locaux uniquement",
+    "serverFailed": "Serveur injoignable — résultats locaux uniquement",
+    "openFailed": "Impossible d'ouvrir cet événement"
   }
 }

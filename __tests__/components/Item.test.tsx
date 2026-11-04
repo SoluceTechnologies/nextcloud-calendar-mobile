@@ -15,4 +15,22 @@ describe('Item', () => {
     const { getByTestId } = render(<Item testID="row" title="Accounts" />);
     expect(getByTestId('row')).toBeTruthy();
   });
+
+  it('forwards accessibility actions', () => {
+    const handler = jest.fn();
+    const { getByTestId } = render(
+      <Item
+        testID="row"
+        title="Row"
+        onPress={jest.fn()}
+        accessibilityActions={[{ name: 'delete', label: 'Remove' }]}
+        onAccessibilityAction={handler}
+      />,
+    );
+    const row = getByTestId('row');
+    expect(row.props.accessibilityActions).toEqual([{ name: 'delete', label: 'Remove' }]);
+    expect(row.props.accessibilityRole).toBe('button');
+    row.props.onAccessibilityAction({ nativeEvent: { actionName: 'delete' } });
+    expect(handler).toHaveBeenCalledTimes(1);
+  });
 });

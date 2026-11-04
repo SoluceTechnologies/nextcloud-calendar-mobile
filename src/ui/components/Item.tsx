@@ -1,5 +1,11 @@
 import React from 'react';
-import { StyleSheet, View } from 'react-native';
+import {
+  StyleSheet,
+  View,
+  type AccessibilityActionEvent,
+  type AccessibilityActionInfo,
+  type AccessibilityRole,
+} from 'react-native';
 import AnimatedPressable from './AnimatedPressable';
 import Typography from './Typography';
 
@@ -12,9 +18,24 @@ interface ItemProps {
   disabled?: boolean;
   children?: React.ReactNode;
   testID?: string;
+  accessibilityRole?: AccessibilityRole;
+  accessibilityActions?: ReadonlyArray<AccessibilityActionInfo>;
+  onAccessibilityAction?: (event: AccessibilityActionEvent) => void;
 }
 
-function Item({ title, description, leading, trailing, onPress, disabled, children, testID }: ItemProps) {
+function Item({
+  title,
+  description,
+  leading,
+  trailing,
+  onPress,
+  disabled,
+  children,
+  testID,
+  accessibilityRole = 'button',
+  accessibilityActions,
+  onAccessibilityAction,
+}: ItemProps) {
   const body = children ?? (
     <View style={styles.content}>
       {typeof title === 'string' ? <Typography variant="body1">{title}</Typography> : title}
@@ -39,7 +60,15 @@ function Item({ title, description, leading, trailing, onPress, disabled, childr
   if (!onPress) return inner;
 
   return (
-    <AnimatedPressable testID={testID} onPress={onPress} disabled={disabled} scaleTo={0.98}>
+    <AnimatedPressable
+      testID={testID}
+      onPress={onPress}
+      disabled={disabled}
+      scaleTo={0.98}
+      accessibilityRole={accessibilityRole}
+      accessibilityActions={accessibilityActions}
+      onAccessibilityAction={onAccessibilityAction}
+    >
       {inner}
     </AnimatedPressable>
   );
