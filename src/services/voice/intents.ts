@@ -10,12 +10,13 @@ export type VoiceIntent =
   | { kind: 'agenda'; day: Date }
   | { kind: 'next' }
   | { kind: 'create'; summary?: string; start: Date; end?: Date; names?: string[]; calendarName?: string }
+  | { kind: 'slot'; day: Date; durationMin?: number; summary?: string; names?: string[]; calendarName?: string }
   | { kind: 'move'; target: { title?: string; when?: Date }; newStart: Date }
   | { kind: 'delete'; target: { title?: string; when?: Date } }
   | { kind: 'freeform'; text: string }
   | { kind: 'unknown'; raw: string };
 
-type Kind = 'agenda' | 'next' | 'create' | 'move' | 'delete';
+type Kind = 'agenda' | 'next' | 'create' | 'slot' | 'move' | 'delete';
 
 const A = 'a-zàâäçéèêëîïôöùûüÿœ';
 const rx = (s: string) => new RegExp(`(^|[^${A}0-9])(?:${s})(?![${A}0-9])`, 'i');
@@ -53,6 +54,21 @@ const CREATE_NOUN = [
   `meeting|appointment|lunch|dinner|standup|interview|breakfast`,
 ];
 
+// free-slot search — « trouve une dispo/créneau », "find a slot", « suis-je libre ».
+// Matches on the free-time NOUN so « réunion » keeps feeding the summary; the
+// whole utterance (verb + pour-clause) is parsed for day/duration/names.
+const SLOT = [
+  `disponibilités?|dispos?`,
+  `créneaux?|creneaux?`,
+  `plage\\s+(?:horaire|libre)|moment\\s+libre|trou\\s+dans\\s`,
+  `libre(?:s)?\\s+(?:pour|dans|le|à|a\\b)`,
+  `suis[-\\s]je\\s+libre|est[-\\s]ce\\s+que\\s+je\\s+suis\\s+libre|j['’]ai\\s+du\\s+temps|temps\\s+libre`,
+  `(?:time|slot|opening|gap)\\s+(?:for|to|in)`, // "time for a meeting"
+  `free\\s+(?:slot|time|spot|opening)s?|when\\s+am\\s+i\\s+free|am\\s+i\\s+free`,
+  `(?:trouve?r?|cherche?r?|repère?r?|regarde?r?)\\s+(?:(?:moi|me|nous|un|une|le|la|de|du|des|d['’\\s])\\s+)*(?:disponibilité|dispo|créneau|creneau|plage|moment|trou|temps)`,
+  `(?:find|look\\s+for|search\\s+for|get)\\s+(?:me\\s+|us\\s+|a\\s+|an\\s+|the\\s+|some\\s+)*(?:slot|opening|gap|free\\s+time|availability|window)`,
+];
+
 const MOVE = [
   `décale?r?|decale?r?`,
   `déplace?r?|deplace?r?`,
@@ -88,6 +104,7 @@ const GROUPS: { kind: Kind; noun?: boolean; res: RegExp[] }[] = [
   { kind: 'create', noun: true, res: CREATE_NOUN.map(rx) },
   { kind: 'move', res: MOVE.map(rx) },
   { kind: 'delete', res: DELETE.map(rx) },
+  { kind: 'slot', res: SLOT.map(rx) },
 ];
 
 function findTag(norm: string): Tag | null {
@@ -198,6 +215,51 @@ export function parseUtterance(text: string, opts: { locale?: string; now?: Date
       },
       newStart: momentToDate(last.moment),
     };
+  }
+
+  if (tag.kind === 'slot') {
+    // day = first moment's day (defaults to today); duration from
+    // « pendant 2h » / "for 30 min" / « d'une heure » (default handled later);
+    // summary = the « pour/for … » clause (« pour une réunion » → 'réunion').
+    const slotBody = norm.slice(tag.end);
+    const normMoms = extractMoments(norm, opts); // positions indexed on `norm`
+    const day = normMoms[0]?.moment.day ?? startOfDay(now);
+    let durationMin: number | undefined;
+    const dm = /(?:pendant|durant|for|dure[eé]?t?)\s+(?:une?|a|an)?\s*(\d+)\s*(h(?:eures?)?|hrs?|hours?|min(?:utes?)?)/i.exec(norm)
+      ?? /d['’](?:une\s+)?(?:demi[-\s]?heure|heure)/i.exec(norm)
+      ?? /half\s+an?\s+hour|an?\s+hour/i.exec(norm);
+    if (dm) {
+      durationMin = dm[1] ? parseInt(dm[1], 10) * (/^h/i.test(dm[2]) ? 60 : 1) : /demi|half/.test(dm[0]) ? 30 : 60;
+    }
+    const pourM = /(?:\bpour\b|\bfor\b)\s+(.+?)(?=\s+(?:avec|with|et\b|and\b|dans|sur|in\b|on\b|à|a\b|at\b)|$)/i.exec(slotBody);
+    let summary = pourM ? cleanTitle(pourM[1].replace(PUNCT, '')) : undefined;
+    if (summary && summary.split(/\s+/).length > 6) summary = summary.split(/\s+/).slice(0, 6).join(' ');
+    // names + calendar on the whole utterance — « avec Devin » can precede « pour »
+    const snm = NAMES_RE.exec(norm);
+    let snames: string[] | undefined;
+    if (snm) {
+      const nameStart = snm.index + snm[1].length + snm[2].length;
+      const nextMom = normMoms.find((m) => m.start >= nameStart);
+      const rawNames = norm
+        .slice(nameStart, nextMom ? nextMom.start : norm.length)
+        .split(/\s*(?:,|\bet\b|\band\b)\s*/i)
+        .map((chunk) => chunk.split(/\s+/).filter((w) => /^[A-ZÀ-Ý]/.test(w)).join(' '))
+        .filter(Boolean);
+      if (rawNames.length) snames = rawNames;
+    }
+    let sCal: string | undefined;
+    const scA = CAL_AFTER.exec(norm);
+    if (scA) {
+      const ns = scA.index + scA[0].length;
+      const nm2 = normMoms.find((m) => m.start >= ns);
+      sCal = norm.slice(ns, nm2 ? nm2.start : norm.length).replace(PUNCT, '').trim() || undefined;
+    }
+    if (!sCal) {
+      const scB = CAL_BEFORE.exec(norm);
+      const nm3 = scB?.[3]?.replace(PUNCT, '').trim();
+      if (scB && nm3 && !BARE.test(nm3) && !new RegExp(`(^|\\s)(dans|sur|in|on|into|onto)\\s`, 'i').test(nm3)) sCal = nm3;
+    }
+    return { kind: 'slot', day, durationMin, summary, names: snames, calendarName: sCal };
   }
 
   // create

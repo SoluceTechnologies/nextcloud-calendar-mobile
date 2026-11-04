@@ -72,6 +72,53 @@ export async function findEventTargets(
     return matches;
 }
 
+export interface FreeSlot {
+    start: Date;
+    end: Date;
+}
+
+/**
+ * Gaps of at least `durationMin` inside the working window of `day`
+ * (default 09:00–18:00). Slot starts align on :00/:30; busy intervals are the
+ * account's events clipped to the window, so all-day and boundary events block
+ * correctly. `minStart` keeps "today" proposals in the future.
+ */
+export function findFreeSlots(
+    events: CalendarEvent[],
+    day: Date,
+    opts: { durationMin?: number; windowStart?: number; windowEnd?: number; minStart?: Date; max?: number } = {},
+): FreeSlot[] {
+    const dur = (opts.durationMin ?? 60) * 60_000;
+    const day0 = new Date(day.getFullYear(), day.getMonth(), day.getDate()).getTime();
+    const win0 = day0 + (opts.windowStart ?? 9) * 3_600_000;
+    const win1 = day0 + (opts.windowEnd ?? 18) * 3_600_000;
+    const max = opts.max ?? 6;
+    const busy = events
+        .filter((e) => !e.isTask)
+        .map((e) => [Math.max(new Date(e.dtstart).getTime(), win0), Math.min(new Date(e.dtend).getTime(), win1)])
+        .filter(([s, e]) => e! > s!)
+        .sort((a, b) => a[0]! - b[0]!);
+    const slots: FreeSlot[] = [];
+    const align = (t: number) => Math.ceil(t / 1_800_000) * 1_800_000;
+    const floor = (t: number) => Math.floor(t / 1_800_000) * 1_800_000;
+    let cursor = Math.max(win0, opts.minStart?.getTime() ?? 0);
+    for (const [bs, be] of [...busy, [win1, win1] as number[]]) {
+        const gapEnd = Math.min(bs!, win1);
+        const first = align(cursor);
+        const last = floor(gapEnd - dur);
+        // up to 3 evenly-spaced starts per gap: first, middle, last
+        const starts = [...new Set([first, align((first + last) / 2), last])].filter(
+            (s) => s >= cursor && s + dur <= gapEnd,
+        );
+        for (const s of starts) {
+            if (slots.length >= max) break;
+            slots.push({ start: new Date(s), end: new Date(s + dur) });
+        }
+        cursor = Math.max(cursor, be!);
+    }
+    return slots;
+}
+
 export interface ResolvedAttendees {
     attendees: Attendee[];
     ambiguous: string[];

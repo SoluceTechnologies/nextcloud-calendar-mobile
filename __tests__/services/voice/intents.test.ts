@@ -137,6 +137,35 @@ describe('create', () => {
   });
 });
 
+describe('slot', () => {
+    it("«trouve une dispo pour une réunion avec Devin demain … et fais l'invitation» → day + names + summary", () => {
+        expect(
+            U("trouve moi une disponibilité pour une reunion avec Devin demain dans la journée et fait l'invitation"),
+        ).toEqual({ kind: 'slot', day: day(13), durationMin: undefined, summary: 'reunion', names: ['Devin'], calendarName: undefined });
+    });
+
+    it('duration «pendant 2h» / «d\'une demi-heure»', () => {
+        expect(U('trouve un créneau demain pendant 2h')).toMatchObject({ kind: 'slot', day: day(13), durationMin: 120 });
+        expect(U("cherche un trou d'une demi-heure vendredi")).toMatchObject({ kind: 'slot', durationMin: 30 });
+    });
+
+    it('«suis-je libre vendredi ?» / «temps libre»', () => {
+        expect(U('suis-je libre vendredi ?')).toEqual({ kind: 'slot', day: day(14), durationMin: undefined, summary: undefined, names: undefined, calendarName: undefined });
+        expect(U("quand ai-je du temps libre demain dans l'agenda planning clara")).toMatchObject({ kind: 'slot', day: day(13), calendarName: 'planning clara' });
+    });
+
+    it('EN "find a slot … for 30 minutes" + "am i free"', () => {
+        expect(U('find me a slot for a meeting with Anna tomorrow for 30 minutes', 'en')).toMatchObject({
+            kind: 'slot', day: day(13), durationMin: 30, summary: 'meeting', names: ['Anna'],
+        });
+        expect(U('am i free friday', 'en')).toMatchObject({ kind: 'slot', day: day(14) });
+    });
+
+    it('«crée un créneau demain à 14h» stays create — the earlier verb wins', () => {
+        expect(U('crée un créneau demain à 14h')).toMatchObject({ kind: 'create' });
+    });
+});
+
 describe('move', () => {
   it('«décale mon call de 15h à 16h» → title + when + newStart', () => {
     expect(U('décale mon call de 15h à 16h')).toEqual({
@@ -196,10 +225,8 @@ describe('delete', () => {
 
 describe('freeform / unknown fallback', () => {
   it('untagged questions → freeform', () => {
-    expect(U('est-ce que je suis libre jeudi après-midi ?')).toEqual({
-      kind: 'freeform',
-      text: 'est-ce que je suis libre jeudi après-midi ?',
-    });
+    // «suis-je libre» was freeform before the slot intent existed — now routed locally
+    expect(U('est-ce que je suis libre jeudi après-midi ?')).toMatchObject({ kind: 'slot', day: day(13) });
     expect(U('quel temps fait-il demain')).toEqual({ kind: 'freeform', text: 'quel temps fait-il demain' });
   });
 

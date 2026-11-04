@@ -345,6 +345,66 @@ describe('create — calendar resolution', () => {
     });
 });
 
+describe('slot — free-slot proposals', () => {
+    const day = new Date(2030, 0, 6); // Sun → next day for minStart safety? fixed far future
+    const at = (h: number, m = 0) => new Date(2030, 0, 6, h, m);
+    const slotIntent = {
+        kind: 'slot', day, summary: 'reunion', names: ['Devin'],
+    } as VoiceIntent;
+
+    it('busy day → slot candidates → pick → calendar ask → confirm → created with attendees', async () => {
+        const multi = [
+            { id: 'cal1', displayName: 'Personnel' },
+            { id: 'cal2', displayName: 'Planning clara' },
+        ] as CalendarMeta[];
+        mockParse.mockReturnValue(slotIntent);
+        mockEventsOnDay.mockResolvedValue([ev({ dtstart: at(9), dtend: at(12) })]);
+        mockResolveAttendees.mockResolvedValue({
+            attendees: [{ email: 'devin@nc.test', displayName: 'Devin' }],
+            ambiguous: [],
+        });
+        const { result } = renderHook(() => useVoiceAssistant(account, multi));
+        await act(async () => result.current.open());
+        await act(async () =>
+            result.current.submitText("trouve une dispo pour une reunion avec Devin demain et fais l'invitation"),
+        );
+        await waitFor(() => expect(result.current.state).toBe('disambiguating'));
+        // free window 09–18 with 09–12 busy → gap 12–18 → starts 12, 14:30, 17
+        expect(result.current.candidates).toEqual(['12:00 – 13:00', '14:30 – 15:30', '17:00 – 18:00']);
+        expect(result.current.intentDescription).toContain('slot');
+        expect(mockCreateMutate).not.toHaveBeenCalled();
+
+        await act(async () => result.current.pickCandidate(1)); // 14:30 – 15:30
+        // multi-calendar, no default, no spoken name → asks which calendar
+        await waitFor(() => expect(result.current.state).toBe('disambiguating'));
+        expect(result.current.candidates).toEqual(['Personnel', 'Planning clara']);
+
+        await act(async () => result.current.pickCandidate(0));
+        await waitFor(() => expect(result.current.state).toBe('confirming'));
+        expect(result.current.intentDescription).toContain('Personnel');
+
+        await act(async () => result.current.confirm());
+        await waitFor(() => expect(result.current.state).toBe('replying'));
+        const input = (mockCreateMutate.mock.calls as unknown[][])[0][0] as {
+            calendarId: string; dtstart: Date; dtend: Date; attendees: { email: string }[];
+        };
+        expect(input.calendarId).toBe('cal1');
+        expect(input.dtstart).toEqual(at(14, 30));
+        expect(input.dtend).toEqual(at(15, 30));
+        expect(input.attendees).toEqual([{ email: 'devin@nc.test', displayName: 'Devin' }]);
+    });
+
+    it('no free gap → error, nothing created', async () => {
+        mockParse.mockReturnValue(slotIntent);
+        mockEventsOnDay.mockResolvedValue([ev({ dtstart: at(0), dtend: new Date(2030, 0, 7, 0) })]);
+        const { result } = renderAssistant();
+        await act(async () => result.current.open());
+        await act(async () => result.current.submitText('trouve un créneau demain'));
+        await waitFor(() => expect(result.current.state).toBe('error'));
+        expect(mockCreateMutate).not.toHaveBeenCalled();
+    });
+});
+
 describe('freeform → tier 2 agent', () => {
     it('agent unavailable → notUnderstood reply', async () => {
         mockParse.mockReturnValue({ kind: 'freeform', text: 'suis-je libre ?' });

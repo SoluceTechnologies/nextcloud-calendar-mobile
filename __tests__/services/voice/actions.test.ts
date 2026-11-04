@@ -31,6 +31,7 @@ import {
     resolveAttendeeNames,
     inputFromCreateIntent,
     movedDates,
+    findFreeSlots,
 } from '@/services/voice/actions';
 
 function ev(partial: Partial<CalendarEvent> & { dtstart: Date; dtend: Date }): CalendarEvent {
@@ -169,5 +170,40 @@ describe('inputFromCreateIntent / movedDates', () => {
         });
         const { dtstart, dtend } = movedDates(e, new Date(2026, 10, 5, 17));
         expect(dtend.getTime() - dtstart.getTime()).toBe(90 * 60_000);
+    });
+});
+
+describe('findFreeSlots', () => {
+    const day = new Date(2026, 10, 5); // Thu 5 Nov 2026
+    const at = (h: number, m = 0) => new Date(2026, 10, 5, h, m);
+    const hours = (slots: { start: Date; end: Date }[]) =>
+        slots.map((s) => [s.start.getHours() + s.start.getMinutes() / 60, s.end.getHours() + s.end.getMinutes() / 60]);
+
+    it('empty day → 3 spread starts inside 09:00–18:00', () => {
+        expect(hours(findFreeSlots([], day))).toEqual([[9, 10], [13, 14], [17, 18]]);
+    });
+
+    it('busy events carve gaps; first/mid/last per gap', () => {
+        const busy = [ev({ dtstart: at(10), dtend: at(11) }), ev({ dtstart: at(14), dtend: at(16) })];
+        // gaps: 09–10 → [9]; 11–14 → 11, 12, 13; 16–18 → 16, 16:30, 17 — capped at max=6
+        expect(hours(findFreeSlots(busy, day))).toEqual([[9, 10], [11, 12], [12, 13], [13, 14], [16, 17], [16.5, 17.5]]);
+    });
+
+    it('a gap shorter than the duration gives nothing; all-day blocks the day', () => {
+        const packed = [ev({ dtstart: at(9), dtend: at(11, 30) }), ev({ dtstart: at(11, 30), dtend: at(18) })];
+        expect(findFreeSlots(packed, day)).toEqual([]);
+        const allDay = [ev({ dtstart: at(0), dtend: new Date(2026, 10, 6, 0) })];
+        expect(findFreeSlots(allDay, day)).toEqual([]);
+    });
+
+    it('duration filters: «pendant 2h» needs ≥ 2h gaps', () => {
+        const busy = [ev({ dtstart: at(10), dtend: at(11) }), ev({ dtstart: at(12), dtend: at(13) })];
+        // gaps: 9–10(1h ✗), 11–12(1h ✗), 13–18(5h ✓ → first 13, last floor(18-2)=16, mid align(14:30)=14:30)
+        expect(hours(findFreeSlots(busy, day, { durationMin: 120 }))).toEqual([[13, 15], [14.5, 16.5], [16, 18]]);
+    });
+
+    it('minStart keeps today proposals in the future', () => {
+        const slots = findFreeSlots([], day, { minStart: at(15, 20) });
+        expect(hours(slots)).toEqual([[15.5, 16.5], [16.5, 17.5], [17, 18]]);
     });
 });
