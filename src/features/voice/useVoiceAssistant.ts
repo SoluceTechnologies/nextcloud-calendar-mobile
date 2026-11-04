@@ -58,6 +58,10 @@ type PendingOp =
     | { kind: 'delete'; event: CalendarEvent; scope?: RecurrenceEditScope }
     | { kind: 'agent'; text: string };
 
+// after a spoken reply completes, the sheet stays up this long for reading,
+// then closes itself — cancelled by any new interaction.
+const AUTO_CLOSE_DELAY_MS = 4000;
+
 export interface VoiceAssistant {
     visible: boolean;
     state: VoiceState;
@@ -98,6 +102,8 @@ export function useVoiceAssistant(account: Account | null, calendars: CalendarMe
     const pendingNotesRef = useRef('');
     const pendingIntentRef = useRef<VoiceIntent | null>(null);
     const scopePickRef = useRef<{ event: CalendarEvent; intent: VoiceIntent } | null>(null);
+    const autoCloseRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const closeRef = useRef<(() => void) | undefined>(undefined);
     const abortRef = useRef<AbortController | null>(null);
 
     const createEvent = useCreateEvent(account!, calendars);
@@ -114,11 +120,32 @@ export function useVoiceAssistant(account: Account | null, calendars: CalendarMe
         return { locale: l, voice: briefingVoiceLocale(l), use24h: resolveUse24h(timeFormat, l) };
     }, [language, timeFormat]);
 
+    const cancelAutoClose = useCallback(() => {
+        if (autoCloseRef.current) {
+            clearTimeout(autoCloseRef.current);
+            autoCloseRef.current = null;
+        }
+    }, []);
+
+    const scheduleAutoClose = useCallback(
+        (gen: number) => {
+            cancelAutoClose();
+            autoCloseRef.current = setTimeout(() => {
+                autoCloseRef.current = null;
+                if (genRef.current === gen && stateRef.current === 'replying') closeRef.current?.();
+            }, AUTO_CLOSE_DELAY_MS);
+        },
+        [cancelAutoClose],
+    );
+
     // --- TTS chain (same gen-guard pattern as useBriefing) ---
     const speakSegments = useCallback(
-        (segs: BriefingSegment[], gen: number, voice: string) => {
+        (segs: BriefingSegment[], gen: number, voice: string, onAllDone?: () => void) => {
             const speakAt = (i: number) => {
-                if (genRef.current !== gen || i >= segs.length) return;
+                if (genRef.current !== gen || i >= segs.length) {
+                    if (i >= segs.length) onAllDone?.();
+                    return;
+                }
                 tts.speak(segs[i].text, {
                     language: voice,
                     onDone: () => speakAt(i + 1),
@@ -131,8 +158,8 @@ export function useVoiceAssistant(account: Account | null, calendars: CalendarMe
     );
 
     const say = useCallback(
-        (text: string, gen: number, voice: string) => {
-            tts.speak(text, { language: voice });
+        (text: string, gen: number, voice: string, onDone?: () => void) => {
+            tts.speak(text, { language: voice, onDone, onError: onDone });
         },
         [],
     );
@@ -145,10 +172,12 @@ export function useVoiceAssistant(account: Account | null, calendars: CalendarMe
             setIntentDescription(undefined);
             setCandidates([]);
             setStatus('replying');
-            if (opts?.segs?.length) speakSegments(opts.segs, gen, voice);
-            else if (text) say(text, gen, voice);
+            const done = () => scheduleAutoClose(gen);
+            if (opts?.segs?.length) speakSegments(opts.segs, gen, voice, done);
+            else if (text) say(text, gen, voice, done);
+            else done();
         },
-        [locale, speakSegments, say, setStatus],
+        [locale, speakSegments, say, setStatus, scheduleAutoClose],
     );
 
     // --- intent description shown on the confirmation card ---
@@ -494,6 +523,7 @@ export function useVoiceAssistant(account: Account | null, calendars: CalendarMe
             // a new utterance always starts a fresh round — drop any pending op
             genRef.current += 1;
             const gen = genRef.current;
+            cancelAutoClose();
             pendingRef.current = null;
             pendingIntentRef.current = null;
             scopePickRef.current = null;
@@ -509,7 +539,7 @@ export function useVoiceAssistant(account: Account | null, calendars: CalendarMe
             setStatus('parsed');
             void routeIntent(parseUtterance(trimmed, { locale: getNativePickerLocale(language) }), gen);
         },
-        [language, routeIntent, setStatus],
+        [language, routeIntent, setStatus, cancelAutoClose],
     );
 
     const listen = useCallback(async () => {
@@ -548,6 +578,7 @@ export function useVoiceAssistant(account: Account | null, calendars: CalendarMe
 
     const open = useCallback(() => {
         genRef.current += 1;
+        cancelAutoClose();
         setVisible(true);
         setTranscript('');
         setReply(undefined);
@@ -555,10 +586,11 @@ export function useVoiceAssistant(account: Account | null, calendars: CalendarMe
         setCandidates([]);
         setErrorText(undefined);
         void listen();
-    }, [listen]);
+    }, [listen, cancelAutoClose]);
 
     const close = useCallback(() => {
         genRef.current += 1;
+        cancelAutoClose();
         abortRef.current?.abort();
         abortRef.current = null;
         stt.cancelListening();
@@ -574,7 +606,7 @@ export function useVoiceAssistant(account: Account | null, calendars: CalendarMe
         pendingIntentRef.current = null;
         setVisible(false);
         setStatus('idle');
-    }, [setStatus]);
+    }, [setStatus, cancelAutoClose]);
 
     const submitText = useCallback(
         (text: string) => {
@@ -588,6 +620,7 @@ export function useVoiceAssistant(account: Account | null, calendars: CalendarMe
 
     const relisten = useCallback(() => {
         genRef.current += 1;
+        cancelAutoClose();
         pendingRef.current = null;
         pendingIntentRef.current = null;
         scopePickRef.current = null;
@@ -602,12 +635,13 @@ export function useVoiceAssistant(account: Account | null, calendars: CalendarMe
         abortRef.current?.abort();
         tts.stop();
         void listen();
-    }, [listen]);
+    }, [listen, cancelAutoClose]);
 
     const confirm = useCallback(async () => {
         const op = pendingRef.current;
         if (!account || !op) return;
         const gen = genRef.current;
+        cancelAutoClose();
         setStatus('executing');
         if (op.kind === 'agent') {
             pendingRef.current = null;
@@ -662,10 +696,11 @@ export function useVoiceAssistant(account: Account | null, calendars: CalendarMe
                 setStatus('error');
             }
         }
-    }, [account, createEvent, updateEvent, deleteEvent, replyWith, setStatus, t]);
+    }, [account, createEvent, updateEvent, deleteEvent, replyWith, setStatus, cancelAutoClose, t]);
 
     const pickCandidate = useCallback(
         (index: number) => {
+            cancelAutoClose();
             const scopePick = scopePickRef.current;
             if (scopePick) {
                 scopePickRef.current = null;
@@ -724,8 +759,13 @@ export function useVoiceAssistant(account: Account | null, calendars: CalendarMe
             setCandidates([]);
             armWithScopeDecision(event, intent);
         },
-        [account, describeIntent, routeCreate, setStatus, armTarget, armWithScopeDecision, t],
+        [account, describeIntent, routeCreate, setStatus, armTarget, armWithScopeDecision, cancelAutoClose, t],
     );
+
+    // auto-close timer needs the latest close() without re-creating replyWith
+    useEffect(() => {
+        closeRef.current = close;
+    });
 
     useEffect(() => {
         let bgTimer: ReturnType<typeof setTimeout> | undefined;

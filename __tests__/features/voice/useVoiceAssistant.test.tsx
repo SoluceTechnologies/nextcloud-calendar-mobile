@@ -665,6 +665,51 @@ describe('lifecycle', () => {
         expect(mockCancelListening).toHaveBeenCalled();
     });
 
+    it('auto-closes a few seconds after the spoken reply ends', async () => {
+        const start = new Date(2030, 0, 5, 14, 30);
+        mockParse.mockReturnValue({ kind: 'create', summary: 'Dentiste', start, names: [] });
+        const { result } = renderAssistant();
+        await act(async () => result.current.open());
+        await act(async () => result.current.submitText('crée dentiste lundi 14h30'));
+        await waitFor(() => expect(result.current.state).toBe('confirming'));
+
+        jest.useFakeTimers();
+        await act(async () => result.current.confirm());
+        expect(result.current.state).toBe('replying');
+        expect(result.current.visible).toBe(true);
+
+        act(() => jest.advanceTimersByTime(4500));
+        expect(result.current.visible).toBe(false);
+        expect(result.current.state).toBe('idle');
+        jest.useRealTimers();
+    });
+
+    it('a new utterance cancels the pending auto-close', async () => {
+        const start = new Date(2030, 0, 5, 14, 30);
+        mockParse
+            .mockReturnValueOnce({ kind: 'create', summary: 'Dentiste', start, names: [] })
+            .mockReturnValue({ kind: 'next' });
+        const { result } = renderAssistant();
+        await act(async () => result.current.open());
+        await act(async () => result.current.submitText('crée dentiste'));
+        await waitFor(() => expect(result.current.state).toBe('confirming'));
+
+        jest.useFakeTimers();
+        await act(async () => result.current.confirm());
+        expect(result.current.state).toBe('replying');
+
+        act(() => jest.advanceTimersByTime(1000));
+        // new command before the deadline → the sheet must stay open
+        mockNextEvent.mockResolvedValue(
+            ev({ uid: 'n1', dtstart: new Date(2030, 0, 6, 9), dtend: new Date(2030, 0, 6, 10) }),
+        );
+        jest.useRealTimers();
+        await act(async () => result.current.submitText('prochain événement'));
+        await waitFor(() => expect(result.current.state).toBe('replying'));
+        expect(result.current.visible).toBe(true);
+        act(() => result.current.close());
+    });
+
     it('new utterance invalidates an in-flight transcription', async () => {
         const { result } = renderAssistant();
         await act(async () => result.current.open());
