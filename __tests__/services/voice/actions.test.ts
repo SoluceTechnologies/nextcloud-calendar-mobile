@@ -189,11 +189,12 @@ describe('findFreeSlots', () => {
         expect(hours(findFreeSlots(busy, day))).toEqual([[9, 10], [11, 12], [12, 13], [13, 14], [16, 17], [16.5, 17.5]]);
     });
 
-    it('a gap shorter than the duration gives nothing; all-day blocks the day', () => {
+    it('a gap shorter than the duration gives nothing; a timed full-day block does', () => {
         const packed = [ev({ dtstart: at(9), dtend: at(11, 30) }), ev({ dtstart: at(11, 30), dtend: at(18) })];
         expect(findFreeSlots(packed, day)).toEqual([]);
-        const allDay = [ev({ dtstart: at(0), dtend: new Date(2026, 10, 6, 0) })];
-        expect(findFreeSlots(allDay, day)).toEqual([]);
+        const allDay = [ev({ allDay: true, dtstart: at(0), dtend: new Date(2026, 10, 6, 0) })];
+        // all-day banners don't block — they are rosters/labels, not meetings
+        expect(hours(findFreeSlots(allDay, day))).toEqual([[9, 10], [13, 14], [17, 18]]);
     });
 
     it('duration filters: «pendant 2h» needs ≥ 2h gaps', () => {

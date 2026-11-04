@@ -80,8 +80,9 @@ export interface FreeSlot {
 /**
  * Gaps of at least `durationMin` inside the working window of `day`
  * (default 09:00–18:00). Slot starts align on :00/:30; busy intervals are the
- * account's events clipped to the window, so all-day and boundary events block
- * correctly. `minStart` keeps "today" proposals in the future.
+ * account's timed events clipped to the window. All-day banners (duty rosters,
+ * "Repos", holidays…) are informational, not busy — they don't block.
+ * `minStart` keeps "today" proposals in the future.
  */
 export function findFreeSlots(
     events: CalendarEvent[],
@@ -94,7 +95,7 @@ export function findFreeSlots(
     const win1 = day0 + (opts.windowEnd ?? 18) * 3_600_000;
     const max = opts.max ?? 6;
     const busy = events
-        .filter((e) => !e.isTask)
+        .filter((e) => !e.isTask && !e.allDay)
         .map((e) => [Math.max(new Date(e.dtstart).getTime(), win0), Math.min(new Date(e.dtend).getTime(), win1)])
         .filter(([s, e]) => e! > s!)
         .sort((a, b) => a[0]! - b[0]!);
