@@ -6,6 +6,7 @@ import AppIntents
 
 @available(iOS 16.0, *)
 struct VoiceShortcuts: AppShortcutsProvider {
+  @AppShortcutsBuilder
   static var appShortcuts: [AppShortcut] {
     AppShortcut(
       intent: NextEventIntent(),

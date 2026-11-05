@@ -87,7 +87,7 @@ struct AskAssistantIntent: AppIntent {
   static var title: LocalizedStringResource = "Ask the calendar assistant"
   static var description = IntentDescription("Sends a free-form request to the Nextcloud calendar assistant.")
 
-  @Parameter(title: "Request")
+  @Parameter(title: "Request", requestValueDialog: IntentDialog("What would you like to ask your calendar assistant?"))
   var request: String
 
   static var parameterSummary: some ParameterSummary {
@@ -109,10 +109,10 @@ struct CreateEventIntent: AppIntent {
   static var title: LocalizedStringResource = "New event"
   static var description = IntentDescription("Opens a pre-filled event form — you review and save it.")
 
-  @Parameter(title: "Title")
+  @Parameter(title: "Title", requestValueDialog: IntentDialog("What's the title of the event?"))
   var eventTitle: String
 
-  @Parameter(title: "Date and time")
+  @Parameter(title: "Date and time", requestValueDialog: IntentDialog("When is the event?"))
   var date: Date?
 
   static var parameterSummary: some ParameterSummary {
