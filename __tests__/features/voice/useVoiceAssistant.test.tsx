@@ -159,6 +159,20 @@ describe('open / listen', () => {
         await waitFor(() => expect(result.current.state).toBe('replying'));
         expect(mockNextEvent).toHaveBeenCalled();
     });
+
+    it('openWith (deep link) opens the sheet and routes the utterance straight to the pipeline', async () => {
+        mockParse.mockReturnValue({ kind: 'next' });
+        mockNextEvent.mockResolvedValue(
+            ev({ uid: 'n1', summary: 'Standup', dtstart: new Date(2030, 0, 1, 9), dtend: new Date(2030, 0, 1, 10) }),
+        );
+        const { result } = renderAssistant();
+        await act(async () => result.current.openWith('next event'));
+        expect(result.current.visible).toBe(true);
+        expect(result.current.transcript).toBe('next event');
+        await waitFor(() => expect(result.current.state).toBe('replying'));
+        expect(mockParse).toHaveBeenCalled();
+        expect(mockNextEvent).toHaveBeenCalled();
+    });
 });
 
 describe('read intents', () => {

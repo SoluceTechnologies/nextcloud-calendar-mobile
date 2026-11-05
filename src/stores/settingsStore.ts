@@ -3,6 +3,7 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import { legacyBackedStorage } from '@/stores/legacyStorage';
 import { storage } from '@/storage';
 import { getInitialLanguage, getInitialWeekStartsOn, type AppLanguage } from '@/utils/i18n';
+import { SHARED_KEYS, setSharedString } from '@/services/shared/appGroupStorage';
 import type { TalkOpenMode } from '@/types';
 
 const ACCOUNT_IDS_KEY = 'account_ids'; // mirrors services/nextcloud/auth.ts
@@ -74,7 +75,15 @@ export const useSettingsStore = create<SettingsState>()(
       setReduceMotion: (v) => set({ reduceMotion: v }),
       setTalkOpenMode: (v) => set({ talkOpenMode: v }),
       setVoiceAssistantEnabled: (accountId, v) =>
-        set((s) => ({ voiceAssistantByAccount: { ...s.voiceAssistantByAccount, [accountId]: v } })),
+        set((s) => {
+          const voiceAssistantByAccount = { ...s.voiceAssistantByAccount, [accountId]: v };
+          // Siri App Intents gate on this flag through shared app-group defaults.
+          setSharedString(
+            SHARED_KEYS.voiceEnabled,
+            Object.values(voiceAssistantByAccount).some(Boolean) ? '1' : '0'
+          );
+          return { voiceAssistantByAccount };
+        }),
       setVoiceOnDevicePreferred: (v) => set({ voiceOnDevicePreferred: v }),
       setAiEnabled: (v) => set({ aiEnabled: v }),
       setDefaultCalendar: (accountId, calendarId) =>

@@ -42,6 +42,17 @@ jest.mock('@/features/widget/storage/widgetStore', () => ({
   readLiveEvent: () => null,
 }));
 
+const mockSetSharedString: jest.Mock = jest.fn();
+jest.mock('@/services/shared/appGroupStorage', () => ({
+  SHARED_KEYS: {
+    voiceEnabled: 'voice.enabled',
+    agendaSnapshot: 'voice.agendaSnapshot',
+  },
+  setSharedString: (...args: unknown[]) => mockSetSharedString(...args),
+  getSharedString: () => null,
+  removeSharedString: () => {},
+}));
+
 import { syncWidget } from '@/features/widget/sync/syncWidget';
 
 function ev(uid: string, calendarId: string): CalendarEvent {
@@ -88,6 +99,7 @@ describe('syncWidget calendar filtering', () => {
     useSettingsStore.setState({ language: 'en', timeFormat: 'auto' });
     mockHomeUpdate.mockClear();
     mockHomeClear.mockClear();
+    mockSetSharedString.mockClear();
     mockRows = [];
   });
 
@@ -133,5 +145,21 @@ describe('syncWidget calendar filtering', () => {
     const uids = snapshotEvents();
     expect(uids).toContain('a');
     expect(uids).not.toContain('b');
+  });
+
+  it('mirrors the current snapshot and voice flag to shared app-group storage', async () => {
+    mockRows = [ev('shared-snap', 'cal-a')];
+    useSettingsStore.setState({ voiceAssistantEnabled: true });
+
+    await syncWidget(new Date('2026-08-01T09:00:00Z'));
+
+    const writes = Object.fromEntries(
+      mockSetSharedString.mock.calls.map((c) => [c[0], c[1] as string]),
+    );
+    expect(writes['voice.enabled']).toBe('1');
+    const snap = JSON.parse(writes['voice.agendaSnapshot']) as {
+      nextEvent?: { uid: string };
+    };
+    expect(snap.nextEvent?.uid).toBe('shared-snap');
   });
 });
