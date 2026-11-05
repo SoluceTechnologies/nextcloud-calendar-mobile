@@ -29,6 +29,14 @@ export function isSttAvailable(): boolean {
     }
 }
 
+export function supportsOnDeviceRecognition(): boolean {
+    try {
+        return ExpoSpeechRecognitionModule.supportsOnDeviceRecognition();
+    } catch {
+        return false;
+    }
+}
+
 export async function getSttPermissions(): Promise<{ granted: boolean; canAskAgain: boolean }> {
     const res = await ExpoSpeechRecognitionModule.getPermissionsAsync();
     return { granted: res.granted, canAskAgain: res.canAskAgain };
@@ -39,7 +47,7 @@ export async function requestSttPermissions(): Promise<boolean> {
     return res.granted;
 }
 
-export function startListening(opts: { locale?: string } & SttCallbacks): void {
+export function startListening(opts: { locale?: string; onDevice?: boolean } & SttCallbacks): void {
     dropSession();
     const gen = generation;
     active = true;
@@ -65,6 +73,7 @@ export function startListening(opts: { locale?: string } & SttCallbacks): void {
             lang: opts.locale ?? getLocales()[0]?.languageTag,
             interimResults: true,
             continuous: false,
+            requiresOnDeviceRecognition: opts.onDevice === true,
         });
     } catch (e) {
         dropSession();

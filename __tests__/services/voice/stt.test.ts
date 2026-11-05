@@ -5,6 +5,7 @@ import {
   requestSttPermissions,
   startListening,
   stopListening,
+  supportsOnDeviceRecognition,
 } from '../../../src/services/voice/stt';
 import { ExpoSpeechRecognitionModule } from 'expo-speech-recognition';
 
@@ -18,6 +19,7 @@ const mock = ExpoSpeechRecognitionModule as unknown as {
   requestPermissionsAsync: jest.Mock;
   getPermissionsAsync: jest.Mock;
   isRecognitionAvailable: jest.Mock;
+  supportsOnDeviceRecognition: jest.Mock;
 };
 
 let listeners: Record<string, Listener>;
@@ -50,6 +52,21 @@ describe('isSttAvailable', () => {
   });
 });
 
+describe('supportsOnDeviceRecognition', () => {
+  it('reflects the module capability', () => {
+    expect(supportsOnDeviceRecognition()).toBe(true);
+    mock.supportsOnDeviceRecognition.mockReturnValueOnce(false);
+    expect(supportsOnDeviceRecognition()).toBe(false);
+  });
+
+  it('returns false when the module throws', () => {
+    mock.supportsOnDeviceRecognition.mockImplementationOnce(() => {
+      throw new Error('no module');
+    });
+    expect(supportsOnDeviceRecognition()).toBe(false);
+  });
+});
+
 describe('permissions', () => {
   it('maps getPermissionsAsync to {granted, canAskAgain}', async () => {
     mock.getPermissionsAsync.mockResolvedValueOnce({
@@ -78,6 +95,7 @@ describe('startListening', () => {
       lang: 'fr-FR',
       interimResults: true,
       continuous: false,
+      requiresOnDeviceRecognition: false,
     });
     expect(mock.addListener).toHaveBeenCalledTimes(3);
     expect(mock.addListener.mock.calls.map((c) => c[0])).toEqual(['result', 'error', 'end']);
@@ -87,6 +105,17 @@ describe('startListening', () => {
     startListening({ onResult: jest.fn() });
     expect(mock.start).toHaveBeenCalledWith(
       expect.objectContaining({ lang: 'en-US' }),
+    );
+  });
+
+  it('passes requiresOnDeviceRecognition through when onDevice is set', () => {
+    startListening({ onResult: jest.fn(), onDevice: true });
+    expect(mock.start).toHaveBeenCalledWith(
+      expect.objectContaining({ requiresOnDeviceRecognition: true }),
+    );
+    startListening({ onResult: jest.fn(), onDevice: false });
+    expect(mock.start).toHaveBeenLastCalledWith(
+      expect.objectContaining({ requiresOnDeviceRecognition: false }),
     );
   });
 

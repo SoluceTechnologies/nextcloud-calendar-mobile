@@ -98,6 +98,7 @@ jest.mock('expo-speech-recognition', () => ({
       status: 'granted',
     })),
     isRecognitionAvailable: jest.fn(() => true),
+    supportsOnDeviceRecognition: jest.fn(() => true),
     getStateAsync: jest.fn(async () => 'inactive'),
   },
   useSpeechRecognitionEvent: jest.fn(),

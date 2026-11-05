@@ -563,8 +563,12 @@ export function useVoiceAssistant(account: Account | null, calendars: CalendarMe
             return;
         }
         setStatus('listening');
+        // on-device STT when preferred AND supported — else network fallback.
+        const onDevice =
+            useSettingsStore.getState().voiceOnDevicePreferred && stt.supportsOnDeviceRecognition();
         stt.startListening({
             locale: loc,
+            onDevice,
             onPartial: (text) => {
                 if (genRef.current === gen) setTranscript(text);
             },
