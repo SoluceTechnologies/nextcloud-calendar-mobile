@@ -1,0 +1,12 @@
+Nextcloud Calendar Mobile giver dig dine Nextcloud-kalendere i en app, der er lavet til Android. Appen forbinder direkte til din Nextcloud-instans via CalDAV-protokollen.
+
+Funktioner:
+* Flere Nextcloud-konti
+* Se kalendere i dags-, uge- og månedsvisning
+* Opret, redigér og slet begivenheder
+* Offline først: Begivenheder gemmes lokalt og synkroniseres med din server
+* Opret et Nextcloud Talk-rum til hver begivenhed
+* Log hurtigt ind ved at scanne en QR-kode
+* Lyst og mørkt tema og flere sprog
+
+Dette er en uofficiel app. Den er ikke gennemgået, godkendt eller certificeret af Nextcloud GmbH.
