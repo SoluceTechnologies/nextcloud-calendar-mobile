@@ -22,6 +22,7 @@ function section(partial: Partial<AgendaDaySection> & { dayKey: string }): Agend
     weekdayLong: 'Monday',
     isToday: false,
     items: [],
+    totalCount: 0,
     ...partial,
   };
 }

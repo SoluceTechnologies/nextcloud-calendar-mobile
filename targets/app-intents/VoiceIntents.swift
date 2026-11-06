@@ -31,8 +31,8 @@ struct NextEventIntent: AppIntent {
 
   func perform() async throws -> some IntentResult & ProvidesDialog {
     guard voiceEnabled() else { return .result(dialog: IntentDialog(stringLiteral: voiceOffDialog)) }
-    guard let snapshot = SharedVoiceData.snapshot else { return .result(dialog: IntentDialog(stringLiteral: noDataDialog)) }
-    guard let next = snapshot.nextEvent else {
+    guard let next = SharedVoiceData.nextUpcomingEvent else {
+      guard SharedVoiceData.snapshot != nil else { return .result(dialog: IntentDialog(stringLiteral: noDataDialog)) }
       return .result(dialog: IntentDialog(stringLiteral: SharedVoiceData.speak(
         "Nothing coming up on your calendar.",
         "Rien de prévu dans votre agenda."
@@ -53,7 +53,14 @@ struct TodayAgendaIntent: AppIntent {
   func perform() async throws -> some IntentResult & ProvidesDialog {
     guard voiceEnabled() else { return .result(dialog: IntentDialog(stringLiteral: voiceOffDialog)) }
     guard SharedVoiceData.snapshot != nil else { return .result(dialog: IntentDialog(stringLiteral: noDataDialog)) }
-    let items = SharedVoiceData.todaySection?.items ?? []
+    // Snapshot exists but its "today" is stale → don't speak yesterday's agenda.
+    guard let section = SharedVoiceData.todaySection else {
+      return .result(dialog: IntentDialog(stringLiteral: SharedVoiceData.speak(
+        "My agenda data is out of date — open Calendar once to refresh it.",
+        "Mes données d'agenda sont trop anciennes — ouvrez l'app pour les actualiser."
+      )))
+    }
+    let items = section.items
     if items.isEmpty {
       return .result(dialog: IntentDialog(stringLiteral: SharedVoiceData.speak(
         "Nothing scheduled today.",
@@ -61,7 +68,8 @@ struct TodayAgendaIntent: AppIntent {
       )))
     }
     let first = items[0]
-    let count = items.count
+    // items is truncated at maxPerSection — totalCount carries the real total.
+    let count = section.totalCount ?? items.count
     return .result(dialog: IntentDialog(stringLiteral: SharedVoiceData.speak(
       "You have \(count) event\(count == 1 ? "" : "s") today, starting with \(first.title) at \(first.timeLabel).",
       "Vous avez \(count) événement\(count == 1 ? "" : "s") aujourd'hui, à commencer par \(first.title) à \(first.timeLabel)."
@@ -97,9 +105,12 @@ struct AskAssistantIntent: AppIntent {
   static var openAppWhenRun: Bool = true
 
   func perform() async throws -> some IntentResult {
-    let encoded = request.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
-    let url = URL(string: "nextcloud-calendar://listen?mode=voice&say=\(encoded)")!
-    await MainActor.run { UIApplication.shared.open(url) }
+    var comps = URLComponents(string: "nextcloud-calendar://listen")!
+    comps.queryItems = [
+      URLQueryItem(name: "mode", value: "voice"),
+      URLQueryItem(name: "say", value: request),
+    ]
+    await MainActor.run { UIApplication.shared.open(comps.url!) }
     return .result()
   }
 }
