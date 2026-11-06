@@ -139,7 +139,7 @@ describe('askAgent', () => {
         mockPollTask.mockResolvedValueOnce({ id: 42, status: 3, output: { output: 'Vous êtes libre jeudi.' } });
         await expect(askAgent(account, 'suis-je libre jeudi ?')).resolves.toBe('Vous êtes libre jeudi.');
         expect(mockScheduleTask).toHaveBeenCalledWith(account, AGENT_TASK_TYPE, { input: 'suis-je libre jeudi ?' });
-        expect(mockPollTask).toHaveBeenCalledWith(account, 42, expect.objectContaining({ timeoutMs: 45_000 }));
+        expect(mockPollTask).toHaveBeenCalledWith(account, 42, expect.objectContaining({ timeoutMs: 120_000 }));
     });
 
     it('extracts text from a ListOfTexts-shaped output too', async () => {
