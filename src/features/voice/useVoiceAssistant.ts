@@ -223,6 +223,54 @@ export function useVoiceAssistant(account: Account | null, calendars: CalendarMe
         [language, t],
     );
 
+    // Arms the create confirmation card for a chosen calendar. Warns (without
+    // blocking) when a resolved attendee is busy on the requested slot —
+    // explicit-time creates never reach the 'slot' intent's free/busy merge.
+    // Shared by the direct path and the calendar-disambiguation pick.
+    const armCreate = useCallback(
+        async (
+            intent: Extract<VoiceIntent, { kind: 'create' }>,
+            calendar: CalendarMeta,
+            attendees: Attendee[],
+            gen: number,
+        ) => {
+            if (!account) return;
+            const organizer = resolveOrganizer(account);
+            const input = inputFromCreateIntent(intent, {
+                calendarId: calendar.id,
+                ...organizer,
+                attendees,
+            });
+            if (attendees.length) {
+                try {
+                    const avail = await fetchFreeBusy(
+                        account,
+                        { email: organizer.organizerEmail, displayName: organizer.organizerName },
+                        attendees,
+                        input.dtstart,
+                        input.dtend,
+                    );
+                    if (genRef.current !== gen) return;
+                    const busy = avail.filter(
+                        (a) => !isSlotFree({ start: input.dtstart, end: input.dtend }, a.slots),
+                    );
+                    if (busy.length) {
+                        pendingNotesRef.current += ` — ${t('voice.attendeesBusy', {
+                            names: busy.map((a) => a.displayName || a.email).join(', '),
+                        })}`;
+                    }
+                } catch {
+                    // free/busy unreachable → confirm without the warning
+                }
+            }
+
+            pendingRef.current = { kind: 'create', input };
+            promptWith(describeIntent(intent, calendar.displayName) + pendingNotesRef.current, 'confirming', gen);
+            pendingNotesRef.current = '';
+        },
+        [account, describeIntent, promptWith, t],
+    );
+
     // --- create path shared by 'create' and 'slot' intents: resolves attendees,
     // the target calendar (spoken name → configured default → ask), then arms
     // the confirmation card ---
@@ -288,44 +336,9 @@ export function useVoiceAssistant(account: Account | null, calendars: CalendarMe
             }
 
             pendingIntentRef.current = intent;
-            const organizer = resolveOrganizer(account);
-            const input = inputFromCreateIntent(intent, {
-                calendarId: calendar.id,
-                ...organizer,
-                attendees,
-            });
-
-            // Warn (without blocking) when a resolved attendee is busy on the
-            // requested slot — explicit-time creates never reach the 'slot'
-            // intent's free/busy merge otherwise.
-            if (attendees.length) {
-                try {
-                    const avail = await fetchFreeBusy(
-                        account,
-                        { email: organizer.organizerEmail, displayName: organizer.organizerName },
-                        attendees,
-                        input.dtstart,
-                        input.dtend,
-                    );
-                    if (genRef.current !== gen) return;
-                    const busy = avail.filter(
-                        (a) => !isSlotFree({ start: input.dtstart, end: input.dtend }, a.slots),
-                    );
-                    if (busy.length) {
-                        pendingNotesRef.current += ` — ${t('voice.attendeesBusy', {
-                            names: busy.map((a) => a.displayName || a.email).join(', '),
-                        })}`;
-                    }
-                } catch {
-                    // free/busy unreachable → confirm without the warning
-                }
-            }
-
-            pendingRef.current = { kind: 'create', input };
-            promptWith(describeIntent(intent, calendar.displayName) + pendingNotesRef.current, 'confirming', gen);
-            pendingNotesRef.current = '';
+            await armCreate(intent, calendar, attendees, gen);
         },
-        [account, calendars, describeIntent, promptWith, t],
+        [account, calendars, describeIntent, promptWith, t, armCreate],
     );
 
     // --- move/delete arming: a day-only destination keeps the event's clock
@@ -767,19 +780,11 @@ export function useVoiceAssistant(account: Account | null, calendars: CalendarMe
             if (intent.kind === 'create') {
                 const cal = candidateCalendarsRef.current[index];
                 if (!cal || !account) return;
-                pendingRef.current = {
-                    kind: 'create',
-                    input: inputFromCreateIntent(intent, {
-                        calendarId: cal.id,
-                        ...resolveOrganizer(account),
-                        attendees: pendingAttendeesRef.current,
-                    }),
-                };
+                const attendees = pendingAttendeesRef.current;
                 candidateCalendarsRef.current = [];
                 pendingAttendeesRef.current = [];
                 setCandidates([]);
-                promptWith(describeIntent(intent, cal.displayName) + pendingNotesRef.current, 'confirming');
-                pendingNotesRef.current = '';
+                void armCreate(intent, cal, attendees, genRef.current);
                 return;
             }
             const event = candidateEventsRef.current[index];
@@ -788,7 +793,7 @@ export function useVoiceAssistant(account: Account | null, calendars: CalendarMe
             setCandidates([]);
             armWithScopeDecision(event, intent);
         },
-        [account, describeIntent, routeCreate, setStatus, armTarget, armWithScopeDecision, cancelAutoClose, promptWith, t],
+        [account, describeIntent, routeCreate, setStatus, armCreate, armTarget, armWithScopeDecision, cancelAutoClose, promptWith, t],
     );
 
     // auto-close timer needs the latest close() without re-creating replyWith
