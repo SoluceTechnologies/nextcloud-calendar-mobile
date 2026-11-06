@@ -51,12 +51,18 @@ function calendarRow(remoteId: string) {
   };
 }
 
-function eventRow(calendarId: string, href: string) {
-  return {
+function eventRow(calendarId: string, href: string, color = '#fff') {
+  const row = {
     calendarId,
     href,
+    color,
     prepareMarkAsDeleted: jest.fn(() => ({ _op: 'del-ev', href })),
+    prepareUpdate: jest.fn((fn: (r: { color: string }) => void) => {
+      fn(row);
+      return { _op: 'upd-ev', href };
+    }),
   };
+  return row;
 }
 
 function makeDb(opts: { calendarRows?: any[]; eventRows?: any[] }) {
@@ -99,13 +105,12 @@ describe('syncCalendars', () => {
     const alive = calendarRow('cal-alive');
     const orphan1 = eventRow('cal-gone', 'h1');
     const orphan2 = eventRow('cal-gone', 'h2');
-    const { db, batch, eventsCol } = makeDb({ calendarRows: [row, alive], eventRows: [orphan1, orphan2] });
+    const { db, batch } = makeDb({ calendarRows: [row, alive], eventRows: [orphan1, orphan2] });
     mockGetDb.mockReturnValue(db);
     mockFetchCalendars.mockResolvedValue([remoteCalendar('cal-alive')]);
 
     await syncCalendars(account);
 
-    expect(eventsCol.query).toHaveBeenCalledTimes(1);
     expect(orphan1.prepareMarkAsDeleted).toHaveBeenCalledTimes(1);
     expect(orphan2.prepareMarkAsDeleted).toHaveBeenCalledTimes(1);
     expect(batch).toHaveBeenCalledTimes(1);
@@ -127,15 +132,17 @@ describe('syncCalendars', () => {
     expect(batch).not.toHaveBeenCalled();
   });
 
-  it('does not query events when no calendar was removed', async () => {
+  it('does not rewrite events whose color already matches their calendar', async () => {
     const row = calendarRow('cal-alive');
-    const { db, eventsCol } = makeDb({ calendarRows: [row] });
+    const ev = eventRow('cal-alive', 'h1');
+    const { db, batch } = makeDb({ calendarRows: [row], eventRows: [ev] });
     mockGetDb.mockReturnValue(db);
     mockFetchCalendars.mockResolvedValue([remoteCalendar('cal-alive')]);
 
     await syncCalendars(account);
 
-    expect(eventsCol.query).not.toHaveBeenCalled();
+    expect(ev.prepareUpdate).not.toHaveBeenCalled();
+    expect(batch).not.toHaveBeenCalled();
   });
 
   it('creates a row for a new remote calendar', async () => {
@@ -158,5 +165,38 @@ describe('syncCalendars', () => {
 
     expect(row.prepareUpdate).toHaveBeenCalledTimes(1);
     expect(batch).toHaveBeenCalledTimes(1);
+  });
+
+  it('recolors cached events when the calendar color changed on the server', async () => {
+    const row = calendarRow('cal-a');
+    const ev1 = eventRow('cal-a', 'h1');
+    const ev2 = eventRow('cal-a', 'h2');
+    const { db, batch } = makeDb({ calendarRows: [row], eventRows: [ev1, ev2] });
+    mockGetDb.mockReturnValue(db);
+    mockFetchCalendars.mockResolvedValue([{ ...remoteCalendar('cal-a'), color: '#e53935' }]);
+
+    await syncCalendars(account);
+
+    expect(ev1.color).toBe('#e53935');
+    expect(ev2.color).toBe('#e53935');
+    expect(batch).toHaveBeenCalledTimes(1);
+    expect(batch.mock.calls[0][0]).toHaveLength(3);
+  });
+
+  it('heals events left stale even when the calendar row already has the new color', async () => {
+    const row = { ...calendarRow('cal-a'), color: '#e53935' };
+    const stale = eventRow('cal-a', 'h1', '#fff');
+    const fresh = eventRow('cal-a', 'h2', '#e53935');
+    const { db, batch } = makeDb({ calendarRows: [row], eventRows: [stale, fresh] });
+    mockGetDb.mockReturnValue(db);
+    mockFetchCalendars.mockResolvedValue([{ ...remoteCalendar('cal-a'), color: '#e53935' }]);
+
+    await syncCalendars(account);
+
+    expect(row.prepareUpdate).not.toHaveBeenCalled();
+    expect(stale.color).toBe('#e53935');
+    expect(fresh.prepareUpdate).not.toHaveBeenCalled();
+    expect(batch).toHaveBeenCalledTimes(1);
+    expect(batch.mock.calls[0][0]).toHaveLength(1);
   });
 });

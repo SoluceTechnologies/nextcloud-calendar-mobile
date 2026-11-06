@@ -133,6 +133,30 @@ export async function syncCalendars(account: Account): Promise<CalendarMeta[]> {
             }
         }
 
+        // Event rows cache their calendar's color. A calendar color change on the
+        // server doesn't touch the events themselves (no new sync-token / etag), so
+        // the delta sync never rewrites them. Reconcile on every calendar sync, not
+        // only when the change is seen, so rows left stale earlier heal too.
+        const colorByCalendar = new Map(remote.map((c) => [c.id, c.color]));
+        if (colorByCalendar.size > 0) {
+            const stale = await events
+                .query(
+                    Q.where('account_id', account.id),
+                    Q.or(
+                        ...[...colorByCalendar].map(([id, color]) =>
+                            Q.and(Q.where('calendar_id', id), Q.where('color', Q.notEq(color))),
+                        ),
+                    ),
+                )
+                .fetch();
+            for (const ev of stale) {
+                const color = colorByCalendar.get(ev.calendarId);
+                if (color !== undefined && ev.color !== color) {
+                    ops.push(ev.prepareUpdate((r: Event) => { r.color = color; }));
+                }
+            }
+        }
+
         const removed = existing.filter((r) => !seen.has(r.remoteId));
         for (const r of removed) ops.push(r.prepareMarkAsDeleted());
 
