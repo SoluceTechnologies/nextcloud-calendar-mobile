@@ -22,8 +22,11 @@ const mockStartListening = jest.fn((opts: typeof sttCallbacks) => {
 });
 const mockCancelListening = jest.fn();
 
+const mockOnDeviceSupported = jest.fn(() => true);
+
 jest.mock('@/services/voice/stt', () => ({
     isSttAvailable: () => mockIsSttAvailable(),
+    supportsOnDeviceRecognition: () => mockOnDeviceSupported(),
     requestSttPermissions: () => mockRequestPerms(),
     startListening: (o: typeof sttCallbacks) => mockStartListening(o),
     stopListening: jest.fn(),
