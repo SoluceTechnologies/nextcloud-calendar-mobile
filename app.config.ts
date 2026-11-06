@@ -35,7 +35,7 @@ const config: ExpoConfig = {
         icon: './assets/icon-ios.icon',
         infoPlist: {
             CFBundleDisplayName: 'Nextcloud Calendar',
-            CFBundleLocalizations: ['en', 'fr', 'de', 'es', 'it', 'ru', 'pt', 'nl', 'oc'],
+            CFBundleLocalizations: ['en', 'fr', 'de', 'es', 'it', 'ru', 'pt', 'nl', 'oc', 'da'],
             CFBundleAllowMixedLocalizations: true,
             LSApplicationQueriesSchemes: ['nextcloudtalk', 'comgooglemaps', 'waze'],
             ITSAppUsesNonExemptEncryption: false,
