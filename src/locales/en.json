@@ -71,6 +71,7 @@
     "drawerDeck": "DECK",
     "drawerTasks": "TASKS",
     "offlineBanner": "Offline — showing saved events",
+    "syncError": "Sync failed — tap to retry",
     "noEvents": "No events",
     "allDay": "All day",
     "noTitle": "(No title)",

@@ -71,6 +71,7 @@
     "drawerDeck": "DECK",
     "drawerTasks": "AUFGABEN",
     "offlineBanner": "Offline — gespeicherte Ereignisse werden angezeigt",
+    "syncError": "Synchronisierung fehlgeschlagen — zum Wiederholen tippen",
     "noEvents": "Keine Ereignisse",
     "allDay": "Ganztägig",
     "noTitle": "(Kein Titel)",
