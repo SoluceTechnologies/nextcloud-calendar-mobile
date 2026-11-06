@@ -111,7 +111,7 @@ describe('shiftSeriesDates', () => {
     const { db, batch } = makeDb([other]);
     mockGetDb.mockReturnValue(db);
 
-    await expect(shiftSeriesDates(ACCOUNT_ID, 'ghost', 30 * MIN, 30 * MIN, {})).resolves.toBeUndefined();
+    await expect(shiftSeriesDates(ACCOUNT_ID, 'ghost', 30 * MIN, 30 * MIN, {})).resolves.toEqual([]);
 
     expect(other.prepareUpdate).not.toHaveBeenCalled();
     expect(other.start).toBe(t0);

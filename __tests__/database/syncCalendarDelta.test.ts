@@ -1,6 +1,8 @@
-import { syncCalendarDelta, syncEvents, markLocalWrite } from '../../src/database/sync';
+import { syncCalendarDelta, syncEvents } from '../../src/database/sync';
+import { markPending, releasePending } from '../../src/database/pendingWrites';
 import { syncCollection, fetchEvents, fetchEventsByHrefs, fetchEventsForCalendars } from '../../src/services/nextcloud/caldav';
 import { getDatabaseInstance } from '../../src/database/DatabaseProvider';
+import { storage } from '../../src/storage';
 import type { Account, CalendarMeta, CalendarEvent } from '../../src/types';
 
 jest.mock('../../src/services/nextcloud/caldav');
@@ -34,11 +36,22 @@ const calendar: CalendarMeta = {
   slug: 'work',
 };
 
+const keyOf = (uid: string, cal: CalendarMeta = calendar) =>
+  `${account.id}|${cal.id}|${uid}`;
+
 function makeRow(href: string, start?: number, end?: number) {
   // Default window: inside the ±18-month expansion horizon around today.
   const s = start ?? new Date('2026-07-01T09:00:00Z').getTime();
   const e = end ?? new Date('2026-07-01T10:00:00Z').getTime();
-  return { href, start: s, end: e, prepareMarkAsDeleted: jest.fn(() => ({ _op: 'del', href })) };
+  return {
+    href,
+    uid: `${href}-uid`,
+    accountId: account.id,
+    calendarId: calendar.id,
+    start: s,
+    end: e,
+    prepareMarkAsDeleted: jest.fn(() => ({ _op: 'del', href })),
+  };
 }
 
 function evt(href: string): CalendarEvent {
@@ -88,7 +101,10 @@ function makeDb(opts: { calendarRow?: any; eventRows?: any[] }) {
 const noTokenRow = () => ({ syncToken: undefined, expandedCenter: undefined, prepareUpdate: jest.fn(() => ({ _op: 'upd' })) });
 const tokenRow = () => ({ syncToken: 'tok', expandedCenter: Date.now(), prepareUpdate: jest.fn(() => ({ _op: 'upd' })) });
 
-beforeEach(() => jest.clearAllMocks());
+beforeEach(() => {
+  jest.clearAllMocks();
+  storage.clearAll();
+});
 
 describe('syncCalendarDelta — non-destructive guards', () => {
   it('throws and writes nothing when the first-sync window fetch fails', async () => {
@@ -245,40 +261,46 @@ describe('syncCalendarDelta — non-destructive guards', () => {
     expect(batch).toHaveBeenCalled();
   });
 
-  it('aborts the write when a local change lands during the fetch', async () => {
-    mockSyncCollection.mockResolvedValue({ changed: ['h1'], deleted: [], newToken: 't6', reset: false });
+  it('protects a pending local row while applying the rest of a delta batch', async () => {
+    mockSyncCollection.mockResolvedValue({ changed: ['h1', 'h2'], deleted: [], newToken: 't6', reset: false });
     mockFetchByHrefs.mockImplementation(async () => {
-      markLocalWrite();
-      return { events: [evt('h1')], returnedHrefs: new Set(['h1']) };
+      markPending([keyOf('h1-uid')]);
+      return { events: [evt('h1'), evt('h2')], returnedHrefs: new Set(['h1', 'h2']) };
     });
+    const h1 = makeRow('h1');
     const row = tokenRow();
-    const { db, batch } = makeDb({ calendarRow: row, eventRows: [] });
+    const { db, batch, prepareCreate } = makeDb({ calendarRow: row, eventRows: [h1] });
     mockGetDb.mockReturnValue(db);
 
     await syncCalendarDelta(account, calendar);
 
-    expect(batch).not.toHaveBeenCalled();
-    expect(row.prepareUpdate).not.toHaveBeenCalled();
+    expect(h1.prepareMarkAsDeleted).not.toHaveBeenCalled();
+    expect(prepareCreate).toHaveBeenCalledTimes(1);
+    expect(batch).toHaveBeenCalled();
+    expect(row.prepareUpdate).toHaveBeenCalled();
   });
 
-  it('aborts the first-sync write when a local change lands during the window fetch', async () => {
+  it('keeps a pending local row through a first-sync reconcile', async () => {
     mockSyncCollection.mockResolvedValue({ changed: [], deleted: [], newToken: 't6', reset: false });
     mockFetchEvents.mockImplementation(async () => {
-      markLocalWrite();
+      markPending([keyOf('h-local-uid')]);
       return [evt('h1')];
     });
+    const orphan = makeRow('h-local');
     const row = noTokenRow();
-    const { db, batch } = makeDb({ calendarRow: row, eventRows: [] });
+    const { db, batch, prepareCreate } = makeDb({ calendarRow: row, eventRows: [orphan] });
     mockGetDb.mockReturnValue(db);
 
     await syncCalendarDelta(account, calendar);
 
-    expect(batch).not.toHaveBeenCalled();
-    expect(row.prepareUpdate).not.toHaveBeenCalled();
+    expect(orphan.prepareMarkAsDeleted).not.toHaveBeenCalled();
+    expect(prepareCreate).toHaveBeenCalledTimes(1);
+    expect(batch).toHaveBeenCalled();
+    expect(row.prepareUpdate).toHaveBeenCalled();
   });
 });
 
-describe('syncEvents — local writes win over an in-flight pull', () => {
+describe('syncEvents — pending local writes win over remote pulls', () => {
   const start = new Date('2026-07-01T00:00:00Z');
   const end = new Date('2026-08-01T00:00:00Z');
 
@@ -296,7 +318,7 @@ describe('syncEvents — local writes win over an in-flight pull', () => {
 
   it('does not resurrect an event deleted while the fetch was running', async () => {
     mockFetchForCalendars.mockImplementation(async () => {
-      markLocalWrite();
+      markPending([keyOf('gone-uid')]);
       return outcome([{ ...evt('h1'), uid: 'gone-uid' }]);
     });
     const { db, batch } = makeDb({ eventRows: [] });
@@ -310,7 +332,7 @@ describe('syncEvents — local writes win over an in-flight pull', () => {
   it('does not overwrite an edit made while the fetch was running', async () => {
     const row = windowRow('edited-uid');
     mockFetchForCalendars.mockImplementation(async () => {
-      markLocalWrite();
+      markPending([keyOf('edited-uid')]);
       return outcome([{ ...evt('h1'), uid: 'edited-uid', summary: 'stale' }]);
     });
     const { db, batch } = makeDb({ eventRows: [row] });
@@ -319,13 +341,14 @@ describe('syncEvents — local writes win over an in-flight pull', () => {
     await syncEvents(account, [calendar], start, end);
 
     expect(batch).not.toHaveBeenCalled();
+    expect(row.prepareUpdate).not.toHaveBeenCalled();
   });
 
-  it('aborts before preparing any record, leaving none with pending changes', async () => {
+  it('applies the rest of the batch around a pending key', async () => {
     const edited = windowRow('edited-uid');
     const dropped = windowRow('dropped-uid');
     mockFetchForCalendars.mockImplementation(async () => {
-      markLocalWrite();
+      markPending([keyOf('edited-uid')]);
       return outcome([{ ...evt('h1'), uid: 'edited-uid', summary: 'stale' }]);
     });
     const { db, batch } = makeDb({ eventRows: [edited, dropped] });
@@ -333,9 +356,40 @@ describe('syncEvents — local writes win over an in-flight pull', () => {
 
     await syncEvents(account, [calendar], start, end);
 
-    expect(batch).not.toHaveBeenCalled();
     expect(edited.prepareUpdate).not.toHaveBeenCalled();
-    expect(dropped.prepareMarkAsDeleted).not.toHaveBeenCalled();
+    expect(edited.prepareMarkAsDeleted).not.toHaveBeenCalled();
+    expect(dropped.prepareMarkAsDeleted).toHaveBeenCalled();
+    expect(batch).toHaveBeenCalled();
+  });
+
+  it('protects a local edit orphaned by a restart (marked, never released)', async () => {
+    // Write landed locally, push never reached the server, app restarted:
+    // the pending key persisted in MMKV.
+    const row = windowRow('orphan-uid');
+    markPending([keyOf('orphan-uid')]);
+    mockFetchForCalendars.mockResolvedValue(
+      outcome([{ ...evt('h1'), uid: 'orphan-uid', summary: 'stale' }]),
+    );
+    const { db, batch } = makeDb({ eventRows: [row] });
+    mockGetDb.mockReturnValue(db);
+
+    await syncEvents(account, [calendar], start, end);
+
+    expect(row.prepareUpdate).not.toHaveBeenCalled();
+    expect(row.prepareMarkAsDeleted).not.toHaveBeenCalled();
+    expect(batch).not.toHaveBeenCalled();
+  });
+
+  it('does not resurrect an event deleted locally but never pushed (restart)', async () => {
+    markPending([keyOf('gone-uid')]);
+    mockFetchForCalendars.mockResolvedValue(outcome([{ ...evt('h1'), uid: 'gone-uid' }]));
+    const { db, batch, prepareCreate } = makeDb({ eventRows: [] });
+    mockGetDb.mockReturnValue(db);
+
+    await syncEvents(account, [calendar], start, end);
+
+    expect(prepareCreate).not.toHaveBeenCalled();
+    expect(batch).not.toHaveBeenCalled();
   });
 
   it('still removes a row the server dropped when nothing was written locally', async () => {
@@ -350,8 +404,9 @@ describe('syncEvents — local writes win over an in-flight pull', () => {
     expect(batch).toHaveBeenCalled();
   });
 
-  it('applies remote changes when the local write happened before the fetch', async () => {
-    markLocalWrite();
+  it('applies remote changes to a key whose local write already resolved', async () => {
+    markPending([keyOf('old-edit-uid')]);
+    releasePending([keyOf('old-edit-uid')]);
     const row = windowRow('old-edit-uid');
     mockFetchForCalendars.mockResolvedValue(outcome([{ ...evt('h1'), uid: 'old-edit-uid' }]));
     const { db, batch } = makeDb({ eventRows: [row] });
