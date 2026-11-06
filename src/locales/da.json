@@ -62,7 +62,7 @@
     "week": "Uge",
     "threeDays": "3D",
     "month": "Måned",
-    "schedule": "Agenda",
+    "schedule": "Liste",
     "weekAbbr": "U",
     "loadingCalendar": "Indlæser kalender…",
     "drawerAccount": "KONTO",
@@ -134,7 +134,7 @@
     "positionFourth": "Fjerde",
     "positionFifth": "Femte",
     "positionLast": "Sidste",
-    "positionLabel": "Placering",
+    "positionLabel": "Placering i måneden",
     "weekdayLabel": "Ugedag",
     "monthLabel": "Måned",
     "weekNumberLabel": "Ugenummer",
@@ -245,7 +245,7 @@
       "title": "Widgets",
       "calendars": "Kalendere i widgets",
       "calendarsHint": "Vælg, hvilke kalendere der vises i widgets på startskærmen og i liveaktiviteten.",
-      "calendarHidden": "Skjult i agendaen"
+      "calendarHidden": "Skjult i kalenderen"
     },
     "alerts": {
       "timed": "Standardpåmindelse",
