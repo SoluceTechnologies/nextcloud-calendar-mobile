@@ -12,7 +12,7 @@ import {
 type TaskAccount = Pick<Account, 'baseUrl' | 'username' | 'appPassword'>;
 
 export const AGENT_TASK_TYPE = 'core:contextagent:interaction';
-const POLL_TIMEOUT_MS = 45_000;
+const POLL_TIMEOUT_MS = 120_000;
 const COOLDOWN_MS = 60_000;
 const TEXT_SLOT = 1; // OCP\TaskProcessing\ShapeEnum::Text
 
@@ -24,6 +24,9 @@ const FAILED_RETRY_MS = 60_000;
 const taskTypesCache = new Map<string, Record<string, TaskTypeInfo>>();
 const failedUntil = new Map<string, number>();
 const cooldownUntil = new Map<string, number>();
+// conversation_token returned by the last interaction, per account — sending it
+// back lets the agent keep conversational context across turns.
+const conversations = new Map<string, string>();
 
 export function hasAgentTaskType(taskTypes: Record<string, TaskTypeInfo> | null | undefined): string | null {
     if (!taskTypes) return null;
@@ -52,6 +55,7 @@ export function invalidateAgentCache(account: TaskAccount): void {
     taskTypesCache.delete(key);
     failedUntil.delete(key);
     cooldownUntil.delete(key);
+    conversations.delete(key);
 }
 
 function firstTextSlot(output: Record<string, unknown> | null | undefined): string | null {
@@ -73,6 +77,59 @@ function inputKeyOf(taskType: TaskTypeInfo): string {
         if (shapeTypeOf(slot) === TEXT_SLOT) return key;
     }
     return 'input';
+}
+
+const TOKEN_KEY = /token/i;
+const NUMBER_SLOT = 2; // ShapeEnum::Number — e.g. confirmation (0 = nothing confirmed)
+const ENUM_SLOT = 3; // ShapeEnum::Enum
+const LIST_SLOT_MIN = 8; // ShapeEnum::ListOf* ids start at 8
+
+// The prompt lands in the first required Text slot whose name isn't token-like.
+// Every other required slot must still be sent — NC rejects the schedule with
+// "Missing key" otherwise (verified against NC 35 contextagent:interaction).
+function buildAgentInput(
+    taskType: TaskTypeInfo,
+    text: string,
+    token: string,
+): Record<string, unknown> {
+    const input: Record<string, unknown> = {};
+    let promptSent = false;
+    for (const [key, slot] of Object.entries(taskType.inputShape ?? {})) {
+        const type = shapeTypeOf(slot);
+        if (type === TEXT_SLOT && !promptSent && !TOKEN_KEY.test(key)) {
+            input[key] = text;
+            promptSent = true;
+        } else if (type === TEXT_SLOT) {
+            input[key] = TOKEN_KEY.test(key) ? token : '';
+        } else if (type === NUMBER_SLOT) {
+            input[key] = 0;
+        } else if (type === ENUM_SLOT) {
+            input[key] = taskType.inputShapeEnumValues?.[key]?.[0]?.value ?? 0;
+        } else if (type >= LIST_SLOT_MIN) {
+            input[key] = [];
+        }
+        // File/Image/Audio/Video required slots have no safe default — the
+        // context agent only requires Text/Number in practice.
+    }
+    if (!promptSent) input[inputKeyOf(taskType)] = text;
+    // Replies are always read aloud — ask for speech formatting when advertised.
+    if (shapeTypeOf(taskType.optionalInputShape?.output_mode) === TEXT_SLOT) {
+        input.output_mode = 'speech';
+    }
+    return input;
+}
+
+// Reads the answer from the Text slot declared in outputShape — the payload
+// also carries conversation_token and actions strings and slot order isn't
+// guaranteed. Falls back to the first non-empty string for exotic servers.
+function answerFrom(taskType: TaskTypeInfo, output: Record<string, unknown> | null): string | null {
+    if (!output) return null;
+    for (const [key, slot] of Object.entries(taskType.outputShape ?? {})) {
+        if (shapeTypeOf(slot) !== TEXT_SLOT || TOKEN_KEY.test(key)) continue;
+        const value = output[key];
+        if (typeof value === 'string' && value.trim()) return value.trim();
+    }
+    return firstTextSlot(output);
 }
 
 export class AgentError extends Error {
@@ -111,9 +168,12 @@ export async function askAgent(
     const taskTypeId = hasAgentTaskType(types);
     if (!taskTypeId) throw new AgentError('unavailable', 'context agent not advertised by server');
 
-    const scheduled = await scheduleTask(account, taskTypeId, {
-        [inputKeyOf(types![taskTypeId])]: text,
-    }).catch((e) => {
+    const taskType = types![taskTypeId];
+    const scheduled = await scheduleTask(
+        account,
+        taskTypeId,
+        buildAgentInput(taskType, text, conversations.get(key) ?? ''),
+    ).catch((e) => {
         if (e instanceof HttpError && e.status === 429) {
             cooldownUntil.set(key, Date.now() + COOLDOWN_MS);
             throw new AgentError('cooldown', 'agent rate-limited by server');
@@ -124,7 +184,9 @@ export async function askAgent(
     try {
         const done = await pollTask(account, scheduled.id, { timeoutMs: POLL_TIMEOUT_MS, signal: opts?.signal });
         if (done.status === 3) {
-            const answer = firstTextSlot(done.output);
+            const token = done.output?.conversation_token;
+            if (typeof token === 'string' && token) conversations.set(key, token);
+            const answer = answerFrom(taskType, done.output ?? null);
             if (!answer) throw new AgentError('noText', 'agent returned no text');
             return answer;
         }

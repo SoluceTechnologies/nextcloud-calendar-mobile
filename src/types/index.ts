@@ -124,6 +124,8 @@ export type TaskTypeInfo = {
     description: string;
     inputShape: Record<string, TaskTypeSlotShape>;
     outputShape: Record<string, TaskTypeSlotShape>;
+    optionalInputShape?: Record<string, TaskTypeSlotShape>;
+    inputShapeEnumValues?: Record<string, { name: string; value: string | number }[]>;
     isInternal?: boolean;
 };
 

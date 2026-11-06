@@ -20,7 +20,9 @@ jest.mock('@/services/nextcloud/taskprocessing', () => {
         getTask: jest.fn(),
         hasTextTaskType: jest.fn(),
         shapeTypeOf: (slot: { type?: number | string }) =>
-            typeof slot?.type === 'string' ? { Text: 1, Audio: 6 }[slot.type] ?? 0 : slot?.type ?? 0,
+            typeof slot?.type === 'string'
+                ? { Text: 1, Number: 2, Enum: 3, Audio: 6 }[slot.type] ?? 0
+                : slot?.type ?? 0,
         TaskPollTimeout: TaskPollTimeoutMock,
     };
 });
@@ -48,6 +50,28 @@ const agentTypes = {
         description: '',
         inputShape: { audio: { name: 'a', description: '', type: 'Audio', mandatory: true } },
         outputShape: {},
+    },
+};
+
+// Shape advertised by NC 35 for core:contextagent:interaction — every slot of
+// inputShape is required by the server, and output also carries the token.
+const nc35AgentTypes = {
+    [AGENT_TASK_TYPE]: {
+        name: 'ContextAgent',
+        description: '',
+        inputShape: {
+            input: { name: 'Message', description: '', type: 'Text', mandatory: true },
+            confirmation: { name: 'Confirmation', description: '', type: 'Number', mandatory: true },
+            conversation_token: { name: 'Token', description: '', type: 'Text', mandatory: true },
+        },
+        optionalInputShape: {
+            output_mode: { name: 'Mode', description: '', type: 'Text', mandatory: false },
+        },
+        outputShape: {
+            output: { name: 'Out', description: '', type: 'Text', mandatory: true },
+            conversation_token: { name: 'Token', description: '', type: 'Text', mandatory: true },
+            actions: { name: 'Actions', description: '', type: 'Text', mandatory: true },
+        },
     },
 };
 
@@ -122,6 +146,49 @@ describe('askAgent', () => {
         mockScheduleTask.mockResolvedValueOnce({ id: 7, status: 1 });
         mockPollTask.mockResolvedValueOnce({ id: 7, status: 3, output: { items: ['a', 'b'] } });
         await expect(askAgent(account, 'q')).resolves.toBe('a');
+    });
+
+    it('fills every required NC35 inputShape slot, not only the text one', async () => {
+        mockFetchTaskTypes.mockResolvedValue(nc35AgentTypes);
+        mockScheduleTask.mockResolvedValueOnce({ id: 20, status: 1 });
+        mockPollTask.mockResolvedValueOnce({ id: 20, status: 3, output: { output: 'ok' } });
+        await askAgent(account, 'q');
+        expect(mockScheduleTask).toHaveBeenCalledWith(account, AGENT_TASK_TYPE, {
+            input: 'q',
+            confirmation: 0,
+            conversation_token: '',
+            output_mode: 'speech',
+        });
+    });
+
+    it('carries the conversation_token into the next turn', async () => {
+        mockFetchTaskTypes.mockResolvedValue(nc35AgentTypes);
+        mockScheduleTask.mockResolvedValue({ id: 21, status: 1 });
+        mockPollTask.mockResolvedValue({
+            id: 21,
+            status: 3,
+            output: { output: 'a', conversation_token: 'tok-1' },
+        });
+        await askAgent(account, 'q1');
+        await askAgent(account, 'q2');
+        expect(mockScheduleTask).toHaveBeenNthCalledWith(
+            2,
+            account,
+            AGENT_TASK_TYPE,
+            expect.objectContaining({ conversation_token: 'tok-1' }),
+        );
+    });
+
+    it('reads the answer from the declared output slot, never the token', async () => {
+        mockFetchTaskTypes.mockResolvedValue(nc35AgentTypes);
+        mockScheduleTask.mockResolvedValueOnce({ id: 22, status: 1 });
+        // Payload order puts the token before the answer — must not be spoken.
+        mockPollTask.mockResolvedValueOnce({
+            id: 22,
+            status: 3,
+            output: { conversation_token: 'tok-2', output: 'La réponse', actions: '[]' },
+        });
+        await expect(askAgent(account, 'q')).resolves.toBe('La réponse');
     });
 
     it('rejects with unavailable when the task type is missing', async () => {
