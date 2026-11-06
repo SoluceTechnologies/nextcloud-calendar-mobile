@@ -1,4 +1,15 @@
 title = "Custom gitleaks config"
 
+[extend]
+useDefault = true
+
+# GitHub App installation tokens are moving to a stateless JWT format
+# (ghs_<appid>_<jwt>, ~520 chars, contains dots/underscores). The default
+# gitleaks rule only matches the legacy 36-char opaque format.
+[[rules]]
+id = "github-app-token-stateless"
+description = "GitHub App installation token (stateless JWT format)"
+regex = '''ghs_[A-Za-z0-9._-]{36,}'''
+
 [allowlist]
 regexes = []
