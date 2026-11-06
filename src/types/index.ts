@@ -68,6 +68,10 @@ export type CalendarEvent = {
     recurrenceId?: Date;
     alarms?: number[];
     isTask?: boolean;
+    taskStatus?: string;
+    taskCompletedAt?: Date;
+    taskPercent?: number;
+    taskCompleted?: boolean;
     readOnly?: boolean;
 };
 

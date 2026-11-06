@@ -2,6 +2,7 @@ import { memo, useMemo } from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { useTheme } from 'expo-router';
 import dayjs from 'dayjs';
+import { SquareCheck } from 'lucide-react-native';
 import { useSettingsStore } from '@/stores/settingsStore';
 import type { CalendarEvent } from '@/types';
 import {
@@ -79,11 +80,21 @@ function TimeGridHeaderImpl({ dates, now, allDayEvents, onPressEvent }: Props) {
                       justifyContent: 'center',
                       marginTop: ALL_DAY_CHIP_GAP,
                       marginHorizontal: 2,
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 3,
+                      opacity: event.taskCompleted ? 0.55 : 1,
                     }}
                     onPress={() => onPressEvent(event)}
                   >
+                    {event.isTask && event.taskCompleted && (
+                      <SquareCheck size={13} color="#fff" />
+                    )}
                     <Text
-                      style={{ fontSize: 12, lineHeight: 14, color: '#fff' }}
+                      style={{
+                        fontSize: 12, lineHeight: 14, color: '#fff', flexShrink: 1,
+                        textDecorationLine: event.taskCompleted ? 'line-through' : 'none',
+                      }}
                       numberOfLines={1}
                       allowFontScaling={false}
                     >

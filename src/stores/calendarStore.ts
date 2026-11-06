@@ -10,12 +10,14 @@ interface CalendarState {
   notifDisabledCalendarIds: string[];
   widgetDisabledCalendarIds: string[];
   hourRowHeight: number;
+  showCompletedTasks: boolean;
   setViewMode: (mode: ViewMode) => void;
   setSelectedDate: (date: Date | null) => void;
   toggleCalendarVisibility: (calendarId: string) => void;
   toggleCalendarNotifications: (calendarId: string) => void;
   toggleCalendarWidget: (calendarId: string) => void;
   setHourRowHeight: (h: number) => void;
+  toggleShowCompletedTasks: () => void;
 }
 
 function toggleIn(list: string[], id: string): string[] {
@@ -31,6 +33,7 @@ export const useCalendarStore = create<CalendarState>()(
       notifDisabledCalendarIds: [],
       widgetDisabledCalendarIds: [],
       hourRowHeight: 60,
+      showCompletedTasks: false,
       setViewMode: (mode) => set({ viewMode: mode }),
       setSelectedDate: (date) => set({ selectedDate: date }),
       toggleCalendarVisibility: (calendarId) =>
@@ -40,11 +43,13 @@ export const useCalendarStore = create<CalendarState>()(
       toggleCalendarWidget: (calendarId) =>
         set({ widgetDisabledCalendarIds: toggleIn(get().widgetDisabledCalendarIds, calendarId) }),
       setHourRowHeight: (h) => set({ hourRowHeight: h }),
+      toggleShowCompletedTasks: () =>
+        set({ showCompletedTasks: !get().showCompletedTasks }),
     }),
     {
       name: 'calendar-store',
       storage: createJSONStorage(() =>
-        legacyBackedStorage(['viewMode', 'hiddenCalendarIds', 'notifDisabledCalendarIds', 'widgetDisabledCalendarIds', 'hourRowHeight'])
+        legacyBackedStorage(['viewMode', 'hiddenCalendarIds', 'notifDisabledCalendarIds', 'widgetDisabledCalendarIds', 'hourRowHeight', 'showCompletedTasks'])
       ),
       partialize: (state) => ({
         viewMode: state.viewMode,
@@ -52,6 +57,7 @@ export const useCalendarStore = create<CalendarState>()(
         notifDisabledCalendarIds: state.notifDisabledCalendarIds,
         widgetDisabledCalendarIds: state.widgetDisabledCalendarIds,
         hourRowHeight: state.hourRowHeight,
+        showCompletedTasks: state.showCompletedTasks,
       }),
     }
   )
