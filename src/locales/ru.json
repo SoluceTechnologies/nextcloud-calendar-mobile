@@ -426,6 +426,7 @@
     "untitled": "Без названия",
     "nothingOnDay": "На {{date}} ничего нет.",
         "attendeesDropped": "участники не распознаны: {{names}}",
+        "attendeesBusy": "внимание, занят в это время: {{names}}",
         "withAttendees": "с {{names}}"
   },
   "certTrust": {

@@ -426,6 +426,7 @@
     "untitled": "Zonder titel",
     "nothingOnDay": "Niets op {{date}}.",
         "attendeesDropped": "genodigden niet herkend: {{names}}",
+        "attendeesBusy": "let op, bezet op dat tijdstip: {{names}}",
         "withAttendees": "met {{names}}"
   },
   "certTrust": {

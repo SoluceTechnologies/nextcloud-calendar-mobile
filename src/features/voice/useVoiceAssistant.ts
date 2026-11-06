@@ -11,7 +11,7 @@ import { resolveUse24h } from '@/utils/timeFormat';
 import { eventToInput } from '@/features/calendar/utils/eventToInput';
 import { resolveOrganizer } from '@/features/event/utils/organizer';
 import { fetchFreeBusy } from '@/services/nextcloud/freeBusy';
-import { mergeBusySlots } from '@/utils/freeBusy';
+import { mergeBusySlots, isSlotFree } from '@/utils/freeBusy';
 import {
     useCreateEvent,
     useDeleteEvent,
@@ -288,14 +288,40 @@ export function useVoiceAssistant(account: Account | null, calendars: CalendarMe
             }
 
             pendingIntentRef.current = intent;
-            pendingRef.current = {
-                kind: 'create',
-                input: inputFromCreateIntent(intent, {
-                    calendarId: calendar.id,
-                    ...resolveOrganizer(account),
-                    attendees,
-                }),
-            };
+            const organizer = resolveOrganizer(account);
+            const input = inputFromCreateIntent(intent, {
+                calendarId: calendar.id,
+                ...organizer,
+                attendees,
+            });
+
+            // Warn (without blocking) when a resolved attendee is busy on the
+            // requested slot — explicit-time creates never reach the 'slot'
+            // intent's free/busy merge otherwise.
+            if (attendees.length) {
+                try {
+                    const avail = await fetchFreeBusy(
+                        account,
+                        { email: organizer.organizerEmail, displayName: organizer.organizerName },
+                        attendees,
+                        input.dtstart,
+                        input.dtend,
+                    );
+                    if (genRef.current !== gen) return;
+                    const busy = avail.filter(
+                        (a) => !isSlotFree({ start: input.dtstart, end: input.dtend }, a.slots),
+                    );
+                    if (busy.length) {
+                        pendingNotesRef.current += ` — ${t('voice.attendeesBusy', {
+                            names: busy.map((a) => a.displayName || a.email).join(', '),
+                        })}`;
+                    }
+                } catch {
+                    // free/busy unreachable → confirm without the warning
+                }
+            }
+
+            pendingRef.current = { kind: 'create', input };
             promptWith(describeIntent(intent, calendar.displayName) + pendingNotesRef.current, 'confirming', gen);
             pendingNotesRef.current = '';
         },

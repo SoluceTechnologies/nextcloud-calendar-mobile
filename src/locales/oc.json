@@ -413,6 +413,7 @@
     "untitled": "Sens títol",
     "nothingOnDay": "Res lo {{date}}.",
         "attendeesDropped": "convidats pas reconeguts : {{names}}",
+        "attendeesBusy": "atencion, indisponible a aquesta ora : {{names}}",
         "withAttendees": "amb {{names}}"
   },
   "certTrust": {

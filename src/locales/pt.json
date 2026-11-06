@@ -426,6 +426,7 @@
     "untitled": "Sem título",
     "nothingOnDay": "Nada em {{date}}.",
         "attendeesDropped": "convidados não reconhecidos: {{names}}",
+        "attendeesBusy": "atenção, indisponível a essa hora: {{names}}",
         "withAttendees": "com {{names}}"
   },
   "certTrust": {
