@@ -427,6 +427,7 @@
     "nothingOnDay": "Niets op {{date}}.",
         "attendeesDropped": "genodigden niet herkend: {{names}}",
         "attendeesBusy": "let op, bezet op dat tijdstip: {{names}}",
+        "pickAltSlot": "kies een vrij tijdstip:",
         "withAttendees": "met {{names}}"
   },
   "certTrust": {

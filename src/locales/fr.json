@@ -427,6 +427,7 @@
     "nothingOnDay": "Rien le {{date}}.",
         "attendeesDropped": "invités non reconnus : {{names}}",
         "attendeesBusy": "attention, indisponible sur ce créneau : {{names}}",
+        "pickAltSlot": "choisissez un horaire libre :",
         "withAttendees": "avec {{names}}"
   },
   "certTrust": {

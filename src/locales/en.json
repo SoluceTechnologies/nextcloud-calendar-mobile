@@ -427,6 +427,7 @@
     "nothingOnDay": "Nothing on {{date}}.",
         "attendeesDropped": "attendees not recognized: {{names}}",
         "attendeesBusy": "warning, busy at that time: {{names}}",
+        "pickAltSlot": "pick a free slot:",
         "withAttendees": "with {{names}}"
   },
   "certTrust": {

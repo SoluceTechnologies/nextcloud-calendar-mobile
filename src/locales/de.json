@@ -427,6 +427,7 @@
     "nothingOnDay": "Nichts am {{date}}.",
         "attendeesDropped": "Teilnehmer nicht erkannt: {{names}}",
         "attendeesBusy": "Achtung, zu dieser Zeit beschäftigt: {{names}}",
+        "pickAltSlot": "freien Zeitpunkt wählen:",
         "withAttendees": "mit {{names}}"
   },
   "certTrust": {

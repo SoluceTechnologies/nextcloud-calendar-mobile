@@ -427,6 +427,7 @@
     "nothingOnDay": "Nada el {{date}}.",
         "attendeesDropped": "asistentes no reconocidos: {{names}}",
         "attendeesBusy": "atención, no disponible a esa hora: {{names}}",
+        "pickAltSlot": "elige un horario libre:",
         "withAttendees": "con {{names}}"
   },
   "certTrust": {

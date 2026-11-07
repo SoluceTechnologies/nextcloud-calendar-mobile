@@ -477,6 +477,104 @@ describe('create — calendar resolution', () => {
     });
 });
 
+describe('create — busy attendee alternatives', () => {
+    const at = (h: number, m = 0) => new Date(2030, 0, 6, h, m);
+    const multi = [
+        { id: 'cal1', displayName: 'Personnel' },
+        { id: 'cal2', displayName: 'Planning clara' },
+    ] as CalendarMeta[];
+    const renderMulti = () => renderHook(() => useVoiceAssistant(account, multi));
+
+    const setupBusyDevin = () => {
+        mockParse.mockReturnValue({
+            kind: 'create', summary: 'reunion',
+            start: at(10, 45), end: at(11, 45), names: ['Devin'],
+        });
+        mockEventsOnDay.mockResolvedValue([]);
+        mockResolveAttendees.mockResolvedValue({
+            attendees: [{ email: 'devin@nc.test', displayName: 'Devin' }],
+            ambiguous: [],
+        });
+        mockFetchFreeBusy.mockResolvedValue([{
+            email: 'devin@nc.test', displayName: 'Devin', available: true, color: '#000',
+            slots: [{ start: at(9), end: at(12), fbType: 'BUSY', attendees: ['devin@nc.test'] }],
+        }]);
+    };
+
+    it('busy attendee → alternative slot candidates → pick → confirm on the new time', async () => {
+        setupBusyDevin();
+        const { result } = renderMulti();
+        await act(async () => result.current.open());
+        await act(async () => result.current.submitText('plannifie une reunion avec Devin a 10h45'));
+        // calendar disambiguation comes first
+        await waitFor(() => expect(result.current.state).toBe('disambiguating'));
+        expect(result.current.candidates).toEqual(['Personnel', 'Planning clara']);
+
+        await act(async () => result.current.pickCandidate(0)); // Personnel
+        // Devin busy 09–12 → requested 10:45–11:45 conflicts → alternatives at 12, 14:30, 17
+        await waitFor(() => expect(result.current.state).toBe('disambiguating'));
+        expect(result.current.candidates).toEqual(['12:00 – 13:00', '14:30 – 15:30', '17:00 – 18:00']);
+        expect(result.current.intentDescription).toContain('busy');
+        expect(result.current.intentDescription).toContain('Devin');
+        expect(mockCreateMutate).not.toHaveBeenCalled();
+
+        await act(async () => result.current.pickCandidate(0)); // 12:00 – 13:00
+        await waitFor(() => expect(result.current.state).toBe('confirming'));
+        expect(result.current.intentDescription).toContain('Devin');
+
+        await act(async () => result.current.confirm());
+        await waitFor(() => expect(result.current.state).toBe('replying'));
+        const input = (mockCreateMutate.mock.calls as unknown[][])[0][0] as {
+            calendarId: string; dtstart: Date; dtend: Date; attendees: { email: string }[];
+        };
+        expect(input.calendarId).toBe('cal1');
+        expect(input.dtstart).toEqual(at(12));
+        expect(input.dtend).toEqual(at(13));
+        expect(input.attendees).toEqual([{ email: 'devin@nc.test', displayName: 'Devin' }]);
+    });
+
+    it('free attendee → straight to the confirmation card without alternatives', async () => {
+        mockParse.mockReturnValue({
+            kind: 'create', summary: 'reunion',
+            start: at(10, 45), end: at(11, 45), names: ['Devin'],
+        });
+        mockResolveAttendees.mockResolvedValue({
+            attendees: [{ email: 'devin@nc.test', displayName: 'Devin' }],
+            ambiguous: [],
+        });
+        mockFetchFreeBusy.mockResolvedValue([{
+            email: 'devin@nc.test', displayName: 'Devin', available: true, color: '#000',
+            slots: [],
+        }]);
+        const { result } = renderMulti();
+        await act(async () => result.current.open());
+        await act(async () => result.current.submitText('plannifie une reunion avec Devin a 10h45'));
+        await waitFor(() => expect(result.current.state).toBe('disambiguating'));
+        await act(async () => result.current.pickCandidate(0));
+        await waitFor(() => expect(result.current.state).toBe('confirming'));
+        expect(result.current.intentDescription).not.toContain('busy');
+    });
+
+    it('busy attendee but no free slot in the 5-day window → warning on the confirm card', async () => {
+        setupBusyDevin();
+        // every probed day is fully blocked own-side → findFreeSlots returns nothing
+        mockEventsOnDay.mockImplementation(async (_a: string, d: Date) => [
+            ev({
+                dtstart: new Date(d.getFullYear(), d.getMonth(), d.getDate()),
+                dtend: new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1),
+            }),
+        ]);
+        const { result } = renderMulti();
+        await act(async () => result.current.open());
+        await act(async () => result.current.submitText('plannifie une reunion avec Devin a 10h45'));
+        await waitFor(() => expect(result.current.state).toBe('disambiguating'));
+        await act(async () => result.current.pickCandidate(0));
+        await waitFor(() => expect(result.current.state).toBe('confirming'));
+        expect(result.current.intentDescription).toContain('busy');
+        expect(result.current.candidates).toEqual([]);
+    });
+});
+
 describe('slot — free-slot proposals', () => {
     const day = new Date(2030, 0, 6); // Sun → next day for minStart safety? fixed far future
     const at = (h: number, m = 0) => new Date(2030, 0, 6, h, m);

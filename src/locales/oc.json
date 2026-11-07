@@ -414,6 +414,7 @@
     "nothingOnDay": "Res lo {{date}}.",
         "attendeesDropped": "convidats pas reconeguts : {{names}}",
         "attendeesBusy": "atencion, indisponible a aquesta ora : {{names}}",
+        "pickAltSlot": "causissètz un orari liure :",
         "withAttendees": "amb {{names}}"
   },
   "certTrust": {

@@ -97,6 +97,13 @@ export function useVoiceAssistant(account: Account | null, calendars: CalendarMe
     const candidateEventsRef = useRef<CalendarEvent[]>([]);
     const candidateCalendarsRef = useRef<CalendarMeta[]>([]);
     const pendingSlotsRef = useRef<FreeSlot[]>([]);
+    const altSlotCreateRef = useRef<{
+        intent: Extract<VoiceIntent, { kind: 'create' }>;
+        calendar: CalendarMeta;
+        attendees: Attendee[];
+        slots: FreeSlot[];
+        notes: string;
+    } | null>(null);
     const preResolvedAttendeesRef = useRef<{ attendees: Attendee[]; dropped: string[] } | null>(null);
     const pendingAttendeesRef = useRef<Attendee[]>([]);
     const pendingNotesRef = useRef('');
@@ -243,18 +250,90 @@ export function useVoiceAssistant(account: Account | null, calendars: CalendarMe
             });
             if (attendees.length) {
                 try {
+                    // One VFREEBUSY over the requested day + 4 more — if the
+                    // requested slot is busy, alternatives on later days are
+                    // covered without a second round trip.
+                    const fbStart = dayjs(input.dtstart).startOf('day').toDate();
+                    const fbEnd = dayjs(input.dtstart).add(4, 'day').endOf('day').toDate();
                     const avail = await fetchFreeBusy(
                         account,
                         { email: organizer.organizerEmail, displayName: organizer.organizerName },
                         attendees,
-                        input.dtstart,
-                        input.dtend,
+                        fbStart,
+                        fbEnd,
                     );
                     if (genRef.current !== gen) return;
                     const busy = avail.filter(
                         (a) => !isSlotFree({ start: input.dtstart, end: input.dtend }, a.slots),
                     );
                     if (busy.length) {
+                        // Offer free alternative slots — same rules as the
+                        // 'slot' intent (own blocking calendars + attendee
+                        // free/busy merged), probing the requested day then
+                        // the next ones when it is fully booked.
+                        const busyIds = busyCalendarIds(
+                            calendars,
+                            useCalendarStore.getState().availabilityCalendarOverrides,
+                        );
+                        const fbBusy = mergeBusySlots(avail).map(
+                            (b) =>
+                                ({
+                                    dtstart: b.start, dtend: b.end, allDay: false, isTask: false,
+                                    calendarId: '__freebusy__',
+                                }) as CalendarEvent,
+                        );
+                        const durationMin = Math.max(
+                            1,
+                            Math.round((input.dtend.getTime() - input.dtstart.getTime()) / 60000),
+                        );
+                        const slots: FreeSlot[] = [];
+                        for (let off = 0; off <= 4 && slots.length < 3; off++) {
+                            const day = dayjs(input.dtstart).add(off, 'day').toDate();
+                            const events = await eventsOnDay(account.id, day);
+                            if (genRef.current !== gen) return;
+                            const busyEvents = [
+                                ...fbBusy,
+                                ...events.filter((e) => busyIds.has(e.calendarId)),
+                            ];
+                            for (const s of findFreeSlots(busyEvents, day, {
+                                durationMin,
+                                minStart: off === 0 ? input.dtstart : undefined,
+                            })) {
+                                slots.push(s);
+                                if (slots.length >= 6) break;
+                            }
+                        }
+                        slots.length = Math.min(slots.length, 6);
+                        if (slots.length) {
+                            const { locale: loc } = locale();
+                            altSlotCreateRef.current = {
+                                intent,
+                                calendar,
+                                attendees,
+                                slots,
+                                notes: pendingNotesRef.current,
+                            };
+                            pendingNotesRef.current = '';
+                            const fmtT = (d: Date) => dayjs(d).locale(loc).format('HH:mm');
+                            const fmtD = (d: Date) => dayjs(d).locale(loc).format('dd DD/MM');
+                            setCandidates(
+                                slots.map((s) =>
+                                    dayjs(s.start).isSame(input.dtstart, 'day')
+                                        ? `${fmtT(s.start)} – ${fmtT(s.end)}`
+                                        : `${fmtD(s.start)} ${fmtT(s.start)} – ${fmtT(s.end)}`,
+                                ),
+                            );
+                            promptWith(
+                                describeIntent(intent, calendar.displayName) +
+                                    altSlotCreateRef.current.notes +
+                                    ` — ${t('voice.attendeesBusy', {
+                                        names: busy.map((a) => a.displayName || a.email).join(', '),
+                                    })} ${t('voice.pickAltSlot')}`,
+                                'disambiguating',
+                                gen,
+                            );
+                            return;
+                        }
                         pendingNotesRef.current += ` — ${t('voice.attendeesBusy', {
                             names: busy.map((a) => a.displayName || a.email).join(', '),
                         })}`;
@@ -268,7 +347,7 @@ export function useVoiceAssistant(account: Account | null, calendars: CalendarMe
             promptWith(describeIntent(intent, calendar.displayName) + pendingNotesRef.current, 'confirming', gen);
             pendingNotesRef.current = '';
         },
-        [account, describeIntent, promptWith, t],
+        [account, calendars, describeIntent, locale, promptWith, t],
     );
 
     // --- create path shared by 'create' and 'slot' intents: resolves attendees,
@@ -576,6 +655,7 @@ export function useVoiceAssistant(account: Account | null, calendars: CalendarMe
             pendingAttendeesRef.current = [];
             pendingNotesRef.current = '';
             pendingSlotsRef.current = [];
+            altSlotCreateRef.current = null;
             preResolvedAttendeesRef.current = null;
             setCandidates([]);
             setTranscript(trimmed);
@@ -647,6 +727,7 @@ export function useVoiceAssistant(account: Account | null, calendars: CalendarMe
         pendingAttendeesRef.current = [];
         pendingNotesRef.current = '';
         pendingSlotsRef.current = [];
+        altSlotCreateRef.current = null;
         preResolvedAttendeesRef.current = null;
         pendingIntentRef.current = null;
         setVisible(false);
@@ -674,6 +755,7 @@ export function useVoiceAssistant(account: Account | null, calendars: CalendarMe
         pendingAttendeesRef.current = [];
         pendingNotesRef.current = '';
         pendingSlotsRef.current = [];
+        altSlotCreateRef.current = null;
         preResolvedAttendeesRef.current = null;
         setCandidates([]);
         stt.cancelListening();
@@ -744,6 +826,21 @@ export function useVoiceAssistant(account: Account | null, calendars: CalendarMe
     const pickCandidate = useCallback(
         (index: number) => {
             cancelAutoClose();
+            const altCreate = altSlotCreateRef.current;
+            if (altCreate) {
+                altSlotCreateRef.current = null;
+                const slot = altCreate.slots[index];
+                setCandidates([]);
+                if (!slot) return;
+                pendingNotesRef.current = altCreate.notes;
+                void armCreate(
+                    { ...altCreate.intent, start: slot.start, end: slot.end },
+                    altCreate.calendar,
+                    altCreate.attendees,
+                    genRef.current,
+                );
+                return;
+            }
             const scopePick = scopePickRef.current;
             if (scopePick) {
                 scopePickRef.current = null;

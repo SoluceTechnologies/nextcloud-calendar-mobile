@@ -427,6 +427,7 @@
     "nothingOnDay": "На {{date}} ничего нет.",
         "attendeesDropped": "участники не распознаны: {{names}}",
         "attendeesBusy": "внимание, занят в это время: {{names}}",
+        "pickAltSlot": "выберите свободное время:",
         "withAttendees": "с {{names}}"
   },
   "certTrust": {
