@@ -3,7 +3,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import {
-  Accessibility, Bell, CalendarDays, ChevronRight, Info, LayoutGrid, Mic, Palette, UserRound, Video,
+  Accessibility, Bell, CalendarDays, ChevronRight, Info, LayoutGrid, Mic, Palette, Sparkles, UserRound, Video,
 } from 'lucide-react-native';
 
 import { useAccountStore } from '@/stores/accountStore';
@@ -88,6 +88,12 @@ export default function SettingsScreen() {
                 title={t('settings.voice.title')}
                 icon={<Mic />}
                 onPress={() => router.push('/(tabs)/settings/voice')}
+              />
+              <SettingsLink
+                testID="settings-ai"
+                title={t('ai.title')}
+                icon={<Sparkles />}
+                onPress={() => router.push('/(tabs)/settings/ai')}
               />
             </List>
           </Stack>

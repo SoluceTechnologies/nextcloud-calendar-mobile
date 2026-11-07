@@ -501,5 +501,32 @@
     "offlineNote": "Hors ligne — résultats locaux uniquement",
     "serverFailed": "Serveur injoignable — résultats locaux uniquement",
     "openFailed": "Impossible d'ouvrir cet événement"
+  },
+  "ai": {
+    "title": "Assistant IA",
+    "enable": "Activer les fonctions IA",
+    "provider": "Fournisseur d'IA",
+    "providerAvailable": "Disponible : {{name}}",
+    "providerUnavailable": "Aucun fournisseur d'IA disponible sur ce serveur",
+    "privacyNotice": "Lorsque l'option est activée, les titres, horaires et lieux des événements sont envoyés à votre serveur Nextcloud afin que son fournisseur d'IA génère des résumés et des brouillons. Les données restent sur votre serveur ; l'application n'envoie rien à des services tiers.",
+    "disclosure": "Généré par l'IA de votre serveur",
+    "regenerate": "Régénérer",
+    "thinking": "Réflexion…",
+    "copy": "Copier",
+    "descriptionDraft": "Rédiger avec l'IA",
+    "error": "La requête IA a échoué. Réessayez.",
+    "summary": {
+      "empty": "Aucun événement",
+      "events_one": "{{count}} événement",
+      "events_other": "{{count}} événements",
+      "events_few": "{{count}} événements",
+      "events_many": "{{count}} événements",
+      "tasks_one": "{{count}} tâche",
+      "tasks_other": "{{count}} tâches",
+      "tasks_few": "{{count}} tâches",
+      "tasks_many": "{{count}} tâches",
+      "next": "suivant :",
+      "at": "à"
+    }
   }
 }

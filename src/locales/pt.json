@@ -501,5 +501,32 @@
     "offlineNote": "Offline — apenas resultados locais",
     "serverFailed": "Não foi possível contactar o servidor — apenas resultados locais",
     "openFailed": "Não foi possível abrir este evento"
+  },
+  "ai": {
+    "title": "Assistente de IA",
+    "enable": "Ativar funcionalidades de IA",
+    "provider": "Fornecedor de IA",
+    "providerAvailable": "Disponível: {{name}}",
+    "providerUnavailable": "Nenhum fornecedor de IA disponível neste servidor",
+    "privacyNotice": "Quando ativada, os títulos, horários e locais dos eventos são enviados para o seu servidor Nextcloud para que o seu fornecedor de IA gere resumos e rascunhos. Os dados permanecem no seu servidor; a app não envia nada para serviços de terceiros.",
+    "disclosure": "Gerado pela IA do seu servidor",
+    "regenerate": "Regenerar",
+    "thinking": "A pensar…",
+    "copy": "Copiar",
+    "descriptionDraft": "Redigir com IA",
+    "error": "O pedido de IA falhou. Tente novamente.",
+    "summary": {
+      "empty": "Sem eventos",
+      "events_one": "{{count}} evento",
+      "events_other": "{{count}} eventos",
+      "events_few": "{{count}} eventos",
+      "events_many": "{{count}} eventos",
+      "tasks_one": "{{count}} tarefa",
+      "tasks_other": "{{count}} tarefas",
+      "tasks_few": "{{count}} tarefas",
+      "tasks_many": "{{count}} tarefas",
+      "next": "seguinte:",
+      "at": "às"
+    }
   }
 }
