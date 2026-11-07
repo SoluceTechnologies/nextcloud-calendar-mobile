@@ -3,6 +3,19 @@
 Comment utiliser l'assistant vocal de l'application, ce qu'il peut faire et les
 points à connaître.
 
+## Activer l'assistant
+
+**Réglages → Assistant vocal** : activez l'assistant **par compte** — chaque
+compte a son propre interrupteur (l'agent IA n'existe pas sur tous les
+serveurs). Le bouton micro n'apparaît que pour un compte activé.
+
+Sur cet écran vous pouvez aussi :
+
+- **Reconnaissance sur l'appareil** : préférer le traitement vocal local quand
+  votre téléphone le permet (l'audio ne part pas sur le réseau).
+- **Agendas comptant pour la dispo** : choisir quels calendriers bloquent les
+  créneaux proposés par « trouve-moi un créneau ».
+
 ## Ouvrir l'assistant
 
 Depuis l'écran Calendrier, tapez l'icône **microphone** (barre du haut). La

@@ -411,7 +411,7 @@
     "meetingWith": "Meeting with {{names}}",
     "meetingTitle": "Meeting",
     "enabled": "Voice assistant",
-    "enabledHint": "Show the microphone button to control the calendar by voice or text.",
+    "enabledHint": "Show the microphone button to control the calendar by voice or text — set per account.",
     "onDevice": "On-device recognition",
     "onDeviceHint": "Speech audio stays on this device when supported.",
     "onDeviceUnsupported": "Not supported on this device — audio is sent over the network.",

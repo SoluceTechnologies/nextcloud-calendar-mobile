@@ -411,7 +411,7 @@
     "meetingWith": "Réunion avec {{names}}",
     "meetingTitle": "Réunion",
     "enabled": "Assistant vocal",
-    "enabledHint": "Affiche le bouton micro pour piloter l'agenda à la voix ou au clavier.",
+    "enabledHint": "Affiche le bouton micro pour piloter l'agenda à la voix ou au clavier — réglage par compte.",
     "onDevice": "Reconnaissance sur l’appareil",
     "onDeviceHint": "L’audio vocal reste sur cet appareil quand c’est possible.",
     "onDeviceUnsupported": "Non pris en charge sur cet appareil — l’audio est envoyé sur le réseau.",
