@@ -6322,6 +6322,17 @@ __metadata:
   languageName: node
   linkType: hard
 
+"expo-speech-recognition@npm:~57.1.1":
+  version: 57.1.1
+  resolution: "expo-speech-recognition@npm:57.1.1"
+  peerDependencies:
+    expo: "*"
+    react: "*"
+    react-native: "*"
+  checksum: 10c0/716c60c2201777ad9cd58c0444222f65bc5fca9ab6d4482bfee60c19ab750a90e5dddd8366791bebf3362cc3b6df8ed8a217bfe9b07ce3fe495d76f989df05d9
+  languageName: node
+  linkType: hard
+
 "expo-speech@npm:~57.0.3":
   version: 57.0.3
   resolution: "expo-speech@npm:57.0.3"
@@ -9280,6 +9291,7 @@ __metadata:
     expo-screen-orientation: "npm:~57.0.1"
     expo-secure-store: "npm:~57.0.1"
     expo-speech: "npm:~57.0.3"
+    expo-speech-recognition: "npm:~57.1.1"
     expo-splash-screen: "npm:~57.0.4"
     expo-status-bar: "npm:~57.0.1"
     expo-task-manager: "npm:~57.0.6"

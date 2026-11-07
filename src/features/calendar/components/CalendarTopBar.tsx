@@ -2,7 +2,7 @@ import { memo } from 'react';
 import { ScrollView, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
-import { Menu, Headphones } from 'lucide-react-native';
+import { Menu, Headphones, Mic } from 'lucide-react-native';
 import { useTheme } from 'expo-router';
 import { Stack, Typography, Chip, Icon, AnimatedPressable } from '@/ui/components';
 import type { ViewMode } from '@/types';
@@ -16,6 +16,7 @@ interface Props {
   onToday: () => void;
   onSwitchMode: (mode: ViewMode) => void;
   onListen?: () => void;
+  onOpenVoice?: () => void;
 }
 
 const VIEW_MODE_KEYS: Record<ViewMode, string> = {
@@ -26,7 +27,7 @@ const VIEW_MODE_KEYS: Record<ViewMode, string> = {
   schedule: 'calendar.schedule',
 };
 
-function CalendarTopBarImpl({ headerTitle, isToday, viewMode, onOpenDrawer, onToday, onSwitchMode, onListen }: Props) {
+function CalendarTopBarImpl({ headerTitle, isToday, viewMode, onOpenDrawer, onToday, onSwitchMode, onListen, onOpenVoice }: Props) {
   const { colors } = useTheme();
   const { t } = useTranslation();
   const todayDisabled = isToday;
@@ -55,6 +56,20 @@ function CalendarTopBarImpl({ headerTitle, isToday, viewMode, onOpenDrawer, onTo
         >
           {headerTitle}
         </Typography>
+
+        {onOpenVoice ? (
+          <AnimatedPressable
+            testID="calendar-voice"
+            accessibilityLabel={t('voice.open')}
+            onPress={onOpenVoice}
+            hitSlop={8}
+            style={styles.listenBtn}
+          >
+            <Icon size={22}>
+              <Mic color={colors.primary} />
+            </Icon>
+          </AnimatedPressable>
+        ) : null}
 
         {onListen ? (
           <AnimatedPressable

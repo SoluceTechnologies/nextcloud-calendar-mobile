@@ -113,6 +113,13 @@ const config: ExpoConfig = {
         'expo-notifications',
         'expo-background-task',
         [
+            'expo-speech-recognition',
+            {
+                microphonePermission: 'Allow Calendar to use the microphone for the voice assistant.',
+                speechRecognitionPermission: 'Allow Calendar to transcribe your voice commands for the voice assistant.',
+            },
+        ],
+        [
             'expo-widgets',
             {
                 bundleIdentifier: "com.soluce.nextcloud-calendar.ExpoWidgetsTarget",
