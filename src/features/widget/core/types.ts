@@ -18,6 +18,7 @@ export interface AgendaDaySection {
   weekdayLong: string;
   isToday: boolean;
   items: AgendaEventItem[];
+  totalCount: number;
 }
 
 export interface AgendaSnapshot {

@@ -159,6 +159,20 @@ describe('open / listen', () => {
         await waitFor(() => expect(result.current.state).toBe('replying'));
         expect(mockNextEvent).toHaveBeenCalled();
     });
+
+    it('openWith (deep link) opens the sheet and routes the utterance straight to the pipeline', async () => {
+        mockParse.mockReturnValue({ kind: 'next' });
+        mockNextEvent.mockResolvedValue(
+            ev({ uid: 'n1', summary: 'Standup', dtstart: new Date(2030, 0, 1, 9), dtend: new Date(2030, 0, 1, 10) }),
+        );
+        const { result } = renderAssistant();
+        await act(async () => result.current.openWith('next event'));
+        expect(result.current.visible).toBe(true);
+        expect(result.current.transcript).toBe('next event');
+        await waitFor(() => expect(result.current.state).toBe('replying'));
+        expect(mockParse).toHaveBeenCalled();
+        expect(mockNextEvent).toHaveBeenCalled();
+    });
 });
 
 describe('read intents', () => {
@@ -490,6 +504,36 @@ describe('create — calendar resolution', () => {
         await act(async () => result.current.submitText('crée dentiste demain 14h30'));
         await waitFor(() => expect(result.current.state).toBe('disambiguating'));
         expect(result.current.candidates).toEqual(['Personnel', 'Pro']);
+    });
+
+    it('subscribed calendars are excluded from the candidates', async () => {
+        const mixed = [
+            { id: 'sub1', displayName: 'PSG', isSubscribed: true },
+            { id: 'sub2', displayName: 'Jours fériés', isSubscribed: true },
+            { id: 'cal1', displayName: 'Personnel' },
+            { id: 'cal2', displayName: 'Pro' },
+        ] as CalendarMeta[];
+        mockParse.mockReturnValue({ kind: 'create', summary: 'Dentiste', start, names: [] });
+        const { result } = renderHook(() => useVoiceAssistant(account, mixed));
+        await act(async () => result.current.open());
+        await act(async () => result.current.submitText('crée dentiste demain 14h30'));
+        await waitFor(() => expect(result.current.state).toBe('disambiguating'));
+        expect(result.current.candidates).toEqual(['Personnel', 'Pro']);
+    });
+
+    it('cold start — utterance before calendars load → waits, then disambiguates', async () => {
+        const { result, rerender } = renderHook(
+            ({ cals }: { cals: CalendarMeta[] }) => useVoiceAssistant(account, cals),
+            { initialProps: { cals: [] as CalendarMeta[] } },
+        );
+        mockParse.mockReturnValue({ kind: 'create', summary: 'Dentiste', start, names: [] });
+        await act(async () => result.current.open());
+        // utterance arrives while calendars is still [] (deep-link cold mount)
+        await act(async () => result.current.submitText('crée dentiste demain 14h30'));
+        rerender({ cals: multi });
+        await waitFor(() => expect(result.current.state).toBe('disambiguating'), { timeout: 4000 });
+        expect(result.current.candidates).toEqual(['Personnel', 'Planning clara', 'Perma SIPC']);
+        expect(mockCreateMutate).not.toHaveBeenCalled();
     });
 
     it('all calendars read-only → error, no mutation', async () => {

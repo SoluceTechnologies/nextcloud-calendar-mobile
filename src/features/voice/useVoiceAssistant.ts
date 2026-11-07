@@ -78,6 +78,7 @@ export interface VoiceAssistant {
     reply?: string;
     errorText?: string;
     open: () => void;
+    openWith: (text: string) => void;
     close: () => void;
     submitText: (text: string) => void;
     confirm: () => void;
@@ -123,6 +124,18 @@ export function useVoiceAssistant(account: Account | null, calendars: CalendarMe
     const createEvent = useCreateEvent(account!, calendars);
     const updateEvent = useUpdateEvent(account!, calendars);
     const deleteEvent = useDeleteEvent(account!);
+
+    // Deep links can fire before useCalendars resolves (cold mount) — wait
+    // briefly instead of failing "no writable calendar" on a warm cache.
+    const calendarsRef = useRef(calendars);
+    useEffect(() => { calendarsRef.current = calendars; }, [calendars]);
+    const waitForCalendars = useCallback(async () => {
+        const deadline = Date.now() + 2500;
+        while (calendarsRef.current.length === 0 && Date.now() < deadline) {
+            await new Promise((r) => setTimeout(r, 120));
+        }
+        return calendarsRef.current;
+    }, []);
 
     const setStatus = useCallback((s: VoiceState) => {
         stateRef.current = s;
@@ -389,7 +402,12 @@ export function useVoiceAssistant(account: Account | null, calendars: CalendarMe
                 : '';
             pendingNotesRef.current = withNote + droppedNote;
 
-            const writable = calendars.filter((c) => !c.isReadOnly);
+            // Subscribed (ICS) calendars are read-only in practice — exclude
+            // them like useCalendarData does, not only isReadOnly.
+            const writable = (await waitForCalendars()).filter(
+                (c) => !c.isReadOnly && !c.isSubscribed,
+            );
+            if (genRef.current !== gen) return;
             if (!writable.length) {
                 promptWith(t('voice.noWritableCalendar'), 'error', gen);
                 return;
@@ -429,7 +447,7 @@ export function useVoiceAssistant(account: Account | null, calendars: CalendarMe
             pendingIntentRef.current = intent;
             await armCreate(intent, calendar, attendees, gen);
         },
-        [account, calendars, describeIntent, promptWith, t, armCreate],
+        [account, calendars, describeIntent, promptWith, t, armCreate, waitForCalendars],
     );
 
     // --- move/delete arming: a day-only destination keeps the event's clock
@@ -553,9 +571,10 @@ export function useVoiceAssistant(account: Account | null, calendars: CalendarMe
                         const events = await eventsOnDay(account.id, intent.day);
                         if (genRef.current !== gen) return;
                         const busyIds = busyCalendarIds(
-                            calendars,
+                            await waitForCalendars(),
                             useCalendarStore.getState().availabilityCalendarOverrides,
                         );
+                        if (genRef.current !== gen) return;
                         const busyEvents = events.filter((e) => busyIds.has(e.calendarId));
                         // Resolve named attendees first: a good slot is free for them too.
                         let attendees: Attendee[] = [];
@@ -673,7 +692,7 @@ export function useVoiceAssistant(account: Account | null, calendars: CalendarMe
                 }
             }
         },
-        [account, calendars, locale, describeIntent, replyWith, setStatus, armWithScopeDecision, promptWith, t],
+        [account, calendars, locale, describeIntent, replyWith, setStatus, armWithScopeDecision, promptWith, t, waitForCalendars],
     );
 
     const handleUtterance = useCallback(
@@ -738,7 +757,7 @@ export function useVoiceAssistant(account: Account | null, calendars: CalendarMe
         });
     }, [handleUtterance, locale, setStatus, promptWith, t]);
 
-    const open = useCallback(() => {
+    const resetSheet = useCallback(() => {
         genRef.current += 1;
         cancelAutoClose();
         setVisible(true);
@@ -747,8 +766,12 @@ export function useVoiceAssistant(account: Account | null, calendars: CalendarMe
         setIntentDescription(undefined);
         setCandidates([]);
         setErrorText(undefined);
+    }, [cancelAutoClose]);
+
+    const open = useCallback(() => {
+        resetSheet();
         void listen();
-    }, [listen, cancelAutoClose]);
+    }, [resetSheet, listen]);
 
     const close = useCallback(() => {
         genRef.current += 1;
@@ -964,6 +987,17 @@ export function useVoiceAssistant(account: Account | null, calendars: CalendarMe
         };
     }, [close, cancelAutoClose]);
 
+    // Deep-link entry: open the sheet and route a pre-formed utterance
+    // straight into the intent pipeline (skips STT — no mic permission
+    // prompt for a request Siri already transcribed).
+    const openWith = useCallback(
+        (text: string) => {
+            resetSheet();
+            submitText(text);
+        },
+        [resetSheet, submitText],
+    );
+
     return {
         visible,
         state,
@@ -973,6 +1007,7 @@ export function useVoiceAssistant(account: Account | null, calendars: CalendarMe
         reply,
         errorText,
         open,
+        openWith,
         close,
         submitText,
         confirm,

@@ -21,6 +21,13 @@ describe('agenda', () => {
     expect(U('mes événements vendredi')).toEqual({ kind: 'agenda', day: day(14) });
     expect(U('my agenda', 'en')).toEqual({ kind: 'agenda', day: day(12) });
   });
+
+  it('« mon programme » is agenda, not the «programmer» create verb', () => {
+    expect(U('quel est mon programme demain')).toEqual({ kind: 'agenda', day: day(13) });
+    expect(U('montre mon programme lundi')).toEqual({ kind: 'agenda', day: day(17) });
+    // verb usage without a possessive stays a create
+    expect(U('programme un rdv dentiste demain 14h').kind).toBe('create');
+  });
 });
 
 describe('next', () => {

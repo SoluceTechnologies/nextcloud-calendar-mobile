@@ -25,7 +25,7 @@ const rx = (s: string) => new RegExp(`(^|[^${A}0-9])(?:${s})(?![${A}0-9])`, 'i')
 const AGENDA = [
   `qu['’\\s-]?est[-\\s]ce\\s+que\\s+j['’\\s]?ai`,
   `c['’]est\\s+quoi\\s+(?:(?:mon|mes|le)\\s+)?(?:agenda|planning|programme)`,
-  `(?:mon|mes|ton|tes|son|ses|notre|votre|le|les|the|my)\\s+(?:agenda|planning|événements?|evenements?|rendez[-\\s]?vous|rdv|réunions?|reunions?|meetings?|events?)(?![a-zà-ÿ])`,
+  `(?:mon|mes|ton|tes|son|ses|notre|votre|le|les|the|my)\\s+(?:agenda|planning|programme|événements?|evenements?|rendez[-\\s]?vous|rdv|réunions?|reunions?|meetings?|events?)(?![a-zà-ÿ])`,
   `agenda`,
   `planning`,
   `what['’\\s]?s\\s+on`,

@@ -88,13 +88,22 @@ export default function CalendarScreen() {
 
   // nextcloud-calendar://listen (home-widget button) redirects here with
   // ?autolisten=1 — start the briefing once, then clear the param so the next
-  // widget tap re-triggers.
-  const { autolisten } = useLocalSearchParams<{ autolisten?: string }>();
+  // widget tap re-triggers. Siri intents use ?voice=1 (&say=…) instead.
+  const { autolisten, voice: voiceParam, say } =
+    useLocalSearchParams<{ autolisten?: string; voice?: string; say?: string }>();
   useEffect(() => {
     if (autolisten !== '1') return;
     void startBriefing();
     router.setParams({ autolisten: undefined });
   }, [autolisten, startBriefing, router]);
+  useEffect(() => {
+    if (voiceParam !== '1') return;
+    router.setParams({ voice: undefined, say: undefined });
+    if (!voiceAssistantEnabled) return;
+    const trimmed = say?.trim();
+    if (trimmed) voice.openWith(trimmed);
+    else voice.open();
+  }, [voiceParam, say, voiceAssistantEnabled, voice.open, voice.openWith, router]);
 
   const online = useIsOnline();
   useEffect(() => {
