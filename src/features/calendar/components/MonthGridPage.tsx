@@ -7,7 +7,7 @@ import { useTheme } from 'expo-router';
 import { useSettingsStore } from '@/stores/settingsStore';
 import type { CalendarEvent } from '@/types';
 import { LONG_PRESS_MS } from '../constants';
-import { contrastFor } from '../utils/eventInk';
+import { contrastFor } from '@/utils/colors';
 import { dayKey } from '../utils/grid';
 import {
   MONTH_CHIP_HEIGHT,
