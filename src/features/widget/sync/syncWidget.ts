@@ -57,7 +57,9 @@ async function runSync(now: Date): Promise<void> {
             setSharedString(SHARED_KEYS.agendaSnapshot, JSON.stringify(current?.snapshot ?? null));
             setSharedString(
                 SHARED_KEYS.voiceEnabled,
-                useSettingsStore.getState().voiceAssistantEnabled ? '1' : '0',
+                Object.values(useSettingsStore.getState().voiceAssistantByAccount).some(Boolean)
+                    ? '1'
+                    : '0',
             );
         }
 

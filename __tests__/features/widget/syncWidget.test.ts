@@ -149,7 +149,7 @@ describe('syncWidget calendar filtering', () => {
 
   it('mirrors the current snapshot and voice flag to shared app-group storage', async () => {
     mockRows = [ev('shared-snap', 'cal-a')];
-    useSettingsStore.setState({ voiceAssistantEnabled: true });
+    useSettingsStore.setState({ voiceAssistantByAccount: { 'acc-1': true } });
 
     await syncWidget(new Date('2026-08-01T09:00:00Z'));
 
