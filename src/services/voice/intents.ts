@@ -66,7 +66,7 @@ const SLOT = [
   `(?:time|slot|opening|gap)\\s+(?:for|to|in)`, // "time for a meeting"
   `free\\s+(?:slot|time|spot|opening)s?|when\\s+am\\s+i\\s+free|am\\s+i\\s+free`,
   `(?:trouve?r?|cherche?r?|repère?r?|regarde?r?)\\s+(?:(?:moi|me|nous|un|une|le|la|de|du|des|d['’\\s])\\s+)*(?:disponibilité|dispo|créneau|creneau|plage|moment|trou|temps)`,
-  `(?:find|look\\s+for|search\\s+for|get)\\s+(?:me\\s+|us\\s+|a\\s+|an\\s+|the\\s+|some\\s+)*(?:slot|opening|gap|free\\s+time|availability|window)`,
+  `(?:find|look\\s+for|search\\s+for|get)\\s+(?:me\\s+|us\\s+|a\\s+|an\\s+|the\\s+|some\\s+|\\d+[-\\s]min(?:utes?)?\\s+)*(?:slot|opening|gap|free\\s+time|availability|window)`,
 ];
 
 const MOVE = [
@@ -239,9 +239,14 @@ export function parseUtterance(text: string, opts: { locale?: string; now?: Date
     let durationMin: number | undefined;
     const dm = /(?:pendant|durant|for|dure[eé]?t?)\s+(?:une?|a|an)?\s*(\d+)\s*(h(?:eures?)?|hrs?|hours?|min(?:utes?)?)/i.exec(norm)
       ?? /d['’](?:une\s+)?(?:demi[-\s]?heure|heure)/i.exec(norm)
-      ?? /half\s+an?\s+hour|an?\s+hour/i.exec(norm);
+      ?? /half\s+an?\s+hour|an?\s+hour/i.exec(norm)
+      // « un créneau DE 30 minutes » / "a 30-MINUTE slot" — the minute unit is
+      // required so « dans 30 minutes » (a moment) or « de 2 heures » (clock
+      // time) are never read as durations.
+      ?? /(?:\bde\s+(\d+)|(\d+)-)\s*min(?:utes?)?\b/i.exec(norm);
     if (dm) {
-      durationMin = dm[1] ? parseInt(dm[1], 10) * (/^h/i.test(dm[2]) ? 60 : 1) : /demi|half/.test(dm[0]) ? 30 : 60;
+      const qty = dm[1] ?? dm[2];
+      durationMin = qty ? parseInt(qty, 10) * (/^h/i.test(dm[2] ?? '') ? 60 : 1) : /demi|half/.test(dm[0]) ? 30 : 60;
     }
     const pourM = /(?:\bpour\b|\bfor\b)\s+(.+?)(?=\s+(?:avec|with|et\b|and\b|dans|sur|in\b|on\b|à|a\b|at\b)|$)/i.exec(slotBody);
     let summary = pourM ? cleanTitle(pourM[1].replace(PUNCT, '')) : undefined;

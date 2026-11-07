@@ -149,6 +149,16 @@ describe('slot', () => {
         expect(U("cherche un trou d'une demi-heure vendredi")).toMatchObject({ kind: 'slot', durationMin: 30 });
     });
 
+    it('duration «de 30 minutes» / "a 30-minute slot"', () => {
+        expect(U('trouve un créneau de 30 minutes demain')).toMatchObject({ kind: 'slot', day: day(13), durationMin: 30 });
+        expect(U('cherche une dispo de 45 min vendredi')).toMatchObject({ kind: 'slot', durationMin: 45 });
+        expect(U('find a 30-minute slot friday', 'en')).toMatchObject({ kind: 'slot', durationMin: 30 });
+    });
+
+    it('«un créneau dans 30 minutes» is a moment, not a duration', () => {
+        expect(U('trouve un créneau dans 30 minutes')).toMatchObject({ kind: 'slot', durationMin: undefined });
+    });
+
     it('«suis-je libre vendredi ?» / «temps libre»', () => {
         expect(U('suis-je libre vendredi ?')).toEqual({ kind: 'slot', day: day(14), durationMin: undefined, summary: undefined, names: undefined, calendarName: undefined });
         expect(U("quand ai-je du temps libre demain dans l'agenda planning clara")).toMatchObject({ kind: 'slot', day: day(13), calendarName: 'planning clara' });
