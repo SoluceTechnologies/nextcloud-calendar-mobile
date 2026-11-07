@@ -16,7 +16,8 @@
   },
   "tabs": {
     "calendar": "Agenda",
-    "settings": "Instellingen"
+    "settings": "Instellingen",
+    "search": "Zoeken"
   },
   "setup": {
     "brand": "Agenda",
@@ -176,7 +177,29 @@
     "errorCreateFailed": "Aanmaken van afspraak mislukt",
     "errorUpdateFailed": "Bijwerken van afspraak mislukt",
     "errorDeleteFailed": "Verwijderen van afspraak mislukt",
-    "alerts": "Herinneringen"
+    "alerts": "Herinneringen",
+    "alert": "Melding",
+    "findTime": "Tijd vinden",
+    "findTimeTitle": "Tijd vinden",
+    "findTimeSuggested": "Voorgestelde tijden",
+    "findTimeNoSlots": "Geen vrije tijden gevonden in het venster van 15 dagen.",
+    "findTimeAttendees": "Beschikbaarheid deelnemers",
+    "findTimeAvailable": "Beschikbaar",
+    "findTimeUnknown": "Onbekend",
+    "findTimeApply": "Geselecteerde tijd toepassen",
+    "findTimeLoading": "Beschikbaarheid controleren…",
+    "findTimeError": "Kon beschikbaarheid niet ophalen. De server heeft mogelijk free/busy uitgeschakeld.",
+    "findTimeTimeline": "Beschikbaarheidsoverzicht",
+    "findTimeModeStrict": "All free",
+    "findTimeModePermissive": "Some may be busy",
+    "findTimeRequired": "Required",
+    "findTimeTimelineBusy": "Bezig",
+    "findTimeTimelineUnavailable": "Niet beschikbaar",
+    "findTimeTimelineDragHint": "Sleep de greep om de gebeurtenis te verplaatsen",
+    "findTimeTimelineTip": "Sleep de greep of houd een groene zone lang ingedrukt om te verplaatsen",
+    "findTimeTimelineEvent": "Gebeurtenis",
+    "findTimePrevDay": "Vorige dag",
+    "findTimeNextDay": "Volgende dag"
   },
   "settings": {
     "title": "Instellingen",
@@ -373,5 +396,54 @@
     "remedy": "Veiligere opties: de server bereiken via een VPN zoals Tailscale of WireGuard, of een gratis certificaat instellen met DuckDNS en Let's Encrypt.",
     "connect": "Toch verbinden",
     "cancel": "Annuleren"
+  },
+  "search": {
+    "title": "Zoeken",
+    "placeholder": "Afspraken zoeken…",
+    "filters": "FILTERS",
+    "filter": {
+      "calendar": "In een agenda",
+      "attendee": "Met een deelnemer",
+      "date": "Datum",
+      "title": "In titel",
+      "location": "In locatie",
+      "description": "In beschrijving"
+    },
+    "hint": {
+      "name": "naam",
+      "person": "persoon",
+      "text": "tekst"
+    },
+    "more": "Meer filters",
+    "moreHint": "titel, locatie, beschrijving",
+    "recent": "RECENT",
+    "removeRecent": "Verwijderen uit recent",
+    "removeFilter": "Filter {{filter}} verwijderen",
+    "use": "“{{value}}” gebruiken",
+    "filterHint": "Filteren:",
+    "short": {
+      "calendar": "Agenda",
+      "attendee": "Deelnemer",
+      "date": "Datum"
+    },
+    "date": {
+      "today": "Vandaag",
+      "tomorrow": "Morgen",
+      "week": "Binnen 7 dagen",
+      "month": "Binnen een maand",
+      "upcoming": "Komend",
+      "past": "Voorbij",
+      "before": "Voor een datum…",
+      "after": "Na een datum…"
+    },
+    "upcoming": "KOMEND",
+    "past": "VOORBIJ",
+    "truncated": "De eerste {{count}} worden getoond, voeg een filter toe om te verfijnen",
+    "fromServer": "MEER VAN DE SERVER",
+    "noResults": "Geen resultaten",
+    "noResultsHint": "Probeer minder filters of een eenvoudiger woord.",
+    "offlineNote": "Offline — alleen lokale resultaten",
+    "serverFailed": "Server niet bereikbaar — alleen lokale resultaten",
+    "openFailed": "Kan deze afspraak niet openen"
   }
 }

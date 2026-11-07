@@ -14,9 +14,9 @@ appId: com.soluce.nextcloudcalendar
     visible:
       id: event-form-title
     timeout: 15000
-- tapOn:
-    id: event-form-title
-- inputText: ${TITLE}
+- runFlow:
+    file: ../shared/type-text.yaml
+    env: { FIELD: event-form-title, TEXT: "${TITLE}" }
 - tapOn:
     id: event-form-all-day
 - scrollUntilVisible:

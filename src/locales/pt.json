@@ -16,7 +16,8 @@
   },
   "tabs": {
     "calendar": "Calendário",
-    "settings": "Definições"
+    "settings": "Definições",
+    "search": "Pesquisar"
   },
   "setup": {
     "brand": "Calendário",
@@ -176,7 +177,29 @@
     "errorCreateFailed": "Falha ao criar o evento",
     "errorUpdateFailed": "Falha ao atualizar o evento",
     "errorDeleteFailed": "Falha ao eliminar o evento",
-    "alerts": "Alertas"
+    "alerts": "Alertas",
+    "alert": "Alerta",
+    "findTime": "Encontrar horário",
+    "findTimeTitle": "Encontrar horário",
+    "findTimeSuggested": "Horários sugeridos",
+    "findTimeNoSlots": "Nenhum horário livre encontrado na janela de 15 dias.",
+    "findTimeAttendees": "Disponibilidade dos participantes",
+    "findTimeAvailable": "Disponível",
+    "findTimeUnknown": "Desconhecido",
+    "findTimeApply": "Aplicar horário selecionado",
+    "findTimeLoading": "Verificando disponibilidade…",
+    "findTimeError": "Não foi possível obter a disponibilidade. O servidor pode ter free/busy desativado.",
+    "findTimeTimeline": "Cronologia de disponibilidade",
+    "findTimeModeStrict": "All free",
+    "findTimeModePermissive": "Some may be busy",
+    "findTimeRequired": "Required",
+    "findTimeTimelineBusy": "Ocupado",
+    "findTimeTimelineUnavailable": "Indisponível",
+    "findTimeTimelineDragHint": "Arraste a alça para reagendar o evento",
+    "findTimeTimelineTip": "Arraste a alça ou mantenha pressionada uma zona verde para reagendar",
+    "findTimeTimelineEvent": "Evento",
+    "findTimePrevDay": "Dia anterior",
+    "findTimeNextDay": "Próximo dia"
   },
   "settings": {
     "title": "Definições",
@@ -373,5 +396,54 @@
     "remedy": "Opções mais seguras: aceder ao servidor através de uma VPN como Tailscale ou WireGuard, ou configurar um certificado gratuito com DuckDNS e Let's Encrypt.",
     "connect": "Ligar mesmo assim",
     "cancel": "Cancelar"
+  },
+  "search": {
+    "title": "Pesquisar",
+    "placeholder": "Pesquisar eventos…",
+    "filters": "FILTROS",
+    "filter": {
+      "calendar": "Num calendário",
+      "attendee": "Com um participante",
+      "date": "Data",
+      "title": "No título",
+      "location": "Na localização",
+      "description": "Na descrição"
+    },
+    "hint": {
+      "name": "nome",
+      "person": "pessoa",
+      "text": "texto"
+    },
+    "more": "Mais filtros",
+    "moreHint": "título, localização, descrição",
+    "recent": "RECENTES",
+    "removeRecent": "Remover das recentes",
+    "removeFilter": "Remover o filtro {{filter}}",
+    "use": "Usar «{{value}}»",
+    "filterHint": "Filtrar:",
+    "short": {
+      "calendar": "Calendário",
+      "attendee": "Participante",
+      "date": "Data"
+    },
+    "date": {
+      "today": "Hoje",
+      "tomorrow": "Amanhã",
+      "week": "Nos próximos 7 dias",
+      "month": "No próximo mês",
+      "upcoming": "Próximos",
+      "past": "Passados",
+      "before": "Antes de uma data…",
+      "after": "Depois de uma data…"
+    },
+    "upcoming": "PRÓXIMOS",
+    "past": "PASSADOS",
+    "truncated": "A mostrar os primeiros {{count}}; adicione um filtro para refinar",
+    "fromServer": "MAIS RESULTADOS DO SERVIDOR",
+    "noResults": "Sem resultados",
+    "noResultsHint": "Experimente menos filtros ou uma palavra mais simples.",
+    "offlineNote": "Offline — apenas resultados locais",
+    "serverFailed": "Não foi possível contactar o servidor — apenas resultados locais",
+    "openFailed": "Não foi possível abrir este evento"
   }
 }
