@@ -189,7 +189,15 @@
         "deleteQueued": "Deleted locally — will be removed from the server when the connection returns.",
         "queueCreateDropped": "The creation could not be sent to the server — the local event was removed.",
         "queueDeleteDropped": "The deletion could not be sent to the server — the event will reappear at the next sync.",
-        "queueUpdateDropped": "The change could not be sent to the server — the event will resync."
+        "queueUpdateDropped": "The change could not be sent to the server — the event will resync.",
+    "alerts": "Alerts",
+    "availability": "Availability",
+    "availabilityBusy": "Busy",
+    "availabilityFree": "Free",
+    "status": "Status",
+    "statusConfirmed": "Confirmed",
+    "statusTentative": "Tentative",
+    "statusCancelled": "Cancelled"
   },
   "settings": {
     "title": "Settings",

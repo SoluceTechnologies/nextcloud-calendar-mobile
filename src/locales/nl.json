@@ -189,7 +189,15 @@
         "deleteQueued": "Lokaal verwijderd — wordt verwijderd van de server zodra de verbinding terug is.",
         "queueCreateDropped": "De aanmaak kon niet naar de server worden verzonden — de lokale gebeurtenis is verwijderd.",
         "queueDeleteDropped": "Het verwijderen kon niet naar de server worden verzonden — de gebeurtenis verschijnt opnieuw bij de volgende synchronisatie.",
-        "queueUpdateDropped": "De wijziging kon niet naar de server worden verzonden — de gebeurtenis wordt opnieuw gesynchroniseerd."
+        "queueUpdateDropped": "De wijziging kon niet naar de server worden verzonden — de gebeurtenis wordt opnieuw gesynchroniseerd.",
+    "alerts": "Herinneringen",
+    "availability": "Beschikbaarheid",
+    "availabilityBusy": "Bezet",
+    "availabilityFree": "Vrij",
+    "status": "Status",
+    "statusConfirmed": "Bevestigd",
+    "statusTentative": "Voorlopig",
+    "statusCancelled": "Geannuleerd"
   },
   "settings": {
     "title": "Instellingen",

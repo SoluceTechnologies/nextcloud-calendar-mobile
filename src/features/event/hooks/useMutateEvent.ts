@@ -107,14 +107,14 @@ function buildIcsForInput(
         dtstart: input.dtstart, dtend: input.dtend,
         organizerEmail: input.organizerEmail, organizerName: input.organizerName,
         attendees: input.attendees, rrule: input.rrule, alarms,
-        sequence, extraLines,
+        sequence, status: input.status, transp: input.transp, extraLines,
       })
     : buildIcs({
         uid, summary: input.summary, description, location,
         dtstart: input.dtstart, dtend: input.dtend,
         organizerEmail: input.organizerEmail, organizerName: input.organizerName,
         attendees: input.attendees, timezone, rrule: input.rrule, alarms,
-        sequence, extraLines,
+        sequence, status: input.status, transp: input.transp, extraLines,
       });
 }
 
@@ -176,6 +176,8 @@ function eventFromInput(
     isRecurring: !!input.rrule,
     rrule: undefined,
     alarms: resolveAlarms(input),
+    transp: input.transp,
+    status: input.status,
   };
 }
 
@@ -255,6 +257,8 @@ export function useUpdateEvent(account: Account, calendars: CalendarMeta[]) {
         location: input.location ?? event.location,
         attendees: input.attendees,
         alarms: resolveAlarms(input),
+        transp: input.transp ?? event.transp,
+        status: input.status ?? event.status,
       };
 
       if (shiftsWholeSeries) {
@@ -330,6 +334,7 @@ export function useUpdateEvent(account: Account, calendars: CalendarMeta[]) {
             attendees: input.attendees, timezone, recurrenceId: occurrenceSlot(event),
             alarms: resolveAlarms(input),
             sequence: extractSequence(masterIcs) + 1,
+            status: input.status, transp: input.transp,
             extraLines: extractExtraVeventLines(masterIcs),
           });
           // The override lives in the series resource (CalDAV refuses a second one with its UID).
