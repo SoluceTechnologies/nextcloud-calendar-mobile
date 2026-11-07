@@ -69,6 +69,7 @@ function AttendeeLaneImpl({
       {blocks.map((block, i) => (
         <View
           key={i}
+          pointerEvents="none"
           style={[
             styles.block,
             {
@@ -82,6 +83,7 @@ function AttendeeLaneImpl({
       {selection && (
         <View
           testID={testID ? `${testID}-selection` : 'lane-selection'}
+          pointerEvents="none"
           style={[
             styles.selection,
             {
