@@ -411,7 +411,7 @@
     "meetingWith": "Riunione con {{names}}",
     "meetingTitle": "Riunione",
     "enabled": "Assistente vocale",
-    "enabledHint": "Mostra il pulsante microfono per controllare il calendario con voce o testo.",
+    "enabledHint": "Mostra il pulsante del microfono per controllare il calendario a voce o testo — per account.",
     "onDevice": "Riconoscimento sul dispositivo",
     "onDeviceHint": "L’audio vocale resta su questo dispositivo quando possibile.",
     "onDeviceUnsupported": "Non supportato su questo dispositivo — l’audio viene inviato in rete.",

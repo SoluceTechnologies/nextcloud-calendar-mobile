@@ -53,7 +53,7 @@ export default function CalendarScreen() {
   const toggleCalendarVisibility = useCalendarStore((s) => s.toggleCalendarVisibility);
   const notifDisabledCalendarIds = useCalendarStore((s) => s.notifDisabledCalendarIds);
   const toggleCalendarNotifications = useCalendarStore((s) => s.toggleCalendarNotifications);
-  const voiceAssistantEnabled = useSettingsStore((s) => s.voiceAssistantEnabled);
+  const voiceAssistantByAccount = useSettingsStore((s) => s.voiceAssistantByAccount);
 
   const nav = useCalendarNavigation();
   const { viewMode, date, fetchDate, agendaVisibleDate } = nav;
@@ -73,6 +73,9 @@ export default function CalendarScreen() {
   const {
     activeAccount, calendars, allEvents, agendaEvents, showFullOverlay, showSmallLoader,
   } = useCalendarData(fetchDate, viewMode === 'schedule');
+  const voiceAssistantEnabled = activeAccount
+    ? (voiceAssistantByAccount[activeAccount.id] ?? false)
+    : false;
   const insets = useSafeAreaInsets();
   const drawer = useCalendarDrawer();
   const voice = useVoiceAssistant(activeAccount, calendars);

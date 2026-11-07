@@ -411,7 +411,7 @@
     "meetingWith": "Vergadering met {{names}}",
     "meetingTitle": "Vergadering",
     "enabled": "Spraakassistent",
-    "enabledHint": "Toont de microfoonknop om de agenda met spraak of tekst te bedienen.",
+    "enabledHint": "Toont de microfoonknop om de agenda met spraak of tekst te bedienen — per account.",
     "onDevice": "Herkenning op het apparaat",
     "onDeviceHint": "Spraakaudio blijft waar mogelijk op dit apparaat.",
     "onDeviceUnsupported": "Niet ondersteund op dit apparaat — audio wordt via het netwerk verzonden.",
