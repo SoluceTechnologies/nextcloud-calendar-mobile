@@ -135,6 +135,67 @@ describe('create', () => {
     expect(i.kind).toBe('create');
     if (i.kind === 'create') expect(i.calendarName).toBeUndefined();
   });
+
+  it('post-datetime « au/à la/chez » clause → location (not dropped, not in title)', () => {
+    expect(U('cree rdv client demain a 14h au bureau')).toEqual({
+      kind: 'create', summary: 'rdv client', start: at(13, 14), end: undefined, names: undefined,
+      location: 'bureau',
+    });
+    expect(U('crée un rdv demain à 15h à la clinique')).toEqual({
+      kind: 'create', summary: 'rdv', start: at(13, 15), end: undefined, names: undefined,
+      location: 'clinique',
+    });
+    expect(U('meeting friday at 3pm at the office', 'en')).toEqual({
+      kind: 'create', summary: 'meeting', start: at(14, 15), end: undefined, names: undefined,
+      location: 'office',
+    });
+  });
+
+  it('« salle/room » tail keeps the room word in the location', () => {
+    const i = U('cree reunion equipe vendredi a 15h salle B');
+    if (i.kind !== 'create') throw new Error('not create');
+    expect(i.location).toBe('salle B');
+    const j = U('meeting tomorrow at 9am room 42', 'en');
+    if (j.kind !== 'create') throw new Error('not create');
+    expect(j.location).toBe('room 42');
+  });
+
+  it('« chez » BEFORE the date stays in the title (no location)', () => {
+    const i = U('cree rdv chez le dentiste mardi a 9h');
+    if (i.kind !== 'create') throw new Error('not create');
+    expect(i.summary).toBe('rdv chez le dentiste');
+    expect(i.location).toBeUndefined();
+  });
+
+  it('« description/note/détails » clause → description, stripped from title', () => {
+    expect(U('cree reunion equipe jeudi a 10h description apporter les documents')).toEqual({
+      kind: 'create', summary: 'reunion equipe', start: at(13, 10), end: undefined, names: undefined,
+      description: 'apporter les documents',
+    });
+    const i = U('cree un point demain a 11h avec la note prevoir le cable hdmi');
+    if (i.kind !== 'create') throw new Error('not create');
+    expect(i.description).toBe('prevoir le cable hdmi');
+    const j = U('schedule a call tomorrow at 10am with description bring signed papers', 'en');
+    if (j.kind !== 'create') throw new Error('not create');
+    expect(j.description).toBe('bring signed papers');
+  });
+
+  it('location + description + names + calendar all coexist', () => {
+    const i = U('cree point client demain a 14h au siege avec Marc dans agenda pro description premier contact');
+    if (i.kind !== 'create') throw new Error('not create');
+    expect(i.summary).toBe('point client');
+    expect(i.location).toBe('siege');
+    expect(i.names).toEqual(['Marc']);
+    expect(i.calendarName).toBe('pro');
+    expect(i.description).toBe('premier contact');
+  });
+
+  it('no markers → location/description stay undefined', () => {
+    const i = U('cree un rdv demain a 14h');
+    if (i.kind !== 'create') throw new Error('not create');
+    expect(i.location).toBeUndefined();
+    expect(i.description).toBeUndefined();
+  });
 });
 
 describe('slot', () => {
@@ -219,6 +280,35 @@ describe('move', () => {
   it('only a «de/from» moment → no destination → freeform', () => {
     expect(U('décale le rdv de 15h')).toEqual({ kind: 'freeform', text: 'décale le rdv de 15h' });
     expect(U('décale le rdv')).toEqual({ kind: 'freeform', text: 'décale le rdv' });
+  });
+});
+
+describe('details', () => {
+  it('« lis la description de X » → details with the title after the marker', () => {
+    const i = U('lis la description de rdv client');
+    expect(i).toEqual({ kind: 'details', target: { title: 'rdv client', when: undefined } });
+    const j = U('donne les détails du point avec Marc demain');
+    expect(j).toEqual({ kind: 'details', target: { title: 'point avec Marc', when: day(13) } });
+  });
+
+  it('« où se passe / où a lieu » → details', () => {
+    const i = U('ou se passe le rdv client vendredi');
+    expect(i).toEqual({ kind: 'details', target: { title: 'rdv client', when: day(14) } });
+    const j = U("c'est ou la reunion");
+    expect(j).toEqual({ kind: 'details', target: { title: 'reunion', when: undefined } });
+  });
+
+  it('EN mirrors: "where is" / "read the description of"', () => {
+    const i = U('where is my dentist appointment on friday', 'en');
+    expect(i).toEqual({ kind: 'details', target: { title: 'dentist appointment', when: day(14) } });
+    const j = U('read the description of the team meeting', 'en');
+    expect(j).toEqual({ kind: 'details', target: { title: 'team meeting', when: undefined } });
+  });
+
+  it('create verb still wins over a description marker (« cree rdv description X »)', () => {
+    const i = U('cree rdv demain a 10h description note importante');
+    if (i.kind !== 'create') throw new Error('not create');
+    expect(i.description).toBe('note importante');
   });
 });
 

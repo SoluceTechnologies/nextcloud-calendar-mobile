@@ -20,6 +20,7 @@ import {
 import {
     buildBriefing,
     buildReminderBriefing,
+    buildDetailsBriefing,
     briefingVoiceLocale,
 } from '@/features/briefing/speechText';
 import type { BriefingSegment } from '@/features/briefing/types';
@@ -63,7 +64,9 @@ type PendingOp =
 const AUTO_CLOSE_DELAY_MS = 4000;
 
 function intentTargetTitle(intent: VoiceIntent): string | undefined {
-    return intent.kind === 'move' || intent.kind === 'delete' ? intent.target.title : undefined;
+    return intent.kind === 'move' || intent.kind === 'delete' || intent.kind === 'details'
+        ? intent.target.title
+        : undefined;
 }
 
 export interface VoiceAssistant {
@@ -212,12 +215,16 @@ export function useVoiceAssistant(account: Account | null, calendars: CalendarMe
             const fmt = (d: Date) => dayjs(d).locale(l).format('dddd D MMMM · HH:mm');
             const targetTitle = opts.resolvedTitle || intentTargetTitle(intent) || t('voice.untitled');
             switch (intent.kind) {
-                case 'create':
-                    return t('voice.confirmCreate', {
+                case 'create': {
+                    let text = t('voice.confirmCreate', {
                         title: intent.summary?.trim() || t('voice.untitled'),
                         when: fmt(effectiveStart(intent)),
                         calendar: opts.calendarName ?? '',
                     });
+                    if (intent.location) text += `\n${t('voice.confirmLocation', { value: intent.location })}`;
+                    if (intent.description) text += `\n${t('voice.confirmDescription', { value: intent.description })}`;
+                    return text;
+                }
                 case 'move':
                     return t('voice.confirmMove', {
                         title: targetTitle,
@@ -517,6 +524,31 @@ export function useVoiceAssistant(account: Account | null, calendars: CalendarMe
                     }
                     case 'create':
                         return routeCreate(intent, gen);
+                    case 'details': {
+                        const matches = await findEventTargets(account.id, intent.target);
+                        if (genRef.current !== gen) return;
+                        if (!matches.length) {
+                            replyWith(t('voice.nothingFound'));
+                            return;
+                        }
+                        if (matches.length > 1) {
+                            candidateEventsRef.current = matches;
+                            pendingIntentRef.current = intent;
+                            setCandidates(
+                                matches.slice(0, 5).map(
+                                    (e) =>
+                                        `${e.summary || t('voice.untitled')} · ${dayjs(e.dtstart)
+                                            .locale(loc)
+                                            .format('dd DD/MM HH:mm')}`,
+                                ),
+                            );
+                            promptWith(t('voice.whichEvent'), 'disambiguating', gen);
+                            return;
+                        }
+                        const segs = buildDetailsBriefing(matches[0], { locale: loc, use24h });
+                        replyWith(segs.map((s) => s.text).join(' '), { segs });
+                        return;
+                    }
                     case 'slot': {
                         const events = await eventsOnDay(account.id, intent.day);
                         if (genRef.current !== gen) return;
@@ -890,12 +922,19 @@ export function useVoiceAssistant(account: Account | null, calendars: CalendarMe
                 return;
             }
             const event = candidateEventsRef.current[index];
-            if (!event || (intent.kind !== 'move' && intent.kind !== 'delete')) return;
+            if (!event || (intent.kind !== 'move' && intent.kind !== 'delete' && intent.kind !== 'details')) return;
             candidateEventsRef.current = [];
             setCandidates([]);
+            if (intent.kind === 'details') {
+                // read-only pick — no scope decision, just speak the details
+                const { locale: loc, use24h } = locale();
+                const segs = buildDetailsBriefing(event, { locale: loc, use24h });
+                replyWith(segs.map((s) => s.text).join(' '), { segs });
+                return;
+            }
             armWithScopeDecision(event, intent);
         },
-        [account, describeIntent, routeCreate, setStatus, armCreate, armTarget, armWithScopeDecision, cancelAutoClose, promptWith, t],
+        [account, describeIntent, routeCreate, setStatus, armCreate, armTarget, armWithScopeDecision, cancelAutoClose, promptWith, replyWith, locale, t],
     );
 
     // auto-close timer needs the latest close() without re-creating replyWith

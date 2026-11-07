@@ -421,6 +421,8 @@
     "stillThinking": "De server denkt nog na, probeer het later opnieuw.",
     "tapToSpeak": "Tik om te spreken",
     "confirmCreate": "„{{title}}” op {{when}} in {{calendar}} aanmaken?",
+    "confirmLocation": "Locatie: {{value}}",
+    "confirmDescription": "Beschrijving: {{value}}",
     "confirmMove": "„{{title}}” verplaatsen naar {{when}}?",
     "confirmDelete": "„{{title}}” verwijderen?",
         "confirmAgent": "Dit verzoek naar de Nextcloud-agent sturen? Deze kan je agenda wijzigen.",

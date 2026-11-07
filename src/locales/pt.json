@@ -421,6 +421,8 @@
     "stillThinking": "O servidor ainda está a pensar, tente mais tarde.",
     "tapToSpeak": "Toque para falar",
     "confirmCreate": "Criar «{{title}}» em {{when}} no calendário {{calendar}}?",
+    "confirmLocation": "Local: {{value}}",
+    "confirmDescription": "Descrição: {{value}}",
     "confirmMove": "Mover «{{title}}» para {{when}}?",
     "confirmDelete": "Eliminar «{{title}}»?",
         "confirmAgent": "Enviar este pedido ao agente Nextcloud? Ele pode modificar o seu calendário.",

@@ -1,5 +1,6 @@
 import {
   buildBriefing,
+  buildDetailsBriefing,
   buildReminderBriefing,
   briefingDayLabel,
   briefingVoiceLocale,
@@ -502,5 +503,44 @@ describe('buildReminderBriefing', () => {
       now: BEFORE,
     });
     expect(segs[0].text).toBe('Rappel : Dentist, à 18 h, pendant une heure, Cabinet Nord.');
+  });
+});
+
+describe('buildDetailsBriefing', () => {
+  const det = (partial: Partial<BriefingEventInput> = {}): BriefingEventInput =>
+    ev({ uid: 'd1', summary: 'Point client', dtstart: at(15), dtend: at(16), ...partial });
+
+  it('reads date, time, duration, location AND description', () => {
+    const segs = buildDetailsBriefing(
+      det({ location: 'Salle B', description: 'Apporter le contrat signé.' }),
+      { locale: 'fr', now: BEFORE },
+    );
+    expect(segs[0].text).toBe('Point client, lundi 10 août, à 15 h, pendant une heure, Salle B.');
+    expect(segs[1].text).toBe('Description : Apporter le contrat signé.');
+    expect(segs[1].eventUid).toBe('d1');
+  });
+
+  it('EN phrasing', () => {
+    const segs = buildDetailsBriefing(det({ location: 'Room 42', description: 'Quarterly review.' }), {
+      locale: 'en',
+      now: BEFORE,
+    });
+    expect(segs[0].text).toBe('Point client, Monday, August 10, at 3 PM, for one hour, Room 42.');
+    expect(segs[1].text).toBe('Description: Quarterly review.');
+  });
+
+  it('missing description → explicit "no description" line', () => {
+    const segs = buildDetailsBriefing(det({ location: 'Salle B' }), { locale: 'fr', now: BEFORE });
+    expect(segs[1].text).toBe('Pas de description.');
+    const en = buildDetailsBriefing(det(), { locale: 'en', now: BEFORE });
+    expect(en[1].text).toBe('No description.');
+  });
+
+  it('URLs inside the description are stripped before speaking', () => {
+    const segs = buildDetailsBriefing(
+      det({ description: 'Voir https://talk.x/call123 pour le lien' }),
+      { locale: 'fr', now: BEFORE },
+    );
+    expect(segs[1].text).not.toContain('http');
   });
 });

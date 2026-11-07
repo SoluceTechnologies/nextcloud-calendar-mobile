@@ -195,6 +195,8 @@ export function inputFromCreateIntent(
         dtstart: start,
         dtend: end,
         allDay: false,
+        location: intent.location?.trim() || undefined,
+        description: intent.description?.trim() || undefined,
         attendees: ctx.attendees,
         withTalkRoom: false,
         organizerEmail: ctx.organizerEmail,

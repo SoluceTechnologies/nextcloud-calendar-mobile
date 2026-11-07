@@ -6,7 +6,7 @@ import type { BriefingSegment } from './types';
 export interface BriefingEventInput
   extends Pick<
     CalendarEvent,
-    'uid' | 'summary' | 'dtstart' | 'dtend' | 'allDay' | 'location' | 'isTask' | 'talkUrl'
+    'uid' | 'summary' | 'dtstart' | 'dtend' | 'allDay' | 'location' | 'description' | 'isTask' | 'talkUrl'
   > {
   attendees?: { email?: string; displayName?: string }[];
 }
@@ -270,6 +270,56 @@ export function buildReminderBriefing(
     }
     segs.push({ key: 'outro', text: fr ? "C'est tout." : "That's all." });
   }
+  return segs;
+}
+
+// Spoken script for a targeted event-detail query (« lis la description de … »,
+// « où se passe … »). Unlike the agenda briefing this reads EVERYTHING about
+// the event — location AND description — since the user asked for the details.
+export function buildDetailsBriefing(
+  e: BriefingEventInput,
+  opts: { locale?: string; use24h?: boolean; now?: Date },
+): BriefingSegment[] {
+  const fr = (opts.locale ?? '').toLowerCase().startsWith('fr');
+  const use24h = opts.use24h ?? fr;
+  const ctx: Ctx = { fr, use24h, now: opts.now ?? new Date(), locale: opts.locale, sameDay: false };
+  const dayLabel = dayjs(e.dtstart)
+    .locale(fr ? 'fr' : 'en')
+    .format(fr ? 'dddd D MMMM' : 'dddd, MMMM D');
+
+  const clauses: string[] = [];
+  if (e.allDay) {
+    clauses.push(fr ? 'toute la journée' : 'all day');
+  } else {
+    clauses.push(fr ? `à ${timeText(e.dtstart, true, use24h)}` : `at ${timeText(e.dtstart, false, use24h)}`);
+    const mins = Math.round((e.dtend.getTime() - e.dtstart.getTime()) / 60000);
+    if (mins > 0) clauses.push(fr ? `pendant ${durationText(mins, true)}` : `for ${durationText(mins, false)}`);
+  }
+  const loc = locationClause(e, ctx);
+  if (loc) clauses.push(loc);
+  const att = withClause(e, fr);
+  if (att) clauses.push(att);
+
+  const segs: BriefingSegment[] = [
+    {
+      key: e.uid,
+      text: `${titleOf(e, fr)}, ${dayLabel}${clauses.length ? `, ${clauses.join(', ')}` : ''}.`,
+      eventUid: e.uid,
+    },
+  ];
+  const desc = clean(e.description);
+  const descEnd = desc && !/[.!?…]$/.test(desc) ? '.' : '';
+  segs.push({
+    key: 'description',
+    text: desc
+      ? fr
+        ? `Description : ${desc}${descEnd}`
+        : `Description: ${desc}${descEnd}`
+      : fr
+        ? 'Pas de description.'
+        : 'No description.',
+    eventUid: e.uid,
+  });
   return segs;
 }
 
