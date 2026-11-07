@@ -11,7 +11,7 @@ export type ThemePreference = 'system' | 'light' | 'dark';
 export type TimeFormatPreference = 'auto' | '12h' | '24h';
 export type MonthViewStyle = 'grid' | 'compact';
 
-interface SettingsState {
+export interface SettingsState {
   themePreference: ThemePreference;
   language: AppLanguage;
   weekStartsOn: 0 | 1;
