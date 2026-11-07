@@ -62,6 +62,10 @@ type PendingOp =
 // then closes itself — cancelled by any new interaction.
 const AUTO_CLOSE_DELAY_MS = 4000;
 
+function intentTargetTitle(intent: VoiceIntent): string | undefined {
+    return intent.kind === 'move' || intent.kind === 'delete' ? intent.target.title : undefined;
+}
+
 export interface VoiceAssistant {
     visible: boolean;
     state: VoiceState;
@@ -203,26 +207,27 @@ export function useVoiceAssistant(account: Account | null, calendars: CalendarMe
 
     // --- intent description shown on the confirmation card ---
     const describeIntent = useCallback(
-        (intent: VoiceIntent, calendarName?: string): string => {
+        (intent: VoiceIntent, opts: { calendarName?: string; resolvedTitle?: string } = {}): string => {
             const l = getNativePickerLocale(language);
             const fmt = (d: Date) => dayjs(d).locale(l).format('dddd D MMMM · HH:mm');
+            const targetTitle = opts.resolvedTitle || intentTargetTitle(intent) || t('voice.untitled');
             switch (intent.kind) {
                 case 'create':
                     return t('voice.confirmCreate', {
                         title: intent.summary?.trim() || t('voice.untitled'),
                         when: fmt(effectiveStart(intent)),
-                        calendar: calendarName ?? '',
+                        calendar: opts.calendarName ?? '',
                     });
                 case 'move':
                     return t('voice.confirmMove', {
-                        title: intent.target.title || t('voice.untitled'),
+                        title: targetTitle,
                         when:
                             intent.newStartHasTime === false
                                 ? dayjs(intent.newStart).locale(l).format('dddd D MMMM')
                                 : fmt(intent.newStart),
                     });
                 case 'delete':
-                    return t('voice.confirmDelete', { title: intent.target.title || t('voice.untitled') });
+                    return t('voice.confirmDelete', { title: targetTitle });
                 default:
                     return '';
             }
@@ -324,7 +329,7 @@ export function useVoiceAssistant(account: Account | null, calendars: CalendarMe
                                 ),
                             );
                             promptWith(
-                                describeIntent(intent, calendar.displayName) +
+                                describeIntent(intent, { calendarName: calendar.displayName }) +
                                     altSlotCreateRef.current.notes +
                                     ` — ${t('voice.attendeesBusy', {
                                         names: busy.map((a) => a.displayName || a.email).join(', '),
@@ -344,7 +349,7 @@ export function useVoiceAssistant(account: Account | null, calendars: CalendarMe
             }
 
             pendingRef.current = { kind: 'create', input };
-            promptWith(describeIntent(intent, calendar.displayName) + pendingNotesRef.current, 'confirming', gen);
+            promptWith(describeIntent(intent, { calendarName: calendar.displayName }) + pendingNotesRef.current, 'confirming', gen);
             pendingNotesRef.current = '';
         },
         [account, calendars, describeIntent, locale, promptWith, t],
@@ -449,7 +454,7 @@ export function useVoiceAssistant(account: Account | null, calendars: CalendarMe
                 intent.kind === 'move'
                     ? { kind: 'move', event, scope, ...moveTargetDates(event, intent) }
                     : { kind: 'delete', event, scope };
-            promptWith(describeIntent(intent), 'confirming');
+            promptWith(describeIntent(intent, { resolvedTitle: event.summary }), 'confirming');
         },
         [describeIntent, moveTargetDates, promptWith],
     );

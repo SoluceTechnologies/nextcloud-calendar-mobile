@@ -245,6 +245,8 @@ describe('mutations behind the confirmation gate', () => {
 
         await act(async () => result.current.pickCandidate(1));
         await waitFor(() => expect(result.current.state).toBe('confirming'));
+        // the card shows the RESOLVED event title — not the spoken needle
+        expect(result.current.intentDescription).toContain('Call B');
         await act(async () => result.current.confirm());
         await waitFor(() => expect(result.current.state).toBe('replying'));
         expect(mockDeleteMutate).toHaveBeenCalledWith(
