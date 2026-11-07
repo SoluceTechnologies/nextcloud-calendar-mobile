@@ -13,6 +13,7 @@ import { allDayAlarmMinutes } from '@/features/notifications/alerts';
 import { useSettingsStore } from '@/stores/settingsStore';
 import i18n from '@/utils/i18n';
 import {
+  findIdenticalEvent,
   insertEvents,
   patchByUid,
   removeWhere,
@@ -205,6 +206,21 @@ export function useCreateEvent(account: Account, calendars: CalendarMeta[]) {
         ? expandOccurrences(uid, input, calendar, account)
         : [eventFromInput(uid, input, calendar, account)];
       await insertEvents(optimistic);
+
+      // A retry after an ambiguous failure (request reached the server but the
+      // response was lost) must not PUT a second resource: the first attempt's
+      // optimistic rows are still here, so an identical event already exists.
+      const { dtstart: probeStart, dtend: probeEnd } = inputDates(input);
+      const dup = await findIdenticalEvent(
+        account.id,
+        calendar.id,
+        { summary: input.summary, dtstart: probeStart, dtend: probeEnd, allDay: input.allDay },
+        uid,
+      );
+      if (dup) {
+        await removeWhere(account.id, (e) => seriesBaseUid(e.uid) === uid);
+        return;
+      }
 
       try {
         const resolved = await resolveLocationAndDescription(account, input);

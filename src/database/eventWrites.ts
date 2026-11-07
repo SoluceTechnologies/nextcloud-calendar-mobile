@@ -109,6 +109,30 @@ export async function snapshotByBase(accountId: string, baseUid: string): Promis
   return rows.filter((r) => seriesBaseUid(r.uid) === baseUid).map(mapEventToShared);
 }
 
+export async function findIdenticalEvent(
+  accountId: string,
+  calendarId: string,
+  probe: { summary: string; dtstart: Date; dtend: Date; allDay: boolean },
+  excludeBaseUid?: string,
+): Promise<CalendarEvent | undefined> {
+  const rows = await events()
+    .query(Q.where('account_id', accountId), Q.where('calendar_id', calendarId))
+    .fetch();
+  const summary = probe.summary.trim();
+  const start = probe.dtstart.getTime();
+  const end = probe.dtend.getTime();
+  return rows.map(mapEventToShared).find(
+    (e) =>
+      e.accountId === accountId &&
+      e.calendarId === calendarId &&
+      seriesBaseUid(e.uid) !== excludeBaseUid &&
+      (e.summary ?? '').trim() === summary &&
+      e.dtstart.getTime() === start &&
+      e.dtend.getTime() === end &&
+      e.allDay === probe.allDay,
+  );
+}
+
 export async function removeWhere(
   accountId: string,
   predicate: (e: CalendarEvent) => boolean,
