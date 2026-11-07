@@ -7,7 +7,9 @@ points à connaître.
 
 **Réglages → Assistant vocal** : activez l'assistant **par compte** — chaque
 compte a son propre interrupteur (l'agent IA n'existe pas sur tous les
-serveurs). Le bouton micro n'apparaît que pour un compte activé.
+serveurs). Le bouton micro n'apparaît que pour un compte activé. Sans
+assistant, le casque « écouter ma journée » reste disponible dans la barre du
+haut ; il cède la place au micro quand l'assistant est activé pour ce compte.
 
 Sur cet écran vous pouvez aussi :
 
