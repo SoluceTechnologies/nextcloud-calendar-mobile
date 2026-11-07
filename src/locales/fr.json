@@ -100,6 +100,7 @@
     "description": "Description",
     "descriptionPlaceholder": "Détails...",
     "attendees": "Participants",
+    "organizer": "Organisateur",
     "attendeePlaceholder": "email@example.com",
     "add": "Ajouter",
     "saving": "Enregistrement…",

@@ -99,6 +99,7 @@
     "description": "Descripcion",
     "descriptionPlaceholder": "Detalhs...",
     "attendees": "Participants",
+    "organizer": "Organizator",
     "attendeePlaceholder": "email@example.com",
     "add": "Apondre",
     "saving": "Salvament…",

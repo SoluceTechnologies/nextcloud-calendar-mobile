@@ -345,11 +345,19 @@ export default function EventDetailScreen() {
               </Stack>
             )}
 
-            {event.attendees.length > 0 && (
+            {(event.organizerEmail || event.attendees.length > 0) && (
               <Stack gap={8}>
                 <SectionHeader title={t('event.attendees')} />
                 <List>
+                  {event.organizerEmail && (
+                    <Item
+                      leading={<Avatar name={event.organizerEmail} size={36} />}
+                      title={event.organizerEmail}
+                      description={t('event.organizer')}
+                    />
+                  )}
                   {event.attendees
+                    .filter((a) => (a.email ?? '').toLowerCase() !== (event.organizerEmail ?? '').toLowerCase())
                     .filter((a, i, arr) => arr.findIndex((b) => (b.email ?? '').toLowerCase() === (a.email ?? '').toLowerCase()) === i)
                     .map((att, i) => (
                       <Item
