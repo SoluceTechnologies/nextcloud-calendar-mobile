@@ -209,6 +209,14 @@ const LOC_TAIL = /^\s*(?:(au|aux|à\s+la|a\s+la|à\s+l['’]|a\s+l['’]|chez|at
 
 const lastWord = (s: string) => s.match(/[a-zàâäçéèêëîïôöùûüÿœ'’]+/gi)?.pop() ?? '';
 
+// free-text values keep their articles — « un rapport à préparer » stays
+// verbatim; only punctuation and a leading preposition are dropped.
+const DESC_LEAD = /^(?:de|du|des|d['’]|of|about|pour|with|on|for)\s+/i;
+function cleanDesc(raw: string): string | undefined {
+  const s = raw.replace(PUNCT, '').replace(DESC_LEAD, '').trim();
+  return s || undefined;
+}
+
 export function parseUtterance(text: string, opts: { locale?: string; now?: Date } = {}): VoiceIntent {
   const norm = text.trim().replace(/\s+/g, ' ');
   if (!norm) return { kind: 'unknown', raw: '' };
@@ -325,8 +333,30 @@ export function parseUtterance(text: string, opts: { locale?: string; now?: Date
 
   // create
   if (!moms.length) return freeform();
-  const timeMoms = moms.filter((m) => m.hasTime);
-  const anchor = (moms.find((m) => m.hasDay)?.moment.day ?? startOfDay(now)).getTime();
+
+  // Clause markers are all resolved up-front: a description span swallows its
+  // own times (« description appeler Marc à 15h » keeps « à 15h » as TEXT,
+  // never as the event end), so the moments inside it are excluded before
+  // start/end is computed.
+  const nm = NAMES_RE.exec(body);
+  const cmA = CAL_AFTER.exec(body);
+  const cmB = CAL_BEFORE.exec(body);
+  const dm = DESC_RE.exec(body);
+
+  let descMark: number | undefined; // where the description clause starts (incl. connector)
+  let descStart = 0; // where its VALUE starts (after the marker word)
+  let descEnd = body.length;
+  if (dm) {
+    descMark = dm.index + dm[1].length;
+    descStart = dm.index + dm[0].length;
+    const dBounds = [cmA ? cmA.index + cmA[1].length : undefined, cmB ? cmB.index + cmB[1].length : undefined]
+      .filter((i): i is number => i !== undefined && i >= descStart);
+    descEnd = Math.min(body.length, ...dBounds);
+  }
+  const momsEff = descMark !== undefined ? moms.filter((m) => m.start < descMark || m.start >= descEnd) : moms;
+
+  const timeMoms = momsEff.filter((m) => m.hasTime);
+  const anchor = (momsEff.find((m) => m.hasDay)?.moment.day ?? startOfDay(now)).getTime();
 
   let start: Date;
   let end: Date | undefined;
@@ -348,17 +378,15 @@ export function parseUtterance(text: string, opts: { locale?: string; now?: Date
     start = new Date(anchor); // day without time → local midnight (Phase C decides)
   }
 
-  const nm = NAMES_RE.exec(body);
   let names: string[] | undefined;
-  let cut = moms[0].start;
+  let cut = Math.min(momsEff[0]?.start ?? body.length, descMark ?? body.length);
+  let location: string | undefined;
 
   let calendarName: string | undefined;
-  const cmA = CAL_AFTER.exec(body);
   if (cmA) {
     const nameStart = cmA.index + cmA[0].length;
-    const nextMom = moms.find((m) => m.start >= nameStart);
-    const d0 = DESC_RE.exec(body);
-    const bounds = [nextMom?.start, d0 && d0.index + d0[1].length >= nameStart ? d0.index + d0[1].length : undefined]
+    const nextMom = momsEff.find((m) => m.start >= nameStart);
+    const bounds = [nextMom?.start, descMark !== undefined && descMark >= nameStart ? descMark : undefined]
       .filter((i): i is number => i !== undefined);
     const nameEnd = Math.min(body.length, ...bounds);
     calendarName = body.slice(nameStart, nameEnd).replace(PUNCT, '').trim() || undefined;
@@ -366,7 +394,6 @@ export function parseUtterance(text: string, opts: { locale?: string; now?: Date
       cut = Math.min(cut, cmA.index + cmA[1].length);
     }
   }
-  const cmB = CAL_BEFORE.exec(body);
   if (!calendarName) {
     if (cmB) {
       const name = cmB[3].replace(PUNCT, '').trim();
@@ -377,46 +404,54 @@ export function parseUtterance(text: string, opts: { locale?: string; now?: Date
       }
     }
   }
+  if (calendarName) {
+    // a place clause trailing the calendar name belongs to location —
+    // « dans agenda pro au bureau » → calendar 'pro', location 'bureau'.
+    const lm = /(^|\s)((?:au|aux|à\s+la|a\s+la|à\s+l['’]|a\s+l['’]|chez|at|on)\s+|(?:salle|room)\s+)(.+)$/i.exec(calendarName);
+    if (lm) {
+      const keep = /^(?:salle|room)\s/i.test(lm[2]);
+      location = cleanTitle(`${keep ? lm[2].trim() : ''} ${lm[3]}`.trim());
+      calendarName = calendarName.slice(0, lm.index + lm[1].length).trim() || undefined;
+    }
+  }
 
   if (nm) {
     const connStart = nm.index + nm[1].length;
     const nameStart = connStart + nm[2].length;
     cut = Math.min(cut, connStart);
-    const nextMom = moms.find((m) => m.start >= nameStart);
-    // a calendar/description marker following the names bounds them —
-    // « avec Marc dans agenda pro description … » keeps only « Marc ».
-    const bounds = [nextMom?.start, cmA ? cmA.index + cmA[1].length : undefined, cmB ? cmB.index + cmB[1].length : undefined]
-      .filter((i): i is number => i !== undefined && i >= nameStart);
-    const dm0 = DESC_RE.exec(body);
-    if (dm0 && dm0.index + dm0[1].length >= nameStart) bounds.push(dm0.index + dm0[1].length);
-    const nameEnd = Math.min(body.length, ...bounds);
-    names = body
-      .slice(nameStart, nameEnd)
-      .split(/\s*(?:,|\bet\b|\band\b)\s*/i)
-      .map((chunk) =>
-        chunk
-          .split(/\s+/)
-          .filter((w) => WORD.test(w) && !BARE.test(w))
-          .join(' '),
-      )
-      .filter(Boolean);
-    if (!names.length) names = undefined;
+    // « avec la note … » / « with description … » — the connector belongs to
+    // the description clause, it does not open an attendee list.
+    const descAteConnector =
+      dm !== null && descMark !== undefined && descMark <= connStart && dm.index + dm[0].length >= nameStart;
+    if (!descAteConnector) {
+      const nextMom = momsEff.find((m) => m.start >= nameStart);
+      // a calendar/description marker following the names bounds them —
+      // « avec Marc dans agenda pro description … » keeps only « Marc ».
+      const bounds = [
+        nextMom?.start,
+        cmA ? cmA.index + cmA[1].length : undefined,
+        cmB ? cmB.index + cmB[1].length : undefined,
+        descMark !== undefined && descMark >= nameStart ? descMark : undefined,
+      ].filter((i): i is number => i !== undefined && i >= nameStart);
+      const nameEnd = Math.min(body.length, ...bounds);
+      names = body
+        .slice(nameStart, nameEnd)
+        .split(/\s*(?:,|\bet\b|\band\b)\s*/i)
+        .map((chunk) =>
+          chunk
+            .split(/\s+/)
+            .filter((w) => WORD.test(w) && !BARE.test(w))
+            .join(' '),
+        )
+        .filter(Boolean);
+      if (!names.length) names = undefined;
+    }
   }
 
-  let description: string | undefined;
-  const dm = DESC_RE.exec(body);
-  if (dm) {
-    const dStart = dm.index + dm[0].length;
-    const nextMom = moms.find((m) => m.start >= dStart);
-    const dBounds = [nextMom?.start, cmA ? cmA.index + cmA[1].length : undefined, cmB ? cmB.index + cmB[1].length : undefined]
-      .filter((i): i is number => i !== undefined && i >= dStart);
-    description = cleanTitle(body.slice(dStart, Math.min(body.length, ...dBounds)));
-    if (description) cut = Math.min(cut, dm.index + dm[1].length);
-  }
+  const description = dm ? cleanDesc(body.slice(descStart, descEnd)) : undefined;
 
-  let location: string | undefined;
-  const lastM = moms[moms.length - 1];
-  if (lastM) {
+  const lastM = momsEff[momsEff.length - 1];
+  if (!location && lastM) {
     const tail = body.slice(lastM.end);
     const tEnd = Math.min(
       tail.length,

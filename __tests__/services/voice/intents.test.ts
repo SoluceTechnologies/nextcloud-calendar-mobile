@@ -196,6 +196,38 @@ describe('create', () => {
     expect(i.location).toBeUndefined();
     expect(i.description).toBeUndefined();
   });
+
+  it('« avec la note » is a description connector — NOT an attendee connector', () => {
+    const i = U('cree un point demain a 11h avec la note prevoir le cable');
+    if (i.kind !== 'create') throw new Error('not create');
+    expect(i.names).toBeUndefined();
+    expect(i.description).toBe('prevoir le cable');
+    const j = U('schedule sync tomorrow at 9am with description bring the deck', 'en');
+    if (j.kind !== 'create') throw new Error('not create');
+    expect(j.names).toBeUndefined();
+    expect(j.description).toBe('bring the deck');
+  });
+
+  it('times inside a description are text — not the event end', () => {
+    const i = U('cree un point demain a 10h description appeler Marc a 15h');
+    if (i.kind !== 'create') throw new Error('not create');
+    expect(i.start).toEqual(at(13, 10));
+    expect(i.end).toBeUndefined();
+    expect(i.description).toBe('appeler Marc a 15h');
+  });
+
+  it('a place clause after the calendar name is the location, not the calendar', () => {
+    const i = U('cree point demain a 14h dans agenda pro au bureau');
+    if (i.kind !== 'create') throw new Error('not create');
+    expect(i.calendarName).toBe('pro');
+    expect(i.location).toBe('bureau');
+  });
+
+  it('description keeps its leading article (« un rapport à préparer »)', () => {
+    const i = U('cree un point demain a 10h description un rapport a preparer');
+    if (i.kind !== 'create') throw new Error('not create');
+    expect(i.description).toBe('un rapport a preparer');
+  });
 });
 
 describe('slot', () => {
