@@ -108,10 +108,10 @@ survived sync — isolates the gap to the voice layer only).
 | W1 | local create | location | ✗ dropped | `cree rdv client demain a 14h au bureau` → `SUMMARY:rdv client`, « au bureau » silently trimmed, no `LOCATION` in the .ics |
 | W2 | local create | description | ✗ dropped | `… description apporter les documents` → `SUMMARY:reunion equipe`, clause swallowed, no `DESCRIPTION` |
 | W3 | local create | location (ambiguous) | ~ kept in title | `chez le dentiste` stays in the title (« rdv chez le dentiste ») — reasonable, still no `LOCATION` |
-| W4 | freeform (agent) | description write | ~ multi-turn | task 293 `STATUS_SUCCESSFUL` via direct API — but the agent replies with a **clarifying question** (« Dans quel calendrier ? ») instead of acting; the app has no multi-turn reply path, so the exchange stalls (turn 2 submitted as task 296) |
+| W4 | freeform (agent) | description write | ~ multi-turn | task 293 `STATUS_SUCCESSFUL` via direct API — but the agent replies with a **clarifying question** (« Dans quel calendrier ? ») instead of acting; turn 2 (task 296, `conversation_token` replayed) `STATUS_FAILED` — token continuation is not resumable this way on NC 35 |
 | R1 | agenda | description+location read | location ✓ / description ✗ | « À 15 h : rdv desc test, pendant une heure, **Salle B, bâtiment 3** » — location spoken, description never |
 | R2 | next | description+location read | location ✓ / description ✗ | same `locationClause` behaviour |
-| R3 | freeform (agent) | description+location read | ~ multi-turn | task 276 `STATUS_SUCCESSFUL` via direct API — found « Rdv desc prod » but answered only title+date, then *offered* to fetch description/location (turn 2 submitted as task 297); still not the actual field values |
+| R3 | freeform (agent) | description+location read | ~ multi-turn | task 276 `STATUS_SUCCESSFUL` via direct API — found « Rdv desc prod » but answered only title+date, then *offered* to fetch description/location; turn 2 (task 297) `STATUS_FAILED` like W4 — the actual field values never came back |
 | R4 | UI baseline | — | ✓ | event detail shows Lieu « Salle B, bâtiment 3 » + Description « Apporter le contrat signé… » — data round-trips, gap is voice-only |
 
 ## Agent latency finding (prod, 2026-11-07)
@@ -134,8 +134,11 @@ server:
 
 Consequence for the voice feature: description/location are only ever
 reachable through the slow agent tier — and even there the agent treats
-them as **multi-turn clarifications**, which the one-shot `askAgent` call
-cannot continue. Local intents were the missing path.
+them as **multi-turn clarifications**. The app does resend the stored
+`conversation_token` on the next `askAgent`, but the continuation task
+fails (`STATUS_FAILED`, verified via direct API on tasks 296/297), so a
+clarifying question can never be answered. Local intents were the missing
+path.
 
 ## Implementation — `feat/voice-desc-loc`
 
