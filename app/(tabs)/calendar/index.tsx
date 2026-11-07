@@ -182,7 +182,7 @@ export default function CalendarScreen() {
         onOpenDrawer={drawer.openDrawer}
         onToday={nav.goToday}
         onSwitchMode={nav.switchMode}
-        onListen={handleListen}
+        onListen={voiceAssistantEnabled ? undefined : handleListen}
         onOpenVoice={voiceAssistantEnabled ? voice.open : undefined}
       />
 

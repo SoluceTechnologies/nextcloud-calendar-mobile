@@ -9,14 +9,15 @@ import { extractMoments, momentToDate, startOfDay, type MomentMatch } from './da
 export type VoiceIntent =
   | { kind: 'agenda'; day: Date }
   | { kind: 'next' }
-  | { kind: 'create'; summary?: string; start: Date; end?: Date; names?: string[]; calendarName?: string }
+  | { kind: 'create'; summary?: string; start: Date; end?: Date; names?: string[]; calendarName?: string; location?: string; description?: string }
   | { kind: 'slot'; day: Date; durationMin?: number; summary?: string; names?: string[]; calendarName?: string }
   | { kind: 'move'; target: { title?: string; when?: Date }; newStart: Date; newStartHasTime?: boolean }
   | { kind: 'delete'; target: { title?: string; when?: Date } }
+  | { kind: 'details'; target: { title?: string; when?: Date } }
   | { kind: 'freeform'; text: string }
   | { kind: 'unknown'; raw: string };
 
-type Kind = 'agenda' | 'next' | 'create' | 'slot' | 'move' | 'delete';
+type Kind = 'agenda' | 'next' | 'create' | 'slot' | 'move' | 'delete' | 'details';
 
 const A = 'a-zàâäçéèêëîïôöùûüÿœ';
 const rx = (s: string) => new RegExp(`(^|[^${A}0-9])(?:${s})(?![${A}0-9])`, 'i');
@@ -89,6 +90,20 @@ const DELETE = [
   `delete|cancel|remove|drop`,
 ];
 
+// event-detail read — « lis la description de … », « où se passe … »,
+// "what's the location of …". Title follows the marker after a de/of
+// connector. Read-only: never reaches the mutation confirmation path.
+const DETAILS = [
+  `description|détails?|details?`,
+  `où\\s+(?:se\\s+passe|a\\s+lieu)|ou\\s+(?:se\\s+passe|a\\s+lieu)`,
+  `c['’]est\\s+où|c['’]est\\s+ou`,
+  `quel(?:le)?\\s+est\\s+le\\s+lieu`,
+  `(?:où|ou)\\s+(?:est|aura\\s+lieu|se\\s+déroule)`,
+  `(?:read|show|give|tell)\\s+(?:me\\s+|us\\s+)?(?:the\\s+)?(?:description|details|location)`,
+  `where\\s+(?:is|does|will)`,
+  `what(?:'s|\\s+is)\\s+the\\s+(?:description|details|location)`,
+];
+
 interface Tag {
   kind: Kind;
   start: number;
@@ -113,6 +128,7 @@ const GROUPS: { kind: Kind; noun?: boolean; res: RegExp[] }[] = [
   { kind: 'move', res: MOVE.map(rx) },
   { kind: 'delete', res: DELETE.map(rx) },
   { kind: 'slot', res: SLOT.map(rx) },
+  { kind: 'details', res: DETAILS.map(rx) },
 ];
 
 function findTag(norm: string): Tag | null {
@@ -179,7 +195,27 @@ const CAL_BEFORE = new RegExp(
 const FROM_CONN = /^(?:de|du|des|d['’]|from|since|depuis)$/i;
 const UNTIL_RE = /(?:jusqu['’][aà]|until|up\s+to|bis|au\s+plus\s+tard)\s*$/i;
 
+// description clause — an explicit marker (« description … », « avec la
+// description … », "with note …") anywhere in the body; the value runs to the
+// next moment or the end of the utterance.
+const DESC_RE = new RegExp(
+  `(^|[^${A}0-9])((?:avec\\s+(?:la\\s+|une\\s+)?|avec\\s+pour\\s+|with\\s+(?:a\\s+|the\\s+)?|pour\\s+)?(?:description|notes?|détails?|details?|précisions?|commentaires?)\\s*[:\\-]?\\s+)`,
+  'i',
+);
+// location clause — only in the tail AFTER the last datetime moment, so a
+// « chez le dentiste » before the date stays inside the title. Room markers
+// (salle/room) are kept in the value (« salle B »), connectors are dropped.
+const LOC_TAIL = /^\s*(?:(au|aux|à\s+la|a\s+la|à\s+l['’]|a\s+l['’]|chez|at|in|on|dans|en|a|à)\s+|(salle|room)\s+)(.+)$/i;
+
 const lastWord = (s: string) => s.match(/[a-zàâäçéèêëîïôöùûüÿœ'’]+/gi)?.pop() ?? '';
+
+// free-text values keep their articles — « un rapport à préparer » stays
+// verbatim; only punctuation and a leading preposition are dropped.
+const DESC_LEAD = /^(?:de|du|des|d['’]|of|about|pour|with|on|for)\s+/i;
+function cleanDesc(raw: string): string | undefined {
+  const s = raw.replace(PUNCT, '').replace(DESC_LEAD, '').trim();
+  return s || undefined;
+}
 
 export function parseUtterance(text: string, opts: { locale?: string; now?: Date } = {}): VoiceIntent {
   const norm = text.trim().replace(/\s+/g, ' ');
@@ -210,6 +246,22 @@ export function parseUtterance(text: string, opts: { locale?: string; now?: Date
       target: {
         title: titleBefore(body, moms, body.length),
         when: moms[0] ? momentToDate(moms[0].moment) : undefined,
+      },
+    };
+  }
+
+  if (tag.kind === 'details') {
+    // title comes AFTER the marker + de/of connector (« lis la description
+    // du rdv client », « où se passe le rdv ») — not before like move/delete.
+    const rest = norm
+      .slice(tag.end)
+      .replace(/^\s*(?:(?:de|du|des|de\s+la|de\s+l['’]|d['’]|of|for|à|a|at|the|le|la|les|l['’]|mon|ma|mes|my|this|that)\s+)+/i, ' ');
+    const dMoms = extractMoments(rest, opts);
+    return {
+      kind: 'details',
+      target: {
+        title: titleBefore(rest, dMoms, rest.length),
+        when: dMoms[0] ? momentToDate(dMoms[0].moment) : undefined,
       },
     };
   }
@@ -281,8 +333,30 @@ export function parseUtterance(text: string, opts: { locale?: string; now?: Date
 
   // create
   if (!moms.length) return freeform();
-  const timeMoms = moms.filter((m) => m.hasTime);
-  const anchor = (moms.find((m) => m.hasDay)?.moment.day ?? startOfDay(now)).getTime();
+
+  // Clause markers are all resolved up-front: a description span swallows its
+  // own times (« description appeler Marc à 15h » keeps « à 15h » as TEXT,
+  // never as the event end), so the moments inside it are excluded before
+  // start/end is computed.
+  const nm = NAMES_RE.exec(body);
+  const cmA = CAL_AFTER.exec(body);
+  const cmB = CAL_BEFORE.exec(body);
+  const dm = DESC_RE.exec(body);
+
+  let descMark: number | undefined; // where the description clause starts (incl. connector)
+  let descStart = 0; // where its VALUE starts (after the marker word)
+  let descEnd = body.length;
+  if (dm) {
+    descMark = dm.index + dm[1].length;
+    descStart = dm.index + dm[0].length;
+    const dBounds = [cmA ? cmA.index + cmA[1].length : undefined, cmB ? cmB.index + cmB[1].length : undefined]
+      .filter((i): i is number => i !== undefined && i >= descStart);
+    descEnd = Math.min(body.length, ...dBounds);
+  }
+  const momsEff = descMark !== undefined ? moms.filter((m) => m.start < descMark || m.start >= descEnd) : moms;
+
+  const timeMoms = momsEff.filter((m) => m.hasTime);
+  const anchor = (momsEff.find((m) => m.hasDay)?.moment.day ?? startOfDay(now)).getTime();
 
   let start: Date;
   let end: Date | undefined;
@@ -304,23 +378,23 @@ export function parseUtterance(text: string, opts: { locale?: string; now?: Date
     start = new Date(anchor); // day without time → local midnight (Phase C decides)
   }
 
-  const nm = NAMES_RE.exec(body);
   let names: string[] | undefined;
-  let cut = moms[0].start;
+  let cut = Math.min(momsEff[0]?.start ?? body.length, descMark ?? body.length);
+  let location: string | undefined;
 
   let calendarName: string | undefined;
-  const cmA = CAL_AFTER.exec(body);
   if (cmA) {
     const nameStart = cmA.index + cmA[0].length;
-    const nextMom = moms.find((m) => m.start >= nameStart);
-    const nameEnd = nextMom ? nextMom.start : body.length;
+    const nextMom = momsEff.find((m) => m.start >= nameStart);
+    const bounds = [nextMom?.start, descMark !== undefined && descMark >= nameStart ? descMark : undefined]
+      .filter((i): i is number => i !== undefined);
+    const nameEnd = Math.min(body.length, ...bounds);
     calendarName = body.slice(nameStart, nameEnd).replace(PUNCT, '').trim() || undefined;
     if (calendarName) {
       cut = Math.min(cut, cmA.index + cmA[1].length);
     }
   }
   if (!calendarName) {
-    const cmB = CAL_BEFORE.exec(body);
     if (cmB) {
       const name = cmB[3].replace(PUNCT, '').trim();
       // a name containing a connector swallows two clauses (« in 2h in work calendar »)
@@ -330,25 +404,65 @@ export function parseUtterance(text: string, opts: { locale?: string; now?: Date
       }
     }
   }
+  if (calendarName) {
+    // a place clause trailing the calendar name belongs to location —
+    // « dans agenda pro au bureau » → calendar 'pro', location 'bureau'.
+    const lm = /(^|\s)((?:au|aux|à\s+la|a\s+la|à\s+l['’]|a\s+l['’]|chez|at|on)\s+|(?:salle|room)\s+)(.+)$/i.exec(calendarName);
+    if (lm) {
+      const keep = /^(?:salle|room)\s/i.test(lm[2]);
+      location = cleanTitle(`${keep ? lm[2].trim() : ''} ${lm[3]}`.trim());
+      calendarName = calendarName.slice(0, lm.index + lm[1].length).trim() || undefined;
+    }
+  }
 
   if (nm) {
     const connStart = nm.index + nm[1].length;
     const nameStart = connStart + nm[2].length;
     cut = Math.min(cut, connStart);
-    const nextMom = moms.find((m) => m.start >= nameStart);
-    names = body
-      .slice(nameStart, nextMom ? nextMom.start : body.length)
-      .split(/\s*(?:,|\bet\b|\band\b)\s*/i)
-      .map((chunk) =>
-        chunk
-          .split(/\s+/)
-          .filter((w) => WORD.test(w) && !BARE.test(w))
-          .join(' '),
-      )
-      .filter(Boolean);
-    if (!names.length) names = undefined;
+    // « avec la note … » / « with description … » — the connector belongs to
+    // the description clause, it does not open an attendee list.
+    const descAteConnector =
+      dm !== null && descMark !== undefined && descMark <= connStart && dm.index + dm[0].length >= nameStart;
+    if (!descAteConnector) {
+      const nextMom = momsEff.find((m) => m.start >= nameStart);
+      // a calendar/description marker following the names bounds them —
+      // « avec Marc dans agenda pro description … » keeps only « Marc ».
+      const bounds = [
+        nextMom?.start,
+        cmA ? cmA.index + cmA[1].length : undefined,
+        cmB ? cmB.index + cmB[1].length : undefined,
+        descMark !== undefined && descMark >= nameStart ? descMark : undefined,
+      ].filter((i): i is number => i !== undefined && i >= nameStart);
+      const nameEnd = Math.min(body.length, ...bounds);
+      names = body
+        .slice(nameStart, nameEnd)
+        .split(/\s*(?:,|\bet\b|\band\b)\s*/i)
+        .map((chunk) =>
+          chunk
+            .split(/\s+/)
+            .filter((w) => WORD.test(w) && !BARE.test(w))
+            .join(' '),
+        )
+        .filter(Boolean);
+      if (!names.length) names = undefined;
+    }
+  }
+
+  const description = dm ? cleanDesc(body.slice(descStart, descEnd)) : undefined;
+
+  const lastM = momsEff[momsEff.length - 1];
+  if (!location && lastM) {
+    const tail = body.slice(lastM.end);
+    const tEnd = Math.min(
+      tail.length,
+      ...[CAL_AFTER.exec(tail), CAL_BEFORE.exec(tail), DESC_RE.exec(tail), NAMES_RE.exec(tail)]
+        .filter((m): m is RegExpExecArray => !!m)
+        .map((m) => m.index),
+    );
+    const lm = LOC_TAIL.exec(tail.slice(0, tEnd));
+    if (lm) location = cleanTitle(`${lm[2] ? `${lm[2]} ` : ''}${lm[3]}`);
   }
 
   const summary = cleanTitle(body.slice(0, cut));
-  return { kind: 'create', summary, start, end, names, calendarName };
+  return { kind: 'create', summary, start, end, names, calendarName, location, description };
 }

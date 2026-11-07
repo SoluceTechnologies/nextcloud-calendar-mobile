@@ -185,6 +185,23 @@ describe('inputFromCreateIntent / movedDates', () => {
         expect(input.dtend.getTime() - input.dtstart.getTime()).toBe(3_600_000); // spoken duration kept
     });
 
+    it('passes spoken location/description through to the input', () => {
+        const start = new Date(2026, 10, 5, 14, 0);
+        const input = inputFromCreateIntent(
+            { kind: 'create', summary: 'Point client', start, location: 'siège', description: 'premier contact' },
+            ctx,
+            new Date(2026, 10, 4),
+        );
+        expect(input.location).toBe('siège');
+        expect(input.description).toBe('premier contact');
+    });
+
+    it('absent location/description stay undefined (not empty strings)', () => {
+        const input = inputFromCreateIntent({ kind: 'create', summary: 'X', start: new Date(2026, 10, 5, 14) }, ctx, new Date(2026, 10, 4));
+        expect(input.location).toBeUndefined();
+        expect(input.description).toBeUndefined();
+    });
+
     it('movedDates preserves the duration', () => {
         const e = ev({
             dtstart: new Date(2026, 10, 5, 15),

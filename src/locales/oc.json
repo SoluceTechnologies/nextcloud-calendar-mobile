@@ -408,6 +408,8 @@
     "stillThinking": "Lo servidor reflechís encara, tornatz ensajar mai tard.",
     "tapToSpeak": "Tocatz per parlar",
     "confirmCreate": "Crear « {{title}} » lo {{when}} dins {{calendar}} ?",
+    "confirmLocation": "Luòc : {{value}}",
+    "confirmDescription": "Descripcion : {{value}}",
     "confirmMove": "Desplaçar « {{title}} » al {{when}} ?",
     "confirmDelete": "Suprimir « {{title}} » ?",
         "confirmAgent": "Mandar aquesta demanda a l'agent Nextcloud ? Pòt modificar vòstre agenda.",
