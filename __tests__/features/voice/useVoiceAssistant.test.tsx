@@ -202,6 +202,48 @@ describe('mutations behind the confirmation gate', () => {
         expect(mockCreateMutate).toHaveBeenCalledTimes(1);
     });
 
+    it('create card shows location and description lines when the intent carries them', async () => {
+        const start = new Date(2030, 0, 5, 14, 30);
+        mockParse.mockReturnValue({
+            kind: 'create', summary: 'Dentiste', start, names: [],
+            location: 'cabinet', description: 'apporter radio',
+        });
+        const { result } = renderAssistant();
+        await act(async () => result.current.open());
+        await act(async () => result.current.submitText('crée dentiste lundi 14h30 au cabinet description apporter radio'));
+        await waitFor(() => expect(result.current.state).toBe('confirming'));
+        expect(result.current.intentDescription).toContain('Location: cabinet');
+        expect(result.current.intentDescription).toContain('Description: apporter radio');
+    });
+
+    it('create card omits location/description lines when absent', async () => {
+        const start = new Date(2030, 0, 5, 14, 30);
+        mockParse.mockReturnValue({ kind: 'create', summary: 'Dentiste', start, names: [] });
+        const { result } = renderAssistant();
+        await act(async () => result.current.open());
+        await act(async () => result.current.submitText('crée dentiste lundi 14h30'));
+        await waitFor(() => expect(result.current.state).toBe('confirming'));
+        expect(result.current.intentDescription).not.toContain('Location:');
+        expect(result.current.intentDescription).not.toContain('Description:');
+    });
+
+    it('details intent resolves the event and replies without a mutation', async () => {
+        mockParse.mockReturnValue({ kind: 'details', target: { title: 'dentiste' } });
+        mockFindTargets.mockResolvedValue([
+            ev({
+                uid: 'd1', summary: 'rdv dentiste',
+                dtstart: new Date(2030, 0, 5, 16), dtend: new Date(2030, 0, 5, 17),
+                location: 'cabinet', description: 'apporter radio',
+            } as Partial<CalendarEvent> & { dtstart: Date; dtend: Date }),
+        ]);
+        const { result } = renderAssistant();
+        await act(async () => result.current.open());
+        await act(async () => result.current.submitText('lis la description de rdv dentiste'));
+        await waitFor(() => expect(result.current.state).toBe('replying'));
+        expect(mockCreateMutate).not.toHaveBeenCalled();
+        expect(result.current.reply).toBeTruthy();
+    });
+
     it('create queued offline → honest reply, not "created"', async () => {
         const start = new Date(2030, 0, 5, 14, 30);
         mockParse.mockReturnValue({ kind: 'create', summary: 'Dentiste', start, names: [] });
