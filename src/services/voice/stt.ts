@@ -13,6 +13,9 @@ let subs: Sub[] = [];
 let active = false;
 // Bumped whenever the session is dropped — stale listeners then no-op.
 let generation = 0;
+// locales whose offline-pack download was already requested this session — the
+// system opens a modal download dialog each time, so ask once per locale.
+const requestedPacks = new Set<string>();
 
 const dropSession = (): void => {
     generation += 1;
@@ -79,7 +82,8 @@ export function startListening(opts: { locale?: string; onDevice?: boolean } & S
             if (gen !== generation) return;
             if (opts.onDevice === true && !retried && ev.error === 'language-not-supported') {
                 retried = true;
-                if (lang) {
+                if (lang && !requestedPacks.has(lang)) {
+                    requestedPacks.add(lang);
                     try {
                         void ExpoSpeechRecognitionModule.androidTriggerOfflineModelDownload({
                             locale: lang,

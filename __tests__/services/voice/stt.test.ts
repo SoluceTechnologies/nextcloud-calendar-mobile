@@ -153,6 +153,11 @@ describe('startListening', () => {
       expect.objectContaining({ lang: 'fr-FR', requiresOnDeviceRecognition: false }),
     );
 
+    // a later session does not re-open the system download dialog for the same locale
+    startListening({ locale: 'fr-FR', onResult: jest.fn(), onDevice: true, onError });
+    listeners.error({ error: 'language-not-supported', message: 'not yet downloaded' });
+    expect(mock.androidTriggerOfflineModelDownload).toHaveBeenCalledTimes(1);
+
     listeners.error({ error: 'no-speech', message: 'No speech detected' });
     expect(onError).toHaveBeenCalledTimes(1);
     expect((onError.mock.calls[0][0] as Error).message).toBe('no-speech: No speech detected');
