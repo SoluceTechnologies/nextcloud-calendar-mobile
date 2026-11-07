@@ -174,3 +174,18 @@ without the agent:
 
 Coverage: 14 new parser assertions + 2 `inputFromCreateIntent` passthrough
 tests + 4 `buildDetailsBriefing` tests; full suite 1546 green, tsc clean.
+
+## Live validation — release APK on emulator (2026-11-07, `feat/voice-desc-loc`)
+
+| # | Result | Evidence |
+|---|--------|----------|
+| W1+W2 create | ✓ | `cree rdv dentiste demain a 16h au cabinet description apporter radio` → confirm card shows **Lieu : cabinet** + **Description : apporter radio** → confirmed → `760c57e3….ics` on the server carries `LOCATION:cabinet`, `DESCRIPTION:apporter radio`, `SUMMARY:rdv dentiste`, `DTSTART:…T160000` |
+| R3-local read | ✓ | `lis la description de rdv dentiste` → « rdv dentiste, dimanche 8 novembre, à 16 h, pendant une heure, cabinet. Description : apporter radio. » — resolved via `findEventTargets`, read back locally, no agent |
+| R3 variant | ✓ | `ou se passe rdv dentiste` → same full details briefing |
+
+Notes from the live run: the emulator WiFi dropped mid-confirmation once —
+the op stayed in `pendingMutations` and replayed on the next online
+transition (verified: server `.ics` appeared after reconnect without a
+second confirm). Typing on the emulator is flaky because Gboard's voice
+panel steals focus — the reliable input path is `input keyevent` per
+character.
