@@ -50,6 +50,22 @@ export async function requestSttPermissions(): Promise<boolean> {
 export function startListening(opts: { locale?: string; onDevice?: boolean } & SttCallbacks): void {
     dropSession();
     const gen = generation;
+    const lang = opts.locale ?? getLocales()[0]?.languageTag;
+    let retried = false;
+    const start = (onDevice: boolean): void => {
+        try {
+            ExpoSpeechRecognitionModule.start({
+                lang,
+                interimResults: true,
+                continuous: false,
+                requiresOnDeviceRecognition: onDevice,
+            });
+        } catch (e) {
+            dropSession();
+            if (__DEV__) console.warn('[stt] start failed', e);
+            opts.onError?.(e instanceof Error ? e : new Error(String(e)));
+        }
+    };
     active = true;
     subs = [
         ExpoSpeechRecognitionModule.addListener('result', (ev) => {
@@ -61,6 +77,20 @@ export function startListening(opts: { locale?: string; onDevice?: boolean } & S
         }),
         ExpoSpeechRecognitionModule.addListener('error', (ev) => {
             if (gen !== generation) return;
+            if (opts.onDevice === true && !retried && ev.error === 'language-not-supported') {
+                retried = true;
+                if (lang) {
+                    try {
+                        void ExpoSpeechRecognitionModule.androidTriggerOfflineModelDownload({
+                            locale: lang,
+                        }).catch(() => {});
+                    } catch {
+                        // pack download is best-effort (iOS / older Android)
+                    }
+                }
+                start(false);
+                return;
+            }
             opts.onError?.(new Error(`${ev.error}: ${ev.message}`));
         }),
         ExpoSpeechRecognitionModule.addListener('end', () => {
@@ -68,18 +98,7 @@ export function startListening(opts: { locale?: string; onDevice?: boolean } & S
             active = false;
         }),
     ];
-    try {
-        ExpoSpeechRecognitionModule.start({
-            lang: opts.locale ?? getLocales()[0]?.languageTag,
-            interimResults: true,
-            continuous: false,
-            requiresOnDeviceRecognition: opts.onDevice === true,
-        });
-    } catch (e) {
-        dropSession();
-        if (__DEV__) console.warn('[stt] start failed', e);
-        opts.onError?.(e instanceof Error ? e : new Error(String(e)));
-    }
+    start(opts.onDevice === true);
 }
 
 export function stopListening(): void {

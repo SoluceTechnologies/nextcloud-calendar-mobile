@@ -20,6 +20,7 @@ const mock = ExpoSpeechRecognitionModule as unknown as {
   getPermissionsAsync: jest.Mock;
   isRecognitionAvailable: jest.Mock;
   supportsOnDeviceRecognition: jest.Mock;
+  androidTriggerOfflineModelDownload: jest.Mock;
 };
 
 let listeners: Record<string, Listener>;
@@ -138,6 +139,34 @@ describe('startListening', () => {
     listeners.result({ isFinal: true, results: [] });
     listeners.result({ isFinal: true, results: [{ transcript: '', confidence: 0 }] });
     expect(onResult).not.toHaveBeenCalled();
+  });
+
+  it('retries once over the network and queues the model download when the on-device pack is missing', () => {
+    const onError = jest.fn();
+    startListening({ locale: 'fr-FR', onResult: jest.fn(), onDevice: true, onError });
+
+    listeners.error({ error: 'language-not-supported', message: 'not yet downloaded' });
+
+    expect(onError).not.toHaveBeenCalled();
+    expect(mock.androidTriggerOfflineModelDownload).toHaveBeenCalledWith({ locale: 'fr-FR' });
+    expect(mock.start).toHaveBeenLastCalledWith(
+      expect.objectContaining({ lang: 'fr-FR', requiresOnDeviceRecognition: false }),
+    );
+
+    listeners.error({ error: 'no-speech', message: 'No speech detected' });
+    expect(onError).toHaveBeenCalledTimes(1);
+    expect((onError.mock.calls[0][0] as Error).message).toBe('no-speech: No speech detected');
+  });
+
+  it('does not retry over the network when on-device was not requested', () => {
+    const onError = jest.fn();
+    startListening({ onResult: jest.fn(), onError });
+
+    listeners.error({ error: 'language-not-supported', message: 'not yet downloaded' });
+
+    expect(onError).toHaveBeenCalledTimes(1);
+    expect(mock.start).toHaveBeenCalledTimes(1);
+    expect(mock.androidTriggerOfflineModelDownload).not.toHaveBeenCalled();
   });
 
   it('maps error events to Error `${error}: ${message}`', () => {
