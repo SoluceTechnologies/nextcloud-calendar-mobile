@@ -20,6 +20,7 @@ interface Props {
 const VIEW_MODE_KEYS: Record<ViewMode, string> = {
   month: 'calendar.month',
   week: 'calendar.week',
+  '7days': 'calendar.sevenDays',
   '3days': 'calendar.threeDays',
   day: 'calendar.day',
   schedule: 'calendar.schedule',

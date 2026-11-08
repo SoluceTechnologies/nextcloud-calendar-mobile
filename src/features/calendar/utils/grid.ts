@@ -10,8 +10,22 @@ export const ALL_DAY_CHIP_GAP = 4;
 export const ALL_DAY_ROW_HEIGHT = ALL_DAY_CHIP_HEIGHT + ALL_DAY_CHIP_GAP;
 export const ALL_DAY_PAD = 4;
 
+interface PageSpec {
+  columns: number;
+  step: number;
+  snapToWeekStart: boolean;
+  firstColumnFocus: boolean;
+}
+
+const PAGE_SPECS: Record<CalMode, PageSpec> = {
+  week: { columns: 7, step: 7, snapToWeekStart: true, firstColumnFocus: false },
+  '7days': { columns: 7, step: 1, snapToWeekStart: false, firstColumnFocus: true },
+  '3days': { columns: 3, step: 3, snapToWeekStart: false, firstColumnFocus: false },
+  day: { columns: 1, step: 1, snapToWeekStart: false, firstColumnFocus: false },
+};
+
 export function daysPerPage(mode: CalMode): number {
-  return mode === 'week' ? 7 : mode === '3days' ? 3 : 1;
+  return PAGE_SPECS[mode].columns;
 }
 
 export function dayKey(d: Date): string {
@@ -31,13 +45,12 @@ export function pageDates(
   mode: CalMode,
   weekStartsOn: 0 | 1,
 ): Date[] {
-  const span = daysPerPage(mode);
-  const shifted = dayjs(anchor).add(index * span, 'day');
-  const first =
-    mode === 'week'
-      ? shifted.add(weekStartOffset(shifted.day(), weekStartsOn), 'day')
-      : shifted;
-  return Array.from({ length: span }, (_, i) => first.add(i, 'day').startOf('day').toDate());
+  const spec = PAGE_SPECS[mode];
+  const shifted = dayjs(anchor).add(index * spec.step, 'day');
+  const first = spec.snapToWeekStart
+    ? shifted.add(weekStartOffset(shifted.day(), weekStartsOn), 'day')
+    : shifted;
+  return Array.from({ length: spec.columns }, (_, i) => first.add(i, 'day').startOf('day').toDate());
 }
 
 export function pageFocusDate(
@@ -47,6 +60,7 @@ export function pageFocusDate(
   weekStartsOn: 0 | 1,
 ): Date {
   const dates = pageDates(anchor, index, mode, weekStartsOn);
+  if (PAGE_SPECS[mode].firstColumnFocus) return dates[0];
   const anchorKey = dayKey(anchor);
   return dates.some((d) => dayKey(d) === anchorKey) ? anchor : dates[0];
 }
@@ -57,14 +71,14 @@ export function pageIndexForDate(
   mode: CalMode,
   weekStartsOn: 0 | 1,
 ): number {
-  const span = daysPerPage(mode);
+  const spec = PAGE_SPECS[mode];
   const startOfPage = (d: Date) => {
     const day = dayjs(d).startOf('day');
-    return mode === 'week' ? day.add(weekStartOffset(day.day(), weekStartsOn), 'day') : day;
+    return spec.snapToWeekStart ? day.add(weekStartOffset(day.day(), weekStartsOn), 'day') : day;
   };
   const from = startOfPage(anchor);
   const to = startOfPage(target);
-  return Math.floor(to.diff(from, 'day') / span);
+  return Math.floor(to.diff(from, 'day') / spec.step);
 }
 
 function sameSlice(a: GridEvent, b: GridEvent): boolean {
