@@ -110,10 +110,21 @@ export const EventForm = forwardRef<EventFormHandle, Props>(function EventForm({
 
   const scrollRef = useRef<ScrollView>(null);
   const inputOffsets = useRef<Record<string, number>>({});
+  const viewportHeight = useRef(0);
 
   function scrollToField(key: string) {
     const y = inputOffsets.current[key];
     if (y != null) scrollRef.current?.scrollTo({ y: Math.max(0, y - 80), animated: true });
+  }
+
+  // The attendee suggestion list opens upward as an overlay: anchor the
+  // input near the bottom of the viewport (just above the keyboard) so the
+  // panel above it stays fully visible.
+  function scrollAttendeeToViewportBottom() {
+    const y = inputOffsets.current.attendee;
+    const vh = viewportHeight.current;
+    if (y == null || vh === 0) return;
+    scrollRef.current?.scrollTo({ y: Math.max(0, y + 100 - vh), animated: true });
   }
 
   function onFieldLayout(key: string, event: LayoutChangeEvent) {
@@ -297,6 +308,7 @@ export const EventForm = forwardRef<EventFormHandle, Props>(function EventForm({
       keyboardShouldPersistTaps="handled"
       keyboardDismissMode="none"
       contentInsetAdjustmentBehavior="automatic"
+      onLayout={(e) => { viewportHeight.current = e.nativeEvent.layout.height; }}
     >
       <Stack gap={16}>
         <View onLayout={(e) => onFieldLayout('title', e)}>
@@ -408,7 +420,7 @@ export const EventForm = forwardRef<EventFormHandle, Props>(function EventForm({
           onChange={setAttendees}
           account={account}
           onInputLayout={(e) => onFieldLayout('attendee', e)}
-          onInputFocus={() => scrollToField('attendee')}
+          onInputFocus={scrollAttendeeToViewportBottom}
         />
 
         {attendees.length > 0 && account && !allDay && (

@@ -27,10 +27,11 @@ export function AttendeesField({ attendees, onChange, account, onInputLayout, on
     query: attendeeInput,
   });
 
-  // The field sits at the bottom of a long form: when the suggestion list
-  // appears it renders below the viewport. Re-trigger the focus scroll once
-  // suggestions land — after the native focus-scroll has settled — so the
-  // list is pulled into view without the user scrolling.
+  // The field sits at the bottom of a long form and Android's focus scroll
+  // pins it just above the keyboard, so a list rendered *below* the input
+  // ends up hidden. The list is rendered as an overlay *above* the input
+  // instead; once suggestions land we nudge the form scroll (after the
+  // keyboard resize settles) so the input rests right above the viewport.
   const hadSuggestions = useRef(false);
   useEffect(() => {
     if (suggestions.length === 0) {
@@ -39,7 +40,7 @@ export function AttendeesField({ attendees, onChange, account, onInputLayout, on
     }
     if (hadSuggestions.current) return;
     hadSuggestions.current = true;
-    const t = setTimeout(() => onInputFocus?.(), 100);
+    const t = setTimeout(() => onInputFocus?.(), 300);
     return () => clearTimeout(t);
   }, [suggestions.length, onInputFocus]);
 
@@ -63,7 +64,7 @@ export function AttendeesField({ attendees, onChange, account, onInputLayout, on
   return (
     <Stack gap={8} onLayout={onInputLayout}>
       <Typography variant="body2" color="secondary">{t('event.attendees')}</Typography>
-      <View>
+      <View style={styles.inputArea}>
         <Stack direction="horizontal" vAlign="center" gap={8}>
           <View style={styles.grow}>
             <TextField
@@ -83,34 +84,41 @@ export function AttendeesField({ attendees, onChange, account, onInputLayout, on
           </View>
           <Button testID="event-form-attendee-add" variant="primary" title={t('event.add')} onPress={() => addAttendee()} />
         </Stack>
+
+        {!contactsLoading && suggestions.length > 0 && (
+          <View
+            style={[
+              styles.suggestionPanel,
+              { backgroundColor: theme.colors.surfaceRaised, borderColor: theme.colors.border },
+            ]}
+          >
+            <ScrollView
+              style={styles.suggestionScroll}
+              contentContainerStyle={styles.suggestionScrollContent}
+              nestedScrollEnabled
+              keyboardShouldPersistTaps="handled"
+              keyboardDismissMode="none"
+            >
+              <List radius={12}>
+                {suggestions.map((contact) => (
+                  <Item
+                    key={contact.id}
+                    title={contact.displayName}
+                    description={contact.email}
+                    leading={<ContactAvatar account={account ?? null} contact={contact} size={32} />}
+                    onPress={() => addAttendee({ email: contact.email, displayName: contact.displayName })}
+                  />
+                ))}
+              </List>
+            </ScrollView>
+          </View>
+        )}
       </View>
 
       {contactsLoading && (
         <View style={styles.suggestionLoading}>
           <Spinner size="small" color="secondary" />
         </View>
-      )}
-
-      {!contactsLoading && suggestions.length > 0 && (
-        <ScrollView
-          style={styles.suggestionScroll}
-          contentContainerStyle={styles.suggestionScrollContent}
-          nestedScrollEnabled
-          keyboardShouldPersistTaps="handled"
-          keyboardDismissMode="none"
-        >
-          <List radius={12}>
-            {suggestions.map((contact) => (
-              <Item
-                key={contact.id}
-                title={contact.displayName}
-                description={contact.email}
-                leading={<ContactAvatar account={account ?? null} contact={contact} size={32} />}
-                onPress={() => addAttendee({ email: contact.email, displayName: contact.displayName })}
-              />
-            ))}
-          </List>
-        </ScrollView>
       )}
 
       {attendees.map((att) => (
@@ -139,6 +147,24 @@ export function AttendeesField({ attendees, onChange, account, onInputLayout, on
 const styles = StyleSheet.create({
   grow: { flex: 1 },
   pushRight: { marginLeft: 'auto' },
+  // Anchors the suggestion panel to the input row without affecting layout.
+  inputArea: { position: 'relative', zIndex: 10, elevation: 10 },
+  suggestionPanel: {
+    position: 'absolute',
+    bottom: '100%',
+    left: 0,
+    right: 0,
+    marginBottom: 6,
+    maxHeight: 220,
+    borderRadius: 12,
+    borderWidth: StyleSheet.hairlineWidth,
+    overflow: 'hidden',
+    elevation: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+  },
   suggestionScroll: { maxHeight: 220 },
   suggestionScrollContent: { flexGrow: 1 },
   suggestionLoading: { paddingVertical: 8, alignItems: 'center' },
