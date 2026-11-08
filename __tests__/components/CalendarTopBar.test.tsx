@@ -16,6 +16,6 @@ describe('CalendarTopBar', () => {
     expect(getByTestId('calendar-today')).toBeTruthy();
     expect(getByTestId('calendar-mode-month').props.accessibilityState.selected).toBe(true);
     expect(getByTestId('calendar-mode-week').props.accessibilityState.selected).toBe(false);
-    for (const mode of ['3days', 'day', 'schedule']) expect(getByTestId(`calendar-mode-${mode}`)).toBeTruthy();
+    for (const mode of ['7days', '3days', 'day', 'schedule']) expect(getByTestId(`calendar-mode-${mode}`)).toBeTruthy();
   });
 });

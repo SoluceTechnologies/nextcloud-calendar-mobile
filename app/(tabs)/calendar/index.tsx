@@ -131,8 +131,11 @@ export default function CalendarScreen() {
     : dayjs(date).isSame(dayjs(), 'day');
 
   const headerTitle = useMemo(() => {
-    const d = dayjs(viewMode === 'schedule' ? agendaVisibleDate : date);
-    const monthYear = d.locale(language).format('MMMM YYYY');
+    const d = dayjs(viewMode === 'schedule' ? agendaVisibleDate : date).locale(language);
+    if (viewMode === '7days') {
+      return `${d.format('D MMM')} – ${d.add(6, 'day').format('D MMM YYYY')}`;
+    }
+    const monthYear = d.format('MMMM YYYY');
     if (viewMode === 'week' || viewMode === '3days' || viewMode === 'day') {
       return `${monthYear}  ·  ${t('calendar.weekAbbr')}${d.isoWeek()}`;
     }

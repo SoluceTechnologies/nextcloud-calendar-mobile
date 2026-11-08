@@ -19,6 +19,7 @@ const iso = (d: Date) => dayKey(d);
 describe('daysPerPage', () => {
   it('maps each mode to its page span', () => {
     expect(daysPerPage('week')).toBe(7);
+    expect(daysPerPage('7days')).toBe(7);
     expect(daysPerPage('3days')).toBe(3);
     expect(daysPerPage('day')).toBe(1);
   });
@@ -83,6 +84,27 @@ describe('pageDates', () => {
     expect(d.getHours()).toBe(0);
     expect(d.getMinutes()).toBe(0);
   });
+
+  describe('7days (rolling)', () => {
+    it('shows 7 columns anchored on the anchor day, no week snap', () => {
+      const d = pageDates(friday, 0, '7days', 1);
+      expect(d).toHaveLength(7);
+      expect(iso(d[0])).toBe('2026-08-07');
+      expect(iso(d[6])).toBe('2026-08-13');
+    });
+
+    it('rolls by a single day per page index', () => {
+      expect(iso(pageDates(friday, 1, '7days', 1)[0])).toBe('2026-08-08');
+      expect(iso(pageDates(friday, -1, '7days', 1)[0])).toBe('2026-08-06');
+      expect(iso(pageDates(friday, 7, '7days', 1)[0])).toBe('2026-08-14');
+    });
+
+    it('adjacent pages overlap by 6 days', () => {
+      const a = pageDates(friday, 0, '7days', 1).map(iso);
+      const b = pageDates(friday, 1, '7days', 1).map(iso);
+      expect(b.slice(0, 6)).toEqual(a.slice(1));
+    });
+  });
 });
 
 describe('pageFocusDate', () => {
@@ -99,6 +121,13 @@ describe('pageFocusDate', () => {
 
   it('keeps the anchor on index 0 in day mode', () => {
     expect(pageFocusDate(friday, 0, 'day', 1)).toEqual(friday);
+  });
+
+  it('always focuses the first column in 7days mode, even when the anchor is visible', () => {
+    const thursday = new Date(2026, 7, 6, 9, 0);
+    // Page -1 (Wed..Tue) still contains the anchor Thu, but the focus is the window start.
+    expect(iso(pageFocusDate(thursday, -1, '7days', 1))).toBe('2026-08-05');
+    expect(iso(pageFocusDate(thursday, 0, '7days', 1))).toBe('2026-08-06');
   });
 });
 
@@ -348,6 +377,17 @@ describe('pageIndexForDate', () => {
 
   it('ignores the time of day on either side', () => {
     expect(pageIndexForDate(new Date(2026, 7, 7, 23, 59), new Date(2026, 7, 8, 0, 1), 'day', 1)).toBe(1);
+  });
+
+  it('maps a target to the page where it is the first column in 7days mode', () => {
+    expect(pageIndexForDate(friday, new Date(2026, 7, 8), '7days', 1)).toBe(1);
+    expect(pageIndexForDate(friday, new Date(2026, 7, 6), '7days', 1)).toBe(-1);
+    expect(pageIndexForDate(friday, new Date(2026, 7, 14), '7days', 1)).toBe(7);
+  });
+
+  it('round-trips with pageDates in 7days mode', () => {
+    const index = pageIndexForDate(friday, new Date(2026, 8, 3), '7days', 1);
+    expect(iso(pageDates(friday, index, '7days', 1)[0])).toBe('2026-09-03');
   });
 
   it('round-trips with pageDates across month and year boundaries', () => {
