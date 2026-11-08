@@ -45,9 +45,9 @@ export function AttendeesField({ attendees, onChange, account, onInputLayout, on
   }
 
   return (
-    <Stack gap={8}>
+    <Stack gap={8} onLayout={onInputLayout}>
       <Typography variant="body2" color="secondary">{t('event.attendees')}</Typography>
-      <View onLayout={onInputLayout}>
+      <View>
         <Stack direction="horizontal" vAlign="center" gap={8}>
           <View style={styles.grow}>
             <TextField
