@@ -12,7 +12,8 @@ import {
   ViewContainer, ScreenHeader, Stack, Typography, Button, List, Item,
   Spinner, SectionHeader, Select, type SelectOption,
 } from '@/ui/components';
-import { useAccounts, useActiveAccount } from '@/hooks/useAccounts';
+import { useActiveAccount } from '@/hooks/useAccounts';
+import { useAccountStore } from '@/stores/accountStore';
 import { useCalendars } from '@/hooks/useCalendars';
 import { useInvitations } from '@/features/invitations/hooks/useInvitations';
 import { respondToInvitation } from '@/services/nextcloud/invitations';
@@ -26,8 +27,8 @@ export default function InvitationsScreen() {
   const router = useRouter();
   const { t } = useTranslation();
   const theme = useTheme();
-  const accounts = useAccounts();
-  const activeAccount = useActiveAccount(accounts[0]?.id ?? null);
+  const activeAccountId = useAccountStore((s) => s.activeAccountId);
+  const activeAccount = useActiveAccount(activeAccountId);
   const { data: calendars = [] } = useCalendars(activeAccount);
   const { data: invitations, isFetching, error, refresh } = useInvitations(activeAccount);
 
