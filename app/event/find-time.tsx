@@ -18,6 +18,7 @@ import {
   suggestionsForDay, workingRangeForDay,
 } from '@/features/event/utils/laneLayout';
 import { isSlotFree } from '@/utils/freeBusy';
+import { suggestSlots } from '@/features/event/utils/suggestSlots';
 import type { SuggestedSlot } from '@/types';
 
 dayjs.extend(localizedFormat);
@@ -73,7 +74,7 @@ function FindTimeView({ request }: { request: FindTimeRequest }) {
 
   const durationMs = draft.end.getTime() - draft.start.getTime();
 
-  const { loading, error, availabilities, suggestions, mergedBusy, searchStart, searchEnd, refetch } =
+  const { loading, error, availabilities, mergedBusy, searchStart, searchEnd, refetch } =
     useFreeBusy({
       account: request.account,
       organizer: request.organizer,
@@ -111,10 +112,21 @@ function FindTimeView({ request }: { request: FindTimeRequest }) {
 
   // Top candidate slots for the selected day, overlaid on the merged lane
   // (Proposals-style: provisional blocks in calendar context, tap-through).
-  const suggestionRanges = useMemo(
-    () => suggestionsForDay(suggestions, selectedDay, range).slice(0, MAX_LANE_SUGGESTIONS),
-    [suggestions, selectedDay, range],
-  );
+  // Computed per day — the global suggestion list is capped and clusters on
+  // the first free day, so it cannot feed a per-day overlay.
+  const suggestionRanges = useMemo(() => {
+    const dayStart = dayjs(selectedDay).startOf('day');
+    const dayEnd = dayStart.endOf('day');
+    const from = dayjs(Math.max(dayStart.valueOf(), Date.now()));
+    if (!from.isBefore(dayEnd)) return [];
+    return suggestionsForDay(
+      suggestSlots(durationMs, from.toDate(), dayEnd.toDate(), mergedBusy, {
+        maxSuggestions: MAX_LANE_SUGGESTIONS,
+      }),
+      selectedDay,
+      range,
+    );
+  }, [selectedDay, durationMs, mergedBusy, range]);
 
   const draftOnSelectedDay = dayjs(draft.start).isSame(dayjs(selectedDay), 'day');
   const draftFree = isSlotFree(draft, mergedBusy);
