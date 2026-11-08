@@ -47,10 +47,13 @@ function EventSection({
   if (items.length === 0) return null;
 
   const describe = (event: CalendarEvent) => {
+    const date = dayjs(event.dtstart).isSame(event.dtend, 'day')
+      ? dayjs(event.dtstart).format('ll')
+      : `${dayjs(event.dtstart).format('ll')} – ${dayjs(event.dtend).format('ll')}`;
     const time = event.allDay
       ? t('calendar.allDay')
       : `${formatTime(event.dtstart)} – ${formatTime(event.dtend)}`;
-    const when = `${dayjs(event.dtstart).format('ll')} · ${time}`;
+    const when = `${date} · ${time}`;
     return event.location ? `${when} · ${event.location}` : when;
   };
 
