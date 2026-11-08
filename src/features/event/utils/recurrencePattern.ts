@@ -114,9 +114,11 @@ function positionLabel(position: Position, t: TFunction): string {
   return t(keys[position] ?? 'event.positionFirst');
 }
 
-function formatInterval(base: string, interval?: number): string {
-  if (!interval || interval <= 1) return base;
-  return `${base} (×${interval})`;
+function formatInterval(baseKey: string, unitBaseKey: string, fem: boolean, interval: number | undefined, t: TFunction): string {
+  if (!interval || interval <= 1) return t(baseKey);
+  const every = t(fem ? 'event.everyFem' : 'event.everyMasc');
+  const unit = t(unitBaseKey, { count: interval });
+  return `${every} ${interval} ${unit}`;
 }
 
 export function formatRecurrenceRule(
@@ -129,13 +131,13 @@ export function formatRecurrenceRule(
 
   switch (rule.freq) {
     case 'DAILY':
-      return formatInterval(t('event.freqDaily'), interval);
+      return formatInterval('event.freqDaily', 'event.unitDays', false, interval, t);
 
     case 'WEEKLY': {
       const labels = rule.byDay?.length
         ? rule.byDay.map((d) => weekdayLabel(d as Weekday, locale))
         : [weekdayLabel(weekdayFromDate(dtstart), locale)];
-      return `${formatInterval(t('event.freqWeekly'), interval)} · ${labels.join(', ')}`;
+      return `${formatInterval('event.freqWeekly', 'event.unitWeeks', true, interval, t)} · ${labels.join(', ')}`;
     }
 
     case 'MONTHLY': {
@@ -144,10 +146,10 @@ export function formatRecurrenceRule(
         if (!parsed) return null;
         const pos = parsed.position ?? 1;
         const wd = weekdayLabel(parsed.weekday, locale);
-        return `${formatInterval(t('event.freqMonthly'), interval)} · ${positionLabel(pos, t)} ${wd}`;
+        return `${formatInterval('event.freqMonthly', 'event.unitMonths', false, interval, t)} · ${positionLabel(pos, t)} ${wd}`;
       }
       const day = new Intl.DateTimeFormat(locale, { day: 'numeric' }).format(dtstart);
-      return `${formatInterval(t('event.freqMonthly'), interval)} · ${day}`;
+      return `${formatInterval('event.freqMonthly', 'event.unitMonths', false, interval, t)} · ${day}`;
     }
 
     case 'YEARLY': {
@@ -157,17 +159,17 @@ export function formatRecurrenceRule(
         if (!parsed) return null;
         const pos = parsed.position ?? 1;
         const wd = weekdayLabel(parsed.weekday, locale);
-        return `${formatInterval(t('event.freqYearly'), interval)} · ${positionLabel(pos, t)} ${wd} · ${month}`;
+        return `${formatInterval('event.freqYearly', 'event.unitYears', true, interval, t)} · ${positionLabel(pos, t)} ${wd} · ${month}`;
       }
       if (rule.byWeekNo?.length && rule.byDay?.length) {
         const parsed = parseByDay(rule.byDay[0]);
         if (!parsed) return null;
         const wd = weekdayLabel(parsed.weekday, locale);
         const week = rule.byWeekNo[0];
-        return `${formatInterval(t('event.freqYearly'), interval)} · ${t('event.week')} ${week} · ${wd}`;
+        return `${formatInterval('event.freqYearly', 'event.unitYears', true, interval, t)} · ${t('event.week')} ${week} · ${wd}`;
       }
       const date = new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'long' }).format(dtstart);
-      return `${formatInterval(t('event.freqYearly'), interval)} · ${date}`;
+      return `${formatInterval('event.freqYearly', 'event.unitYears', true, interval, t)} · ${date}`;
     }
 
     default:
