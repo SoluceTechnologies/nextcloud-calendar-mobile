@@ -14,7 +14,7 @@ import { useFindTimeStore, type FindTimeRequest } from '@/features/event/stores/
 import { AttendeeLane } from '@/features/event/components/AttendeeLane';
 import { DayStrip } from '@/features/event/components/DayStrip';
 import {
-  FULL_DAY_RANGE, blocksForDay, hourMarks, minutesSinceMidnight, slotFromLaneTap,
+  DAY_MINUTES, FULL_DAY_RANGE, blocksForDay, hourMarks, minutesSinceMidnight, slotFromLaneTap,
   suggestionsForDay, workingRangeForDay,
 } from '@/features/event/utils/laneLayout';
 import { isSlotFree } from '@/utils/freeBusy';
@@ -113,14 +113,17 @@ function FindTimeView({ request }: { request: FindTimeRequest }) {
   // Top candidate slots for the selected day, overlaid on the merged lane
   // (Proposals-style: provisional blocks in calendar context, tap-through).
   // Computed per day — the global suggestion list is capped and clusters on
-  // the first free day, so it cannot feed a per-day overlay.
+  // the first free day, so it cannot feed a per-day overlay. The search is
+  // scoped to the visible range, otherwise the top candidates are taken by
+  // off-screen early-morning slots.
   const suggestionRanges = useMemo(() => {
-    const dayStart = dayjs(selectedDay).startOf('day');
-    const dayEnd = dayStart.endOf('day');
-    const from = dayjs(Math.max(dayStart.valueOf(), Date.now()));
-    if (!from.isBefore(dayEnd)) return [];
+    const dayStartMs = dayjs(selectedDay).startOf('day').valueOf();
+    const windowStart = dayStartMs + range.startMin * 60_000;
+    const windowEnd = Math.min(dayStartMs + range.endMin * 60_000, dayStartMs + DAY_MINUTES * 60_000);
+    const from = Math.max(windowStart, Date.now());
+    if (from >= windowEnd) return [];
     return suggestionsForDay(
-      suggestSlots(durationMs, from.toDate(), dayEnd.toDate(), mergedBusy, {
+      suggestSlots(durationMs, new Date(from), new Date(windowEnd), mergedBusy, {
         maxSuggestions: MAX_LANE_SUGGESTIONS,
       }),
       selectedDay,
