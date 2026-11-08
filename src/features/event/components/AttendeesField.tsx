@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { View, StyleSheet, ScrollView, LayoutChangeEvent } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from 'expo-router';
@@ -26,6 +26,22 @@ export function AttendeesField({ attendees, onChange, account, onInputLayout, on
     account: account ?? null,
     query: attendeeInput,
   });
+
+  // The field sits at the bottom of a long form: when the suggestion list
+  // appears it renders below the viewport. Re-trigger the focus scroll once
+  // suggestions land — after the native focus-scroll has settled — so the
+  // list is pulled into view without the user scrolling.
+  const hadSuggestions = useRef(false);
+  useEffect(() => {
+    if (suggestions.length === 0) {
+      hadSuggestions.current = false;
+      return;
+    }
+    if (hadSuggestions.current) return;
+    hadSuggestions.current = true;
+    const t = setTimeout(() => onInputFocus?.(), 100);
+    return () => clearTimeout(t);
+  }, [suggestions.length, onInputFocus]);
 
   function addAttendee(contact?: Attendee) {
     if (contact?.email) {
