@@ -4,6 +4,7 @@ import * as TaskManager from 'expo-task-manager';
 import { syncCalendars, syncVisibleRange } from '@/database/sync';
 import { scheduleEventAlerts } from '@/features/notifications/scheduleAlerts';
 import { getActiveAccountId, loadAccounts } from '@/services/nextcloud/auth';
+import { pushPinsToNative } from '@/services/shared/certPins';
 
 import {useSettingsStore} from '@/stores/settingsStore';
 import i18n from '@/utils/i18n';
@@ -17,6 +18,11 @@ const MINIMUM_INTERVAL_MINUTES = 15;
 const WINDOW_DAYS = 7;
 
 export async function runBackgroundWidgetSync(now: Date = new Date()): Promise<void> {
+  // Headless context: React never mounts, so useAppInitialization's
+  // pushPinsToNative() never ran. Push stored cert pins before any fetch,
+  // otherwise every request to a server with a custom-CA cert fails here.
+  pushPinsToNative();
+
   const accountId = await getActiveAccountId();
   if (!accountId) return;
 
