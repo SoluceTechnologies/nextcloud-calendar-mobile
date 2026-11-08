@@ -15,7 +15,7 @@ import { AttendeeLane } from '@/features/event/components/AttendeeLane';
 import { DayStrip } from '@/features/event/components/DayStrip';
 import {
   FULL_DAY_RANGE, blocksForDay, hourMarks, minutesSinceMidnight, slotFromLaneTap,
-  workingRangeForDay,
+  suggestionsForDay, workingRangeForDay,
 } from '@/features/event/utils/laneLayout';
 import { isSlotFree } from '@/utils/freeBusy';
 import type { SuggestedSlot } from '@/types';
@@ -27,6 +27,8 @@ const AXIS_HEIGHT = 28;
 const MERGED_LANE_HEIGHT = 56;
 const LANE_HEIGHT = 44;
 const ZOOM_LEVELS = [0.5, 1, 2];
+/** Max candidate-slot overlays drawn on the merged lane for the selected day. */
+const MAX_LANE_SUGGESTIONS = 3;
 
 export default function FindTimeScreen() {
   const request = useFindTimeStore((s) => s.request);
@@ -71,7 +73,7 @@ function FindTimeView({ request }: { request: FindTimeRequest }) {
 
   const durationMs = draft.end.getTime() - draft.start.getTime();
 
-  const { loading, error, availabilities, mergedBusy, searchStart, searchEnd, refetch } =
+  const { loading, error, availabilities, suggestions, mergedBusy, searchStart, searchEnd, refetch } =
     useFreeBusy({
       account: request.account,
       organizer: request.organizer,
@@ -105,6 +107,13 @@ function FindTimeView({ request }: { request: FindTimeRequest }) {
   const attendeeBlocks = useMemo(
     () => availabilities.map((a) => blocksForDay(a.slots, selectedDay, range)),
     [availabilities, selectedDay, range],
+  );
+
+  // Top candidate slots for the selected day, overlaid on the merged lane
+  // (Proposals-style: provisional blocks in calendar context, tap-through).
+  const suggestionRanges = useMemo(
+    () => suggestionsForDay(suggestions, selectedDay, range).slice(0, MAX_LANE_SUGGESTIONS),
+    [suggestions, selectedDay, range],
   );
 
   const draftOnSelectedDay = dayjs(draft.start).isSame(dayjs(selectedDay), 'day');
@@ -279,6 +288,7 @@ function FindTimeView({ request }: { request: FindTimeRequest }) {
                   <AttendeeLane
                     testID="lane-merged"
                     blocks={mergedBlocks}
+                    suggestions={suggestionRanges}
                     pxPerMinute={pxPerMinute}
                     height={MERGED_LANE_HEIGHT}
                     range={range}

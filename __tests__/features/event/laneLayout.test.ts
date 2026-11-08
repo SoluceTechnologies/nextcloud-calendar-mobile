@@ -5,9 +5,10 @@ import {
   hourMarks,
   minutesSinceMidnight,
   slotFromLaneTap,
+  suggestionsForDay,
   workingRangeForDay,
 } from '@/features/event/utils/laneLayout';
-import type { BusySlot } from '@/types';
+import type { BusySlot, SuggestedSlot } from '@/types';
 
 const day = new Date('2026-09-15T12:00:00'); // local midday, only the day matters
 
@@ -64,6 +65,65 @@ describe('blocksForDay', () => {
     expect(blocks).toHaveLength(1);
     expect(blocks[0].startMin).toBe(540);
     expect(blocks[0].endMin).toBe(600);
+  });
+});
+
+describe('suggestionsForDay', () => {
+  function sugg(startIso: string, endIso: string): SuggestedSlot {
+    return { start: new Date(startIso), end: new Date(endIso) };
+  }
+
+  it('converts candidate slots to minute ranges within the day', () => {
+    const d = new Date('2026-09-15T00:00:00');
+    const ranges = suggestionsForDay(
+      [sugg('2026-09-15T07:00:00', '2026-09-15T08:00:00')],
+      d,
+    );
+    expect(ranges).toEqual([{ startMin: 420, endMin: 480 }]);
+  });
+
+  it('skips slots on other days', () => {
+    const d = new Date('2026-09-15T00:00:00');
+    const ranges = suggestionsForDay(
+      [
+        sugg('2026-09-15T07:00:00', '2026-09-15T08:00:00'),
+        sugg('2026-09-16T07:00:00', '2026-09-16T08:00:00'),
+      ],
+      d,
+    );
+    expect(ranges).toHaveLength(1);
+  });
+
+  it('clamps slots to the visible range', () => {
+    const d = new Date('2026-09-15T00:00:00');
+    const ranges = suggestionsForDay(
+      [sugg('2026-09-15T05:00:00', '2026-09-15T08:00:00')],
+      d,
+      { startMin: 360, endMin: 1320 },
+    );
+    expect(ranges).toEqual([{ startMin: 360, endMin: 480 }]);
+  });
+
+  it('drops slots fully outside the visible range', () => {
+    const d = new Date('2026-09-15T00:00:00');
+    const ranges = suggestionsForDay(
+      [
+        sugg('2026-09-15T02:00:00', '2026-09-15T03:00:00'),
+        sugg('2026-09-15T23:00:00', '2026-09-15T23:45:00'),
+      ],
+      d,
+      { startMin: 360, endMin: 1320 },
+    );
+    expect(ranges).toEqual([]);
+  });
+
+  it('clamps a slot crossing midnight to the day bounds', () => {
+    const d = new Date('2026-09-15T00:00:00');
+    const ranges = suggestionsForDay(
+      [sugg('2026-09-14T23:00:00', '2026-09-15T01:00:00')],
+      d,
+    );
+    expect(ranges).toEqual([{ startMin: 0, endMin: 60 }]);
   });
 });
 

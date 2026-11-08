@@ -55,6 +55,35 @@ export function blocksForDay(slots: BusySlot[], day: Date, range: MinuteRange = 
 }
 
 /**
+ * Clamp suggested (candidate) slots to a single day and express them as
+ * minute ranges — mirrors `blocksForDay` but for free/proposed slots, so
+ * they can be rendered as overlays on the merged lane.
+ */
+export function suggestionsForDay(
+  slots: SuggestedSlot[],
+  day: Date,
+  range: MinuteRange = FULL_DAY_RANGE,
+): MinuteRange[] {
+  const dayStartMs = startOfDay(day).getTime();
+  const dayEndMs = dayStartMs + DAY_MINUTES * 60_000;
+  const rangeStartMs = dayStartMs + range.startMin * 60_000;
+  const rangeEndMs = Math.min(dayEndMs, dayStartMs + range.endMin * 60_000);
+  const out: MinuteRange[] = [];
+
+  for (const slot of slots) {
+    const s = Math.max(slot.start.getTime(), rangeStartMs);
+    const e = Math.min(slot.end.getTime(), rangeEndMs);
+    if (e <= s) continue;
+    out.push({
+      startMin: (s - dayStartMs) / 60_000,
+      endMin: (e - dayStartMs) / 60_000,
+    });
+  }
+
+  return out;
+}
+
+/**
  * Derive the common working-hours window for a day.
  *
  * The server encodes outside-working-hours as BUSY-UNAVAILABLE, so each

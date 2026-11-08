@@ -3,7 +3,6 @@ import { Pressable, StyleSheet, View, type GestureResponderEvent } from 'react-n
 import { useTheme } from 'expo-router';
 import { FULL_DAY_RANGE, type LaneBlock, type MinuteRange } from '@/features/event/utils/laneLayout';
 
-const FREE_BORDER = '#4caf50';
 const UNAVAILABLE_FILL = '#9e9e9e';
 
 export interface LaneSelection {
@@ -18,6 +17,8 @@ interface AttendeeLaneProps {
   height: number;
   /** Visible minute window; blocks/selection are positioned relative to it. */
   range?: MinuteRange;
+  /** Candidate slots (top suggestions) rendered as provisional overlays. */
+  suggestions?: MinuteRange[];
   /** Draft/selected event position rendered on top of the lane. */
   selection?: LaneSelection | null;
   /** When set, tapping the lane reports the x offset in px. */
@@ -44,6 +45,7 @@ function AttendeeLaneImpl({
   pxPerMinute,
   height,
   range = FULL_DAY_RANGE,
+  suggestions,
   selection,
   onTap,
   unknown = false,
@@ -80,6 +82,22 @@ function AttendeeLaneImpl({
           ]}
         />
       ))}
+      {suggestions?.map((s, i) => (
+        <View
+          key={`sugg-${i}`}
+          testID={testID ? `${testID}-sugg-${i}` : 'lane-suggestion'}
+          pointerEvents="none"
+          style={[
+            styles.suggestion,
+            {
+              left: (s.startMin - rangeStart) * pxPerMinute,
+              width: Math.max(1, (s.endMin - s.startMin) * pxPerMinute),
+              backgroundColor: `${theme.colors.success}26`,
+              borderColor: `${theme.colors.success}99`,
+            },
+          ]}
+        />
+      ))}
       {selection && (
         <View
           testID={testID ? `${testID}-selection` : 'lane-selection'}
@@ -90,7 +108,7 @@ function AttendeeLaneImpl({
               left: (selection.startMin - rangeStart) * pxPerMinute,
               width: Math.max(4, (selection.endMin - selection.startMin) * pxPerMinute),
               backgroundColor: `${theme.colors.primary}40`,
-              borderColor: selection.free ? FREE_BORDER : theme.colors.danger,
+              borderColor: selection.free ? theme.colors.success : theme.colors.danger,
             },
           ]}
         />
@@ -125,6 +143,13 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 2,
     bottom: 2,
+    borderRadius: 2,
+  },
+  suggestion: {
+    position: 'absolute',
+    top: 2,
+    bottom: 2,
+    borderWidth: 1,
     borderRadius: 2,
   },
   selection: {
