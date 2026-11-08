@@ -16,16 +16,16 @@ jest.mock('@/services/nextcloud/auth', () => ({
 }));
 
 jest.mock('@/database/sync', () => ({
-  syncCalendars: (...args: unknown[]) => mockSyncCalendars(...args),
-  syncVisibleRange: (...args: unknown[]) => mockSyncVisibleRange(...args),
+  syncCalendars: () => mockSyncCalendars(),
+  syncVisibleRange: () => mockSyncVisibleRange(),
 }));
 
 jest.mock('@/features/notifications/scheduleAlerts', () => ({
-  scheduleEventAlerts: (...args: unknown[]) => mockScheduleEventAlerts(...args),
+  scheduleEventAlerts: () => mockScheduleEventAlerts(),
 }));
 
 jest.mock('@/features/widget/sync/syncWidget', () => ({
-  syncWidget: (...args: unknown[]) => mockSyncWidget(...args),
+  syncWidget: () => mockSyncWidget(),
 }));
 
 jest.mock('expo-task-manager', () => ({
