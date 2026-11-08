@@ -43,6 +43,13 @@ interface Props {
   allDay?: boolean;
 }
 
+const INTERVAL_UNITS: Record<RecurrenceFreq, { key: string; fem: boolean }> = {
+  DAILY: { key: 'event.unitDays', fem: false },
+  WEEKLY: { key: 'event.unitWeeks', fem: true },
+  MONTHLY: { key: 'event.unitMonths', fem: false },
+  YEARLY: { key: 'event.unitYears', fem: true },
+};
+
 export function RecurrencePicker({ value, onChange, dtstart, allDay = false }: Props) {
   const theme = useTheme();
   const { t, i18n } = useTranslation();
@@ -50,11 +57,16 @@ export function RecurrencePicker({ value, onChange, dtstart, allDay = false }: P
   const [showUntilPicker, setShowUntilPicker] = useState(false);
   const [countText, setCountText] = useState<string | null>(null);
   const [weekNoText, setWeekNoText] = useState<string | null>(null);
+  const [intervalText, setIntervalText] = useState<string | null>(null);
 
   // Drop in-progress text if the stored value changed from elsewhere.
   useEffect(() => {
     setCountText((text) => (text !== null && Number(text) !== value?.count ? null : text));
   }, [value?.count]);
+
+  useEffect(() => {
+    setIntervalText((text) => (text !== null && Number(text) !== value?.interval ? null : text));
+  }, [value?.interval]);
 
   useEffect(() => {
     setWeekNoText((text) => (text !== null && Number(text) !== value?.byWeekNo?.[0] ? null : text));
@@ -121,6 +133,7 @@ export function RecurrencePicker({ value, onChange, dtstart, allDay = false }: P
   function handleFreqSelect(freq: RecurrenceFreq | null) {
     setCountText(null);
     setWeekNoText(null);
+    setIntervalText(null);
     if (freq === null) {
       onChange(undefined);
       return;
@@ -149,6 +162,16 @@ export function RecurrencePicker({ value, onChange, dtstart, allDay = false }: P
     if (mode === 'never') onChange({ ...value, count: undefined, until: undefined });
     else if (mode === 'count') onChange({ ...value, count: DEFAULT_COUNT, until: undefined });
     else onChange({ ...value, count: undefined, until: untilDate });
+  }
+
+  function handleIntervalChange(raw: string) {
+    if (!value) return;
+    const digits = raw.replace(/\D/g, '');
+    setIntervalText(digits);
+    const parsed = Number(digits);
+    if (digits !== '' && parsed >= 1) {
+      onChange({ ...value, interval: Math.min(999, parsed) });
+    }
   }
 
   function handleCountChange(raw: string) {
@@ -272,6 +295,29 @@ export function RecurrencePicker({ value, onChange, dtstart, allDay = false }: P
           accessibilityLabel={t('event.repeat')}
         />
       </View>
+
+      {value?.freq && (
+        <View>
+          <Text style={[styles.subLabel, { color: theme.colors.textTertiary }]}>
+            {t(INTERVAL_UNITS[value.freq].fem ? 'event.everyFem' : 'event.everyMasc')}
+          </Text>
+          <View style={styles.endDetail}>
+            <View style={styles.countField}>
+              <TextField
+                value={intervalText ?? String(value.interval ?? 1)}
+                onChangeText={handleIntervalChange}
+                onBlur={() => setIntervalText(null)}
+                keyboardType="number-pad"
+                maxLength={3}
+                accessibilityLabel={t('event.intervalLabel')}
+              />
+            </View>
+            <Text style={[styles.countSuffix, { color: theme.colors.textSecondary }]}>
+              {t(INTERVAL_UNITS[value.freq].key, { count: value.interval ?? 1 })}
+            </Text>
+          </View>
+        </View>
+      )}
 
       {value?.freq === 'WEEKLY' && (
         <View>

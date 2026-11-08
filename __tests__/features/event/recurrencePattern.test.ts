@@ -70,9 +70,26 @@ describe('formatRecurrenceRule', () => {
     expect(label).toMatch(/August/);
   });
 
-  it('includes interval when greater than one', () => {
+  it('formats a daily interval with the unit pluralized', () => {
     const rule: RecurrenceRule = { freq: 'DAILY', interval: 3 };
-    expect(formatRecurrenceRule(rule, DTSTART, i18n.t, i18n.language)).toMatch(/\(×3\)/);
+    expect(formatRecurrenceRule(rule, DTSTART, i18n.t, i18n.language)).toBe('Every 3 days');
+  });
+
+  it('formats a weekly interval with days', () => {
+    const rule: RecurrenceRule = { freq: 'WEEKLY', interval: 2, byDay: ['MO'] };
+    const label = formatRecurrenceRule(rule, DTSTART, i18n.t, i18n.language);
+    expect(label).toMatch(/^Every 2 weeks/);
+    expect(label).toMatch(/Monday/);
+  });
+
+  it('uses the feminine unit in French for weeks and years', async () => {
+    await i18n.changeLanguage('fr');
+    expect(formatRecurrenceRule({ freq: 'WEEKLY', interval: 2 }, DTSTART, i18n.t, i18n.language)).toMatch(
+      /^Toutes les 2 semaines/,
+    );
+    expect(formatRecurrenceRule({ freq: 'DAILY', interval: 2 }, DTSTART, i18n.t, i18n.language)).toBe(
+      'Tous les 2 jours',
+    );
   });
 
   it('uses locale for month names', async () => {
