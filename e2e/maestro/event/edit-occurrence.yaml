@@ -9,10 +9,9 @@ appId: com.soluce.nextcloudcalendar
     visible:
       id: event-form-title
     timeout: 15000
-- tapOn:
-    id: event-form-title
-- eraseText: 40
-- inputText: ${NEW_TITLE}
+- runFlow:
+    file: ../shared/type-text.yaml
+    env: { FIELD: event-form-title, TEXT: "${NEW_TITLE}" }
 - scrollUntilVisible:
     element:
       id: event-form-save

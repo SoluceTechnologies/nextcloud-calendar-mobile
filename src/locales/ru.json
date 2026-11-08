@@ -16,7 +16,8 @@
   },
   "tabs": {
     "calendar": "Календарь",
-    "settings": "Настройки"
+    "settings": "Настройки",
+    "search": "Поиск"
   },
   "setup": {
     "brand": "Календарь",
@@ -176,7 +177,31 @@
     "errorCreateFailed": "Не удалось создать событие",
     "errorUpdateFailed": "Не удалось обновить событие",
     "errorDeleteFailed": "Не удалось удалить событие",
-    "alerts": "Напоминания"
+    "alerts": "Напоминания",
+    "alert": "Напоминание",
+    "findTime": "Найти время",
+    "findTimeTitle": "Найти время",
+    "findTimeSuggested": "Предложенные слоты",
+    "findTimeNoSlots": "Свободных слотов в 15-дневном окне не найдено.",
+    "findTimeAttendees": "Доступность участников",
+    "findTimeAvailable": "Доступен",
+    "findTimeUnknown": "Неизвестно",
+    "findTimeApply": "Применить выбранный слот",
+    "findTimeLoading": "Проверка доступности…",
+    "findTimeError": "Не удалось получить данные о доступности. Сервер может отключить free/busy.",
+    "findTimeRetry": "Повторить",
+    "findTimeEveryoneMustBeFree": "Все должны быть свободны",
+    "findTimeSlotAllFree": "Все свободны",
+    "findTimeSlotBusyNames": "{{names}} занят(ы)",
+    "findTimeCurrent": "Текущее",
+    "findTimeSomeUnknown": "Доступность некоторых участников неизвестна.",
+    "findTimeExplore": "Открыть обзор",
+    "findTimeEveryoneLane": "Все",
+    "findTimeTapHint": "Нажмите на верхнюю строку, чтобы разместить событие",
+    "findTimeZoomIn": "Увеличить",
+    "findTimeZoomOut": "Уменьшить",
+    "findTimeNoRequest": "Откройте этот экран из формы события.",
+    "findTimeWorkingHoursOnly": "Только рабочие часы"
   },
   "settings": {
     "title": "Настройки",
@@ -373,5 +398,54 @@
     "remedy": "Более безопасные варианты: подключаться к серверу через VPN, например Tailscale или WireGuard, либо настроить бесплатный сертификат с DuckDNS и Let's Encrypt.",
     "connect": "Всё равно подключиться",
     "cancel": "Отмена"
+  },
+  "search": {
+    "title": "Поиск",
+    "placeholder": "Поиск событий…",
+    "filters": "ФИЛЬТРЫ",
+    "filter": {
+      "calendar": "В календаре",
+      "attendee": "С участником",
+      "date": "Дата",
+      "title": "В названии",
+      "location": "В месте",
+      "description": "В описании"
+    },
+    "hint": {
+      "name": "название",
+      "person": "пользователь",
+      "text": "текст"
+    },
+    "more": "Другие фильтры",
+    "moreHint": "название, место, описание",
+    "recent": "НЕДАВНИЕ",
+    "removeRecent": "Удалить из недавних",
+    "removeFilter": "Удалить фильтр {{filter}}",
+    "use": "Использовать «{{value}}»",
+    "filterHint": "Фильтр:",
+    "short": {
+      "calendar": "Календарь",
+      "attendee": "Участник",
+      "date": "Дата"
+    },
+    "date": {
+      "today": "Сегодня",
+      "tomorrow": "Завтра",
+      "week": "В ближайшие 7 дней",
+      "month": "В течение месяца",
+      "upcoming": "Предстоящие",
+      "past": "Прошедшие",
+      "before": "До даты…",
+      "after": "После даты…"
+    },
+    "upcoming": "ПРЕДСТОЯЩИЕ",
+    "past": "ПРОШЕДШИЕ",
+    "truncated": "Показаны первые {{count}} — добавьте фильтр, чтобы сузить поиск",
+    "fromServer": "ЕЩЁ РЕЗУЛЬТАТЫ С СЕРВЕРА",
+    "noResults": "Нет результатов",
+    "noResultsHint": "Попробуйте меньше фильтров или более простое слово.",
+    "offlineNote": "Нет подключения — показаны только локальные результаты",
+    "serverFailed": "Не удалось связаться с сервером — показаны только локальные результаты",
+    "openFailed": "Не удалось открыть это событие"
   }
 }

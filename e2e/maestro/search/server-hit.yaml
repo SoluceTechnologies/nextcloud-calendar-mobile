@@ -1,0 +1,22 @@
+appId: com.soluce.nextcloudcalendar
+---
+- runFlow:
+    file: ../shared/home-and-wait.yaml
+    env: { TITLE: "E2E seed" }
+- tapOn:
+    id: tab-search
+- runFlow:
+    file: ../shared/type-text.yaml
+    env: { FIELD: search-input, TEXT: "${TITLE}" }
+- extendedWaitUntil:
+    visible:
+      id: result-server-${HREF_PATH}
+    timeout: 30000
+- assertVisible: "MORE FROM THE SERVER"
+- tapOn:
+    id: result-server-${HREF_PATH}
+- extendedWaitUntil:
+    visible:
+      id: event-detail-delete
+    timeout: 30000
+- assertVisible: ${TITLE}

@@ -7,9 +7,9 @@ appId: com.soluce.nextcloudcalendar
     visible:
       id: event-form-title
     timeout: 15000
-- tapOn:
-    id: event-form-title
-- inputText: ${TITLE}
+- runFlow:
+    file: ../shared/type-text.yaml
+    env: { FIELD: event-form-title, TEXT: "${TITLE}" }
 - runFlow:
     file: ../shared/pick-time.yaml
     env: { FIELD: event-form-start, HOUR: "10", MINUTE: "00", MERIDIEM: AM }

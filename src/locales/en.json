@@ -16,7 +16,8 @@
   },
   "tabs": {
     "calendar": "Calendar",
-    "settings": "Settings"
+    "settings": "Settings",
+    "search": "Search"
   },
   "setup": {
     "brand": "Calendar",
@@ -176,7 +177,31 @@
     "errorCreateFailed": "Failed to create event",
     "errorUpdateFailed": "Failed to update event",
     "errorDeleteFailed": "Failed to delete event",
-    "alerts": "Alerts"
+    "alerts": "Alerts",
+    "alert": "Alert",
+    "findTime": "Find a time",
+    "findTimeTitle": "Find a time",
+    "findTimeSuggested": "Suggested slots",
+    "findTimeNoSlots": "No free slots found in the 15-day window.",
+    "findTimeAttendees": "Attendee availability",
+    "findTimeAvailable": "Available",
+    "findTimeUnknown": "Unknown",
+    "findTimeApply": "Apply selected slot",
+    "findTimeLoading": "Checking availability…",
+    "findTimeError": "Could not fetch availability. The server may have free/busy disabled.",
+    "findTimeRetry": "Retry",
+    "findTimeEveryoneMustBeFree": "Everyone must be free",
+    "findTimeSlotAllFree": "Everyone free",
+    "findTimeSlotBusyNames": "{{names}} busy",
+    "findTimeCurrent": "Current",
+    "findTimeSomeUnknown": "Availability is unknown for some attendees.",
+    "findTimeExplore": "Explore timeline",
+    "findTimeEveryoneLane": "Everyone",
+    "findTimeTapHint": "Tap the top lane to place the event",
+    "findTimeZoomIn": "Zoom in",
+    "findTimeZoomOut": "Zoom out",
+    "findTimeNoRequest": "Open this view from the event form.",
+    "findTimeWorkingHoursOnly": "Working hours only"
   },
   "settings": {
     "title": "Settings",
@@ -373,5 +398,54 @@
     "remedy": "Safer options: reach the server through a VPN such as Tailscale or WireGuard, or set up a free certificate with DuckDNS and Let's Encrypt.",
     "connect": "Connect anyway",
     "cancel": "Cancel"
+  },
+  "search": {
+    "title": "Search",
+    "placeholder": "Search events…",
+    "filters": "FILTERS",
+    "filter": {
+      "calendar": "In a calendar",
+      "attendee": "With an attendee",
+      "date": "Date",
+      "title": "In title",
+      "location": "In location",
+      "description": "In description"
+    },
+    "hint": {
+      "name": "name",
+      "person": "person",
+      "text": "text"
+    },
+    "more": "More filters",
+    "moreHint": "title, location, description",
+    "recent": "RECENT",
+    "removeRecent": "Remove from recent",
+    "removeFilter": "Remove filter {{filter}}",
+    "use": "Use “{{value}}”",
+    "filterHint": "Filter:",
+    "short": {
+      "calendar": "Calendar",
+      "attendee": "Attendee",
+      "date": "Date"
+    },
+    "date": {
+      "today": "Today",
+      "tomorrow": "Tomorrow",
+      "week": "Within 7 days",
+      "month": "Within a month",
+      "upcoming": "Upcoming",
+      "past": "Past",
+      "before": "Before a date…",
+      "after": "After a date…"
+    },
+    "upcoming": "UPCOMING",
+    "past": "PAST",
+    "truncated": "Showing the first {{count}}, add a filter to narrow down",
+    "fromServer": "MORE FROM THE SERVER",
+    "noResults": "No results",
+    "noResultsHint": "Try fewer filters or a simpler word.",
+    "offlineNote": "Offline — showing local results only",
+    "serverFailed": "The server could not be reached — showing local results only",
+    "openFailed": "Could not open this event"
   }
 }
