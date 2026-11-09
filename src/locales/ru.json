@@ -164,6 +164,7 @@
     "recurring": "Повторяющееся",
     "joinTalkRoom": "Войти в комнату Talk",
     "deleteEvent": "Удалить событие",
+    "duplicateEvent": "Дублировать событие",
     "delete": "Удалить",
     "allDayTime": "Весь день",
     "recurrenceScopeMessage": "Какие события вы хотите изменить?",
@@ -176,6 +177,7 @@
     "errorCreateFailed": "Не удалось создать событие",
     "errorUpdateFailed": "Не удалось обновить событие",
     "errorDeleteFailed": "Не удалось удалить событие",
+    "errorDuplicateFailed": "Не удалось дублировать событие",
     "alerts": "Напоминания"
   },
   "settings": {

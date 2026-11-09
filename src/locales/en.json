@@ -164,6 +164,7 @@
     "recurring": "Recurring",
     "joinTalkRoom": "Join Talk Room",
     "deleteEvent": "Delete Event",
+    "duplicateEvent": "Duplicate event",
     "delete": "Delete",
     "allDayTime": "All day",
     "recurrenceScopeMessage": "Which events do you want to modify?",
@@ -176,6 +177,7 @@
     "errorCreateFailed": "Failed to create event",
     "errorUpdateFailed": "Failed to update event",
     "errorDeleteFailed": "Failed to delete event",
+    "errorDuplicateFailed": "Failed to duplicate event",
     "alerts": "Alerts"
   },
   "settings": {

@@ -164,6 +164,7 @@
     "recurring": "Récurrent",
     "joinTalkRoom": "Rejoindre la salle Talk",
     "deleteEvent": "Supprimer l'événement",
+    "duplicateEvent": "Dupliquer l'événement",
     "delete": "Supprimer",
     "allDayTime": "Toute la journée",
     "recurrenceScopeMessage": "Quels événements souhaitez-vous modifier ?",
@@ -176,6 +177,7 @@
     "errorCreateFailed": "Échec de la création de l'événement",
     "errorUpdateFailed": "Échec de la mise à jour de l'événement",
     "errorDeleteFailed": "Échec de la suppression de l'événement",
+    "errorDuplicateFailed": "Échec de la duplication de l'événement",
     "alerts": "Alertes"
   },
   "settings": {

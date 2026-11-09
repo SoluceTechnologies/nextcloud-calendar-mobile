@@ -1,0 +1,13 @@
+appId: com.soluce.nextcloudcalendar
+---
+- runFlow: ../shared/ensure-home.yaml
+- runFlow: ../shared/open-event.yaml
+- tapOn:
+    id: event-detail-duplicate
+- extendedWaitUntil:
+    visible:
+      id: event-detail-delete
+    timeout: 30000
+- assertVisible: ${TITLE}
+- pressBack
+- assertVisible: ${TITLE}

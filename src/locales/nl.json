@@ -164,6 +164,7 @@
     "recurring": "Terugkerend",
     "joinTalkRoom": "Deelnemen aan Talk-ruimte",
     "deleteEvent": "Afspraak verwijderen",
+    "duplicateEvent": "Afspraak dupliceren",
     "delete": "Verwijderen",
     "allDayTime": "Hele dag",
     "recurrenceScopeMessage": "Welke afspraken wil je wijzigen?",
@@ -176,6 +177,7 @@
     "errorCreateFailed": "Aanmaken van afspraak mislukt",
     "errorUpdateFailed": "Bijwerken van afspraak mislukt",
     "errorDeleteFailed": "Verwijderen van afspraak mislukt",
+    "errorDuplicateFailed": "Dupliceren van afspraak mislukt",
     "alerts": "Herinneringen"
   },
   "settings": {

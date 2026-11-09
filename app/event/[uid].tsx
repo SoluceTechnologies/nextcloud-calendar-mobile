@@ -5,7 +5,7 @@ import * as Clipboard from 'expo-clipboard';
 import { haptic } from '@/utils/haptics';
 import {
   Pencil, Clock, CalendarDays, MapPin, Video, Repeat, Trash2, Copy, Check, Bell,
-  Navigation,
+  Navigation, CopyPlus,
 } from 'lucide-react-native';
 import { useLocalSearchParams, useNavigation, useRouter, useTheme } from 'expo-router';
 import dayjs from 'dayjs';
@@ -16,7 +16,7 @@ import { parseRrule } from '@/features/calendar/utils/parseRrule';
 import { formatRecurrenceRule } from '@/features/event/utils/recurrencePattern';
 import { useCalendars } from '@/hooks/useCalendars';
 import { useAccounts } from '@/hooks/useAccounts';
-import { useDeleteEvent } from '@/features/event/hooks/useMutateEvent';
+import { useDeleteEvent, useDuplicateEvent } from '@/features/event/hooks/useMutateEvent';
 import { useEventLocation } from '@/features/map/hooks/useEventLocation';
 import { EventMapPreview, EventMapSheet } from '@/features/map/components';
 import { openMaps } from '@/features/map/utils/mapLinks';
@@ -72,6 +72,7 @@ export default function EventDetailScreen() {
 
   const calendar = calendars.find((c) => c.id === event?.calendarId);
   const deleteMutation = useDeleteEvent(activeAccount!);
+  const duplicateMutation = useDuplicateEvent(activeAccount!, calendars);
 
   const canEdit = !calendar?.isReadOnly && !calendar?.isSubscribed && !event?.isTask;
   const eventsLoading = event === undefined;
@@ -150,6 +151,13 @@ export default function EventDetailScreen() {
     } else {
       doDelete('all');
     }
+  }
+
+  async function handleDuplicate() {
+    if (!event) return;
+    await duplicateMutation.mutateAsync({ event });
+    const copyUid = duplicateMutation.getDuplicatedUid();
+    if (copyUid) router.push(`/event/${encodeURIComponent(copyUid)}`);
   }
 
   const recurrenceLabel = useMemo(() => {
@@ -368,16 +376,26 @@ export default function EventDetailScreen() {
 
         {canEdit && (
           <Stack
+            gap={8}
             padding={[20, 12]}
             style={[styles.footer, { paddingBottom: insets.bottom + 12, borderTopColor: theme.colors.border }]}
           >
+            <Button
+              testID="event-detail-duplicate"
+              variant="ghost"
+              title={t('event.duplicateEvent')}
+              icon={<CopyPlus size={18} color={theme.colors.primary} />}
+              loading={duplicateMutation.isPending}
+              disabled={duplicateMutation.isPending || deleteMutation.isPending}
+              onPress={handleDuplicate}
+            />
             <Button
               testID="event-detail-delete"
               variant="ghost" color="danger"
               title={t('event.deleteEvent')}
               icon={<Trash2 size={18} color={theme.colors.danger} />}
               loading={deleteMutation.isPending}
-              disabled={deleteMutation.isPending}
+              disabled={deleteMutation.isPending || duplicateMutation.isPending}
               onPress={handleDelete}
             />
           </Stack>

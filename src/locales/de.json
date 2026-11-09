@@ -164,6 +164,7 @@
     "recurring": "Wiederkehrend",
     "joinTalkRoom": "Talk-Raum beitreten",
     "deleteEvent": "Ereignis löschen",
+    "duplicateEvent": "Ereignis duplizieren",
     "delete": "Löschen",
     "allDayTime": "Ganztägig",
     "recurrenceScopeMessage": "Welche Ereignisse möchten Sie ändern?",
@@ -176,6 +177,7 @@
     "errorCreateFailed": "Ereignis konnte nicht erstellt werden",
     "errorUpdateFailed": "Ereignis konnte nicht aktualisiert werden",
     "errorDeleteFailed": "Ereignis konnte nicht gelöscht werden",
+    "errorDuplicateFailed": "Ereignis konnte nicht dupliziert werden",
     "alerts": "Erinnerungen"
   },
   "settings": {

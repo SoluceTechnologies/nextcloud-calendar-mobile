@@ -107,6 +107,7 @@ Create, view, and edit calendar events with support for:
 - Attendee lists with display names
 - Recurring event detection
 - Multiple reminders per event, configurable defaults, and custom offsets
+- Event duplication from the detail view — a byte-level copy of the stored event (attendees, alarms, recurrence, overrides) under a fresh UID
 
 ### Nextcloud Talk Integration
 Optionally attach a Nextcloud Talk room to any event at creation time, the Talk link is stored in the event and surfaced in the event detail view.

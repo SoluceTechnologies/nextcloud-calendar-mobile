@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { Alert } from 'react-native';
 import * as Crypto from 'expo-crypto';
 import dayjs from 'dayjs';
@@ -6,7 +6,7 @@ import dayjs from 'dayjs';
 import { putEvent, updateEvent, deleteEvent, moveEvent, fetchEventIcs } from '@/services/nextcloud/caldav';
 import { createTalkRoom } from '@/services/nextcloud/talk';
 import { describeMutationError } from '@/services/shared/errors';
-import { buildIcs, buildAllDayIcs, buildExceptionIcs, injectExdate, truncateRruleUntil, shiftIcsDates, upsertOverride } from '@/utils/ics';
+import { buildIcs, buildAllDayIcs, buildExceptionIcs, cloneEventIcs, injectExdate, truncateRruleUntil, shiftIcsDates, upsertOverride } from '@/utils/ics';
 import { parseIcsObjects, extractDtstartTzid, extractSequence, extractDtstartDtend, extractExtraVeventLines } from '@/utils/caldav-parse';
 import { isValidTimeZone } from '@/utils/timezone';
 import { allDayAlarmMinutes } from '@/features/notifications/alerts';
@@ -222,6 +222,45 @@ export function useCreateEvent(account: Account, calendars: CalendarMeta[]) {
       }
     }, [account, calendars]),
   );
+}
+
+export function useDuplicateEvent(account: Account, calendars: CalendarMeta[]) {
+  const uidRef = useRef<string | undefined>(undefined);
+  const action = useAction<{ event: CalendarEvent }>(
+    useCallback(async ({ event }) => {
+      const calendar = resolveCalendar(calendars, event.calendarId);
+      if (!calendar) return;
+
+      const newUid = Crypto.randomUUID();
+      let cloneIcs: string;
+      try {
+        cloneIcs = cloneEventIcs(await fetchEventIcs(account, event.href), newUid);
+      } catch (error) {
+        Alert.alert(i18n.t('event.errorDuplicateFailed'), describeMutationError(error));
+        return;
+      }
+
+      // Same optimistic window convention as create — occurrences outside it appear at
+      // the next sync; a non-recurring copy parses range-free anyway.
+      const optimistic = parseIcsObjects(
+        [{ ics: cloneIcs, href: `${calendar.url}${newUid}.ics` }],
+        { calendarId: calendar.id, accountId: account.id, color: calendar.color },
+        dayjs(event.dtstart).subtract(1, 'month').toDate(),
+        dayjs(event.dtstart).add(3, 'month').toDate(),
+      );
+      await insertEvents(optimistic);
+
+      try {
+        await putEvent(account, calendar, newUid, cloneIcs);
+      } catch (error) {
+        await removeWhere(account.id, (e) => seriesBaseUid(e.uid) === newUid);
+        Alert.alert(i18n.t('event.errorDuplicateFailed'), describeMutationError(error));
+        return;
+      }
+      uidRef.current = optimistic[0]?.uid ?? newUid;
+    }, [account, calendars]),
+  );
+  return { ...action, getDuplicatedUid: () => uidRef.current };
 }
 
 export function useUpdateEvent(account: Account, calendars: CalendarMeta[]) {

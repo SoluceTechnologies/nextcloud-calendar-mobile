@@ -302,3 +302,19 @@ export function truncateRruleUntil(masterIcs: string, newUntil: Date): string {
             .replace(/(RRULE:[^\r\n]*);(UNTIL|COUNT)=[^\r\n;]*/g, '$1')
             .replace(/(RRULE:[^\r\n]*)/, `$1;UNTIL=${utcStamp(newUntil)}`));
 }
+
+/**
+ * Duplicates a stored event resource under a fresh UID — byte-level surgery applied to
+ * EVERY VEVENT block (master + RECURRENCE-ID overrides), so alarms, recurrence, extra
+ * attendees params and unknown props survive untouched. A PUT create needs no SEQUENCE
+ * line, so a missing one is left missing rather than inserted.
+ */
+export function cloneEventIcs(ics: string, newUid: string, now: Date = new Date()): string {
+    const stamp = utcStamp(now);
+    return ics.replace(/BEGIN:VEVENT[\s\S]*?END:VEVENT/g, (block) =>
+        block
+            // UID can be folded across lines (>75 chars) — consume continuations too.
+            .replace(/^UID:[^\r\n]*(\r?\n[ \t][^\r\n]*)*/m, `UID:${newUid}`)
+            .replace(/^DTSTAMP[^\r\n]*/m, `DTSTAMP:${stamp}`)
+            .replace(/^SEQUENCE:[^\r\n]*/m, 'SEQUENCE:0'));
+}
