@@ -2,8 +2,8 @@ import { useCallback, useState } from 'react';
 import { Alert } from 'react-native';
 
 import type { Account, CalendarEvent, InvitationResponse } from '@/types';
-import { patchByUid, removeWhere, seriesBaseUid } from '@/database/eventWrites';
-import { isAttendeeOfAccount } from '@/utils/attendees';
+import { patchByUid, seriesBaseUid } from '@/database/eventWrites';
+import { findAttendeeForAccount } from '@/utils/attendees';
 import { describeMutationError } from '@/services/shared/errors';
 import i18n from '@/utils/i18n';
 
@@ -18,16 +18,11 @@ export function useUpdateAttendeeStatus(account: Account | null) {
         const { updateAttendeeStatus } = await import('@/services/nextcloud/invitations');
         const nextAttendees = await updateAttendeeStatus(account, event, response);
 
-        if (response === 'declined') {
-          await removeWhere(
-            account.id,
-            (e) => seriesBaseUid(e.uid) === seriesBaseUid(event.uid),
-          );
-          return;
-        }
-
+        const mine = findAttendeeForAccount(event.attendees, account);
         const attendeesToWrite = nextAttendees ?? event.attendees.map((att) =>
-          isAttendeeOfAccount(att, account) ? { ...att, partstat: response } : att
+          mine && att.email.toLowerCase() === mine.email.toLowerCase()
+            ? { ...att, partstat: response }
+            : att
         );
         await patchByUid(account.id, seriesBaseUid(event.uid), { attendees: attendeesToWrite });
       } catch (error) {

@@ -51,7 +51,23 @@ export function isAttendeeOfAccount(attendee: Attendee, account: Account): boole
 }
 
 export function findAttendeeForAccount(attendees: Attendee[], account: Account): Attendee | undefined {
-  return attendees.find((att) => isAttendeeOfAccount(att, account));
+  const accountEmail = account.email?.toLowerCase();
+  if (accountEmail) {
+    return attendees.find((att) => att.email?.toLowerCase() === accountEmail);
+  }
+  // Without a configured account email, the username@ heuristic must be unambiguous:
+  // bob@a.com and bob@b.com both match user 'bob' — picking one would reply as the
+  // wrong person, so no candidate is better than a guessed one.
+  const matches = attendees.filter((att) => isAttendeeOfAccount(att, account));
+  return matches.length === 1 ? matches[0] : undefined;
+}
+
+export function isOrganizerOfAccount(event: CalendarEvent, account: Account | null): boolean {
+  if (!account || !event.organizerEmail) return false;
+  const organizer = event.organizerEmail.toLowerCase();
+  const accountEmail = account.email?.toLowerCase();
+  if (accountEmail) return organizer === accountEmail;
+  return organizer.startsWith(`${account.username.toLowerCase()}@`) || organizer === account.username.toLowerCase();
 }
 
 export function getAttendeePartstat(event: CalendarEvent, account: Account): string | undefined {

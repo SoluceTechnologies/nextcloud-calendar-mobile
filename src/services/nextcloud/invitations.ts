@@ -2,7 +2,7 @@ import ICAL from 'ical.js';
 
 import type { Account, Attendee, CalendarEvent, CalendarInvitation, CalendarMeta, InvitationResponse } from '@/types';
 import { parseIcsToJcal, parseIcsItem, resolveInstant, extractDtstartTzid } from '@/utils/caldav-parse';
-import { davFetch, splitResponses, decodeXmlEntities, fetchEventIcs, updateEvent, deleteEvent } from './caldav';
+import { davFetch, splitResponses, decodeXmlEntities, fetchEventIcs, updateEvent } from './caldav';
 
 function uidQueryBody(uid: string): string {
   return `<?xml version="1.0" encoding="utf-8" ?>
@@ -81,23 +81,29 @@ function findTargetAttendee(
   const props = vevent.getAllProperties('attendee');
   const accountEmail = account.email?.toLowerCase();
   const accountUsername = account.username.toLowerCase();
+  let fallbackMatch: { email: string; displayName?: string } | undefined;
+  let fallbackCount = 0;
 
   for (const prop of props) {
     const value = (prop.getFirstValue() as string | null) ?? '';
     const email = value.replace(/^mailto:/i, '').toLowerCase();
-    const partstat = (prop.getParameter('partstat') as string | undefined)?.toLowerCase() ?? '';
     if (!email) continue;
 
-    const isMatch = accountEmail
-      ? email === accountEmail
-      : email.startsWith(`${accountUsername}@`) || email === accountUsername;
-
-    if (isMatch) {
+    if (accountEmail && email === accountEmail) {
       const displayName = (prop.getParameter('cn') as string | undefined) ?? undefined;
       return { email: value.replace(/^mailto:/i, ''), displayName };
     }
+    if (!accountEmail && (email.startsWith(`${accountUsername}@`) || email === accountUsername)) {
+      fallbackCount += 1;
+      if (!fallbackMatch) {
+        const displayName = (prop.getParameter('cn') as string | undefined) ?? undefined;
+        fallbackMatch = { email: value.replace(/^mailto:/i, ''), displayName };
+      }
+    }
   }
-  return undefined;
+  // Without a configured account email, only trust the username@ heuristic when it is
+  // unambiguous — bob@a.com vs bob@b.com must not pick the wrong attendee.
+  return fallbackCount === 1 ? fallbackMatch : undefined;
 }
 
 function partstatOf(vevent: ICAL.Component, targetEmail: string): string {
@@ -253,15 +259,6 @@ function removeMethod(comp: ICAL.Component): void {
   if (method) comp.removeProperty(method);
 }
 
-function setMethod(comp: ICAL.Component, method: string): void {
-  const existing = comp.getFirstProperty('method');
-  if (existing) {
-    existing.setValue(method);
-  } else {
-    comp.addPropertyWithValue('method', method);
-  }
-}
-
 function updateDtstamp(vevent: ICAL.Component): void {
   const now = ICAL.Time.now();
   const dtstamp = vevent.getFirstProperty('dtstamp');
@@ -288,15 +285,30 @@ function buildUpdatedCalendarIcs(
 ): string {
   const jcal = parseIcsToJcal(rawIcs);
   const comp = new ICAL.Component(jcal);
-  const vevent = masterVevent(comp);
-  if (!vevent) throw new Error('No VEVENT found in ICS');
+  const vevents = comp.getAllSubcomponents('vevent');
+  if (!vevents.length) throw new Error('No VEVENT found in ICS');
 
   removeMethod(comp);
-  updateAttendeePartstat(vevent, targetEmail, response);
-  updateDtstamp(vevent);
+  // Patch the reply state on the master AND every override: all instances share the
+  // same ATTENDEE set, and a series-level reply must be consistent everywhere.
+  // SEQUENCE is deliberately left untouched — per RFC 5546 §3.2.3 a REPLY carries the
+  // SEQUENCE of the REQUEST it answers (unlike organizer updates in useMutateEvent).
+  for (const vevent of vevents) {
+    updateAttendeePartstat(vevent, targetEmail, response);
+    updateDtstamp(vevent);
+  }
   updateProdid(comp);
 
   return ICAL.stringify(comp.jCal);
+}
+
+function setMethod(comp: ICAL.Component, method: string): void {
+  const existing = comp.getFirstProperty('method');
+  if (existing) {
+    existing.setValue(method);
+  } else {
+    comp.addPropertyWithValue('method', method);
+  }
 }
 
 function buildReplyIcsFromRaw(
@@ -306,12 +318,22 @@ function buildReplyIcsFromRaw(
 ): string {
   const jcal = parseIcsToJcal(rawIcs);
   const comp = new ICAL.Component(jcal);
-  const vevent = masterVevent(comp);
-  if (!vevent) throw new Error('No VEVENT found in ICS');
+  const master = masterVevent(comp);
+  if (!master) throw new Error('No VEVENT found in ICS');
+
+  // iTIP REPLY (RFC 5546 §3.2.3) carries the master VEVENT only, with the replier's
+  // ATTENDEE line as the sole ATTENDEE — SEQUENCE stays as sent by the REQUEST.
+  for (const vevent of comp.getAllSubcomponents('vevent')) {
+    if (vevent !== master) comp.removeSubcomponent(vevent);
+  }
+  for (const prop of master.getAllProperties('attendee')) {
+    const email = ((prop.getFirstValue() as string | null) ?? '').replace(/^mailto:/i, '').toLowerCase();
+    if (email !== targetEmail.toLowerCase()) master.removeProperty(prop);
+  }
 
   setMethod(comp, 'REPLY');
-  updateAttendeePartstat(vevent, targetEmail, response);
-  updateDtstamp(vevent);
+  updateAttendeePartstat(master, targetEmail, response);
+  updateDtstamp(master);
   updateProdid(comp);
 
   return ICAL.stringify(comp.jCal);
@@ -324,21 +346,18 @@ function buildAcceptedEventIcs(
   return buildUpdatedCalendarIcs(invitation.ics, invitation.attendeeEmail, response);
 }
 
-function buildReplyIcs(
-  invitation: CalendarInvitation,
-  response: InvitationResponse,
-): string {
-  return buildReplyIcsFromRaw(invitation.ics, invitation.attendeeEmail, response);
-}
-
 export async function respondToInvitation(
   account: Account,
   invitation: CalendarInvitation,
   response: InvitationResponse,
   targetCalendar: CalendarMeta,
 ): Promise<void> {
-  if (response === 'declined') {
-    const replyIcs = buildReplyIcs(invitation, response);
+  const existingHref = await findExistingEventHref(account, targetCalendar, invitation.uid);
+
+  if (response === 'declined' && !existingHref) {
+    // Nothing to PUT the reply on (the event is not in a calendar yet): deliver the
+    // REPLY through the scheduling outbox instead of creating a declined copy.
+    const replyIcs = buildReplyIcsFromRaw(invitation.ics, invitation.attendeeEmail, response);
     const outboxUrl = `${account.baseUrl}/remote.php/dav/calendars/${encodeURIComponent(account.davUserId)}/outbox/`;
     const postRes = await davFetch(outboxUrl, account, {
       method: 'POST',
@@ -348,16 +367,14 @@ export async function respondToInvitation(
     if (!postRes.ok && postRes.status !== 403 && postRes.status !== 404) {
       console.warn(`[respondToInvitation] outbox POST HTTP ${postRes.status}`);
     }
-    const existingHref = await findExistingEventHref(account, targetCalendar, invitation.uid);
-    if (existingHref) {
-      await davFetch(existingHref, account, { method: 'DELETE' });
-    }
     await davFetch(invitation.href, account, { method: 'DELETE' });
     return;
   }
 
+  // A single PUT of the calendar object is enough: the server's iTIP broker generates
+  // the REPLY to the organizer on attendee writes (create with PARTSTAT set, or update).
+  // No scheduling outbox POST — it would double-notify the organizer.
   const eventIcs = buildAcceptedEventIcs(invitation, response);
-  const existingHref = await findExistingEventHref(account, targetCalendar, invitation.uid);
   const url = existingHref ?? `${targetCalendar.url}${encodeURIComponent(invitation.uid)}.ics`;
   const putRes = await davFetch(url, account, {
     method: 'PUT',
@@ -366,17 +383,6 @@ export async function respondToInvitation(
   });
   if (!putRes.ok) {
     throw new Error(`respondToInvitation PUT HTTP ${putRes.status}`);
-  }
-
-  const replyIcs = buildReplyIcs(invitation, response);
-  const outboxUrl = `${account.baseUrl}/remote.php/dav/calendars/${encodeURIComponent(account.davUserId)}/outbox/`;
-  const postRes = await davFetch(outboxUrl, account, {
-    method: 'POST',
-    headers: { 'Content-Type': 'text/calendar; charset=utf-8' },
-    body: replyIcs,
-  });
-  if (!postRes.ok && postRes.status !== 403 && postRes.status !== 404) {
-    console.warn(`[respondToInvitation] outbox POST HTTP ${postRes.status}`);
   }
 
   await davFetch(invitation.href, account, { method: 'DELETE' });
@@ -395,34 +401,10 @@ export async function updateAttendeeStatus(
   const targetAttendee = findTargetAttendee(vevent, account);
   if (!targetAttendee) throw new Error('Current account is not an attendee of this event');
 
-  const outboxUrl = `${account.baseUrl}/remote.php/dav/calendars/${encodeURIComponent(account.davUserId)}/outbox/`;
-
-  if (response === 'declined') {
-    const replyIcs = buildReplyIcsFromRaw(rawIcs, targetAttendee.email, response);
-    const postRes = await davFetch(outboxUrl, account, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/calendar; charset=utf-8' },
-      body: replyIcs,
-    });
-    if (!postRes.ok && postRes.status !== 403 && postRes.status !== 404) {
-      console.warn(`[updateAttendeeStatus] outbox POST HTTP ${postRes.status}`);
-    }
-    await deleteEvent(account, event.href);
-    return undefined;
-  }
-
+  // Declining writes PARTSTAT=DECLINED like any other reply: the resource is kept so the
+  // response can still change later (web parity), and the server schedules the REPLY.
   const updatedIcs = buildUpdatedCalendarIcs(rawIcs, targetAttendee.email, response);
   await updateEvent(account, event.href, updatedIcs);
-
-  const replyIcs = buildReplyIcsFromRaw(rawIcs, targetAttendee.email, response);
-  const postRes = await davFetch(outboxUrl, account, {
-    method: 'POST',
-    headers: { 'Content-Type': 'text/calendar; charset=utf-8' },
-    body: replyIcs,
-  });
-  if (!postRes.ok && postRes.status !== 403 && postRes.status !== 404) {
-    console.warn(`[updateAttendeeStatus] outbox POST HTTP ${postRes.status}`);
-  }
 
   const parsed = parseIcsItem(
     { ics: updatedIcs, href: event.href },

@@ -133,12 +133,11 @@ describe('respondToInvitation', () => {
     mockFetch
       .mockResolvedValueOnce({ ok: true, status: 207, text: async () => '<d:multistatus xmlns:d="DAV:"></d:multistatus>' }) // REPORT: no existing event
       .mockResolvedValueOnce({ ok: true, status: 201 }) // PUT
-      .mockResolvedValueOnce({ ok: false, status: 404 }) // outbox POST ignored
-      .mockResolvedValueOnce({ ok: true, status: 204 }); // DELETE
+      .mockResolvedValueOnce({ ok: true, status: 204 }); // DELETE inbox item
 
     await respondToInvitation(account, invitation, 'accepted', targetCalendar);
 
-    expect(mockFetch).toHaveBeenCalledTimes(4);
+    expect(mockFetch).toHaveBeenCalledTimes(3);
     const putCall = mockFetch.mock.calls[1];
     expect(putCall[0]).toBe('https://cloud.example.com/remote.php/dav/calendars/bob/personal/invite-001.ics');
     expect(putCall[1].method).toBe('PUT');
@@ -147,19 +146,21 @@ describe('respondToInvitation', () => {
     expect(unfolded).toContain('PARTSTAT=ACCEPTED');
     expect(unfolded).not.toMatch(/^METHOD:/m);
 
-    const deleteCall = mockFetch.mock.calls[3];
+    // No scheduling outbox POST — the server's iTIP broker delivers the REPLY itself.
+    expect(mockFetch.mock.calls.some((c) => c[1].method === 'POST')).toBe(false);
+
+    const deleteCall = mockFetch.mock.calls[2];
     expect(deleteCall[0]).toBe(invitation.href);
     expect(deleteCall[1].method).toBe('DELETE');
   });
 
-  it('decline sends a reply, deletes the calendar event, and deletes the inbox item', async () => {
+  it('decline PUTs PARTSTAT=DECLINED on the existing copy and removes the inbox item', async () => {
     const invitation = parseInvitation({
       ics: makeInvitationIcs(),
       href: 'https://cloud.example.com/remote.php/dav/calendars/bob/inbox/invite-001.ics',
     }, account)!;
 
     mockFetch
-      .mockResolvedValueOnce({ ok: false, status: 404 }) // outbox POST ignored
       .mockResolvedValueOnce({
         ok: true,
         status: 207,
@@ -169,37 +170,69 @@ describe('respondToInvitation', () => {
           </d:response>
         </d:multistatus>`,
       }) // REPORT: existing calendar event
-      .mockResolvedValueOnce({ ok: true, status: 204 }) // DELETE calendar event
+      .mockResolvedValueOnce({ ok: true, status: 204 }) // PUT DECLINED
       .mockResolvedValueOnce({ ok: true, status: 204 }); // DELETE inbox item
 
     await respondToInvitation(account, invitation, 'declined', targetCalendar);
 
-    expect(mockFetch).toHaveBeenCalledTimes(4);
+    expect(mockFetch).toHaveBeenCalledTimes(3);
 
-    const reportCall = mockFetch.mock.calls[1];
-    expect(reportCall[0]).toBe(targetCalendar.url);
-    expect(reportCall[1].method).toBe('REPORT');
+    const putCall = mockFetch.mock.calls[1];
+    expect(putCall[0]).toBe('https://cloud.example.com/remote.php/dav/calendars/bob/personal/invite-001.ics');
+    expect(putCall[1].method).toBe('PUT');
+    const putBody = (putCall[1].body as string).replace(/\r?\n[ \t]/g, '');
+    expect(putBody).toContain('PARTSTAT=DECLINED');
+    expect(putBody).not.toMatch(/^METHOD:/m);
 
-    const deleteCalendarCall = mockFetch.mock.calls[2];
-    expect(deleteCalendarCall[0]).toBe('https://cloud.example.com/remote.php/dav/calendars/bob/personal/invite-001.ics');
-    expect(deleteCalendarCall[1].method).toBe('DELETE');
+    // The event resource is kept (web parity) — only the inbox message is deleted.
+    const deleteCall = mockFetch.mock.calls[2];
+    expect(deleteCall[0]).toBe(invitation.href);
+    expect(deleteCall[1].method).toBe('DELETE');
+  });
 
-    const deleteInboxCall = mockFetch.mock.calls[3];
-    expect(deleteInboxCall[0]).toBe(invitation.href);
-    expect(deleteInboxCall[1].method).toBe('DELETE');
+  it('decline without an existing copy sends a stripped REPLY via the scheduling outbox', async () => {
+    const invitation = parseInvitation({
+      ics: makeInvitationIcs(
+        'ATTENDEE;CUTYPE=INDIVIDUAL;ROLE=REQ-PARTICIPANT;RSVP=TRUE;PARTSTAT=NEEDS-ACTION;CN=Carol:mailto:carol@example.com\r\n',
+      ),
+      href: 'https://cloud.example.com/remote.php/dav/calendars/bob/inbox/invite-001.ics',
+    }, account)!;
+
+    mockFetch
+      .mockResolvedValueOnce({ ok: true, status: 207, text: async () => '<d:multistatus xmlns:d="DAV:"></d:multistatus>' }) // REPORT: no existing event
+      .mockResolvedValueOnce({ ok: true, status: 200 }) // outbox POST
+      .mockResolvedValueOnce({ ok: true, status: 204 }); // DELETE inbox item
+
+    await respondToInvitation(account, invitation, 'declined', targetCalendar);
+
+    expect(mockFetch).toHaveBeenCalledTimes(3);
+
+    const postCall = mockFetch.mock.calls[1];
+    expect(postCall[0]).toBe('https://cloud.example.com/remote.php/dav/calendars/bob/outbox/');
+    expect(postCall[1].method).toBe('POST');
+    const replyUnfolded = (postCall[1].body as string).replace(/\r?\n[ \t]/g, '');
+    expect(replyUnfolded).toContain('METHOD:REPLY');
+    expect(replyUnfolded).toContain('PARTSTAT=DECLINED');
+    // RFC 5546 §3.2.3 — only the replier's ATTENDEE line, other attendees stripped.
+    expect(replyUnfolded).toContain('mailto:bob@example.com');
+    expect(replyUnfolded).not.toContain('mailto:carol@example.com');
+    expect((replyUnfolded.match(/ATTENDEE/g) ?? [])).toHaveLength(1);
+
+    const deleteCall = mockFetch.mock.calls[2];
+    expect(deleteCall[0]).toBe(invitation.href);
+    expect(deleteCall[1].method).toBe('DELETE');
   });
 });
 
 describe('updateAttendeeStatus', () => {
-  it('PUTs the updated event and sends a REPLY when changing to tentative', async () => {
+  it('PUTs the updated event and relies on server scheduling when changing to tentative', async () => {
     mockFetch
       .mockResolvedValueOnce({ ok: true, status: 200, text: async () => makeCalendarEventIcs() }) // GET
-      .mockResolvedValueOnce({ ok: true, status: 204 }) // PUT
-      .mockResolvedValueOnce({ ok: true, status: 200 }); // outbox POST
+      .mockResolvedValueOnce({ ok: true, status: 204 }); // PUT
 
     const nextAttendees = await updateAttendeeStatus(account, existingEvent, 'tentative');
 
-    expect(mockFetch).toHaveBeenCalledTimes(3);
+    expect(mockFetch).toHaveBeenCalledTimes(2);
 
     const getCall = mockFetch.mock.calls[0];
     expect(getCall[0]).toBe(existingEvent.href);
@@ -213,40 +246,66 @@ describe('updateAttendeeStatus', () => {
     expect(unfolded).toContain('PARTSTAT=TENTATIVE');
     expect(unfolded).toContain('RSVP=FALSE');
     expect(unfolded).not.toMatch(/^METHOD:/m);
-
-    const postCall = mockFetch.mock.calls[2];
-    expect(postCall[0]).toBe('https://cloud.example.com/remote.php/dav/calendars/bob/outbox/');
-    expect(postCall[1].method).toBe('POST');
-    const postBody = postCall[1].body as string;
-    const postUnfolded = postBody.replace(/\r?\n[ \t]/g, '');
-    expect(postUnfolded).toContain('METHOD:REPLY');
-    expect(postUnfolded).toContain('PARTSTAT=TENTATIVE');
+    // REPLY must not bump the organizer's SEQUENCE.
+    expect(unfolded).toContain('SEQUENCE:1');
 
     expect(nextAttendees).toEqual([
-      { email: 'bob@example.com', displayName: 'Bob', partstat: 'tentative', role: 'REQ-PARTICIPANT' },
+      expect.objectContaining({
+        email: 'bob@example.com',
+        displayName: 'Bob',
+        partstat: 'tentative',
+        role: 'REQ-PARTICIPANT',
+        rsvp: false,
+      }),
     ]);
   });
 
-  it('sends a REPLY and DELETEs the event when declining', async () => {
+  it('decline PUTs PARTSTAT=DECLINED and keeps the event resource', async () => {
     mockFetch
       .mockResolvedValueOnce({ ok: true, status: 200, text: async () => makeCalendarEventIcs() }) // GET
-      .mockResolvedValueOnce({ ok: true, status: 200 }) // outbox POST
-      .mockResolvedValueOnce({ ok: true, status: 204 }); // DELETE
+      .mockResolvedValueOnce({ ok: true, status: 204 }); // PUT
 
     const nextAttendees = await updateAttendeeStatus(account, existingEvent, 'declined');
 
-    expect(mockFetch).toHaveBeenCalledTimes(3);
+    expect(mockFetch).toHaveBeenCalledTimes(2);
 
-    const postCall = mockFetch.mock.calls[1];
-    expect(postCall[1].method).toBe('POST');
-    const postBody = postCall[1].body as string;
-    expect(postBody.replace(/\r?\n[ \t]/g, '')).toContain('PARTSTAT=DECLINED');
+    const putCall = mockFetch.mock.calls[1];
+    expect(putCall[1].method).toBe('PUT');
+    const putBody = (putCall[1].body as string).replace(/\r?\n[ \t]/g, '');
+    expect(putBody).toContain('PARTSTAT=DECLINED');
 
-    const deleteCall = mockFetch.mock.calls[2];
-    expect(deleteCall[0]).toBe(existingEvent.href);
-    expect(deleteCall[1].method).toBe('DELETE');
+    expect(mockFetch.mock.calls.some((c) => c[1].method === 'DELETE')).toBe(false);
 
-    expect(nextAttendees).toBeUndefined();
+    expect(nextAttendees).toEqual([
+      expect.objectContaining({ email: 'bob@example.com', partstat: 'declined' }),
+    ]);
+  });
+
+  it('patches PARTSTAT on recurrence overrides too, not only the master VEVENT', async () => {
+    const override = `BEGIN:VEVENT\r\nUID:invite-001\r\nRECURRENCE-ID;TZID=Europe/Paris:20260904T140000\r\nDTSTAMP:20260827T120000Z\r\nSEQUENCE:1\r\nDTSTART;TZID=Europe/Paris:20260904T140000\r\nDTEND;TZID=Europe/Paris:20260904T150000\r\nSUMMARY:Team meeting (moved)\r\nORGANIZER;CN=Alice:mailto:alice@example.com\r\nATTENDEE;CUTYPE=INDIVIDUAL;ROLE=REQ-PARTICIPANT;RSVP=FALSE;PARTSTAT=ACCEPTED;CN=Bob:mailto:bob@example.com\r\nEND:VEVENT\r\n`;
+    const recurringIcs = `BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//Test//EN\r\nBEGIN:VEVENT\r\nUID:invite-001\r\nDTSTAMP:20260827T120000Z\r\nSEQUENCE:1\r\nDTSTART;TZID=Europe/Paris:20260828T140000\r\nDTEND;TZID=Europe/Paris:20260828T150000\r\nRRULE:FREQ=WEEKLY\r\nSUMMARY:Team meeting\r\nORGANIZER;CN=Alice:mailto:alice@example.com\r\nATTENDEE;CUTYPE=INDIVIDUAL;ROLE=REQ-PARTICIPANT;RSVP=FALSE;PARTSTAT=ACCEPTED;CN=Bob:mailto:bob@example.com\r\nEND:VEVENT\r\n${override}END:VCALENDAR`;
+
+    mockFetch
+      .mockResolvedValueOnce({ ok: true, status: 200, text: async () => recurringIcs })
+      .mockResolvedValueOnce({ ok: true, status: 204 });
+
+    await updateAttendeeStatus(account, existingEvent, 'tentative');
+
+    const putBody = (mockFetch.mock.calls[1][1].body as string).replace(/\r?\n[ \t]/g, '');
+    expect(putBody.match(/PARTSTAT=TENTATIVE/g)).toHaveLength(2);
+  });
+
+  it('refuses to guess the attendee when the username fallback is ambiguous', async () => {
+    const noEmailAccount: Account = { ...account, email: undefined };
+    const ambiguousIcs = `BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//Test//EN\r\nBEGIN:VEVENT\r\nUID:invite-001\r\nDTSTAMP:20260827T120000Z\r\nDTSTART:20260828T140000Z\r\nDTEND:20260828T150000Z\r\nSUMMARY:Team meeting\r\nORGANIZER;CN=Alice:mailto:alice@example.com\r\nATTENDEE;PARTSTAT=NEEDS-ACTION:mailto:bob@a.com\r\nATTENDEE;PARTSTAT=NEEDS-ACTION:mailto:bob@b.com\r\nEND:VEVENT\r\nEND:VCALENDAR`;
+
+    mockFetch.mockResolvedValueOnce({ ok: true, status: 200, text: async () => ambiguousIcs });
+
+    await expect(updateAttendeeStatus(noEmailAccount, existingEvent, 'accepted')).rejects.toThrow(
+      'Current account is not an attendee of this event',
+    );
+    // No PUT must have happened.
+    expect(mockFetch.mock.calls.filter((c) => c[1]?.method === 'PUT')).toHaveLength(0);
   });
 
   it('throws when the current account is not an attendee', async () => {

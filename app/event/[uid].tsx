@@ -21,7 +21,7 @@ import { useEventLocation } from '@/features/map/hooks/useEventLocation';
 import { EventMapPreview, EventMapSheet } from '@/features/map/components';
 import { openMaps } from '@/features/map/utils/mapLinks';
 import { useUpdateAttendeeStatus } from '@/features/invitations/hooks/useUpdateAttendeeStatus';
-import { isCurrentUserAttendee, getAttendeePartstat } from '@/utils/attendees';
+import { isCurrentUserAttendee, isOrganizerOfAccount, getAttendeePartstat } from '@/utils/attendees';
 import { useAccountStore } from '@/stores/accountStore';
 import { useSettingsStore } from '@/stores/settingsStore';
 import { useTimeFormat } from '@/hooks/useTimeFormat';
@@ -77,7 +77,11 @@ export default function EventDetailScreen() {
   const respondMutation = useUpdateAttendeeStatus(activeAccount);
 
   const canEdit = !calendar?.isReadOnly && !calendar?.isSubscribed && !event?.isTask;
-  const isAttendee = !!event && activeAccount !== null && isCurrentUserAttendee(event, activeAccount);
+  const isAttendee =
+    !!event &&
+    activeAccount !== null &&
+    isCurrentUserAttendee(event, activeAccount) &&
+    !isOrganizerOfAccount(event, activeAccount);
   const myPartstat = event && activeAccount ? getAttendeePartstat(event, activeAccount) : undefined;
   const eventsLoading = event === undefined;
 
@@ -172,10 +176,7 @@ export default function EventDetailScreen() {
   const handleRespond = useCallback(async (response: InvitationResponse) => {
     if (!event) return;
     await respondMutation.mutateAsync(event, response);
-    if (response === 'declined') {
-      goBackOrHome(router);
-    }
-  }, [event, respondMutation, router]);
+  }, [event, respondMutation]);
 
   const isLoading = eventsLoading;
 
@@ -376,7 +377,7 @@ export default function EventDetailScreen() {
               </Stack>
             )}
 
-            {isAttendee && !calendar?.isReadOnly && (
+            {isAttendee && !calendar?.isReadOnly && !calendar?.isSubscribed && !event.isTask && (
               <Stack gap={8}>
                 <SectionHeader title={t('event.myParticipation')} />
                 <Stack card padding={16} gap={12}>

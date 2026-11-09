@@ -16,7 +16,6 @@ import { useActiveAccount } from '@/hooks/useAccounts';
 import { useAccountStore } from '@/stores/accountStore';
 import { useCalendars } from '@/hooks/useCalendars';
 import { useInvitations } from '@/features/invitations/hooks/useInvitations';
-import { respondToInvitation } from '@/services/nextcloud/invitations';
 import type { CalendarInvitation, CalendarMeta, InvitationResponse } from '@/types';
 import { goBackOrHome } from '@/utils/navigationGuard';
 import { Inbox } from 'lucide-react-native';
@@ -64,6 +63,8 @@ export default function InvitationsScreen() {
 
     setResponding((prev) => new Set([...prev, invitation.uid]));
     try {
+      // Lazy import: invitations.ts pulls in ical.js, which must load as late as possible.
+      const { respondToInvitation } = await import('@/services/nextcloud/invitations');
       await respondToInvitation(
         activeAccount,
         invitation,
