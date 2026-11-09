@@ -1,4 +1,4 @@
-import { clearGeocodeCache, geocodeLocation } from '@/features/map/utils/geocode';
+import { clearGeocodeCache, geocodeLocation, reverseGeocode } from '@/features/map/utils/geocode';
 
 describe('geocodeLocation', () => {
   let fetchSpy: jest.SpyInstance;
@@ -171,5 +171,66 @@ describe('geocodeLocation', () => {
 
     const result = await geocodeLocation('1600 Pennsylvania Avenue, Washington');
     expect(result?.lat).toBeCloseTo(38.8976763);
+  });
+});
+
+describe('reverseGeocode', () => {
+  let fetchSpy: jest.SpyInstance;
+
+  beforeEach(() => {
+    fetchSpy = jest.spyOn(globalThis as any, 'fetch').mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: () =>
+        Promise.resolve({
+          display_name: '12, Rue de la Paix, Nantes, France',
+          lat: '47.21',
+          lon: '-1.55',
+        }),
+      headers: { forEach: () => {} },
+    } as unknown as Response);
+  });
+
+  afterEach(() => {
+    fetchSpy.mockRestore();
+  });
+
+  it('returns the display name from Nominatim reverse endpoint', async () => {
+    const result = await reverseGeocode(47.2184, -1.5536);
+    expect(result).toBe('12, Rue de la Paix, Nantes, France');
+
+    const url = fetchSpy.mock.calls[0][0] as string;
+    expect(url).toMatch(/^https:\/\/nominatim.openstreetmap.org\/reverse/);
+    expect(url).toContain('lat=47.2184');
+    expect(url).toContain('lon=-1.5536');
+    expect(url).toContain('format=jsonv2');
+  });
+
+  it('passes Accept-Language header', async () => {
+    await reverseGeocode(47.2, -1.55, 'fr');
+    const init = fetchSpy.mock.calls[0][1] as { headers: Record<string, string> };
+    expect(init.headers['Accept-Language']).toBe('fr');
+    expect(init.headers['User-Agent']).toContain('Nextcloud Calendar Mobile');
+  });
+
+  it('returns null when the request fails', async () => {
+    fetchSpy.mockRejectedValueOnce(new Error('Network error'));
+    expect(await reverseGeocode(47.2, -1.55)).toBeNull();
+  });
+
+  it('returns null on non-ok response and missing display_name', async () => {
+    fetchSpy.mockResolvedValueOnce({
+      ok: false, status: 500,
+      json: () => Promise.resolve({}),
+      headers: { forEach: () => {} },
+    } as unknown as Response);
+    expect(await reverseGeocode(47.2, -1.55)).toBeNull();
+
+    fetchSpy.mockResolvedValueOnce({
+      ok: true, status: 200,
+      json: () => Promise.resolve({ error: 'Unable to geocode' }),
+      headers: { forEach: () => {} },
+    } as unknown as Response);
+    expect(await reverseGeocode(47.2, -1.55)).toBeNull();
   });
 });
