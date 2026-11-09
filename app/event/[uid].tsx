@@ -81,7 +81,7 @@ export default function EventDetailScreen() {
   const copyResetRef = useRef<ReturnType<typeof setTimeout>>(undefined);
   useEffect(() => () => clearTimeout(copyResetRef.current), []);
 
-  const { coordinates, isVirtual } = useEventLocation(event?.location, event?.talkUrl);
+  const { coordinates, isVirtual } = useEventLocation(event?.location, event?.talkUrl, event?.geo);
 
   const handleCopyLocation = useCallback(async () => {
     if (!event?.location) return;
@@ -272,12 +272,13 @@ export default function EventDetailScreen() {
                   title={event.location}
                   trailing={
                     <Stack direction="horizontal" gap={4} vAlign="center">
-                      {coordinates && !isVirtual && (
+                      {!isVirtual && (
                         <IconButton
                           variant="plain"
                           size={36}
                           onPress={handleOpenMaps}
                           accessibilityLabel={t('event.openInMaps')}
+                          testID="event-detail-navigation"
                         >
                           <Navigation size={18} color={theme.colors.textSecondary} />
                         </IconButton>
