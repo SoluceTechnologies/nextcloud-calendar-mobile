@@ -12,7 +12,9 @@
     "errorServer": "Le serveur est temporairement indisponible. Réessayez plus tard.",
     "errorRateLimited": "Trop de requêtes. Patientez un instant puis réessayez.",
     "errorRateLimitedRetry": "Trop de requêtes. Réessayez dans {{seconds}} s.",
-    "back": "Retour"
+    "back": "Retour",
+    "save": "Enregistrer",
+    "delete": "Supprimer"
   },
   "tabs": {
     "calendar": "Calendrier",
@@ -94,6 +96,9 @@
     "end": "Fin",
     "location": "Lieu",
     "locationPlaceholder": "Salle ou adresse",
+    "useMyLocation": "Utiliser ma position",
+    "locationPermissionDenied": "L'autorisation de localisation est nécessaire pour utiliser votre position",
+    "locationUnavailable": "Impossible d'obtenir votre position actuelle",
     "openInMaps": "Ouvrir dans l'app cartes",
     "description": "Description",
     "descriptionPlaceholder": "Détails...",
@@ -333,6 +338,20 @@
       "openInApp": "Application Nextcloud Talk",
       "openInBrowser": "Navigateur",
       "askEachTime": "Demander à chaque fois"
+    },
+    "places": {
+      "title": "Mes lieux",
+      "addTitle": "Ajouter un lieu",
+      "label": "Nom",
+      "labelPlaceholder": "Maison, bureau…",
+      "address": "Adresse",
+      "addressPlaceholder": "Adresse ou coordonnées",
+      "savedTitle": "Lieux enregistrés",
+      "empty": "Aucun lieu enregistré",
+      "noPosition": "Capturez votre position ou saisissez une adresse d'abord.",
+      "saveError": "Impossible d'enregistrer ce lieu.",
+      "deleteTitle": "Supprimer le lieu",
+      "deleteBody": "Supprimer « {{name}} » ?"
     }
   },
   "widget": {

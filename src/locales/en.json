@@ -12,7 +12,9 @@
     "errorServer": "The server is temporarily unavailable. Please try again later.",
     "errorRateLimited": "Too many requests. Please wait a moment and try again.",
     "errorRateLimitedRetry": "Too many requests. Please try again in {{seconds}}s.",
-    "back": "Back"
+    "back": "Back",
+    "save": "Save",
+    "delete": "Delete"
   },
   "tabs": {
     "calendar": "Calendar",
@@ -94,6 +96,9 @@
     "end": "End",
     "location": "Location",
     "locationPlaceholder": "Room or address",
+    "useMyLocation": "Use my current location",
+    "locationPermissionDenied": "Location permission is required to use your current position",
+    "locationUnavailable": "Unable to get your current location",
     "openInMaps": "Open in Maps",
     "description": "Description",
     "descriptionPlaceholder": "Details...",
@@ -333,6 +338,20 @@
       "openInApp": "Nextcloud Talk app",
       "openInBrowser": "Browser",
       "askEachTime": "Ask each time"
+    },
+    "places": {
+      "title": "My places",
+      "addTitle": "Add a place",
+      "label": "Name",
+      "labelPlaceholder": "Home, office…",
+      "address": "Address",
+      "addressPlaceholder": "Address or coordinates",
+      "savedTitle": "Saved places",
+      "empty": "No saved places yet",
+      "noPosition": "Capture your position or enter an address first.",
+      "saveError": "Unable to save this place.",
+      "deleteTitle": "Delete place",
+      "deleteBody": "Delete \"{{name}}\"?"
     }
   },
   "widget": {

@@ -24,6 +24,7 @@ export default class Event extends Model {
   @field('attendees') attendees?: string;
   @field('organizer_email') organizerEmail?: string;
   @field('talk_url') talkUrl?: string;
+  @field('geo') geo?: string;
   @field('is_recurring') isRecurring?: boolean;
   @field('rrule') rrule?: string;
   @field('recurrence_id') recurrenceId?: number;

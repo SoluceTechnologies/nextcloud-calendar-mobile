@@ -5,7 +5,7 @@ import type { CalendarEvent } from '@/types';
 import { getDatabaseInstance } from './DatabaseProvider';
 import { mapEventToShared } from './mappers/event';
 import Event from './models/Event';
-import { eventKey, markLocalWrite, prepareCreateEvent, seriesBaseUid, serializeAlarms, writeEvent } from './sync';
+import { eventKey, markLocalWrite, prepareCreateEvent, seriesBaseUid, serializeAlarms, serializeGeo, writeEvent } from './sync';
 import { safeWrite } from './utils/safeTransaction';
 
 const events = () => getDatabaseInstance().get<Event>('events');
@@ -29,7 +29,13 @@ function applyPatch(row: Event, patch: Partial<CalendarEvent>): void {
   if (patch.dtend !== undefined) row.end = patch.dtend.getTime();
   if (patch.allDay !== undefined) row.allDay = patch.allDay;
   if (patch.description !== undefined) row.description = patch.description ?? undefined;
-  if (patch.location !== undefined) row.location = patch.location ?? undefined;
+  if (patch.location !== undefined) {
+    row.location = patch.location ?? undefined;
+    // A rewritten location invalidates any coordinates bound to the old one.
+    row.geo = patch.geo !== undefined ? serializeGeo(patch.geo) : undefined;
+  } else if ('geo' in patch) {
+    row.geo = serializeGeo(patch.geo);
+  }
   if (patch.attendees !== undefined) row.attendees = JSON.stringify(patch.attendees);
   if (patch.calendarId !== undefined) row.calendarId = patch.calendarId;
   if (patch.color !== undefined) row.color = patch.color;

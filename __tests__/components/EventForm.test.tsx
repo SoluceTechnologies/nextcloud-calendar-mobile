@@ -1,5 +1,6 @@
 import { createRef, type ReactElement } from 'react';
 import { render as rtlRender, act, fireEvent, waitFor } from '@testing-library/react-native';
+import { Alert } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { ThemeWrapper } from '../helpers/theme';
 
@@ -18,9 +19,30 @@ jest.mock('@/features/event/hooks/useContactSuggestions', () => ({
   useContactSuggestions: jest.fn(),
 }));
 
+jest.mock('expo-location', () => ({
+  requestForegroundPermissionsAsync: jest.fn(),
+  getCurrentPositionAsync: jest.fn(),
+  Accuracy: { Balanced: 3 },
+}));
+
+jest.mock('@/features/map/utils/geocode', () => ({
+  reverseGeocode: jest.fn(),
+}));
+
+jest.mock('@/features/places/useSavedPlaces', () => ({
+  useSavedPlaces: jest.fn(() => []),
+}));
+
 import { useContactSuggestions } from '@/features/event/hooks/useContactSuggestions';
+import * as ExpoLocation from 'expo-location';
+import { reverseGeocode } from '@/features/map/utils/geocode';
 
 const mockedUseContactSuggestions = useContactSuggestions as jest.MockedFunction<typeof useContactSuggestions>;
+const mockedRequestPermission = ExpoLocation.requestForegroundPermissionsAsync as jest.MockedFunction<typeof ExpoLocation.requestForegroundPermissionsAsync>;
+const mockedGetPosition = ExpoLocation.getCurrentPositionAsync as jest.MockedFunction<typeof ExpoLocation.getCurrentPositionAsync>;
+const mockedReverseGeocode = reverseGeocode as jest.MockedFunction<typeof reverseGeocode>;
+import { useSavedPlaces } from '@/features/places/useSavedPlaces';
+const mockedUseSavedPlaces = useSavedPlaces as jest.MockedFunction<typeof useSavedPlaces>;
 
 beforeEach(() => {
   mockedUseContactSuggestions.mockReturnValue({ suggestions: [], loading: false, error: null });
@@ -419,6 +441,139 @@ describe('EventForm contact suggestions', () => {
     render(<EventForm {...baseProps} />);
     expect(mockedUseContactSuggestions).toHaveBeenCalledWith(
       expect.objectContaining({ account: null }),
+    );
+  });
+});
+
+describe('EventForm current location (C8b)', () => {
+  beforeEach(async () => {
+    await i18n.changeLanguage('en');
+    jest.clearAllMocks();
+    mockedRequestPermission.mockResolvedValue({ status: 'granted' } as never);
+    mockedGetPosition.mockResolvedValue({
+      coords: { latitude: 47.2184, longitude: -1.5536, altitude: null, accuracy: 10, altitudeAccuracy: null, heading: null, speed: null },
+      timestamp: Date.now(),
+    } as never);
+    mockedReverseGeocode.mockResolvedValue('12, Rue de la Paix, Nantes, France');
+  });
+
+  it('fills location and geo from the device position', async () => {
+    const formRef = createRef<EventFormHandle>();
+    const onSubmit = jest.fn();
+    const { getByTestId, getByDisplayValue } = render(
+      <EventForm ref={formRef} {...baseProps} onSubmit={onSubmit} initialValues={{ summary: 'Meet' }} />,
+    );
+
+    fireEvent.press(getByTestId('event-form-use-my-location'));
+
+    await waitFor(() => expect(getByDisplayValue('12, Rue de la Paix, Nantes, France')).toBeTruthy());
+
+    act(() => formRef.current!.submit());
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        location: '12, Rue de la Paix, Nantes, France',
+        geo: { lat: 47.2184, lon: -1.5536 },
+      }),
+    );
+  });
+
+  it('falls back to raw coordinates when reverse geocoding fails', async () => {
+    const formRef = createRef<EventFormHandle>();
+    const onSubmit = jest.fn();
+    mockedReverseGeocode.mockResolvedValue(null);
+    const { getByTestId, getByDisplayValue } = render(
+      <EventForm ref={formRef} {...baseProps} onSubmit={onSubmit} initialValues={{ summary: 'Meet' }} />,
+    );
+
+    fireEvent.press(getByTestId('event-form-use-my-location'));
+
+    await waitFor(() => expect(getByDisplayValue('47.21840, -1.55360')).toBeTruthy());
+
+    act(() => formRef.current!.submit());
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({ geo: { lat: 47.2184, lon: -1.5536 } }),
+    );
+  });
+
+  it('alerts and does not touch the form when permission is denied', async () => {
+    const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+    mockedRequestPermission.mockResolvedValue({ status: 'denied' } as never);
+    const formRef = createRef<EventFormHandle>();
+    const onSubmit = jest.fn();
+    const { getByTestId } = render(
+      <EventForm ref={formRef} {...baseProps} onSubmit={onSubmit} initialValues={{ summary: 'Meet', location: 'Office' }} />,
+    );
+
+    fireEvent.press(getByTestId('event-form-use-my-location'));
+
+    await waitFor(() => expect(alertSpy).toHaveBeenCalledWith(
+      expect.stringContaining('permission'),
+    ));
+    expect(mockedGetPosition).not.toHaveBeenCalled();
+
+    act(() => formRef.current!.submit());
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({ location: 'Office', geo: undefined }),
+    );
+    alertSpy.mockRestore();
+  });
+
+  it('alerts when the position lookup fails', async () => {
+    const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+    mockedGetPosition.mockRejectedValue(new Error('no fix'));
+    const { getByTestId } = render(<EventForm {...baseProps} initialValues={{ summary: 'Meet' }} />);
+
+    fireEvent.press(getByTestId('event-form-use-my-location'));
+
+    await waitFor(() => expect(alertSpy).toHaveBeenCalledWith(
+      expect.stringContaining('current location'),
+    ));
+    alertSpy.mockRestore();
+  });
+
+  it('clears captured coordinates when the location text is edited manually', async () => {
+    const formRef = createRef<EventFormHandle>();
+    const onSubmit = jest.fn();
+    const { getByTestId } = render(
+      <EventForm ref={formRef} {...baseProps} onSubmit={onSubmit} initialValues={{ summary: 'Meet' }} />,
+    );
+
+    fireEvent.press(getByTestId('event-form-use-my-location'));
+    await waitFor(() => expect(mockedReverseGeocode).toHaveBeenCalled());
+
+    fireEvent.changeText(getByTestId('event-form-location'), 'Somewhere else');
+    act(() => formRef.current!.submit());
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({ location: 'Somewhere else', geo: undefined }),
+    );
+  });
+});
+
+describe('EventForm saved places (C8c)', () => {
+  beforeEach(async () => {
+    await i18n.changeLanguage('en');
+    jest.clearAllMocks();
+    mockedUseSavedPlaces.mockReturnValue([
+      { id: 'p1', label: 'Bureau', address: 'Nantes', lat: 47.21, lon: -1.55, createdAt: 1 },
+    ]);
+  });
+
+  it('suggests a saved place while typing and fills location + geo on select', async () => {
+    const formRef = createRef<EventFormHandle>();
+    const onSubmit = jest.fn();
+    const { getByTestId } = render(
+      <EventForm ref={formRef} {...baseProps} onSubmit={onSubmit} initialValues={{ summary: 'Meet' }} />,
+    );
+
+    fireEvent.changeText(getByTestId('event-form-location'), 'bur');
+    fireEvent.press(getByTestId('place-suggestion-p1'));
+
+    act(() => formRef.current!.submit());
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        location: 'Bureau',
+        geo: { lat: 47.21, lon: -1.55 },
+      }),
     );
   });
 });

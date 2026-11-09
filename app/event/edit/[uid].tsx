@@ -79,6 +79,7 @@ export default function EditEventScreen() {
     dtend: event.dtend,
     description: event.description ?? '',
     location: event.location ?? '',
+    geo: event.geo,
     attendees: event.attendees,
     alarms: event.alarms,
     rrule: parseRrule(event.rrule),

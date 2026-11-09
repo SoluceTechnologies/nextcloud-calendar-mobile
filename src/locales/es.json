@@ -12,7 +12,9 @@
     "errorServer": "El servidor no está disponible temporalmente. Inténtalo más tarde.",
     "errorRateLimited": "Demasiadas solicitudes. Espera un momento e inténtalo de nuevo.",
     "errorRateLimitedRetry": "Demasiadas solicitudes. Inténtalo de nuevo en {{seconds}} s.",
-    "back": "Atrás"
+    "back": "Atrás",
+    "save": "Guardar",
+    "delete": "Eliminar"
   },
   "tabs": {
     "calendar": "Calendario",
@@ -94,6 +96,9 @@
     "end": "Fin",
     "location": "Ubicación",
     "locationPlaceholder": "Sala o dirección",
+    "useMyLocation": "Usar mi ubicación",
+    "locationPermissionDenied": "Se necesita permiso de ubicación para usar tu posición",
+    "locationUnavailable": "No se puede obtener tu ubicación actual",
     "openInMaps": "Open in Maps",
     "description": "Descripción",
     "descriptionPlaceholder": "Detalles...",
@@ -333,6 +338,20 @@
       "openInApp": "Nextcloud Talk app",
       "openInBrowser": "Browser",
       "askEachTime": "Ask each time"
+    },
+    "places": {
+      "title": "Mis lugares",
+      "addTitle": "Añadir un lugar",
+      "label": "Nombre",
+      "labelPlaceholder": "Casa, oficina…",
+      "address": "Dirección",
+      "addressPlaceholder": "Dirección o coordenadas",
+      "savedTitle": "Lugares guardados",
+      "empty": "Aún no hay lugares guardados",
+      "noPosition": "Captura tu posición o introduce una dirección primero.",
+      "saveError": "No se pudo guardar este lugar.",
+      "deleteTitle": "Eliminar lugar",
+      "deleteBody": "¿Eliminar «{{name}}»?"
     }
   },
   "widget": {

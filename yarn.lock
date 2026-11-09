@@ -1249,6 +1249,20 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@expo/image-utils@npm:^0.11.7":
+  version: 0.11.7
+  resolution: "@expo/image-utils@npm:0.11.7"
+  dependencies:
+    "@expo/require-utils": "npm:^57.0.7"
+    "@expo/spawn-async": "npm:^1.8.0"
+    chalk: "npm:^4.0.0"
+    jimp-compact: "npm:0.16.1"
+    parse-png: "npm:^2.1.0"
+    semver: "npm:^7.6.0"
+  checksum: 10c0/b295fd31ba6534709a9ebf9341477a5f9c13cb367daf6824fe3ea5c0963ab89dbfab9899296cf50d448517f11478cc446681bc8a7b171359926c9f26f07430b3
+  languageName: node
+  linkType: hard
+
 "@expo/inline-modules@npm:^0.1.4":
   version: 0.1.4
   resolution: "@expo/inline-modules@npm:0.1.4"
@@ -1453,6 +1467,22 @@ __metadata:
     typescript:
       optional: true
   checksum: 10c0/63ebc03ff9930af4c1680365b524ebe8aedab430273ad39a64c9afd5842e26fbfd7e38f10d5d2d2c6fc3849065ad1c9288a555596a1fd6fddb97c12e6844694f
+  languageName: node
+  linkType: hard
+
+"@expo/require-utils@npm:^57.0.7":
+  version: 57.0.7
+  resolution: "@expo/require-utils@npm:57.0.7"
+  dependencies:
+    "@babel/code-frame": "npm:^7.20.0"
+    "@babel/core": "npm:^7.25.2"
+    "@babel/plugin-transform-modules-commonjs": "npm:^7.24.8"
+  peerDependencies:
+    typescript: ^5.0.0 || ^5.0.0-0 || ^6.0.0 || ^7.0.0
+  peerDependenciesMeta:
+    typescript:
+      optional: true
+  checksum: 10c0/84a433404b40e6936a5ff05d773b559e077214b69542e62c5c4930d8d21b4f3311bcec2c1b7e342cc3a760fd78e038631c7710519a696510ebe3c944cfa07772
   languageName: node
   linkType: hard
 
@@ -6151,6 +6181,17 @@ __metadata:
   languageName: node
   linkType: hard
 
+"expo-location@npm:~57.0.23":
+  version: 57.0.23
+  resolution: "expo-location@npm:57.0.23"
+  dependencies:
+    "@expo/image-utils": "npm:^0.11.7"
+  peerDependencies:
+    expo: "*"
+  checksum: 10c0/9bcfaafc7956eff5c14658f6ef6722aa7c16b49b4d899fddde52c20d3d57cbe49e899ceccc76dce86104168f0b4668adafa1793cb0914ce4e5f1c17cd533ecf8
+  languageName: node
+  linkType: hard
+
 "expo-manifests@npm:~57.0.1":
   version: 57.0.1
   resolution: "expo-manifests@npm:57.0.1"
@@ -9265,6 +9306,7 @@ __metadata:
     expo-haptics: "npm:~57.0.1"
     expo-linking: "npm:~57.0.3"
     expo-localization: "npm:~57.0.1"
+    expo-location: "npm:~57.0.23"
     expo-network: "npm:~57.0.1"
     expo-notifications: "npm:~57.0.7"
     expo-router: "npm:~57.0.7"

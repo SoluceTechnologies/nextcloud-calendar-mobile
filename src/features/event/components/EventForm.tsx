@@ -1,6 +1,8 @@
 import { forwardRef, useImperativeHandle, useRef, useState } from 'react';
-import { View, StyleSheet, ScrollView, Platform, KeyboardAvoidingView, Keyboard, useWindowDimensions, LayoutChangeEvent } from 'react-native';
+import { View, StyleSheet, ScrollView, Platform, KeyboardAvoidingView, Keyboard, useWindowDimensions, LayoutChangeEvent, Alert } from 'react-native';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
+import * as ExpoLocation from 'expo-location';
+import { LocateFixed } from 'lucide-react-native';
 import dayjs from 'dayjs';
 import localizedFormat from 'dayjs/plugin/localizedFormat';
 import { useTranslation } from 'react-i18next';
@@ -14,7 +16,10 @@ import { useTimeFormat } from '@/hooks/useTimeFormat';
 import { getNativePickerLocale } from '@/utils/i18n';
 import { AlertPicker } from './AlertPicker';
 import { RecurrencePicker } from './RecurrencePicker';
-import { Stack, Typography, TextField, DateField, Chip, Toggle } from '@/ui/components';
+import { Stack, Typography, TextField, DateField, Chip, Toggle, IconButton, Spinner } from '@/ui/components';
+import { reverseGeocode } from '@/features/map/utils/geocode';
+import { useSavedPlaces } from '@/features/places/useSavedPlaces';
+import { matchPlaces } from '@/features/places/matchPlaces';
 import type { CalendarMeta, Attendee, CreateEventInput, RecurrenceRule, TalkRoomType, Account } from '@/types';
 
 dayjs.extend(localizedFormat);
@@ -27,6 +32,7 @@ interface InitialValues {
   dtend?: Date;
   description?: string;
   location?: string;
+  geo?: { lat: number; lon: number };
   attendees?: Attendee[];
   rrule?: RecurrenceRule;
   alarms?: number[];
@@ -84,6 +90,10 @@ export const EventForm = forwardRef<EventFormHandle, Props>(function EventForm({
   );
   const [description, setDescription] = useState(initialValues?.description ?? '');
   const [location, setLocation] = useState(initialValues?.location ?? '');
+  const [geo, setGeo] = useState(initialValues?.geo);
+  const [locating, setLocating] = useState(false);
+  const savedPlaces = useSavedPlaces();
+  const placeSuggestions = matchPlaces(location, savedPlaces).filter((p) => p.label !== location);
   const [withTalkRoom, setWithTalkRoom] = useState(false);
   const [talkRoomType, setTalkRoomType] = useState<TalkRoomType>('private');
   const [attendees, setAttendees] = useState<Attendee[]>(initialValues?.attendees ?? []);
@@ -185,6 +195,28 @@ export const EventForm = forwardRef<EventFormHandle, Props>(function EventForm({
     }
   }
 
+  async function useCurrentLocation() {
+    setLocating(true);
+    try {
+      const { status } = await ExpoLocation.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert(t('event.locationPermissionDenied'));
+        return;
+      }
+      const pos = await ExpoLocation.getCurrentPositionAsync({
+        accuracy: ExpoLocation.Accuracy.Balanced,
+      });
+      const { latitude, longitude } = pos.coords;
+      setGeo({ lat: latitude, lon: longitude });
+      const name = await reverseGeocode(latitude, longitude, language);
+      setLocation(name ?? `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`);
+    } catch {
+      Alert.alert(t('event.locationUnavailable'));
+    } finally {
+      setLocating(false);
+    }
+  }
+
   function handleSubmit() {
     Keyboard.dismiss();
     setTitleError(null);
@@ -206,7 +238,7 @@ export const EventForm = forwardRef<EventFormHandle, Props>(function EventForm({
 
     onSubmit({
       summary: summary.trim(), calendarId, dtstart, dtend, allDay,
-      description, location, attendees, withTalkRoom, talkRoomType,
+      description, location, geo, attendees, withTalkRoom, talkRoomType,
       organizerEmail, organizerName, rrule, alarms,
     });
   }
@@ -366,8 +398,21 @@ export const EventForm = forwardRef<EventFormHandle, Props>(function EventForm({
             testID="event-form-location"
             label={t('event.location')}
             value={location}
-            onChangeText={setLocation}
+            onChangeText={(text) => { setLocation(text); setGeo(undefined); }}
             placeholder={t('event.locationPlaceholder')}
+            right={
+              <IconButton
+                testID="event-form-use-my-location"
+                variant="plain"
+                size={36}
+                onPress={useCurrentLocation}
+                disabled={locating}
+                accessibilityRole="button"
+                accessibilityLabel={t('event.useMyLocation')}
+              >
+                {locating ? <Spinner /> : <LocateFixed size={18} color={theme.colors.primary} />}
+              </IconButton>
+            }
             autoCapitalize="none"
             autoCorrect={false}
             spellCheck={false}
@@ -375,6 +420,22 @@ export const EventForm = forwardRef<EventFormHandle, Props>(function EventForm({
             textContentType="none"
             onFocus={() => scrollToField('location')}
           />
+          {placeSuggestions.length > 0 ? (
+            <Stack card gap={0} padding={0} hAlign="stretch" style={styles.placeSuggestions}>
+              {placeSuggestions.map((place) => (
+                <Chip
+                  key={place.id}
+                  testID={`place-suggestion-${place.id}`}
+                  onPress={() => {
+                    setLocation(place.label);
+                    setGeo({ lat: place.lat, lon: place.lon });
+                  }}
+                >
+                  {place.label}
+                </Chip>
+              ))}
+            </Stack>
+          ) : null}
         </View>
 
         <View onLayout={(e) => onFieldLayout('description', e)}>
@@ -415,6 +476,7 @@ const styles = StyleSheet.create({
   scrollContent: { paddingBottom: 40 },
   multiline: { height: 80, textAlignVertical: 'top' },
   chipRow: { gap: 8 },
+  placeSuggestions: { marginTop: 8, flexDirection: 'row', flexWrap: 'wrap', gap: 8, padding: 10 },
   grow: { flex: 1 },
   pushRight: { marginLeft: 'auto' },
   iosPickerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 44 },

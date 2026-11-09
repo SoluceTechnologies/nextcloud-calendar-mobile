@@ -225,3 +225,36 @@ export async function geocodeLocation(
     return null;
   }
 }
+
+export async function reverseGeocode(
+  lat: number,
+  lon: number,
+  language?: string,
+): Promise<string | null> {
+  const url =
+    `https://nominatim.openstreetmap.org/reverse?` +
+    `format=jsonv2&` +
+    `lat=${lat}&` +
+    `lon=${lon}&` +
+    `zoom=17&` +
+    `addressdetails=1`;
+
+  try {
+    const res = await trustedFetch(url, {
+      method: 'GET',
+      headers: {
+        'User-Agent': USER_AGENT,
+        'Accept-Language': language || 'en',
+      },
+      maxRetries: 0,
+      timeoutMs: TIMEOUT_MS,
+    });
+
+    if (!res.ok) return null;
+
+    const data = (await res.json()) as NominatimResult;
+    return typeof data.display_name === 'string' ? data.display_name : null;
+  } catch {
+    return null;
+  }
+}

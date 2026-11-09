@@ -12,7 +12,9 @@
     "errorServer": "De server is tijdelijk niet beschikbaar. Probeer het later opnieuw.",
     "errorRateLimited": "Te veel verzoeken. Wacht even en probeer het opnieuw.",
     "errorRateLimitedRetry": "Te veel verzoeken. Probeer het opnieuw over {{seconds}}s.",
-    "back": "Terug"
+    "back": "Terug",
+    "save": "Opslaan",
+    "delete": "Verwijderen"
   },
   "tabs": {
     "calendar": "Agenda",
@@ -94,6 +96,9 @@
     "end": "Einde",
     "location": "Locatie",
     "locationPlaceholder": "Ruimte of adres",
+    "useMyLocation": "Mijn locatie gebruiken",
+    "locationPermissionDenied": "Locatietoestemming is vereist om je positie te gebruiken",
+    "locationUnavailable": "Kan je huidige locatie niet ophalen",
     "openInMaps": "Open in Maps",
     "description": "Omschrijving",
     "descriptionPlaceholder": "Details...",
@@ -333,6 +338,20 @@
       "openInApp": "Nextcloud Talk app",
       "openInBrowser": "Browser",
       "askEachTime": "Ask each time"
+    },
+    "places": {
+      "title": "Mijn plaatsen",
+      "addTitle": "Plaats toevoegen",
+      "label": "Naam",
+      "labelPlaceholder": "Thuis, kantoor…",
+      "address": "Adres",
+      "addressPlaceholder": "Adres of coördinaten",
+      "savedTitle": "Opgeslagen plaatsen",
+      "empty": "Nog geen plaatsen opgeslagen",
+      "noPosition": "Leg eerst je positie vast of voer een adres in.",
+      "saveError": "Kan deze plaats niet opslaan.",
+      "deleteTitle": "Plaats verwijderen",
+      "deleteBody": "\"{{name}}\" verwijderen?"
     }
   },
   "widget": {

@@ -1,7 +1,31 @@
-import { schemaMigrations, addColumns, unsafeExecuteSql } from '@nozbe/watermelondb/Schema/migrations';
+import { schemaMigrations, addColumns, createTable, unsafeExecuteSql } from '@nozbe/watermelondb/Schema/migrations';
 
 export const migrations = schemaMigrations({
   migrations: [
+    {
+      toVersion: 11,
+      steps: [
+        createTable({
+          name: 'saved_places',
+          columns: [
+            { name: 'label', type: 'string' },
+            { name: 'address', type: 'string', isOptional: true },
+            { name: 'lat', type: 'number' },
+            { name: 'lon', type: 'number' },
+            { name: 'created_at', type: 'number' },
+          ],
+        }),
+      ],
+    },
+    {
+      toVersion: 10,
+      steps: [
+        addColumns({
+          table: 'events',
+          columns: [{ name: 'geo', type: 'string', isOptional: true }],
+        }),
+      ],
+    },
     {
       toVersion: 9,
       steps: [
