@@ -1,4 +1,4 @@
-import { buildIcs, buildAllDayIcs, buildExceptionIcs, shiftIcsDates, injectExdate, truncateRruleUntil, upsertOverride } from '@/utils/ics';
+import { buildIcs, buildAllDayIcs, buildExceptionIcs, cloneEventIcs, shiftIcsDates, injectExdate, truncateRruleUntil, upsertOverride } from '@/utils/ics';
 import { parseRrule } from '@/features/calendar/utils/parseRrule';
 import { parseIcsObjects, extractExtraVeventLines } from '@/utils/caldav-parse';
 import type { Attendee } from '../../src/types';
@@ -487,5 +487,111 @@ describe('VALARM generation', () => {
     const ics = buildIcs({ ...base, alarms: [] });
     const extras = extractExtraVeventLines(ics);
     expect(extras.join('\n')).not.toContain('X-NCM-ALARM-NONE');
+  });
+});
+
+describe('cloneEventIcs', () => {
+  const now = new Date('2026-07-01T12:00:00Z');
+  const CRLF = '\r\n';
+  const stored = [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'PRODID:-//SabreDAV//EN',
+    'CALSCALE:GREGORIAN',
+    'BEGIN:VTIMEZONE',
+    'TZID:Europe/Paris',
+    'BEGIN:STANDARD',
+    'DTSTART:16011028T030000',
+    'RRULE:FREQ=YEARLY;BYDAY=-1SU;BYMONTH=10',
+    'TZOFFSETFROM:+0200',
+    'TZOFFSETTO:+0100',
+    'TZNAME:CET',
+    'END:STANDARD',
+    'END:VTIMEZONE',
+    'BEGIN:VEVENT',
+    'UID:orig-uid-1',
+    'DTSTAMP:20260101T080000Z',
+    'SEQUENCE:5',
+    'DTSTART;TZID=Europe/Paris:20260610T140000',
+    'DTEND;TZID=Europe/Paris:20260610T150000',
+    'SUMMARY:Planning',
+    'RRULE:FREQ=WEEKLY;BYDAY=WE',
+    'EXDATE;TZID=Europe/Paris:20260624T140000',
+    'RDATE;TZID=Europe/Paris:20260701T140000',
+    'ORGANIZER;CN=Alice:mailto:alice@example.com',
+    'ATTENDEE;CUTYPE=INDIVIDUAL;ROLE=REQ-PARTICIPANT;PARTSTAT=ACCEPTED;RSVP=T',
+    ' RUE;CN=Bob:mailto:bob@example.com',
+    'X-CUSTOM-FIELD:keep-me',
+    'BEGIN:VALARM',
+    'TRIGGER:-PT15M',
+    'ACTION:DISPLAY',
+    'END:VALARM',
+    'END:VEVENT',
+    'BEGIN:VEVENT',
+    'UID:orig-uid-1',
+    'RECURRENCE-ID;TZID=Europe/Paris:20260617T140000',
+    'DTSTAMP:20260101T080000Z',
+    'SEQUENCE:2',
+    'DTSTART;TZID=Europe/Paris:20260617T160000',
+    'DTEND;TZID=Europe/Paris:20260617T170000',
+    'SUMMARY:Planning (moved)',
+    'END:VEVENT',
+    'END:VCALENDAR',
+  ].join(CRLF);
+
+  it('rewrites UID on master and override VEVENTs only', () => {
+    const out = cloneEventIcs(stored, 'clone-uid-9', now);
+    expect(out.match(/^UID:[^\r\n]*/gm)).toEqual(['UID:clone-uid-9', 'UID:clone-uid-9']);
+    expect(out).not.toContain('orig-uid-1');
+  });
+
+  it('stamps DTSTAMP and resets SEQUENCE on every VEVENT', () => {
+    const out = cloneEventIcs(stored, 'c', now);
+    expect(out.match(/^DTSTAMP:20260701T120000Z$/gm)).toHaveLength(2);
+    expect(out.match(/^SEQUENCE:0$/gm)).toHaveLength(2);
+    expect(out).not.toContain('SEQUENCE:5');
+    expect(out).not.toContain('SEQUENCE:2');
+  });
+
+  it('preserves recurrence, alarms, attendees params, VTIMEZONE and X-* byte-for-byte', () => {
+    const out = cloneEventIcs(stored, 'c', now);
+    for (const keep of [
+      'RRULE:FREQ=WEEKLY;BYDAY=WE',
+      'EXDATE;TZID=Europe/Paris:20260624T140000',
+      'RDATE;TZID=Europe/Paris:20260701T140000',
+      'RECURRENCE-ID;TZID=Europe/Paris:20260617T140000',
+      'BEGIN:VTIMEZONE',
+      'X-CUSTOM-FIELD:keep-me',
+      'BEGIN:VALARM',
+      'ATTENDEE;CUTYPE=INDIVIDUAL;ROLE=REQ-PARTICIPANT;PARTSTAT=ACCEPTED;RSVP=T' + CRLF + ' RUE;CN=Bob:mailto:bob@example.com',
+    ]) {
+      expect(out).toContain(keep);
+    }
+  });
+
+  it('rewrites a folded UID including its continuation lines', () => {
+    const folded = stored.replace(
+      'UID:orig-uid-1',
+      'UID:a-very-long-uid-that-exceeds-seventy-five-characters-and-therefore-mu' + CRLF + ' st-be-folded-onto-a-second-line-orig-uid-1'
+    );
+    const out = cloneEventIcs(folded, 'clone-uid-9', now);
+    expect(out).not.toContain('a-very-long-uid');
+    expect(out).not.toContain('st-be-folded');
+    expect(out.match(/^UID:[^\r\n]*/gm)).toEqual(['UID:clone-uid-9', 'UID:clone-uid-9']);
+  });
+
+  it('does not insert SEQUENCE when absent', () => {
+    const noSeq = stored.replace(/^SEQUENCE:5\r\n/m, '').replace(/^SEQUENCE:2\r\n/m, '');
+    const out = cloneEventIcs(noSeq, 'c', now);
+    expect(out).not.toContain('SEQUENCE');
+  });
+
+  it('leaves non-VEVENT UIDs untouched', () => {
+    const withTodo = stored.replace('END:VCALENDAR',
+      'BEGIN:VTODO' + CRLF + 'UID:todo-uid-1' + CRLF + 'DTSTAMP:20260101T080000Z' + CRLF + 'END:VTODO' + CRLF + 'END:VCALENDAR');
+    const out = cloneEventIcs(withTodo, 'clone-uid-9', now);
+    expect(out).toContain('UID:todo-uid-1');
+    // VTODO DTSTAMP must stay untouched too.
+    expect(out).toContain('BEGIN:VTODO' + CRLF + 'UID:todo-uid-1' + CRLF + 'DTSTAMP:20260101T080000Z');
   });
 });

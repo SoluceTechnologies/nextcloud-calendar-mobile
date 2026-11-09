@@ -1,4 +1,4 @@
-import { deleteEvent, moveEvent, syncCollection, fetchEvents, fetchEventsByHrefs, fetchCalendars, validateCredentials, MULTIGET_BATCH } from '../../src/services/nextcloud/caldav';
+import { deleteEvent, moveEvent, putEvent, syncCollection, fetchEvents, fetchEventsByHrefs, fetchCalendars, validateCredentials, MULTIGET_BATCH } from '../../src/services/nextcloud/caldav';
 import type { Account, CalendarMeta } from '../../src/types';
 
 const account: Account = {
@@ -736,5 +736,26 @@ describe('fetchEvents — subscribed feed with unstable UIDs', () => {
     const events = await fetchEvents(account, subscribed, range.s, range.e);
     expect(events).toHaveLength(2);
     expect(new Set(events.map((e) => e.uid)).size).toBe(2);
+  });
+});
+
+describe('putEvent', () => {
+  it('PUTs the ICS body to <calendar.url><uid>.ics with a text/calendar content type', async () => {
+    mockFetch.mockResolvedValue({ ok: true, status: 201 });
+    const ics = 'BEGIN:VCALENDAR\r\nBEGIN:VEVENT\r\nUID:new-uid\r\nEND:VEVENT\r\nEND:VCALENDAR';
+    await putEvent(account, targetCalendar, 'new-uid', ics);
+    expect(mockFetch).toHaveBeenCalledWith(
+      'https://cloud.example.com/remote.php/dav/calendars/john/work/new-uid.ics',
+      expect.objectContaining({
+        method: 'PUT',
+        body: ics,
+        headers: expect.objectContaining({ 'Content-Type': 'text/calendar; charset=utf-8' }),
+      })
+    );
+  });
+
+  it('throws on error status', async () => {
+    mockFetch.mockResolvedValue({ ok: false, status: 412, text: () => Promise.resolve('') });
+    await expect(putEvent(account, targetCalendar, 'u', 'ics')).rejects.toThrow('putEvent HTTP 412');
   });
 });

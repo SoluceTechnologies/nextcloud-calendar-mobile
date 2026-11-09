@@ -159,6 +159,7 @@
     "recurring": "Recurrent",
     "joinTalkRoom": "Rejónher la sala Talk",
     "deleteEvent": "Suprimir l'eveniment",
+    "duplicateEvent": "Duplicar l'eveniment",
     "delete": "Suprimir",
     "allDayTime": "Jorn entièr",
     "recurrenceScopeMessage": "Quins eveniments volètz modificar ?",
@@ -171,6 +172,7 @@
     "errorCreateFailed": "La creacion de l'eveniment a pas capitat",
     "errorUpdateFailed": "La mesa a jorn de l'eveniment a pas capitat",
     "errorDeleteFailed": "La supression de l'eveniment a pas capitat",
+    "errorDuplicateFailed": "La duplicacion de l'eveniment a pas capitat",
     "alerts": "Alèrtas"
   },
   "settings": {
