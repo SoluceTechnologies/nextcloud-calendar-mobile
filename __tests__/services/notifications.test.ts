@@ -1,4 +1,5 @@
 import { fetchNotifications, dismissNotification, dismissAllNotifications } from '../../src/services/nextcloud/notifications';
+import { resolveNotificationLink } from '../../src/services/push/links';
 import { trustedFetch, type TrustedResponse } from '../../src/services/shared/trustedFetch';
 
 jest.mock('../../src/services/shared/trustedFetch');
@@ -78,6 +79,48 @@ describe('fetchNotifications', () => {
 
     await expect(fetchNotifications(account)).rejects.toThrow('HTTP 401');
   });
+
+  it('normalizes relative notification and action links against baseUrl', async () => {
+    const relative = {
+      ocs: {
+        data: [
+          {
+            ...sampleResponse.ocs.data[0],
+            link: '/apps/calendar/day?event=evt-1',
+            actions: [
+              { label: 'Open', link: 'apps/calendar/day', type: 'GET', primary: true },
+              { label: 'Dismiss', link: 'index.php/apps/notifications/dismiss', type: 'POST', primary: false },
+            ],
+          },
+        ],
+      },
+    };
+    mockTrustedFetch.mockResolvedValue(mockResponse({ json: async () => relative }));
+
+    const result = await fetchNotifications(account);
+
+    expect(result[0].link).toBe('https://cloud.example.com/apps/calendar/day?event=evt-1');
+    expect(result[0].actions[0].link).toBe('https://cloud.example.com/apps/calendar/day');
+    expect(result[0].actions[1].link).toBe(
+      'https://cloud.example.com/index.php/apps/notifications/dismiss',
+    );
+  });
+
+  it('keeps absolute and empty links untouched', async () => {
+    mockTrustedFetch.mockResolvedValue(
+      mockResponse({ json: async () => sampleResponse }),
+    );
+
+    const result = await fetchNotifications(account);
+    expect(result[0].link).toBe('https://cloud.example.com/apps/calendar/day?event=evt-1');
+
+    const noLink = {
+      ocs: { data: [{ ...sampleResponse.ocs.data[0], link: '' }] },
+    };
+    mockTrustedFetch.mockResolvedValue(mockResponse({ json: async () => noLink }));
+    const result2 = await fetchNotifications(account);
+    expect(result2[0].link).toBe('');
+  });
 });
 
 describe('dismissNotification', () => {
@@ -89,6 +132,26 @@ describe('dismissNotification', () => {
     const [url, options] = mockTrustedFetch.mock.calls[0];
     expect(url).toContain('/notifications/42');
     expect(options?.method).toBe('DELETE');
+  });
+});
+
+describe('resolveNotificationLink', () => {
+  const base = 'https://cloud.example.com';
+
+  it.each([
+    ['https://a.example.com/x', 'https://a.example.com/x'],
+    ['http://a.example.com/x', 'http://a.example.com/x'],
+    ['//a.example.com/x', 'https://a.example.com/x'],
+    ['/apps/calendar/day', 'https://cloud.example.com/apps/calendar/day'],
+    ['apps/calendar/day', 'https://cloud.example.com/apps/calendar/day'],
+    ['index.php/apps/x', 'https://cloud.example.com/index.php/apps/x'],
+    ['', ''],
+  ])('resolves %j', (input, expected) => {
+    expect(resolveNotificationLink(input, base)).toBe(expected);
+  });
+
+  it('strips a trailing slash on baseUrl before joining', () => {
+    expect(resolveNotificationLink('/apps/x', `${base}/`)).toBe(`${base}/apps/x`);
   });
 });
 
