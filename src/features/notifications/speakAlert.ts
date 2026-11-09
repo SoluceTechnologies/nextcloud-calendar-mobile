@@ -13,13 +13,17 @@ import {
   type BriefingEventInput,
 } from '@/features/briefing/speechText';
 import { openMaps } from '@/features/map/utils/mapLinks';
+import { openTalkRoom } from '@/features/event/utils/openTalkRoom';
 import { parseLocation } from '@/features/map/utils/parseLocation';
 import * as tts from '@/services/voice/tts';
 
 export const ALERT_CATEGORY = 'event-alert';
 export const ALERT_NAV_CATEGORY = 'event-alert-nav';
+export const ALERT_TALK_CATEGORY = 'event-alert-talk';
+export const ALERT_TALK_NAV_CATEGORY = 'event-alert-talk-nav';
 export const ALERT_SPEAK_ACTION = 'speak';
 export const ALERT_NAVIGATE_ACTION = 'navigate';
+export const ALERT_JOIN_ACTION = 'join-call';
 export const SPEAK_ALERT_TASK = 'alert-speak-task';
 
 export interface AlertSpeakData {
@@ -31,6 +35,7 @@ export interface AlertSpeakData {
   location?: string;
   talkUrl?: string;
   isTask?: boolean;
+  url?: string;
 }
 
 // "Écouter"/"Listen" button on reminder notifications — registered (again) on
@@ -43,14 +48,23 @@ export async function registerAlertSpeakCategory(): Promise<void> {
       buttonTitle: i18n.t('briefing.listenAction'),
       options: { opensAppToForeground: false },
     };
+    const navAction = {
+      identifier: ALERT_NAVIGATE_ACTION,
+      buttonTitle: i18n.t('briefing.navigateAction'),
+      options: { opensAppToForeground: true },
+    };
+    const joinAction = {
+      identifier: ALERT_JOIN_ACTION,
+      buttonTitle: i18n.t('notifications.joinCall'),
+      options: { opensAppToForeground: true },
+    };
     await Notifications.setNotificationCategoryAsync(ALERT_CATEGORY, [speakAction]);
-    await Notifications.setNotificationCategoryAsync(ALERT_NAV_CATEGORY, [
+    await Notifications.setNotificationCategoryAsync(ALERT_NAV_CATEGORY, [speakAction, navAction]);
+    await Notifications.setNotificationCategoryAsync(ALERT_TALK_CATEGORY, [speakAction, joinAction]);
+    await Notifications.setNotificationCategoryAsync(ALERT_TALK_NAV_CATEGORY, [
       speakAction,
-      {
-        identifier: ALERT_NAVIGATE_ACTION,
-        buttonTitle: i18n.t('briefing.navigateAction'),
-        options: { opensAppToForeground: true },
-      },
+      navAction,
+      joinAction,
     ]);
   } catch (error) {
     if (__DEV__) console.warn('[alerts] speak category registration failed', error);
@@ -140,14 +154,25 @@ export function navigateToAlertLocation(data: AlertSpeakData): void {
   void openMaps(target.query, target.lat, target.lon);
 }
 
+export function joinAlertCall(data: AlertSpeakData): void {
+  if (!data.talkUrl) return;
+  void openTalkRoom(data.talkUrl, useSettingsStore.getState().talkOpenMode);
+}
+
 export function handleAlertResponse(response: Notifications.NotificationResponse): boolean {
   const { actionIdentifier } = response;
-  if (actionIdentifier !== ALERT_SPEAK_ACTION && actionIdentifier !== ALERT_NAVIGATE_ACTION) {
+  if (
+    actionIdentifier !== ALERT_SPEAK_ACTION &&
+    actionIdentifier !== ALERT_NAVIGATE_ACTION &&
+    actionIdentifier !== ALERT_JOIN_ACTION
+  ) {
     return false;
   }
   const data = (response.notification.request.content.data ?? {}) as AlertSpeakData;
   if (actionIdentifier === ALERT_NAVIGATE_ACTION) {
     navigateToAlertLocation(data);
+  } else if (actionIdentifier === ALERT_JOIN_ACTION) {
+    joinAlertCall(data);
   } else {
     void speakAlertNotification(data);
   }
@@ -165,6 +190,8 @@ TaskManager.defineTask<Notifications.NotificationTaskPayload>(SPEAK_ALERT_TASK, 
       await speakAlertNotification(d);
     } else if (response.actionIdentifier === ALERT_NAVIGATE_ACTION) {
       navigateToAlertLocation(d);
+    } else if (response.actionIdentifier === ALERT_JOIN_ACTION) {
+      joinAlertCall(d);
     }
   }
 });

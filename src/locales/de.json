@@ -82,8 +82,8 @@
     },
     "drawerNoCalendars": "Kein Kalender",
     "calendarNotifications": "Benachrichtigungen für {{name}}",
-        "calendarVisibility": "{{name}} anzeigen",
-        "pendingSync": "{{count}} Änderung(en) ausstehend — zum Wiederholen tippen"
+    "calendarVisibility": "{{name}} anzeigen",
+    "pendingSync": "{{count}} Änderung(en) ausstehend — zum Wiederholen tippen"
   },
   "event": {
     "titleLabel": "Titel *",
@@ -179,25 +179,26 @@
     "errorCreateFailed": "Ereignis konnte nicht erstellt werden",
     "errorUpdateFailed": "Ereignis konnte nicht aktualisiert werden",
     "errorDeleteFailed": "Ereignis konnte nicht gelöscht werden",
-        "alerts": "Erinnerungen",
-        "findTime": "Zeit finden",
-        "findTimeTitle": "Zeit finden",
-        "findTimeLoading": "Freie Zeiten werden gesucht…",
-        "findTimeNone": "Kein freier Zeitraum an diesem Tag.",
-        "findTimeError": "Verfügbarkeit konnte nicht geladen werden.",
-        "createQueued": "Lokal gespeichert — wird gesendet, sobald die Verbindung zurück ist.",
-        "deleteQueued": "Lokal gelöscht — wird entfernt, sobald die Verbindung zurück ist.",
-        "queueCreateDropped": "Die Erstellung konnte nicht an den Server gesendet werden — das lokale Ereignis wurde entfernt.",
-        "queueDeleteDropped": "Das Löschen konnte nicht an den Server gesendet werden — das Ereignis erscheint bei der nächsten Synchronisation erneut.",
-        "queueUpdateDropped": "Die Änderung konnte nicht an den Server gesendet werden — das Ereignis wird erneut synchronisiert.",
     "alerts": "Erinnerungen",
+    "findTime": "Zeit finden",
+    "findTimeTitle": "Zeit finden",
+    "findTimeLoading": "Freie Zeiten werden gesucht…",
+    "findTimeNone": "Kein freier Zeitraum an diesem Tag.",
+    "findTimeError": "Verfügbarkeit konnte nicht geladen werden.",
+    "createQueued": "Lokal gespeichert — wird gesendet, sobald die Verbindung zurück ist.",
+    "deleteQueued": "Lokal gelöscht — wird entfernt, sobald die Verbindung zurück ist.",
+    "queueCreateDropped": "Die Erstellung konnte nicht an den Server gesendet werden — das lokale Ereignis wurde entfernt.",
+    "queueDeleteDropped": "Das Löschen konnte nicht an den Server gesendet werden — das Ereignis erscheint bei der nächsten Synchronisation erneut.",
+    "queueUpdateDropped": "Die Änderung konnte nicht an den Server gesendet werden — das Ereignis wird erneut synchronisiert.",
     "availability": "Verfügbarkeit",
     "availabilityBusy": "Beschäftigt",
     "availabilityFree": "Frei",
     "status": "Status",
     "statusConfirmed": "Bestätigt",
     "statusTentative": "Vorläufig",
-    "statusCancelled": "Abgesagt"
+    "statusCancelled": "Abgesagt",
+    "shareTalkLink": "Talk-Link teilen",
+    "sendLinkToAttendees": "An Teilnehmer senden"
   },
   "settings": {
     "title": "Einstellungen",
@@ -353,7 +354,9 @@
       "openWithHint": "Choose how event call links open by default. Long-press the Join Talk Room button to override.",
       "openInApp": "Nextcloud Talk app",
       "openInBrowser": "Browser",
-      "askEachTime": "Ask each time"
+      "askEachTime": "Ask each time",
+      "callReminder": "Anruferinnerung",
+      "callReminderHint": "5 Minuten vor einem Talk-Anruf erinnern"
     },
     "voice": {
       "title": "Sprachassistent",
@@ -379,7 +382,8 @@
       "days": "in {{value}} Tagen",
       "today": "Heute",
       "tomorrow": "Morgen"
-    }
+    },
+    "joinCall": "Anruf beitreten"
   },
   "briefing": {
     "listen": "Meinen Tag anhören",
@@ -411,7 +415,7 @@
     "nothingFound": "Kein Termin gefunden.",
     "chooseOne": "Welcher?",
     "whichCalendar": "In welchem Kalender?",
-        "whichEvent": "Welcher?",
+    "whichEvent": "Welcher?",
     "calendarReadOnly": "schreibgeschützt",
     "noWritableCalendar": "Kein schreibbarer Kalender gefunden.",
     "whichSlot": "Welcher Terminslot am {{date}}?",
@@ -433,13 +437,13 @@
     "confirmDescription": "Beschreibung: {{value}}",
     "confirmMove": "„{{title}}“ auf {{when}} verschieben?",
     "confirmDelete": "„{{title}}“ löschen?",
-        "confirmAgent": "Diese Anfrage an den Nextcloud-Agenten senden? Er kann Ihren Kalender ändern.",
+    "confirmAgent": "Diese Anfrage an den Nextcloud-Agenten senden? Er kann Ihren Kalender ändern.",
     "untitled": "Ohne Titel",
     "nothingOnDay": "Nichts am {{date}}.",
-        "attendeesDropped": "Teilnehmer nicht erkannt: {{names}}",
-        "attendeesBusy": "Achtung, zu dieser Zeit beschäftigt: {{names}}",
-        "pickAltSlot": "freien Zeitpunkt wählen:",
-        "withAttendees": "mit {{names}}"
+    "attendeesDropped": "Teilnehmer nicht erkannt: {{names}}",
+    "attendeesBusy": "Achtung, zu dieser Zeit beschäftigt: {{names}}",
+    "pickAltSlot": "freien Zeitpunkt wählen:",
+    "withAttendees": "mit {{names}}"
   },
   "certTrust": {
     "title": "Nicht vertrauenswürdiges Zertifikat",

@@ -24,6 +24,7 @@ export interface SettingsState {
   hapticsEnabled: boolean;
   reduceMotion: boolean;
   talkOpenMode: TalkOpenMode;
+  talkCallReminder: boolean;
   voiceAssistantByAccount: Record<string, boolean>;
   voiceOnDevicePreferred: boolean;
   aiEnabled: boolean;
@@ -39,6 +40,7 @@ export interface SettingsState {
   setHapticsEnabled: (v: boolean) => void;
   setReduceMotion: (v: boolean) => void;
   setTalkOpenMode: (v: TalkOpenMode) => void;
+  setTalkCallReminder: (v: boolean) => void;
   setVoiceAssistantEnabled: (accountId: string, v: boolean) => void;
   setVoiceOnDevicePreferred: (v: boolean) => void;
   setAiEnabled: (v: boolean) => void;
@@ -59,6 +61,7 @@ export const useSettingsStore = create<SettingsState>()(
       hapticsEnabled: true,
       reduceMotion: false,
       talkOpenMode: 'app',
+      talkCallReminder: true,
       voiceAssistantByAccount: {},
       voiceOnDevicePreferred: true,
       aiEnabled: false,
@@ -74,6 +77,7 @@ export const useSettingsStore = create<SettingsState>()(
       setHapticsEnabled: (v) => set({ hapticsEnabled: v }),
       setReduceMotion: (v) => set({ reduceMotion: v }),
       setTalkOpenMode: (v) => set({ talkOpenMode: v }),
+      setTalkCallReminder: (v) => set({ talkCallReminder: v }),
       setVoiceAssistantEnabled: (accountId, v) =>
         set((s) => {
           const voiceAssistantByAccount = { ...s.voiceAssistantByAccount, [accountId]: v };
@@ -141,6 +145,7 @@ export const useSettingsStore = create<SettingsState>()(
         hapticsEnabled: state.hapticsEnabled,
         reduceMotion: state.reduceMotion,
         talkOpenMode: state.talkOpenMode,
+        talkCallReminder: state.talkCallReminder,
         voiceAssistantByAccount: state.voiceAssistantByAccount,
         voiceOnDevicePreferred: state.voiceOnDevicePreferred,
         aiEnabled: state.aiEnabled,

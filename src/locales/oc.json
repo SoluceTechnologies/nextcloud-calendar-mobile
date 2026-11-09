@@ -82,8 +82,8 @@
     },
     "drawerNoCalendars": "Pas de calendari",
     "calendarNotifications": "Notificacions per {{name}}",
-        "calendarVisibility": "Afichar {{name}}",
-        "pendingSync": "{{count}} modificacion(s) en espèra — tocar per tornar ensajar"
+    "calendarVisibility": "Afichar {{name}}",
+    "pendingSync": "{{count}} modificacion(s) en espèra — tocar per tornar ensajar"
   },
   "event": {
     "titleLabel": "Títol *",
@@ -174,25 +174,26 @@
     "errorCreateFailed": "La creacion de l'eveniment a pas capitat",
     "errorUpdateFailed": "La mesa a jorn de l'eveniment a pas capitat",
     "errorDeleteFailed": "La supression de l'eveniment a pas capitat",
-        "alerts": "Alèrtas",
-        "findTime": "Trobar un crenech",
-        "findTimeTitle": "Trobar un crenech",
-        "findTimeLoading": "Recèrca dels crenechs liures…",
-        "findTimeNone": "Cap de crenech liure aquel jorn.",
-        "findTimeError": "Impossible de cargar las disponibilitats.",
-        "createQueued": "Enregistrat en local — serà mandat al servidor quora la retorna la connexion.",
-        "deleteQueued": "Suprimit en local — serà levat del servidor quora la retorna la connexion.",
-        "queueCreateDropped": "Impossible de mandar la creacion al servidor — l'eveniment local foguèt suprimit.",
-        "queueDeleteDropped": "Impossible de mandar la supression al servidor — l'eveniment tornarà aparéisser a la sincronizacion venenta.",
-        "queueUpdateDropped": "Impossible de mandar la modificacion al servidor — l'eveniment serà sincronizat de nòu.",
     "alerts": "Alèrtas",
+    "findTime": "Trobar un crenech",
+    "findTimeTitle": "Trobar un crenech",
+    "findTimeLoading": "Recèrca dels crenechs liures…",
+    "findTimeNone": "Cap de crenech liure aquel jorn.",
+    "findTimeError": "Impossible de cargar las disponibilitats.",
+    "createQueued": "Enregistrat en local — serà mandat al servidor quora la retorna la connexion.",
+    "deleteQueued": "Suprimit en local — serà levat del servidor quora la retorna la connexion.",
+    "queueCreateDropped": "Impossible de mandar la creacion al servidor — l'eveniment local foguèt suprimit.",
+    "queueDeleteDropped": "Impossible de mandar la supression al servidor — l'eveniment tornarà aparéisser a la sincronizacion venenta.",
+    "queueUpdateDropped": "Impossible de mandar la modificacion al servidor — l'eveniment serà sincronizat de nòu.",
     "availability": "Disponibilitat",
     "availabilityBusy": "Ocupat",
     "availabilityFree": "Liure",
     "status": "Estat",
     "statusConfirmed": "Confirmat",
     "statusTentative": "Provisional",
-    "statusCancelled": "Anullat"
+    "statusCancelled": "Anullat",
+    "shareTalkLink": "Partejatz lo ligam Talk",
+    "sendLinkToAttendees": "Mandar als participants"
   },
   "settings": {
     "title": "Paramètres",
@@ -347,6 +348,10 @@
       "tierNote": "Las comandas localas demòran sus l'aparelh ; las questions liuras utilizan l'assistent Nextcloud quand lo servidor o prepausa.",
       "availabilityTitle": "Agendas comptant per la disponibilitat",
       "availabilityHint": "La recèrca de traucs ignora los agendas desactivats."
+    },
+    "talk": {
+      "callReminder": "Rapèl de sonada",
+      "callReminderHint": "Avisar 5 min abans una sonada Talk"
     }
   },
   "widget": {
@@ -366,7 +371,8 @@
       "days": "d’aquí {{value}} jorns",
       "today": "Uèi",
       "tomorrow": "Deman"
-    }
+    },
+    "joinCall": "Rejónher la sonada"
   },
   "briefing": {
     "listen": "Escotar ma jornada",
@@ -398,7 +404,7 @@
     "nothingFound": "Cap d’eveniment trobat.",
     "chooseOne": "Loquin ?",
     "whichCalendar": "Dins quin agenda ?",
-        "whichEvent": "Loqual ?",
+    "whichEvent": "Loqual ?",
     "calendarReadOnly": "lectura sola",
     "noWritableCalendar": "Cap d'agenda modificable.",
     "whichSlot": "Quin trauc lo {{date}} ?",
@@ -420,13 +426,13 @@
     "confirmDescription": "Descripcion : {{value}}",
     "confirmMove": "Desplaçar « {{title}} » al {{when}} ?",
     "confirmDelete": "Suprimir « {{title}} » ?",
-        "confirmAgent": "Mandar aquesta demanda a l'agent Nextcloud ? Pòt modificar vòstre agenda.",
+    "confirmAgent": "Mandar aquesta demanda a l'agent Nextcloud ? Pòt modificar vòstre agenda.",
     "untitled": "Sens títol",
     "nothingOnDay": "Res lo {{date}}.",
-        "attendeesDropped": "convidats pas reconeguts : {{names}}",
-        "attendeesBusy": "atencion, indisponible a aquesta ora : {{names}}",
-        "pickAltSlot": "causissètz un orari liure :",
-        "withAttendees": "amb {{names}}"
+    "attendeesDropped": "convidats pas reconeguts : {{names}}",
+    "attendeesBusy": "atencion, indisponible a aquesta ora : {{names}}",
+    "pickAltSlot": "causissètz un orari liure :",
+    "withAttendees": "amb {{names}}"
   },
   "certTrust": {
     "title": "Certificat pas de fisança",

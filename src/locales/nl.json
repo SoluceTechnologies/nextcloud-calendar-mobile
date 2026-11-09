@@ -82,8 +82,8 @@
     },
     "drawerNoCalendars": "Geen agenda",
     "calendarNotifications": "Meldingen van {{name}}",
-        "calendarVisibility": "{{name}} tonen",
-        "pendingSync": "{{count}} wijziging(en) in de wacht — tik om opnieuw te proberen"
+    "calendarVisibility": "{{name}} tonen",
+    "pendingSync": "{{count}} wijziging(en) in de wacht — tik om opnieuw te proberen"
   },
   "event": {
     "titleLabel": "Titel *",
@@ -179,25 +179,26 @@
     "errorCreateFailed": "Aanmaken van afspraak mislukt",
     "errorUpdateFailed": "Bijwerken van afspraak mislukt",
     "errorDeleteFailed": "Verwijderen van afspraak mislukt",
-        "alerts": "Herinneringen",
-        "findTime": "Tijd vinden",
-        "findTimeTitle": "Tijd vinden",
-        "findTimeLoading": "Vrije tijden zoeken…",
-        "findTimeNone": "Geen vrije tijd die dag.",
-        "findTimeError": "Beschikbaarheid kon niet worden geladen.",
-        "createQueued": "Lokaal opgeslagen — wordt verzonden zodra de verbinding terug is.",
-        "deleteQueued": "Lokaal verwijderd — wordt verwijderd van de server zodra de verbinding terug is.",
-        "queueCreateDropped": "De aanmaak kon niet naar de server worden verzonden — de lokale gebeurtenis is verwijderd.",
-        "queueDeleteDropped": "Het verwijderen kon niet naar de server worden verzonden — de gebeurtenis verschijnt opnieuw bij de volgende synchronisatie.",
-        "queueUpdateDropped": "De wijziging kon niet naar de server worden verzonden — de gebeurtenis wordt opnieuw gesynchroniseerd.",
     "alerts": "Herinneringen",
+    "findTime": "Tijd vinden",
+    "findTimeTitle": "Tijd vinden",
+    "findTimeLoading": "Vrije tijden zoeken…",
+    "findTimeNone": "Geen vrije tijd die dag.",
+    "findTimeError": "Beschikbaarheid kon niet worden geladen.",
+    "createQueued": "Lokaal opgeslagen — wordt verzonden zodra de verbinding terug is.",
+    "deleteQueued": "Lokaal verwijderd — wordt verwijderd van de server zodra de verbinding terug is.",
+    "queueCreateDropped": "De aanmaak kon niet naar de server worden verzonden — de lokale gebeurtenis is verwijderd.",
+    "queueDeleteDropped": "Het verwijderen kon niet naar de server worden verzonden — de gebeurtenis verschijnt opnieuw bij de volgende synchronisatie.",
+    "queueUpdateDropped": "De wijziging kon niet naar de server worden verzonden — de gebeurtenis wordt opnieuw gesynchroniseerd.",
     "availability": "Beschikbaarheid",
     "availabilityBusy": "Bezet",
     "availabilityFree": "Vrij",
     "status": "Status",
     "statusConfirmed": "Bevestigd",
     "statusTentative": "Voorlopig",
-    "statusCancelled": "Geannuleerd"
+    "statusCancelled": "Geannuleerd",
+    "shareTalkLink": "Talk-link delen",
+    "sendLinkToAttendees": "Naar deelnemers sturen"
   },
   "settings": {
     "title": "Instellingen",
@@ -353,7 +354,9 @@
       "openWithHint": "Choose how event call links open by default. Long-press the Join Talk Room button to override.",
       "openInApp": "Nextcloud Talk app",
       "openInBrowser": "Browser",
-      "askEachTime": "Ask each time"
+      "askEachTime": "Ask each time",
+      "callReminder": "Oproepherinnering",
+      "callReminderHint": "Melding 5 minuten voor een Talk-gesprek"
     },
     "voice": {
       "title": "Spraakassistent",
@@ -379,7 +382,8 @@
       "days": "over {{value}} dagen",
       "today": "Vandaag",
       "tomorrow": "Morgen"
-    }
+    },
+    "joinCall": "Deelnemen aan gesprek"
   },
   "briefing": {
     "listen": "Mijn dag beluisteren",
@@ -411,7 +415,7 @@
     "nothingFound": "Geen afspraak gevonden.",
     "chooseOne": "Welke?",
     "whichCalendar": "In welke agenda?",
-        "whichEvent": "Welke?",
+    "whichEvent": "Welke?",
     "calendarReadOnly": "alleen-lezen",
     "noWritableCalendar": "Geen beschrijfbare agenda gevonden.",
     "whichSlot": "Welk tijdslot op {{date}}?",
@@ -433,13 +437,13 @@
     "confirmDescription": "Beschrijving: {{value}}",
     "confirmMove": "„{{title}}” verplaatsen naar {{when}}?",
     "confirmDelete": "„{{title}}” verwijderen?",
-        "confirmAgent": "Dit verzoek naar de Nextcloud-agent sturen? Deze kan je agenda wijzigen.",
+    "confirmAgent": "Dit verzoek naar de Nextcloud-agent sturen? Deze kan je agenda wijzigen.",
     "untitled": "Zonder titel",
     "nothingOnDay": "Niets op {{date}}.",
-        "attendeesDropped": "genodigden niet herkend: {{names}}",
-        "attendeesBusy": "let op, bezet op dat tijdstip: {{names}}",
-        "pickAltSlot": "kies een vrij tijdstip:",
-        "withAttendees": "met {{names}}"
+    "attendeesDropped": "genodigden niet herkend: {{names}}",
+    "attendeesBusy": "let op, bezet op dat tijdstip: {{names}}",
+    "pickAltSlot": "kies een vrij tijdstip:",
+    "withAttendees": "met {{names}}"
   },
   "certTrust": {
     "title": "Niet-vertrouwd certificaat",

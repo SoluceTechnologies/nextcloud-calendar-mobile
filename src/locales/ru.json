@@ -82,8 +82,8 @@
     },
     "drawerNoCalendars": "Нет календарей",
     "calendarNotifications": "Уведомления календаря «{{name}}»",
-        "calendarVisibility": "Показывать «{{name}}»",
-        "pendingSync": "{{count}} изменение(й) ожидает — нажмите, чтобы повторить"
+    "calendarVisibility": "Показывать «{{name}}»",
+    "pendingSync": "{{count}} изменение(й) ожидает — нажмите, чтобы повторить"
   },
   "event": {
     "titleLabel": "Название *",
@@ -179,25 +179,26 @@
     "errorCreateFailed": "Не удалось создать событие",
     "errorUpdateFailed": "Не удалось обновить событие",
     "errorDeleteFailed": "Не удалось удалить событие",
-        "alerts": "Напоминания",
-        "findTime": "Найти время",
-        "findTimeTitle": "Найти время",
-        "findTimeLoading": "Поиск свободного времени…",
-        "findTimeNone": "В этот день нет свободного времени.",
-        "findTimeError": "Не удалось загрузить занятость.",
-        "createQueued": "Сохранено локально — будет отправлено при восстановлении связи.",
-        "deleteQueued": "Удалено локально — будет удалено с сервера при восстановлении связи.",
-        "queueCreateDropped": "Не удалось отправить создание на сервер — локальное событие удалено.",
-        "queueDeleteDropped": "Не удалось отправить удаление на сервер — событие появится снова при следующей синхронизации.",
-        "queueUpdateDropped": "Не удалось отправить изменение на сервер — событие будет синхронизировано повторно.",
     "alerts": "Напоминания",
+    "findTime": "Найти время",
+    "findTimeTitle": "Найти время",
+    "findTimeLoading": "Поиск свободного времени…",
+    "findTimeNone": "В этот день нет свободного времени.",
+    "findTimeError": "Не удалось загрузить занятость.",
+    "createQueued": "Сохранено локально — будет отправлено при восстановлении связи.",
+    "deleteQueued": "Удалено локально — будет удалено с сервера при восстановлении связи.",
+    "queueCreateDropped": "Не удалось отправить создание на сервер — локальное событие удалено.",
+    "queueDeleteDropped": "Не удалось отправить удаление на сервер — событие появится снова при следующей синхронизации.",
+    "queueUpdateDropped": "Не удалось отправить изменение на сервер — событие будет синхронизировано повторно.",
     "availability": "Доступность",
     "availabilityBusy": "Занят",
     "availabilityFree": "Свободен",
     "status": "Статус",
     "statusConfirmed": "Подтверждено",
     "statusTentative": "Предварительно",
-    "statusCancelled": "Отменено"
+    "statusCancelled": "Отменено",
+    "shareTalkLink": "Поделиться ссылкой Talk",
+    "sendLinkToAttendees": "Отправить участникам"
   },
   "settings": {
     "title": "Настройки",
@@ -353,7 +354,9 @@
       "openWithHint": "Choose how event call links open by default. Long-press the Join Talk Room button to override.",
       "openInApp": "Nextcloud Talk app",
       "openInBrowser": "Browser",
-      "askEachTime": "Ask each time"
+      "askEachTime": "Ask each time",
+      "callReminder": "Напоминание о звонке",
+      "callReminderHint": "Уведомлять за 5 минут до звонка Talk"
     },
     "voice": {
       "title": "Голосовой ассистент",
@@ -379,7 +382,8 @@
       "days": "через {{value}} дн.",
       "today": "Сегодня",
       "tomorrow": "Завтра"
-    }
+    },
+    "joinCall": "Присоединиться"
   },
   "briefing": {
     "listen": "Прослушать мой день",
@@ -411,7 +415,7 @@
     "nothingFound": "События не найдены.",
     "chooseOne": "Какое?",
     "whichCalendar": "В каком календаре?",
-        "whichEvent": "Какой?",
+    "whichEvent": "Какой?",
     "calendarReadOnly": "только чтение",
     "noWritableCalendar": "Нет доступного для записи календаря.",
     "whichSlot": "Какой слот {{date}}?",
@@ -433,13 +437,13 @@
     "confirmDescription": "Описание: {{value}}",
     "confirmMove": "Перенести «{{title}}» на {{when}}?",
     "confirmDelete": "Удалить «{{title}}»?",
-        "confirmAgent": "Отправить этот запрос агенту Nextcloud? Он может изменить ваш календарь.",
+    "confirmAgent": "Отправить этот запрос агенту Nextcloud? Он может изменить ваш календарь.",
     "untitled": "Без названия",
     "nothingOnDay": "На {{date}} ничего нет.",
-        "attendeesDropped": "участники не распознаны: {{names}}",
-        "attendeesBusy": "внимание, занят в это время: {{names}}",
-        "pickAltSlot": "выберите свободное время:",
-        "withAttendees": "с {{names}}"
+    "attendeesDropped": "участники не распознаны: {{names}}",
+    "attendeesBusy": "внимание, занят в это время: {{names}}",
+    "pickAltSlot": "выберите свободное время:",
+    "withAttendees": "с {{names}}"
   },
   "certTrust": {
     "title": "Недоверенный сертификат",

@@ -82,8 +82,8 @@
     },
     "drawerNoCalendars": "Ningún calendario",
     "calendarNotifications": "Notificaciones de {{name}}",
-        "calendarVisibility": "Mostrar {{name}}",
-        "pendingSync": "{{count}} cambio(s) pendiente(s) — tocar para reintentar"
+    "calendarVisibility": "Mostrar {{name}}",
+    "pendingSync": "{{count}} cambio(s) pendiente(s) — tocar para reintentar"
   },
   "event": {
     "titleLabel": "Título *",
@@ -179,25 +179,26 @@
     "errorCreateFailed": "No se pudo crear el evento",
     "errorUpdateFailed": "No se pudo actualizar el evento",
     "errorDeleteFailed": "No se pudo eliminar el evento",
-        "alerts": "Avisos",
-        "findTime": "Buscar horario",
-        "findTimeTitle": "Buscar horario",
-        "findTimeLoading": "Buscando huecos libres…",
-        "findTimeNone": "No hay hueco libre ese día.",
-        "findTimeError": "No se pudo cargar la disponibilidad.",
-        "createQueued": "Guardado en local — se enviará cuando vuelva la conexión.",
-        "deleteQueued": "Eliminado en local — se quitará del servidor cuando vuelva la conexión.",
-        "queueCreateDropped": "No se pudo enviar la creación al servidor — el evento local se ha eliminado.",
-        "queueDeleteDropped": "No se pudo enviar la eliminación al servidor — el evento reaparecerá en la próxima sincronización.",
-        "queueUpdateDropped": "No se pudo enviar la modificación al servidor — el evento se resincronizará.",
     "alerts": "Avisos",
+    "findTime": "Buscar horario",
+    "findTimeTitle": "Buscar horario",
+    "findTimeLoading": "Buscando huecos libres…",
+    "findTimeNone": "No hay hueco libre ese día.",
+    "findTimeError": "No se pudo cargar la disponibilidad.",
+    "createQueued": "Guardado en local — se enviará cuando vuelva la conexión.",
+    "deleteQueued": "Eliminado en local — se quitará del servidor cuando vuelva la conexión.",
+    "queueCreateDropped": "No se pudo enviar la creación al servidor — el evento local se ha eliminado.",
+    "queueDeleteDropped": "No se pudo enviar la eliminación al servidor — el evento reaparecerá en la próxima sincronización.",
+    "queueUpdateDropped": "No se pudo enviar la modificación al servidor — el evento se resincronizará.",
     "availability": "Disponibilidad",
     "availabilityBusy": "Ocupado",
     "availabilityFree": "Libre",
     "status": "Estado",
     "statusConfirmed": "Confirmado",
     "statusTentative": "Tentativo",
-    "statusCancelled": "Cancelado"
+    "statusCancelled": "Cancelado",
+    "shareTalkLink": "Compartir enlace de Talk",
+    "sendLinkToAttendees": "Enviar a los asistentes"
   },
   "settings": {
     "title": "Ajustes",
@@ -353,7 +354,9 @@
       "openWithHint": "Choose how event call links open by default. Long-press the Join Talk Room button to override.",
       "openInApp": "Nextcloud Talk app",
       "openInBrowser": "Browser",
-      "askEachTime": "Ask each time"
+      "askEachTime": "Ask each time",
+      "callReminder": "Recordatorio de llamada",
+      "callReminderHint": "Notificar 5 minutos antes de una llamada de Talk"
     },
     "voice": {
       "title": "Asistente de voz",
@@ -379,7 +382,8 @@
       "days": "en {{value}} días",
       "today": "Hoy",
       "tomorrow": "Mañana"
-    }
+    },
+    "joinCall": "Unirse a la llamada"
   },
   "briefing": {
     "listen": "Escuchar mi día",
@@ -411,7 +415,7 @@
     "nothingFound": "No se encontró ningún evento.",
     "chooseOne": "¿Cuál?",
     "whichCalendar": "¿En qué agenda?",
-        "whichEvent": "¿Cuál?",
+    "whichEvent": "¿Cuál?",
     "calendarReadOnly": "solo lectura",
     "noWritableCalendar": "No hay ningún calendario editable.",
     "whichSlot": "¿Qué franja el {{date}}?",
@@ -433,13 +437,13 @@
     "confirmDescription": "Descripción: {{value}}",
     "confirmMove": "¿Mover «{{title}}» al {{when}}?",
     "confirmDelete": "¿Eliminar «{{title}}»?",
-        "confirmAgent": "¿Enviar esta solicitud al agente de Nextcloud? Puede modificar tu calendario.",
+    "confirmAgent": "¿Enviar esta solicitud al agente de Nextcloud? Puede modificar tu calendario.",
     "untitled": "Sin título",
     "nothingOnDay": "Nada el {{date}}.",
-        "attendeesDropped": "asistentes no reconocidos: {{names}}",
-        "attendeesBusy": "atención, no disponible a esa hora: {{names}}",
-        "pickAltSlot": "elige un horario libre:",
-        "withAttendees": "con {{names}}"
+    "attendeesDropped": "asistentes no reconocidos: {{names}}",
+    "attendeesBusy": "atención, no disponible a esa hora: {{names}}",
+    "pickAltSlot": "elige un horario libre:",
+    "withAttendees": "con {{names}}"
   },
   "certTrust": {
     "title": "Certificado no confiable",

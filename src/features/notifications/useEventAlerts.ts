@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { AppState, type AppStateStatus } from 'react-native';
 import * as Notifications from 'expo-notifications';
+import { router } from 'expo-router';
 
 import { useAccountStore } from '@/stores/accountStore';
 import { EVENT_OBSERVED_COLUMNS } from '@/database/observedColumns';
@@ -18,11 +19,26 @@ const handledResponseKeys = new Set<string>();
 const responseKey = (r: Notifications.NotificationResponse): string =>
   `${r.notification.request.identifier}:${r.actionIdentifier}`;
 
+// Default tap (no action button) routes to the event detail via the deep link
+// carried in the notification payload. router.push can race the root Stack
+// mount on cold start, so retry briefly.
+const pushEventUrl = (url: string, attempt = 0): void => {
+  try {
+    router.push(url as never);
+  } catch {
+    if (attempt < 10) setTimeout(() => pushEventUrl(url, attempt + 1), 400);
+  }
+};
+
 const onAlertResponse = (r: Notifications.NotificationResponse): void => {
   const k = responseKey(r);
   if (handledResponseKeys.has(k)) return;
   handledResponseKeys.add(k);
-  handleAlertResponse(r);
+  const handled = handleAlertResponse(r);
+  if (!handled) {
+    const url = (r.notification.request.content.data as { url?: unknown })?.url;
+    if (typeof url === 'string') pushEventUrl(url);
+  }
 };
 
 export function useEventAlerts(): void {

@@ -82,8 +82,8 @@
     },
     "drawerNoCalendars": "Aucun calendrier",
     "calendarNotifications": "Notifications de {{name}}",
-        "calendarVisibility": "Afficher {{name}}",
-        "pendingSync": "{{count}} modification(s) en attente — toucher pour réessayer"
+    "calendarVisibility": "Afficher {{name}}",
+    "pendingSync": "{{count}} modification(s) en attente — toucher pour réessayer"
   },
   "event": {
     "titleLabel": "Titre *",
@@ -179,25 +179,26 @@
     "errorCreateFailed": "Échec de la création de l'événement",
     "errorUpdateFailed": "Échec de la mise à jour de l'événement",
     "errorDeleteFailed": "Échec de la suppression de l'événement",
-        "alerts": "Alertes",
-        "findTime": "Trouver un créneau",
-        "findTimeTitle": "Trouver un créneau",
-        "findTimeLoading": "Recherche des créneaux libres…",
-        "findTimeNone": "Aucun créneau libre ce jour.",
-        "findTimeError": "Impossible de charger les disponibilités.",
-        "createQueued": "Enregistré en local — sera envoyé au serveur dès le retour du réseau.",
-        "deleteQueued": "Supprimé en local — sera retiré du serveur dès le retour du réseau.",
-        "queueCreateDropped": "Impossible d'envoyer la création au serveur — l'événement local a été retiré.",
-        "queueDeleteDropped": "Impossible d'envoyer la suppression au serveur — l'événement réapparaîtra à la prochaine synchronisation.",
-        "queueUpdateDropped": "Impossible d'envoyer la modification au serveur — l'événement sera resynchronisé.",
     "alerts": "Alertes",
+    "findTime": "Trouver un créneau",
+    "findTimeTitle": "Trouver un créneau",
+    "findTimeLoading": "Recherche des créneaux libres…",
+    "findTimeNone": "Aucun créneau libre ce jour.",
+    "findTimeError": "Impossible de charger les disponibilités.",
+    "createQueued": "Enregistré en local — sera envoyé au serveur dès le retour du réseau.",
+    "deleteQueued": "Supprimé en local — sera retiré du serveur dès le retour du réseau.",
+    "queueCreateDropped": "Impossible d'envoyer la création au serveur — l'événement local a été retiré.",
+    "queueDeleteDropped": "Impossible d'envoyer la suppression au serveur — l'événement réapparaîtra à la prochaine synchronisation.",
+    "queueUpdateDropped": "Impossible d'envoyer la modification au serveur — l'événement sera resynchronisé.",
     "availability": "Disponibilité",
     "availabilityBusy": "Occupé",
     "availabilityFree": "Libre",
     "status": "Statut",
     "statusConfirmed": "Confirmé",
     "statusTentative": "Provisoire",
-    "statusCancelled": "Annulé"
+    "statusCancelled": "Annulé",
+    "shareTalkLink": "Partager le lien Talk",
+    "sendLinkToAttendees": "Envoyer aux participants"
   },
   "settings": {
     "title": "Paramètres",
@@ -353,7 +354,9 @@
       "openWithHint": "Choisissez comment s'ouvrent par défaut les liens d'appel des événements. Faites un appui long sur Rejoindre la salle Talk pour inverser.",
       "openInApp": "Application Nextcloud Talk",
       "openInBrowser": "Navigateur",
-      "askEachTime": "Demander à chaque fois"
+      "askEachTime": "Demander à chaque fois",
+      "callReminder": "Rappel d'appel",
+      "callReminderHint": "Notifier 5 min avant un appel Talk"
     },
     "voice": {
       "title": "Assistant vocal",
@@ -379,7 +382,8 @@
       "days": "dans {{value}} jours",
       "today": "Aujourd'hui",
       "tomorrow": "Demain"
-    }
+    },
+    "joinCall": "Rejoindre"
   },
   "briefing": {
     "listen": "Écouter ma journée",
@@ -411,7 +415,7 @@
     "nothingFound": "Aucun événement trouvé.",
     "chooseOne": "Lequel ?",
     "whichCalendar": "Dans quel agenda ?",
-        "whichEvent": "Lequel ?",
+    "whichEvent": "Lequel ?",
     "calendarReadOnly": "lecture seule",
     "noWritableCalendar": "Aucun agenda modifiable.",
     "whichSlot": "Quel créneau le {{date}} ?",
@@ -433,13 +437,13 @@
     "confirmDescription": "Description : {{value}}",
     "confirmMove": "Déplacer « {{title}} » au {{when}} ?",
     "confirmDelete": "Supprimer « {{title}} » ?",
-        "confirmAgent": "Envoyer cette demande à l'agent Nextcloud ? Il peut modifier votre agenda.",
+    "confirmAgent": "Envoyer cette demande à l'agent Nextcloud ? Il peut modifier votre agenda.",
     "untitled": "Sans titre",
     "nothingOnDay": "Rien le {{date}}.",
-        "attendeesDropped": "invités non reconnus : {{names}}",
-        "attendeesBusy": "attention, indisponible sur ce créneau : {{names}}",
-        "pickAltSlot": "choisissez un horaire libre :",
-        "withAttendees": "avec {{names}}"
+    "attendeesDropped": "invités non reconnus : {{names}}",
+    "attendeesBusy": "attention, indisponible sur ce créneau : {{names}}",
+    "pickAltSlot": "choisissez un horaire libre :",
+    "withAttendees": "avec {{names}}"
   },
   "certTrust": {
     "title": "Certificat non approuvé",

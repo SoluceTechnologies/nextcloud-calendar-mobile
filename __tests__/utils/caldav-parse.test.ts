@@ -87,6 +87,23 @@ describe('parseIcsObjects', () => {
     expect(event.talkUrl).toBeUndefined();
   });
 
+  it('extracts Talk URL from DESCRIPTION when LOCATION holds a real address (hybrid event)', () => {
+    const ics = sampleIcs
+      .replace('LOCATION:https://cloud.example.com/call/tok1', 'LOCATION:Room 4, Building B')
+      .replace('DESCRIPTION:Weekly sync', 'DESCRIPTION:Weekly sync\\nJoin: https://cloud.example.com/call/hyb1');
+    const [event] = parseIcsObjects([{ ics, href: '/cal/event.ics' }], calMeta);
+    expect(event.location).toBe('Room 4, Building B');
+    expect(event.talkUrl).toBe('https://cloud.example.com/call/hyb1');
+  });
+
+  it('extracts Talk URL from a CONFERENCE property', () => {
+    const ics = sampleIcs
+      .replace('LOCATION:https://cloud.example.com/call/tok1', 'LOCATION:Room 4')
+      .replace('END:VEVENT', 'CONFERENCE;VALUE=URI:https://cloud.example.com/call/conf9\nEND:VEVENT');
+    const [event] = parseIcsObjects([{ ics, href: '/cal/event.ics' }], calMeta);
+    expect(event.talkUrl).toBe('https://cloud.example.com/call/conf9');
+  });
+
   it('marks all-day events correctly', () => {
     const [event] = parseIcsObjects([{ ics: allDayIcs, href: '/cal/allday.ics' }], calMeta);
     expect(event.allDay).toBe(true);
