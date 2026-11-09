@@ -16,7 +16,8 @@
   },
   "tabs": {
     "calendar": "Agenda",
-    "settings": "Instellingen"
+    "settings": "Instellingen",
+    "search": "Zoeken"
   },
   "setup": {
     "brand": "Agenda",
@@ -81,7 +82,8 @@
     },
     "drawerNoCalendars": "Geen agenda",
     "calendarNotifications": "Meldingen van {{name}}",
-    "calendarVisibility": "{{name}} tonen"
+    "calendarVisibility": "{{name}} tonen",
+    "pendingSync": "{{count}} wijziging(en) in de wacht — tik om opnieuw te proberen"
   },
   "event": {
     "titleLabel": "Titel *",
@@ -98,6 +100,7 @@
     "description": "Omschrijving",
     "descriptionPlaceholder": "Details...",
     "attendees": "Deelnemers",
+    "organizer": "Organisator",
     "attendeePlaceholder": "email@voorbeeld.com",
     "add": "Toevoegen",
     "saving": "Opslaan…",
@@ -176,7 +179,26 @@
     "errorCreateFailed": "Aanmaken van afspraak mislukt",
     "errorUpdateFailed": "Bijwerken van afspraak mislukt",
     "errorDeleteFailed": "Verwijderen van afspraak mislukt",
-    "alerts": "Herinneringen"
+    "alerts": "Herinneringen",
+    "findTime": "Tijd vinden",
+    "findTimeTitle": "Tijd vinden",
+    "findTimeLoading": "Vrije tijden zoeken…",
+    "findTimeNone": "Geen vrije tijd die dag.",
+    "findTimeError": "Beschikbaarheid kon niet worden geladen.",
+    "createQueued": "Lokaal opgeslagen — wordt verzonden zodra de verbinding terug is.",
+    "deleteQueued": "Lokaal verwijderd — wordt verwijderd van de server zodra de verbinding terug is.",
+    "queueCreateDropped": "De aanmaak kon niet naar de server worden verzonden — de lokale gebeurtenis is verwijderd.",
+    "queueDeleteDropped": "Het verwijderen kon niet naar de server worden verzonden — de gebeurtenis verschijnt opnieuw bij de volgende synchronisatie.",
+    "queueUpdateDropped": "De wijziging kon niet naar de server worden verzonden — de gebeurtenis wordt opnieuw gesynchroniseerd.",
+    "availability": "Beschikbaarheid",
+    "availabilityBusy": "Bezet",
+    "availabilityFree": "Vrij",
+    "status": "Status",
+    "statusConfirmed": "Bevestigd",
+    "statusTentative": "Voorlopig",
+    "statusCancelled": "Geannuleerd",
+    "shareTalkLink": "Talk-link delen",
+    "sendLinkToAttendees": "Naar deelnemers sturen"
   },
   "settings": {
     "title": "Instellingen",
@@ -332,7 +354,15 @@
       "openWithHint": "Choose how event call links open by default. Long-press the Join Talk Room button to override.",
       "openInApp": "Nextcloud Talk app",
       "openInBrowser": "Browser",
-      "askEachTime": "Ask each time"
+      "askEachTime": "Ask each time",
+      "callReminder": "Oproepherinnering",
+      "callReminderHint": "Melding 5 minuten voor een Talk-gesprek"
+    },
+    "voice": {
+      "title": "Spraakassistent",
+      "tierNote": "Lokale opdrachten blijven op het apparaat; vrije vragen gebruiken de Nextcloud-assistent wanneer de server die aanbiedt.",
+      "availabilityTitle": "Agenda's die meetellen voor beschikbaarheid",
+      "availabilityHint": "Slotzoekopdracht negeert uitgeschakelde agenda's."
     }
   },
   "widget": {
@@ -352,7 +382,68 @@
       "days": "over {{value}} dagen",
       "today": "Vandaag",
       "tomorrow": "Morgen"
-    }
+    },
+    "joinCall": "Deelnemen aan gesprek"
+  },
+  "briefing": {
+    "listen": "Mijn dag beluisteren",
+    "listenAction": "Luisteren",
+    "navigateAction": "Route",
+    "pause": "Pauzeren",
+    "resume": "Hervatten",
+    "next": "Volgende afspraak",
+    "stop": "Briefing stoppen",
+    "emptyDay": "Geen afspraken vandaag",
+    "emptyDayDated": "Geen afspraken op {{date}}"
+  },
+  "voice": {
+    "open": "Spraakassistent",
+    "listening": "Ik luister…",
+    "hint": "Probeer: „tandartsafspraak morgen om 14 uur”",
+    "inputPlaceholder": "Typ een opdracht…",
+    "send": "Verzenden",
+    "confirm": "Bevestigen",
+    "cancel": "Annuleren",
+    "retry": "Opnieuw proberen",
+    "thinking": "De server denkt na…",
+    "notUnderstood": "Ik heb het niet begrepen, herformuleer.",
+    "sttUnavailable": "Spraakherkenning niet beschikbaar — gebruik typen.",
+    "permissionDenied": "Microfoontoegang geweigerd.",
+    "created": "Afspraak aangemaakt.",
+    "moved": "Afspraak verplaatst.",
+    "deleted": "Afspraak verwijderd.",
+    "nothingFound": "Geen afspraak gevonden.",
+    "chooseOne": "Welke?",
+    "whichCalendar": "In welke agenda?",
+    "whichEvent": "Welke?",
+    "calendarReadOnly": "alleen-lezen",
+    "noWritableCalendar": "Geen beschrijfbare agenda gevonden.",
+    "whichSlot": "Welk tijdslot op {{date}}?",
+    "noFreeSlot": "Geen vrij tijdslot op {{date}}.",
+    "meetingWith": "Vergadering met {{names}}",
+    "meetingTitle": "Vergadering",
+    "enabled": "Spraakassistent",
+    "enabledHint": "Toont de microfoonknop om de agenda met spraak of tekst te bedienen — per account.",
+    "onDevice": "Herkenning op het apparaat",
+    "onDeviceHint": "Spraakaudio blijft waar mogelijk op dit apparaat.",
+    "onDeviceUnsupported": "Niet ondersteund op dit apparaat — audio wordt via het netwerk verzonden.",
+    "agentAvailable": "Serverassistent beschikbaar.",
+    "agentUnavailable": "Serverassistent niet beschikbaar — alleen lokale opdrachten.",
+    "serverError": "De server heeft niet geantwoord.",
+    "stillThinking": "De server denkt nog na, probeer het later opnieuw.",
+    "tapToSpeak": "Tik om te spreken",
+    "confirmCreate": "„{{title}}” op {{when}} in {{calendar}} aanmaken?",
+    "confirmLocation": "Locatie: {{value}}",
+    "confirmDescription": "Beschrijving: {{value}}",
+    "confirmMove": "„{{title}}” verplaatsen naar {{when}}?",
+    "confirmDelete": "„{{title}}” verwijderen?",
+    "confirmAgent": "Dit verzoek naar de Nextcloud-agent sturen? Deze kan je agenda wijzigen.",
+    "untitled": "Zonder titel",
+    "nothingOnDay": "Niets op {{date}}.",
+    "attendeesDropped": "genodigden niet herkend: {{names}}",
+    "attendeesBusy": "let op, bezet op dat tijdstip: {{names}}",
+    "pickAltSlot": "kies een vrij tijdstip:",
+    "withAttendees": "met {{names}}"
   },
   "certTrust": {
     "title": "Niet-vertrouwd certificaat",
@@ -373,5 +464,81 @@
     "remedy": "Veiligere opties: de server bereiken via een VPN zoals Tailscale of WireGuard, of een gratis certificaat instellen met DuckDNS en Let's Encrypt.",
     "connect": "Toch verbinden",
     "cancel": "Annuleren"
+  },
+  "search": {
+    "title": "Zoeken",
+    "placeholder": "Afspraken zoeken…",
+    "filters": "FILTERS",
+    "filter": {
+      "calendar": "In een agenda",
+      "attendee": "Met een deelnemer",
+      "date": "Datum",
+      "title": "In titel",
+      "location": "In locatie",
+      "description": "In beschrijving"
+    },
+    "hint": {
+      "name": "naam",
+      "person": "persoon",
+      "text": "tekst"
+    },
+    "more": "Meer filters",
+    "moreHint": "titel, locatie, beschrijving",
+    "recent": "RECENT",
+    "removeRecent": "Verwijderen uit recent",
+    "removeFilter": "Filter {{filter}} verwijderen",
+    "use": "“{{value}}” gebruiken",
+    "filterHint": "Filteren:",
+    "short": {
+      "calendar": "Agenda",
+      "attendee": "Deelnemer",
+      "date": "Datum"
+    },
+    "date": {
+      "today": "Vandaag",
+      "tomorrow": "Morgen",
+      "week": "Binnen 7 dagen",
+      "month": "Binnen een maand",
+      "upcoming": "Komend",
+      "past": "Voorbij",
+      "before": "Voor een datum…",
+      "after": "Na een datum…"
+    },
+    "upcoming": "KOMEND",
+    "past": "VOORBIJ",
+    "truncated": "De eerste {{count}} worden getoond, voeg een filter toe om te verfijnen",
+    "fromServer": "MEER VAN DE SERVER",
+    "noResults": "Geen resultaten",
+    "noResultsHint": "Probeer minder filters of een eenvoudiger woord.",
+    "offlineNote": "Offline — alleen lokale resultaten",
+    "serverFailed": "Server niet bereikbaar — alleen lokale resultaten",
+    "openFailed": "Kan deze afspraak niet openen"
+  },
+  "ai": {
+    "title": "AI-assistent",
+    "enable": "AI-functies inschakelen",
+    "provider": "AI-provider",
+    "providerAvailable": "Beschikbaar: {{name}}",
+    "providerUnavailable": "Geen AI-provider beschikbaar op deze server",
+    "privacyNotice": "Indien ingeschakeld worden titels, tijden en locaties van afspraken naar je Nextcloud-server gestuurd zodat diens AI-provider samenvattingen en concepten kan genereren. Gegevens blijven op je server; de app stuurt niets naar diensten van derden.",
+    "disclosure": "Gegenereerd door de AI van je server",
+    "regenerate": "Opnieuw genereren",
+    "thinking": "Aan het nadenken…",
+    "copy": "Kopiëren",
+    "descriptionDraft": "Concept met AI",
+    "error": "Het AI-verzoek is mislukt. Probeer opnieuw.",
+    "summary": {
+      "empty": "Geen afspraken",
+      "events_one": "{{count}} afspraak",
+      "events_other": "{{count}} afspraken",
+      "events_few": "{{count}} afspraken",
+      "events_many": "{{count}} afspraken",
+      "tasks_one": "{{count}} taak",
+      "tasks_other": "{{count}} taken",
+      "tasks_few": "{{count}} taken",
+      "tasks_many": "{{count}} taken",
+      "next": "volgende:",
+      "at": "om"
+    }
   }
 }

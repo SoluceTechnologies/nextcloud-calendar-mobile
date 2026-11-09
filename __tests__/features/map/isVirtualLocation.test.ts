@@ -5,8 +5,10 @@ describe('isVirtualLocation', () => {
     expect(isVirtualLocation('10 Downing Street, London')).toBe(false);
   });
 
-  it('returns true when a talkUrl is set', () => {
-    expect(isVirtualLocation('https://cloud.example.com/call/abc', 'https://cloud.example.com/call/abc')).toBe(true);
+  it('returns false for a hybrid event: real address + Talk link carried separately', () => {
+    // talkUrl may now come from DESCRIPTION/CONFERENCE — a physical LOCATION
+    // must keep its map even when a call link exists on the event.
+    expect(isVirtualLocation('Room 4, Building B')).toBe(false);
   });
 
   it('detects a Nextcloud Talk URL', () => {

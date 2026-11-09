@@ -109,7 +109,10 @@ Create, view, and edit calendar events with support for:
 - Multiple reminders per event, configurable defaults, and custom offsets
 
 ### Nextcloud Talk Integration
-Optionally attach a Nextcloud Talk room to any event at creation time, the Talk link is stored in the event and surfaced in the event detail view.
+- Optionally attach a Nextcloud Talk room to any event at creation time; the Talk link is stored in the event and surfaced in the event detail view
+- **Join in one tap** — Talk links are detected from `LOCATION`, `DESCRIPTION`, or `CONFERENCE` properties (matching the web convention), even for events created on another server
+- **Call reminders** — events with a Talk link get an extra local notification 5 minutes before start (configurable in Settings → Talk); the notification's "Join call" action opens Talk directly, and tapping the notification opens the event detail
+- **Resend the link** — share the Talk link or send it to all attendees from the event detail
 
 ### Home Screen Widgets & Live Activities
 Keep your agenda glanceable without opening the app:
@@ -118,6 +121,13 @@ Keep your agenda glanceable without opening the app:
 - **iOS Live Activity**, the next or ongoing event with a live countdown, shown on the Lock Screen and in the Dynamic Island
 
 Widgets are kept up to date through the app's background sync, and tapping an event deep-links straight into its detail view.
+
+### Voice Assistant & Siri
+- Optional in-app voice assistant — bilingual EN/FR commands parsed locally for offline use, with free-form requests routed to your Nextcloud server's Context Agent (Assistant + AI provider required)
+- Confirmation card before every create/move/delete — nothing mutates without a tap
+- On-device speech recognition option (device/locale permitting), otherwise a clearly indicated network fallback
+- iOS App Shortcuts — "Hey Siri, agenda du jour dans Nextcloud Calendar", next event, ask the assistant, pre-fill a new event — all hands-free, including in CarPlay
+- See [.github/VOICE_ASSISTANT.md](.github/VOICE_ASSISTANT.md) for the full guide, including the zero-code CarPlay path via the native iOS CalDAV account
 
 ### Theming & Personalization
 - Light, dark, and system-auto theme modes
@@ -154,3 +164,4 @@ This project is free and open source. If you're interested in contributing, have
 | <img src="/.github/assets/settings-notifications.png" alt="Notification settings" width="230" /> | <img src="/.github/assets/settings-widgets.png" alt="Widget settings" width="230" /> | <img src="/.github/assets/settings-accessbility.png" alt="Accessibility settings" width="230" /> |
 
 </div>
+

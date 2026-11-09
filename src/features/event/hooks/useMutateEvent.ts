@@ -6,6 +6,7 @@ import dayjs from 'dayjs';
 import { putEvent, updateEvent, deleteEvent, moveEvent, fetchEventIcs } from '@/services/nextcloud/caldav';
 import { createTalkRoom } from '@/services/nextcloud/talk';
 import { describeMutationError } from '@/services/shared/errors';
+import { enqueue, isNetworkFailure } from '@/services/pendingMutations';
 import { buildIcs, buildAllDayIcs, buildExceptionIcs, injectExdate, truncateRruleUntil, shiftIcsDates, upsertOverride } from '@/utils/ics';
 import { parseIcsObjects, extractDtstartTzid, extractSequence, extractDtstartDtend, extractExtraVeventLines } from '@/utils/caldav-parse';
 import { isValidTimeZone } from '@/utils/timezone';
@@ -50,9 +51,11 @@ export function shiftedMasterInput(
   };
 }
 
-function useAction<V>(run: (value: V) => Promise<void>): {
+export type MutationResult = 'ok' | 'queued' | 'failed';
+
+function useAction<V, R>(run: (value: V) => Promise<R>): {
   mutate: (value: V) => void;
-  mutateAsync: (value: V) => Promise<void>;
+  mutateAsync: (value: V) => Promise<R>;
   isPending: boolean;
 } {
   const [isPending, setIsPending] = useState(false);
@@ -60,7 +63,7 @@ function useAction<V>(run: (value: V) => Promise<void>): {
     async (value: V) => {
       setIsPending(true);
       try {
-        await run(value);
+        return await run(value);
       } finally {
         setIsPending(false);
       }
@@ -104,14 +107,14 @@ function buildIcsForInput(
         dtstart: input.dtstart, dtend: input.dtend,
         organizerEmail: input.organizerEmail, organizerName: input.organizerName,
         attendees: input.attendees, rrule: input.rrule, alarms,
-        sequence, extraLines,
+        sequence, status: input.status, transp: input.transp, extraLines,
       })
     : buildIcs({
         uid, summary: input.summary, description, location,
         dtstart: input.dtstart, dtend: input.dtend,
         organizerEmail: input.organizerEmail, organizerName: input.organizerName,
         attendees: input.attendees, timezone, rrule: input.rrule, alarms,
-        sequence, extraLines,
+        sequence, status: input.status, transp: input.transp, extraLines,
       });
 }
 
@@ -173,6 +176,8 @@ function eventFromInput(
     isRecurring: !!input.rrule,
     rrule: undefined,
     alarms: resolveAlarms(input),
+    transp: input.transp,
+    status: input.status,
   };
 }
 
@@ -195,10 +200,10 @@ function expandOccurrences(
 }
 
 export function useCreateEvent(account: Account, calendars: CalendarMeta[]) {
-  return useAction<CreateEventInput>(
-    useCallback(async (input: CreateEventInput) => {
+  return useAction<CreateEventInput, MutationResult>(
+    useCallback(async (input: CreateEventInput): Promise<MutationResult> => {
       const calendar = resolveCalendar(calendars, input.calendarId);
-      if (!calendar) return;
+      if (!calendar) return 'failed';
 
       const uid = Crypto.randomUUID();
       const optimistic = input.rrule
@@ -206,27 +211,36 @@ export function useCreateEvent(account: Account, calendars: CalendarMeta[]) {
         : [eventFromInput(uid, input, calendar, account)];
       await insertEvents(optimistic);
 
+      let ics = '';
       try {
         const resolved = await resolveLocationAndDescription(account, input);
         const timezone = resolveTimezone(account);
-        const ics = buildIcsForInput(uid, input, resolved.location, resolved.description, timezone);
+        ics = buildIcsForInput(uid, input, resolved.location, resolved.description, timezone);
         await putEvent(account, calendar, uid, ics);
 
         const real = input.rrule
           ? expandOccurrences(uid, input, calendar, account)
           : [eventFromInput(uid, input, calendar, account, resolved)];
         await insertEvents(real);
+        return 'ok';
       } catch (error) {
+        if (isNetworkFailure(error) && ics) {
+          // Offline: keep the optimistic event and replay the PUT later.
+          enqueue({ kind: 'create', accountId: account.id, calendar, uid, ics });
+          Alert.alert(i18n.t('event.createQueued'), describeMutationError(error));
+          return 'queued';
+        }
         await removeWhere(account.id, (e) => seriesBaseUid(e.uid) === uid);
         Alert.alert(i18n.t('event.errorCreateFailed'), describeMutationError(error));
+        return 'failed';
       }
     }, [account, calendars]),
   );
 }
 
 export function useUpdateEvent(account: Account, calendars: CalendarMeta[]) {
-  return useAction<{ event: CalendarEvent; input: CreateEventInput; scope?: RecurrenceEditScope; datesOnly?: boolean }>(
-    useCallback(async ({ event, input, scope = 'all', datesOnly = false }) => {
+  return useAction<{ event: CalendarEvent; input: CreateEventInput; scope?: RecurrenceEditScope; datesOnly?: boolean }, MutationResult>(
+    useCallback(async ({ event, input, scope = 'all', datesOnly = false }): Promise<MutationResult> => {
       const base = seriesBaseUid(event.uid);
       const snapshot = await snapshotByBase(account.id, base);
 
@@ -243,6 +257,8 @@ export function useUpdateEvent(account: Account, calendars: CalendarMeta[]) {
         location: input.location ?? event.location,
         attendees: input.attendees,
         alarms: resolveAlarms(input),
+        transp: input.transp ?? event.transp,
+        status: input.status ?? event.status,
       };
 
       if (shiftsWholeSeries) {
@@ -318,6 +334,7 @@ export function useUpdateEvent(account: Account, calendars: CalendarMeta[]) {
             attendees: input.attendees, timezone, recurrenceId: occurrenceSlot(event),
             alarms: resolveAlarms(input),
             sequence: extractSequence(masterIcs) + 1,
+            status: input.status, transp: input.transp,
             extraLines: extractExtraVeventLines(masterIcs),
           });
           // The override lives in the series resource (CalDAV refuses a second one with its UID).
@@ -331,17 +348,19 @@ export function useUpdateEvent(account: Account, calendars: CalendarMeta[]) {
           const newUid = Crypto.randomUUID();
           await putEvent(account, cal, newUid, buildIcsForInput(newUid, scheduled, location, description, timezone, 0, extractExtraVeventLines(masterIcs)));
         }
+        return 'ok';
       } catch (error) {
         await restoreSeries(account.id, base, snapshot);
         Alert.alert(i18n.t('event.errorUpdateFailed'), describeMutationError(error));
+        return 'failed';
       }
     }, [account, calendars]),
   );
 }
 
 export function useDeleteEvent(account: Account) {
-  return useAction<{ event: CalendarEvent; scope?: RecurrenceEditScope }>(
-    useCallback(async ({ event, scope = 'all' }) => {
+  return useAction<{ event: CalendarEvent; scope?: RecurrenceEditScope }, MutationResult>(
+    useCallback(async ({ event, scope = 'all' }): Promise<MutationResult> => {
       const base = seriesBaseUid(event.uid);
       let removed: CalendarEvent[];
       if (!event.isRecurring || scope === 'all') {
@@ -359,7 +378,7 @@ export function useDeleteEvent(account: Account) {
       try {
         if (!event.isRecurring || scope === 'all') {
           await deleteEvent(account, event.href);
-          return;
+          return 'ok';
         }
         const timezone = resolveTimezone(account);
         const masterIcs = await fetchEventIcs(account, event.href);
@@ -369,9 +388,17 @@ export function useDeleteEvent(account: Account) {
           const oneDayBefore = dayjs(occurrenceSlot(event)).subtract(1, 'day').endOf('day').toDate();
           await updateEvent(account, event.href, truncateRruleUntil(masterIcs, oneDayBefore));
         }
+        return 'ok';
       } catch (error) {
+        if (isNetworkFailure(error) && (!event.isRecurring || scope === 'all')) {
+          // Offline: rows stay removed locally; the DELETE is replayed later.
+          enqueue({ kind: 'delete', accountId: account.id, href: event.href });
+          Alert.alert(i18n.t('event.deleteQueued'), describeMutationError(error));
+          return 'queued';
+        }
         await insertEvents(removed);
         Alert.alert(i18n.t('event.errorDeleteFailed'), describeMutationError(error));
+        return 'failed';
       }
     }, [account]),
   );

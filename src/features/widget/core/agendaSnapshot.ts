@@ -132,6 +132,7 @@ export function buildAgendaSnapshot(
       weekdayLong: fmt('weekdayLong', locale, tz).format(dayDate),
       isToday,
       items: dayEvents.slice(0, maxPerSection).map((e) => toItem(e, locale, tz, use24h)),
+      totalCount: dayEvents.length,
     });
   }
 

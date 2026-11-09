@@ -9,12 +9,15 @@ interface CalendarState {
   hiddenCalendarIds: string[];
   notifDisabledCalendarIds: string[];
   widgetDisabledCalendarIds: string[];
+  /** User overrides for "counts for availability" — absent id defaults to !isReadOnly. */
+  availabilityCalendarOverrides: Record<string, boolean>;
   hourRowHeight: number;
   setViewMode: (mode: ViewMode) => void;
   setSelectedDate: (date: Date | null) => void;
   toggleCalendarVisibility: (calendarId: string) => void;
   toggleCalendarNotifications: (calendarId: string) => void;
   toggleCalendarWidget: (calendarId: string) => void;
+  setCalendarAvailability: (calendarId: string, value: boolean) => void;
   setHourRowHeight: (h: number) => void;
 }
 
@@ -30,6 +33,7 @@ export const useCalendarStore = create<CalendarState>()(
       hiddenCalendarIds: [],
       notifDisabledCalendarIds: [],
       widgetDisabledCalendarIds: [],
+      availabilityCalendarOverrides: {},
       hourRowHeight: 60,
       setViewMode: (mode) => set({ viewMode: mode }),
       setSelectedDate: (date) => set({ selectedDate: date }),
@@ -39,18 +43,21 @@ export const useCalendarStore = create<CalendarState>()(
         set({ notifDisabledCalendarIds: toggleIn(get().notifDisabledCalendarIds, calendarId) }),
       toggleCalendarWidget: (calendarId) =>
         set({ widgetDisabledCalendarIds: toggleIn(get().widgetDisabledCalendarIds, calendarId) }),
+      setCalendarAvailability: (calendarId, value) =>
+        set({ availabilityCalendarOverrides: { ...get().availabilityCalendarOverrides, [calendarId]: value } }),
       setHourRowHeight: (h) => set({ hourRowHeight: h }),
     }),
     {
       name: 'calendar-store',
       storage: createJSONStorage(() =>
-        legacyBackedStorage(['viewMode', 'hiddenCalendarIds', 'notifDisabledCalendarIds', 'widgetDisabledCalendarIds', 'hourRowHeight'])
+        legacyBackedStorage(['viewMode', 'hiddenCalendarIds', 'notifDisabledCalendarIds', 'widgetDisabledCalendarIds', 'availabilityCalendarOverrides', 'hourRowHeight'])
       ),
       partialize: (state) => ({
         viewMode: state.viewMode,
         hiddenCalendarIds: state.hiddenCalendarIds,
         notifDisabledCalendarIds: state.notifDisabledCalendarIds,
         widgetDisabledCalendarIds: state.widgetDisabledCalendarIds,
+        availabilityCalendarOverrides: state.availabilityCalendarOverrides,
         hourRowHeight: state.hourRowHeight,
       }),
     }

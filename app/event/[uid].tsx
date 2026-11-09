@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { View, StyleSheet, ScrollView, Alert, Text, Linking } from 'react-native';
+import { View, StyleSheet, ScrollView, Alert, Text, Linking, Share } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
 import { haptic } from '@/utils/haptics';
 import {
   Pencil, Clock, CalendarDays, MapPin, Video, Repeat, Trash2, Copy, Check, Bell,
-  Navigation,
+  Navigation, Ban, Info, EyeOff, Share2,
 } from 'lucide-react-native';
 import { useLocalSearchParams, useNavigation, useRouter, useTheme } from 'expo-router';
 import dayjs from 'dayjs';
@@ -81,7 +81,7 @@ export default function EventDetailScreen() {
   const copyResetRef = useRef<ReturnType<typeof setTimeout>>(undefined);
   useEffect(() => () => clearTimeout(copyResetRef.current), []);
 
-  const { coordinates, isVirtual } = useEventLocation(event?.location, event?.talkUrl);
+  const { coordinates, isVirtual } = useEventLocation(event?.location);
 
   const handleCopyLocation = useCallback(async () => {
     if (!event?.location) return;
@@ -96,6 +96,30 @@ export default function EventDetailScreen() {
     if (!event?.location) return;
     await openMaps(event.location, coordinates?.lat, coordinates?.lon);
   }, [event?.location, coordinates]);
+
+  // Resend the Talk link: generic share sheet, or a mail to the attendees.
+  function shareTalkLink() {
+    if (!event?.talkUrl) return;
+    const message = `${event.summary || t('calendar.noTitle')}\n${event.talkUrl}`;
+    const emails = event.attendees.map((a) => a.email).filter(Boolean);
+    if (emails.length === 0) {
+      void Share.share({ message });
+      return;
+    }
+    Alert.alert(t('event.shareTalkLink'), undefined, [
+      {
+        text: t('event.sendLinkToAttendees'),
+        onPress: () => {
+          const href = `mailto:?bcc=${encodeURIComponent(emails.join(','))}&subject=${encodeURIComponent(
+            event.summary || '',
+          )}&body=${encodeURIComponent(event.talkUrl!)}`;
+          void Linking.openURL(href).catch(() => void Share.share({ message }));
+        },
+      },
+      { text: t('event.shareTalkLink'), onPress: () => void Share.share({ message }) },
+      { text: t('common.cancel'), style: 'cancel' },
+    ]);
+  }
 
   const recurrenceScopeStrings: RecurrenceScopeStrings = {
     message: t('event.recurrenceScopeMessage'),
@@ -238,7 +262,12 @@ export default function EventDetailScreen() {
         <ScrollView style={styles.flex} contentContainerStyle={[styles.content, { paddingBottom: 24 }]}>
           <Stack gap={20}>
             <Stack gap={10}>
-              <Typography variant="h3">{event.summary}</Typography>
+              <Typography
+                variant="h3"
+                style={event.status === 'cancelled' ? styles.cancelledTitle : undefined}
+              >
+                {event.summary}
+              </Typography>
               {event.isRecurring && (
                 <Stack direction="horizontal" gap={6}>
                   <Repeat size={16} color={theme.colors.primary} />
@@ -295,6 +324,28 @@ export default function EventDetailScreen() {
                   }
                 />
               )}
+              {event.status && event.status !== 'confirmed' && (
+                <Item
+                  leading={
+                    <Icon size={20}>
+                      {event.status === 'cancelled'
+                        ? <Ban color={theme.colors.textSecondary} />
+                        : <Info color={theme.colors.textSecondary} />}
+                    </Icon>
+                  }
+                  title={t('event.status')}
+                  description={event.status === 'cancelled'
+                    ? t('event.statusCancelled')
+                    : t('event.statusTentative')}
+                />
+              )}
+              {event.transp === 'transparent' && (
+                <Item
+                  leading={<Icon size={20}><EyeOff color={theme.colors.textSecondary} /></Icon>}
+                  title={t('event.availability')}
+                  description={t('event.availabilityFree')}
+                />
+              )}
             </List>
 
             {coordinates && !isVirtual && (
@@ -315,14 +366,25 @@ export default function EventDetailScreen() {
             )}
 
             {event.talkUrl && (
-              <Button
-                testID="event-detail-join"
-                variant="primary"
-                title={t('event.joinTalkRoom')}
-                icon={<Video size={18} color="#fff" />}
-                onPress={() => openTalkRoom(event.talkUrl!, talkOpenMode)}
-                onLongPress={() => promptTalkRoomOpen(event.talkUrl!)}
-              />
+              <Stack direction="horizontal" gap={8} vAlign="center">
+                <View style={{ flex: 1 }}>
+                  <Button
+                    testID="event-detail-join"
+                    variant="primary"
+                    title={t('event.joinTalkRoom')}
+                    icon={<Video size={18} color="#fff" />}
+                    onPress={() => openTalkRoom(event.talkUrl!, talkOpenMode)}
+                    onLongPress={() => promptTalkRoomOpen(event.talkUrl!)}
+                  />
+                </View>
+                <IconButton
+                  testID="event-detail-share-talk"
+                  accessibilityLabel={t('event.shareTalkLink')}
+                  onPress={() => shareTalkLink()}
+                >
+                  <Share2 size={20} color={theme.colors.primary} />
+                </IconButton>
+              </Stack>
             )}
 
             {event.description && (
@@ -345,11 +407,19 @@ export default function EventDetailScreen() {
               </Stack>
             )}
 
-            {event.attendees.length > 0 && (
+            {(event.organizerEmail || event.attendees.length > 0) && (
               <Stack gap={8}>
                 <SectionHeader title={t('event.attendees')} />
                 <List>
+                  {event.organizerEmail && (
+                    <Item
+                      leading={<Avatar name={event.organizerEmail} size={36} />}
+                      title={event.organizerEmail}
+                      description={t('event.organizer')}
+                    />
+                  )}
                   {event.attendees
+                    .filter((a) => (a.email ?? '').toLowerCase() !== (event.organizerEmail ?? '').toLowerCase())
                     .filter((a, i, arr) => arr.findIndex((b) => (b.email ?? '').toLowerCase() === (a.email ?? '').toLowerCase()) === i)
                     .map((att, i) => (
                       <Item
@@ -393,4 +463,5 @@ const styles = StyleSheet.create({
   content: { padding: 20 },
   footer: { borderTopWidth: StyleSheet.hairlineWidth },
   link: { textDecorationLine: 'underline' },
+  cancelledTitle: { textDecorationLine: 'line-through', opacity: 0.5 },
 });

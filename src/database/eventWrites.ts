@@ -38,6 +38,8 @@ function applyPatch(row: Event, patch: Partial<CalendarEvent>): void {
     row.alarms = serializeAlarms(patch.alarms);
     row.alarmMinutes = patch.alarms?.[0] ?? undefined;
   }
+  if (patch.transp !== undefined) row.transp = patch.transp;
+  if (patch.status !== undefined) row.status = patch.status;
 }
 
 export async function insertEvents(list: CalendarEvent[]): Promise<void> {

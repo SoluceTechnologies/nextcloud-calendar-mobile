@@ -19,6 +19,8 @@ export function sameDisplayedEvent(a: CalendarEvent, b: CalendarEvent): boolean 
     (a.description ?? '') === (b.description ?? '') &&
     (a.talkUrl ?? '') === (b.talkUrl ?? '') &&
     a.isRecurring === b.isRecurring &&
+    (a.transp ?? 'opaque') === (b.transp ?? 'opaque') &&
+    (a.status ?? 'confirmed') === (b.status ?? 'confirmed') &&
     sameAttendees(a.attendees, b.attendees)
   );
 }

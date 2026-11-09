@@ -18,6 +18,7 @@ export interface AgendaDaySection {
   weekdayLong: string;
   isToday: boolean;
   items: AgendaEventItem[];
+  totalCount: number;
 }
 
 export interface AgendaSnapshot {
@@ -61,6 +62,10 @@ export interface WidgetSurface<P> {
 
 export function eventDeepLink(uid: string): string {
   return `${APP_SCHEME}://event/${encodeURIComponent(uid)}`;
+}
+
+export function listenDeepLink(): string {
+  return `${APP_SCHEME}://listen`;
 }
 
 export function openAppLink(): string {

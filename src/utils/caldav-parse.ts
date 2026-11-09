@@ -1,16 +1,15 @@
 import ICAL from 'ical.js';
-import type { CalendarEvent, Attendee } from '@/types';
+import type { CalendarEvent, Attendee, EventStatus, EventTransp } from '@/types';
 import { yieldToUI } from '@/utils/scheduling';
 import { isValidTimeZone, zonedWallTimeToUtc } from '@/utils/timezone';
 import { NO_ALARM_PROP, triggerToMinutes } from '@/features/notifications/alerts';
+import { extractTalkUrl } from '@/utils/talkLink';
 
 interface ParseCalMeta {
   calendarId: string;
   accountId: string;
   color: string;
 }
-
-const TALK_URL_PATTERN = /\/call\//;
 
 const MAX_OCCURRENCES = 1000;
 // Hard bound on iterator steps, independent of emitted occurrences: an
@@ -78,8 +77,22 @@ function organizerEmailOf(vevent: ICAL.Component): string | undefined {
 
 type OverridableFields = Pick<
   CalendarEvent,
-  'summary' | 'description' | 'location' | 'talkUrl' | 'attendees' | 'organizerEmail' | 'alarms'
+  'summary' | 'description' | 'location' | 'talkUrl' | 'attendees' | 'organizerEmail' | 'alarms' | 'transp' | 'status'
 >;
+
+const EVENT_TRANSP_VALUES: readonly EventTransp[] = ['opaque', 'transparent'];
+const EVENT_STATUS_VALUES: readonly EventStatus[] = ['confirmed', 'tentative', 'cancelled'];
+
+function enumProp<T extends string>(
+  vevent: ICAL.Component,
+  name: string,
+  allowed: readonly T[],
+): T | undefined {
+  const raw = vevent.getFirstPropertyValue(name);
+  if (typeof raw !== 'string') return undefined;
+  const value = raw.toLowerCase() as T;
+  return allowed.includes(value) ? value : undefined;
+}
 
 function exceptionFields(vevent: ICAL.Component): Partial<OverridableFields> {
   const fields: Partial<OverridableFields> = {};
@@ -91,10 +104,13 @@ function exceptionFields(vevent: ICAL.Component): Partial<OverridableFields> {
   if (typeof description === 'string') fields.description = description;
 
   const location = vevent.getFirstPropertyValue('location');
-  if (typeof location === 'string') {
-    fields.location = location;
-    fields.talkUrl = TALK_URL_PATTERN.test(location) ? location : undefined;
-  }
+  if (typeof location === 'string') fields.location = location;
+  const talkUrl = extractTalkUrl(
+    typeof location === 'string' ? location : undefined,
+    fields.description,
+    vevent,
+  );
+  if (talkUrl) fields.talkUrl = talkUrl;
 
   const attendeeProps = vevent.getAllProperties('attendee');
   if (attendeeProps.length) fields.attendees = readAttendees(attendeeProps);
@@ -103,6 +119,12 @@ function exceptionFields(vevent: ICAL.Component): Partial<OverridableFields> {
 
   const alarms = alarmMinutesList(vevent);
   if (alarms !== undefined) fields.alarms = alarms;
+
+  const transp = enumProp(vevent, 'transp', EVENT_TRANSP_VALUES);
+  if (transp) fields.transp = transp;
+
+  const status = enumProp(vevent, 'status', EVENT_STATUS_VALUES);
+  if (status) fields.status = status;
 
   return fields;
 }
@@ -269,7 +291,7 @@ export function parseIcsItem(
       const attendees = readAttendees(vevent.getAllProperties('attendee'));
 
       const location = icalEvent.location ?? undefined;
-      const talkUrl = location && TALK_URL_PATTERN.test(location) ? location : undefined;
+      const talkUrl = extractTalkUrl(location, icalEvent.description ?? undefined, vevent);
 
       const organizerEmail = organizerEmailOf(vevent);
 
@@ -297,6 +319,8 @@ export function parseIcsItem(
         isRecurring,
         rrule: rruleStr,
         alarms,
+        transp: enumProp(vevent, 'transp', EVENT_TRANSP_VALUES),
+        status: enumProp(vevent, 'status', EVENT_STATUS_VALUES),
       };
 
       if (isRecurring && (rangeStart || rangeEnd)) {
@@ -409,6 +433,7 @@ export function extractSequence(ics: string): number {
 const WRITER_MANAGED_PROPS = new Set([
   'uid', 'dtstamp', 'sequence', 'dtstart', 'dtend', 'summary', 'description',
   'location', 'rrule', 'organizer', 'attendee', 'recurrence-id', 'last-modified', 'prodid',
+  'transp', 'status',
   NO_ALARM_PROP.toLowerCase(),
 ]);
 

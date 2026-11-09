@@ -72,6 +72,42 @@ jest.mock('react-native-webview', () => {
   };
 });
 
+jest.mock('expo-speech', () => ({
+  speak: jest.fn(),
+  stop: jest.fn(),
+  pause: jest.fn(),
+  resume: jest.fn(),
+  isSpeakingAsync: jest.fn().mockResolvedValue(false),
+  getAvailableVoicesAsync: jest.fn().mockResolvedValue([]),
+}));
+
+jest.mock('expo-speech-recognition', () => ({
+  ExpoSpeechRecognitionModule: {
+    start: jest.fn(),
+    stop: jest.fn(),
+    abort: jest.fn(),
+    addListener: jest.fn(() => ({ remove: jest.fn() })),
+    requestPermissionsAsync: jest.fn(async () => ({
+      granted: true,
+      canAskAgain: true,
+      status: 'granted',
+    })),
+    getPermissionsAsync: jest.fn(async () => ({
+      granted: true,
+      canAskAgain: true,
+      status: 'granted',
+    })),
+    isRecognitionAvailable: jest.fn(() => true),
+    supportsOnDeviceRecognition: jest.fn(() => true),
+    androidTriggerOfflineModelDownload: jest.fn(async () => ({
+      status: 'download_scheduled',
+      message: '',
+    })),
+    getStateAsync: jest.fn(async () => 'inactive'),
+  },
+  useSpeechRecognitionEvent: jest.fn(),
+}));
+
 jest.mock('react-native-reanimated', () => {
   const { View, ScrollView } = require('react-native');
   return {

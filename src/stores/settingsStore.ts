@@ -1,14 +1,18 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { legacyBackedStorage } from '@/stores/legacyStorage';
+import { storage } from '@/storage';
 import { getInitialLanguage, getInitialWeekStartsOn, type AppLanguage } from '@/utils/i18n';
+import { SHARED_KEYS, setSharedString } from '@/services/shared/appGroupStorage';
 import type { TalkOpenMode } from '@/types';
+
+const ACCOUNT_IDS_KEY = 'account_ids'; // mirrors services/nextcloud/auth.ts
 
 export type ThemePreference = 'system' | 'light' | 'dark';
 export type TimeFormatPreference = 'auto' | '12h' | '24h';
 export type MonthViewStyle = 'grid' | 'compact';
 
-interface SettingsState {
+export interface SettingsState {
   themePreference: ThemePreference;
   language: AppLanguage;
   weekStartsOn: 0 | 1;
@@ -20,6 +24,10 @@ interface SettingsState {
   hapticsEnabled: boolean;
   reduceMotion: boolean;
   talkOpenMode: TalkOpenMode;
+  talkCallReminder: boolean;
+  voiceAssistantByAccount: Record<string, boolean>;
+  voiceOnDevicePreferred: boolean;
+  aiEnabled: boolean;
   defaultCalendarByAccount: Record<string, string>;
   setThemePreference: (pref: ThemePreference) => void;
   setLanguage: (lang: AppLanguage) => void;
@@ -32,6 +40,10 @@ interface SettingsState {
   setHapticsEnabled: (v: boolean) => void;
   setReduceMotion: (v: boolean) => void;
   setTalkOpenMode: (v: TalkOpenMode) => void;
+  setTalkCallReminder: (v: boolean) => void;
+  setVoiceAssistantEnabled: (accountId: string, v: boolean) => void;
+  setVoiceOnDevicePreferred: (v: boolean) => void;
+  setAiEnabled: (v: boolean) => void;
   setDefaultCalendar: (accountId: string, calendarId: string | undefined) => void;
 }
 
@@ -49,6 +61,10 @@ export const useSettingsStore = create<SettingsState>()(
       hapticsEnabled: true,
       reduceMotion: false,
       talkOpenMode: 'app',
+      talkCallReminder: true,
+      voiceAssistantByAccount: {},
+      voiceOnDevicePreferred: true,
+      aiEnabled: false,
       defaultCalendarByAccount: {},
       setTimedAlerts: (v) => set({ timedAlerts: v }),
       setAllDayAlerts: (v) => set({ allDayAlerts: v }),
@@ -61,6 +77,19 @@ export const useSettingsStore = create<SettingsState>()(
       setHapticsEnabled: (v) => set({ hapticsEnabled: v }),
       setReduceMotion: (v) => set({ reduceMotion: v }),
       setTalkOpenMode: (v) => set({ talkOpenMode: v }),
+      setTalkCallReminder: (v) => set({ talkCallReminder: v }),
+      setVoiceAssistantEnabled: (accountId, v) =>
+        set((s) => {
+          const voiceAssistantByAccount = { ...s.voiceAssistantByAccount, [accountId]: v };
+          // Siri App Intents gate on this flag through shared app-group defaults.
+          setSharedString(
+            SHARED_KEYS.voiceEnabled,
+            Object.values(voiceAssistantByAccount).some(Boolean) ? '1' : '0'
+          );
+          return { voiceAssistantByAccount };
+        }),
+      setVoiceOnDevicePreferred: (v) => set({ voiceOnDevicePreferred: v }),
+      setAiEnabled: (v) => set({ aiEnabled: v }),
       setDefaultCalendar: (accountId, calendarId) =>
         set((s) => {
           const next = { ...s.defaultCalendarByAccount };
@@ -71,11 +100,12 @@ export const useSettingsStore = create<SettingsState>()(
     }),
     {
       name: 'settings-store',
-      version: 2,
+      version: 3,
       migrate: (persisted) => {
         const state = persisted as (Partial<SettingsState> & {
           timedAlert?: number | null;
           allDayAlert?: number | null;
+          voiceAssistantEnabled?: boolean;
         }) | undefined;
         if (!state) return state;
         if (!Array.isArray(state.timedAlerts)) {
@@ -86,6 +116,18 @@ export const useSettingsStore = create<SettingsState>()(
         }
         delete state.timedAlert;
         delete state.allDayAlert;
+        if (typeof state.voiceAssistantEnabled === 'boolean') {
+          if (state.voiceAssistantEnabled) {
+            const map: Record<string, boolean> = {};
+            try {
+              const ids = JSON.parse(storage.getString(ACCOUNT_IDS_KEY) ?? '[]') as string[];
+              for (const id of ids) map[id] = true;
+            } catch {}
+            state.voiceAssistantByAccount = map;
+          }
+          delete state.voiceAssistantEnabled;
+        }
+        state.voiceAssistantByAccount ??= {};
         return state;
       },
       storage: createJSONStorage(() =>
@@ -103,6 +145,10 @@ export const useSettingsStore = create<SettingsState>()(
         hapticsEnabled: state.hapticsEnabled,
         reduceMotion: state.reduceMotion,
         talkOpenMode: state.talkOpenMode,
+        talkCallReminder: state.talkCallReminder,
+        voiceAssistantByAccount: state.voiceAssistantByAccount,
+        voiceOnDevicePreferred: state.voiceOnDevicePreferred,
+        aiEnabled: state.aiEnabled,
         defaultCalendarByAccount: state.defaultCalendarByAccount,
       }),
     }
