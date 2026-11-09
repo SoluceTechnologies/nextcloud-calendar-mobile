@@ -28,6 +28,21 @@ export type CalendarMeta = {
 export type Attendee = {
     email: string;
     displayName?: string;
+    // Scheduling parameters preserved from the original ATTENDEE line so an edit does not
+    // reset the invitees' reply state. `partstat` is stored lowercase ('accepted', …).
+    partstat?: string;
+    role?: string;
+    rsvp?: boolean;
+    cutype?: string;
+    member?: string[];
+    delegatedTo?: string[];
+    delegatedFrom?: string[];
+    sentBy?: string;
+    scheduleAgent?: string;
+    scheduleStatus?: string;
+    scheduleForceSend?: string;
+    // Any other ATTENDEE parameter we do not model, keyed by lowercase param name.
+    extraParams?: Record<string, string | string[]>;
 };
 
 export type RecurrenceFreq = 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'YEARLY';
@@ -47,6 +62,34 @@ export type RecurrenceEditScope = 'this' | 'thisAndFollowing' | 'all';
 export type TalkRoomType = 'public' | 'private';
 
 export type TalkOpenMode = 'app' | 'browser' | 'ask';
+
+export type InvitationStatus = 'needs-action' | 'accepted' | 'declined' | 'tentative';
+
+export type InvitationResponse = 'accepted' | 'declined' | 'tentative';
+
+export type CalendarInvitation = {
+  uid: string;
+  href: string;
+  accountId: string;
+  summary: string;
+  description?: string;
+  location?: string;
+  dtstart: Date;
+  dtend: Date;
+  allDay: boolean;
+  organizerEmail?: string;
+  organizerName?: string;
+  attendeeEmail: string;
+  attendeeDisplayName?: string;
+  partstat: InvitationStatus;
+  method: string;
+  ics: string;
+  timezone?: string;
+  talkUrl?: string;
+  isRecurring: boolean;
+  rrule?: string;
+  alarmMinutes?: number;
+};
 
 export type CalendarEvent = {
     uid: string;
