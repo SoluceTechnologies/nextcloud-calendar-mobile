@@ -217,6 +217,8 @@ function parseVtodo(
     dtend = new Date(dtstart.getTime() + DEFAULT_TODO_DURATION_MS);
   }
 
+  const rruleProp = vtodo.getFirstProperty('rrule');
+
   return {
     uid,
     href,
@@ -230,7 +232,8 @@ function parseVtodo(
     allDay,
     color: meta.color,
     attendees: [],
-    isRecurring: false,
+    isRecurring: !!rruleProp,
+    rrule: rruleProp ? rruleProp.toICALString() : undefined,
     alarms: alarmMinutesList(vtodo),
     isTask: true,
   };
