@@ -489,3 +489,30 @@ describe('VALARM generation', () => {
     expect(extras.join('\n')).not.toContain('X-NCM-ALARM-NONE');
   });
 });
+
+describe('GEO emission', () => {
+  it('writes GEO:lat;lon when geo is provided', () => {
+    const ics = buildIcs({ ...base, geo: { lat: 48.8566, lon: 2.3522 } });
+    expect(ics).toContain('GEO:48.8566;2.3522\r\n');
+  });
+
+  it('writes GEO in all-day and exception ICS too', () => {
+    const allDay = buildAllDayIcs({ ...allDayBase, geo: { lat: 48.8566, lon: 2.3522 } });
+    expect(allDay).toContain('GEO:48.8566;2.3522\r\n');
+    const ex = buildExceptionIcs({
+      ...base,
+      geo: { lat: 48.8566, lon: 2.3522 },
+      recurrenceId: new Date('2026-06-08T14:00:00Z'),
+    });
+    expect(ex).toContain('GEO:48.8566;2.3522\r\n');
+  });
+
+  it('round-trips GEO through the CalDAV parser', () => {
+    const ics = buildIcs({ ...base, geo: { lat: 48.8566, lon: 2.3522 } });
+    const [event] = parseIcsObjects(
+      [{ ics, href: '/cal/g.ics' }],
+      { calendarId: 'c1', accountId: 'a1', color: '#000' },
+    );
+    expect(event.geo).toEqual({ lat: 48.8566, lon: 2.3522 });
+  });
+});

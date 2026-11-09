@@ -7,7 +7,7 @@ import { putEvent, updateEvent, deleteEvent, moveEvent, fetchEventIcs } from '@/
 import { createTalkRoom } from '@/services/nextcloud/talk';
 import { describeMutationError } from '@/services/shared/errors';
 import { buildIcs, buildAllDayIcs, buildExceptionIcs, injectExdate, truncateRruleUntil, shiftIcsDates, upsertOverride } from '@/utils/ics';
-import { parseIcsObjects, extractDtstartTzid, extractSequence, extractDtstartDtend, extractExtraVeventLines } from '@/utils/caldav-parse';
+import { parseIcsObjects, extractDtstartTzid, extractSequence, extractDtstartDtend, extractExtraVeventLines, dropLocationBoundLines } from '@/utils/caldav-parse';
 import { isValidTimeZone } from '@/utils/timezone';
 import { allDayAlarmMinutes } from '@/features/notifications/alerts';
 import { useSettingsStore } from '@/stores/settingsStore';
@@ -100,14 +100,14 @@ function buildIcsForInput(
   const alarms = resolveAlarms(input);
   return input.allDay
     ? buildAllDayIcs({
-        uid, summary: input.summary, description, location,
+        uid, summary: input.summary, description, location, geo: input.geo,
         dtstart: input.dtstart, dtend: input.dtend,
         organizerEmail: input.organizerEmail, organizerName: input.organizerName,
         attendees: input.attendees, rrule: input.rrule, alarms,
         sequence, extraLines,
       })
     : buildIcs({
-        uid, summary: input.summary, description, location,
+        uid, summary: input.summary, description, location, geo: input.geo,
         dtstart: input.dtstart, dtend: input.dtend,
         organizerEmail: input.organizerEmail, organizerName: input.organizerName,
         attendees: input.attendees, timezone, rrule: input.rrule, alarms,
@@ -170,6 +170,7 @@ function eventFromInput(
     attendees: input.attendees,
     organizerEmail: input.organizerEmail,
     talkUrl: TALK_URL_PATTERN.test(location) ? location : undefined,
+    geo: input.geo,
     isRecurring: !!input.rrule,
     rrule: undefined,
     alarms: resolveAlarms(input),
@@ -236,11 +237,21 @@ export function useUpdateEvent(account: Account, calendars: CalendarMeta[]) {
       const calendarChanged = !event.isRecurring && input.calendarId !== event.calendarId;
       const targetCal = calendarChanged ? calendars.find((c) => c.id === input.calendarId) : undefined;
 
+      const nextLocation = input.location ?? event.location;
+      const locationChanged = (nextLocation ?? '') !== (event.location ?? '');
+      // Fresh coordinates supersede stored location-bound props; a rewritten
+      // location invalidates them. Either way the stale lines must not be
+      // carried into the rebuilt ICS.
+      const dropStaleGeo = locationChanged || input.geo != null;
+      const filterPreserved = (lines: string[]) =>
+        dropStaleGeo ? dropLocationBoundLines(lines) : lines;
+
       const nonTemporalPatch = {
         summary: input.summary,
         allDay: input.allDay,
         description: input.description ?? event.description,
-        location: input.location ?? event.location,
+        location: nextLocation,
+        geo: input.geo ?? (locationChanged ? undefined : event.geo),
         attendees: input.attendees,
         alarms: resolveAlarms(input),
       };
@@ -288,7 +299,7 @@ export function useUpdateEvent(account: Account, calendars: CalendarMeta[]) {
               const masterIcs = await fetchEventIcs(account, event.href);
               timezone = extractDtstartTzid(masterIcs) ?? timezone;
               sequence = extractSequence(masterIcs) + 1;
-              preserved = extractExtraVeventLines(masterIcs);
+              preserved = filterPreserved(extractExtraVeventLines(masterIcs));
               const bounds = extractDtstartDtend(masterIcs);
               if (!bounds) throw new Error('Cannot read the series master to shift it');
               uid = seriesBaseUid(event.uid);
@@ -297,7 +308,7 @@ export function useUpdateEvent(account: Account, calendars: CalendarMeta[]) {
               try {
                 const masterIcs = await fetchEventIcs(account, event.href);
                 sequence = extractSequence(masterIcs) + 1;
-                preserved = extractExtraVeventLines(masterIcs);
+                preserved = filterPreserved(extractExtraVeventLines(masterIcs));
               } catch (error) {
                 console.warn('[useUpdateEvent] failed to fetch master ics for sequence/extra lines:', error);
               }
@@ -313,12 +324,13 @@ export function useUpdateEvent(account: Account, calendars: CalendarMeta[]) {
           const masterIcs = await fetchEventIcs(account, event.href);
           const exIcs = buildExceptionIcs({
             uid: seriesBaseUid(event.uid), summary: input.summary, description, location,
+            geo: input.geo,
             dtstart: input.dtstart, dtend: input.dtend, allDay: input.allDay,
             organizerEmail: scheduled.organizerEmail, organizerName: input.organizerName,
             attendees: input.attendees, timezone, recurrenceId: occurrenceSlot(event),
             alarms: resolveAlarms(input),
             sequence: extractSequence(masterIcs) + 1,
-            extraLines: extractExtraVeventLines(masterIcs),
+            extraLines: filterPreserved(extractExtraVeventLines(masterIcs)),
           });
           // The override lives in the series resource (CalDAV refuses a second one with its UID).
           await updateEvent(account, event.href, upsertOverride(masterIcs, exIcs));
@@ -329,7 +341,7 @@ export function useUpdateEvent(account: Account, calendars: CalendarMeta[]) {
           const cal = calendars.find((c) => c.id === event.calendarId) ?? calendars.find((c) => c.id === input.calendarId);
           if (!cal) throw new Error('Calendar not found for new series');
           const newUid = Crypto.randomUUID();
-          await putEvent(account, cal, newUid, buildIcsForInput(newUid, scheduled, location, description, timezone, 0, extractExtraVeventLines(masterIcs)));
+          await putEvent(account, cal, newUid, buildIcsForInput(newUid, scheduled, location, description, timezone, 0, filterPreserved(extractExtraVeventLines(masterIcs))));
         }
       } catch (error) {
         await restoreSeries(account.id, base, snapshot);

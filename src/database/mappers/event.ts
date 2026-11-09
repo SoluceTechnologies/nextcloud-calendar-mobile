@@ -13,6 +13,14 @@ function parseAttendees(raw?: string): Attendee[] {
   }
 }
 
+function parseGeo(raw?: string): { lat: number; lon: number } | undefined {
+  if (!raw) return undefined;
+  const [lat, lon] = raw.split(',').map(Number);
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return undefined;
+  if (lat < -90 || lat > 90 || lon < -180 || lon > 180) return undefined;
+  return { lat, lon };
+}
+
 function parseAlarms(raw?: string, legacyMinutes?: number): number[] | undefined {
   if (raw != null) {
     try {
@@ -43,6 +51,7 @@ export function mapEventToShared(event: Event): CalendarEvent {
     attendees: parseAttendees(event.attendees),
     organizerEmail: event.organizerEmail ?? undefined,
     talkUrl: event.talkUrl ?? undefined,
+    geo: parseGeo(event.geo ?? undefined),
     isRecurring: !!event.isRecurring,
     rrule: event.rrule ?? undefined,
     recurrenceId: event.recurrenceId != null ? new Date(event.recurrenceId) : undefined,

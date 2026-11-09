@@ -63,6 +63,8 @@ export type CalendarEvent = {
     attendees: Attendee[];
     organizerEmail?: string;
     talkUrl?: string;
+    /** ICS `GEO:lat;lon` (or `X-APPLE-STRUCTURED-LOCATION` fallback) — read-only. */
+    geo?: { lat: number; lon: number };
     isRecurring: boolean;
     rrule?: string;
     recurrenceId?: Date;
@@ -79,6 +81,8 @@ export type CreateEventInput = {
     allDay: boolean;
     description?: string;
     location?: string;
+    /** Fresh coordinates to write as `GEO` — replaces any stored location-bound props. */
+    geo?: { lat: number; lon: number };
     attendees: Attendee[];
     withTalkRoom: boolean;
     talkRoomType?: TalkRoomType;
