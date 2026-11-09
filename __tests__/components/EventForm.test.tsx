@@ -29,6 +29,10 @@ jest.mock('@/features/map/utils/geocode', () => ({
   reverseGeocode: jest.fn(),
 }));
 
+jest.mock('@/features/places/useSavedPlaces', () => ({
+  useSavedPlaces: jest.fn(() => []),
+}));
+
 import { useContactSuggestions } from '@/features/event/hooks/useContactSuggestions';
 import * as ExpoLocation from 'expo-location';
 import { reverseGeocode } from '@/features/map/utils/geocode';
@@ -37,6 +41,8 @@ const mockedUseContactSuggestions = useContactSuggestions as jest.MockedFunction
 const mockedRequestPermission = ExpoLocation.requestForegroundPermissionsAsync as jest.MockedFunction<typeof ExpoLocation.requestForegroundPermissionsAsync>;
 const mockedGetPosition = ExpoLocation.getCurrentPositionAsync as jest.MockedFunction<typeof ExpoLocation.getCurrentPositionAsync>;
 const mockedReverseGeocode = reverseGeocode as jest.MockedFunction<typeof reverseGeocode>;
+import { useSavedPlaces } from '@/features/places/useSavedPlaces';
+const mockedUseSavedPlaces = useSavedPlaces as jest.MockedFunction<typeof useSavedPlaces>;
 
 beforeEach(() => {
   mockedUseContactSuggestions.mockReturnValue({ suggestions: [], loading: false, error: null });
@@ -539,6 +545,35 @@ describe('EventForm current location (C8b)', () => {
     act(() => formRef.current!.submit());
     expect(onSubmit).toHaveBeenCalledWith(
       expect.objectContaining({ location: 'Somewhere else', geo: undefined }),
+    );
+  });
+});
+
+describe('EventForm saved places (C8c)', () => {
+  beforeEach(async () => {
+    await i18n.changeLanguage('en');
+    jest.clearAllMocks();
+    mockedUseSavedPlaces.mockReturnValue([
+      { id: 'p1', label: 'Bureau', address: 'Nantes', lat: 47.21, lon: -1.55, createdAt: 1 },
+    ]);
+  });
+
+  it('suggests a saved place while typing and fills location + geo on select', async () => {
+    const formRef = createRef<EventFormHandle>();
+    const onSubmit = jest.fn();
+    const { getByTestId } = render(
+      <EventForm ref={formRef} {...baseProps} onSubmit={onSubmit} initialValues={{ summary: 'Meet' }} />,
+    );
+
+    fireEvent.changeText(getByTestId('event-form-location'), 'bur');
+    fireEvent.press(getByTestId('place-suggestion-p1'));
+
+    act(() => formRef.current!.submit());
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        location: 'Bureau',
+        geo: { lat: 47.21, lon: -1.55 },
+      }),
     );
   });
 });

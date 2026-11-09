@@ -12,7 +12,9 @@
     "errorServer": "O servidor está temporariamente indisponível. Tente novamente mais tarde.",
     "errorRateLimited": "Demasiados pedidos. Aguarde um momento e tente novamente.",
     "errorRateLimitedRetry": "Demasiados pedidos. Tente novamente dentro de {{seconds}}s.",
-    "back": "Voltar"
+    "back": "Voltar",
+    "save": "Guardar",
+    "delete": "Eliminar"
   },
   "tabs": {
     "calendar": "Calendário",
@@ -336,6 +338,20 @@
       "openInApp": "Nextcloud Talk app",
       "openInBrowser": "Browser",
       "askEachTime": "Ask each time"
+    },
+    "places": {
+      "title": "Os meus lugares",
+      "addTitle": "Adicionar um lugar",
+      "label": "Nome",
+      "labelPlaceholder": "Casa, escritório…",
+      "address": "Morada",
+      "addressPlaceholder": "Morada ou coordenadas",
+      "savedTitle": "Lugares guardados",
+      "empty": "Ainda não há lugares guardados",
+      "noPosition": "Capture a sua posição ou introduza uma morada primeiro.",
+      "saveError": "Não foi possível guardar este lugar.",
+      "deleteTitle": "Eliminar lugar",
+      "deleteBody": "Eliminar \"{{name}}\"?"
     }
   },
   "widget": {

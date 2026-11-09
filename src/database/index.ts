@@ -3,6 +3,7 @@ import SQLiteAdapter from '@nozbe/watermelondb/adapters/sqlite';
 
 import Calendar from '@/database/models/Calendar';
 import Event from '@/database/models/Event';
+import SavedPlace from '@/database/models/SavedPlace';
 
 import { mySchema } from './schema';
 import { migrations } from './migrations';
@@ -14,5 +15,5 @@ const adapter = new SQLiteAdapter({
 
 export const database = new Database({
   adapter,
-  modelClasses: [Event, Calendar],
+  modelClasses: [Event, Calendar, SavedPlace],
 });

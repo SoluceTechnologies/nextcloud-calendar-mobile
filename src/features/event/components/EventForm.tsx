@@ -18,6 +18,8 @@ import { AlertPicker } from './AlertPicker';
 import { RecurrencePicker } from './RecurrencePicker';
 import { Stack, Typography, TextField, DateField, Chip, Toggle, IconButton, Spinner } from '@/ui/components';
 import { reverseGeocode } from '@/features/map/utils/geocode';
+import { useSavedPlaces } from '@/features/places/useSavedPlaces';
+import { matchPlaces } from '@/features/places/matchPlaces';
 import type { CalendarMeta, Attendee, CreateEventInput, RecurrenceRule, TalkRoomType, Account } from '@/types';
 
 dayjs.extend(localizedFormat);
@@ -90,6 +92,8 @@ export const EventForm = forwardRef<EventFormHandle, Props>(function EventForm({
   const [location, setLocation] = useState(initialValues?.location ?? '');
   const [geo, setGeo] = useState(initialValues?.geo);
   const [locating, setLocating] = useState(false);
+  const savedPlaces = useSavedPlaces();
+  const placeSuggestions = matchPlaces(location, savedPlaces).filter((p) => p.label !== location);
   const [withTalkRoom, setWithTalkRoom] = useState(false);
   const [talkRoomType, setTalkRoomType] = useState<TalkRoomType>('private');
   const [attendees, setAttendees] = useState<Attendee[]>(initialValues?.attendees ?? []);
@@ -416,6 +420,22 @@ export const EventForm = forwardRef<EventFormHandle, Props>(function EventForm({
             textContentType="none"
             onFocus={() => scrollToField('location')}
           />
+          {placeSuggestions.length > 0 ? (
+            <Stack card gap={0} padding={0} hAlign="stretch" style={styles.placeSuggestions}>
+              {placeSuggestions.map((place) => (
+                <Chip
+                  key={place.id}
+                  testID={`place-suggestion-${place.id}`}
+                  onPress={() => {
+                    setLocation(place.label);
+                    setGeo({ lat: place.lat, lon: place.lon });
+                  }}
+                >
+                  {place.label}
+                </Chip>
+              ))}
+            </Stack>
+          ) : null}
         </View>
 
         <View onLayout={(e) => onFieldLayout('description', e)}>
@@ -456,6 +476,7 @@ const styles = StyleSheet.create({
   scrollContent: { paddingBottom: 40 },
   multiline: { height: 80, textAlignVertical: 'top' },
   chipRow: { gap: 8 },
+  placeSuggestions: { marginTop: 8, flexDirection: 'row', flexWrap: 'wrap', gap: 8, padding: 10 },
   grow: { flex: 1 },
   pushRight: { marginLeft: 'auto' },
   iosPickerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 44 },

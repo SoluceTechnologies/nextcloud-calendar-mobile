@@ -12,7 +12,9 @@
     "errorServer": "Lo servidor es temporàriament indisponible. Tornatz ensajar mai tard.",
     "errorRateLimited": "Tròp de requèstas. Esperatz un moment e tornatz ensajar.",
     "errorRateLimitedRetry": "Tròp de requèstas. Tornatz ensajar qu’aquí {{seconds}}s.",
-    "back": "Tornar"
+    "back": "Tornar",
+    "save": "Enregistrar",
+    "delete": "Suprimir"
   },
   "tabs": {
     "calendar": "Calendari",
@@ -323,7 +325,21 @@
       "defaultCalendarHint": "Presseleccionat a la creacion d'un eveniment.",
       "defaultCalendarAuto": "Automatic"
     },
-    "accountActive": "Actiu"
+    "accountActive": "Actiu",
+    "places": {
+      "title": "Mos lòcs",
+      "addTitle": "Apondre un lòc",
+      "label": "Nom",
+      "labelPlaceholder": "Ostal, burèu…",
+      "address": "Adreça",
+      "addressPlaceholder": "Adreça o coordenadas",
+      "savedTitle": "Lòcs enregistrats",
+      "empty": "Cap de lòc pas enregistrat",
+      "noPosition": "Capturatz vòstra posicion o picatz una adreça d'en primièr.",
+      "saveError": "Impossible de salvar aqueste lòc.",
+      "deleteTitle": "Suprimir lo lòc",
+      "deleteBody": "Suprimir « {{name}} » ?"
+    }
   },
   "widget": {
     "liveRemaining": "Demòra {{duration}}",

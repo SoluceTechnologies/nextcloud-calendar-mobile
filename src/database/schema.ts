@@ -1,7 +1,7 @@
 import { appSchema, tableSchema } from '@nozbe/watermelondb';
 
 export const mySchema = appSchema({
-  version: 10,
+  version: 11,
   tables: [
     tableSchema({
       name: 'events',
@@ -47,6 +47,16 @@ export const mySchema = appSchema({
         { name: 'supports_events', type: 'boolean', isOptional: true },
         { name: 'calendar_order', type: 'number', isOptional: true },
         { name: 'is_shared', type: 'boolean', isOptional: true },
+      ],
+    }),
+    tableSchema({
+      name: 'saved_places',
+      columns: [
+        { name: 'label', type: 'string' },
+        { name: 'address', type: 'string', isOptional: true },
+        { name: 'lat', type: 'number' },
+        { name: 'lon', type: 'number' },
+        { name: 'created_at', type: 'number' },
       ],
     }),
   ],

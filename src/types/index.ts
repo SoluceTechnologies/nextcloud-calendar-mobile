@@ -100,3 +100,12 @@ export type ServerCapabilities = {
 };
 
 export type ViewMode = 'month' | 'week' | '3days' | 'day' | 'schedule';
+
+export type SavedPlace = {
+    id: string;
+    label: string;
+    address?: string;
+    lat: number;
+    lon: number;
+    createdAt: number;
+};

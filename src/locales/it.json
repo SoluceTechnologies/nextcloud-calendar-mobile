@@ -12,7 +12,9 @@
     "errorServer": "Il server è temporaneamente non disponibile. Riprova più tardi.",
     "errorRateLimited": "Troppe richieste. Attendi un momento e riprova.",
     "errorRateLimitedRetry": "Troppe richieste. Riprova tra {{seconds}} s.",
-    "back": "Indietro"
+    "back": "Indietro",
+    "save": "Salva",
+    "delete": "Elimina"
   },
   "tabs": {
     "calendar": "Calendario",
@@ -336,6 +338,20 @@
       "openInApp": "Nextcloud Talk app",
       "openInBrowser": "Browser",
       "askEachTime": "Ask each time"
+    },
+    "places": {
+      "title": "I miei luoghi",
+      "addTitle": "Aggiungi un luogo",
+      "label": "Nome",
+      "labelPlaceholder": "Casa, ufficio…",
+      "address": "Indirizzo",
+      "addressPlaceholder": "Indirizzo o coordinate",
+      "savedTitle": "Luoghi salvati",
+      "empty": "Nessun luogo salvato",
+      "noPosition": "Cattura prima la tua posizione o inserisci un indirizzo.",
+      "saveError": "Impossibile salvare questo luogo.",
+      "deleteTitle": "Elimina luogo",
+      "deleteBody": "Eliminare «{{name}}»?"
     }
   },
   "widget": {

@@ -12,7 +12,9 @@
     "errorServer": "Der Server ist vorübergehend nicht verfügbar. Bitte später erneut versuchen.",
     "errorRateLimited": "Zu viele Anfragen. Bitte warten Sie kurz und versuchen Sie es erneut.",
     "errorRateLimitedRetry": "Zu viele Anfragen. Bitte in {{seconds}} s erneut versuchen.",
-    "back": "Zurück"
+    "back": "Zurück",
+    "save": "Speichern",
+    "delete": "Löschen"
   },
   "tabs": {
     "calendar": "Kalender",
@@ -336,6 +338,20 @@
       "openInApp": "Nextcloud Talk app",
       "openInBrowser": "Browser",
       "askEachTime": "Ask each time"
+    },
+    "places": {
+      "title": "Meine Orte",
+      "addTitle": "Ort hinzufügen",
+      "label": "Name",
+      "labelPlaceholder": "Zuhause, Büro…",
+      "address": "Adresse",
+      "addressPlaceholder": "Adresse oder Koordinaten",
+      "savedTitle": "Gespeicherte Orte",
+      "empty": "Noch keine Orte gespeichert",
+      "noPosition": "Erfassen Sie zuerst Ihre Position oder geben Sie eine Adresse ein.",
+      "saveError": "Dieser Ort konnte nicht gespeichert werden.",
+      "deleteTitle": "Ort löschen",
+      "deleteBody": "„{{name}}“ löschen?"
     }
   },
   "widget": {
