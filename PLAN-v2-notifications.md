@@ -52,6 +52,9 @@ Move the mobile app from a polling-first model to a **server-push-first model** 
   - Reminder.
 - **Dismiss**: `DELETE /ocs/v2.php/apps/notifications/api/v2/notifications/{id}`.
 - **Push-to-device**: `POST /ocs/v2.php/apps/notifications/api/v2/push` registers a device token (FCM for Android, APNs for iOS). The server then sends encrypted push payloads; the device must decrypt them with its RSA private key.
+  - **Padding compat (NC35)**: NC35 encrypts subjects with **RSA-OAEP/SHA-1** by default (`notifications#3068`); earlier versions default to PKCS#1 v1.5 but can opt into OAEP (`notifications#2971`, backported stable32/33). The padding is an app config — not advertised in capabilities — so the client must try-decrypt OAEP first, then fall back to PKCS1 (as the official clients do). PHP's `OPENSSL_PKCS1_OAEP_PADDING` uses SHA-1 for both the OAEP and MGF1 digests.
+  - **Links**: NC35 emits absolute `link`s (`server#59608`); older servers may still send relative ones. Links are normalized to absolute at the OCS parse boundary so tray taps and the notification center always open valid URLs.
+  - Device registration caps and VAPID recovery are server-side concerns — no client work.
 
 ### 3.3 CalDAV `schedule-inbox`
 

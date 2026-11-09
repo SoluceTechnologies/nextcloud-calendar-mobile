@@ -39,11 +39,20 @@ Real-time push client using the Nextcloud NotifyPush server:
 
 ### 5. Push Crypto (`src/services/push/pushCrypto.ts`)
 
-Implements the Nextcloud push encryption protocol:
-- Device key generation (Curve25519 / ECDH)
-- Shared secret derivation with server public key
-- AES-256-GCM decryption of push payloads
-- Used by `PushSyncManager` to decrypt incoming push messages
+Implements the Nextcloud push subject decryption:
+- RSA-2048 key pair generation (JSEncrypt, PEM output — padding-agnostic, the
+  server picks the padding when encrypting)
+- `decryptPushSubject` tries **RSA-OAEP/SHA-1** first (node-forge), then falls
+  back to **RSA PKCS#1 v1.5** (JSEncrypt). NC35 defaults to OAEP
+  (`notifications#3068`); NC32–34 default to PKCS1 but can opt into OAEP via
+  `occ config:app:set notifications push_encryption_padding --value=OAEP`
+  (`notifications#2971`, backported stable32/33). PHP emits OAEP with SHA-1 for
+  both the OAEP and MGF1 digests — do not switch to SHA-256.
+- No version gating: the padding is a server app config not exposed in
+  capabilities, so like the official clients we try-decrypt and fall back. The
+  real acceptance gate is `JSON.parse` on the result in
+  `pushMessageHandler`, since a spurious "successful" unpad yields garbage.
+- Used by `pushMessageHandler` to decrypt incoming push subjects
 
 ### 6. Push Registration (`src/services/push/pushRegistration.ts`)
 
@@ -65,7 +74,14 @@ UI component for the Notifications tab:
 - FlatList of calendar notifications
 - Each item shows: type chip (Created/Updated/Deleted/Invited/Response) + subject + relative time + event time
 - Type is parsed from `subjectRich` template (e.g. `{actor} updated {event}` → "Updated")
-- Tapping a notification navigates to `/event/{uid}` using `subjectRichParameters.event.id`
+- Tapping a notification navigates to `/event/{uid}` using `subjectRichParameters.event.id`,
+  else opens `item.link` via `Linking.openURL` (web "open object" semantics)
+- Notification `link`s are normalized to absolute URLs at the OCS parse boundary
+  (`services/push/links.ts` → `resolveNotificationLink`): NC35 emits absolute
+  links (server#59608) while older servers send `/apps/…`, `apps/…` or
+  `index.php/…` forms — the store only ever holds absolute URLs. Tray
+  notification taps open `data.link` the same way via
+  `addNotificationResponseReceivedListener` in `usePushNotifications`.
 - Dismiss button calls the OCS DELETE API and removes locally
 - `useFocusEffect` marks all as seen when the tab is opened
 

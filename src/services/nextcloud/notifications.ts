@@ -1,3 +1,4 @@
+import { resolveNotificationLink } from '@/services/push/links';
 import { trustedFetch } from '@/services/shared/trustedFetch';
 import type { Account } from '@/types';
 
@@ -33,7 +34,7 @@ type OcsNotificationsResponse = {
   };
 };
 
-function parseNotification(raw: Record<string, unknown>): OcsNotification {
+function parseNotification(raw: Record<string, unknown>, baseUrl: string): OcsNotification {
   return {
     notificationId: Number(raw.notification_id),
     app: String(raw.app ?? ''),
@@ -43,22 +44,24 @@ function parseNotification(raw: Record<string, unknown>): OcsNotification {
     objectId: String(raw.object_id ?? ''),
     subject: String(raw.subject ?? ''),
     message: String(raw.message ?? ''),
-    link: String(raw.link ?? ''),
+    link: resolveNotificationLink(String(raw.link ?? ''), baseUrl),
     subjectRich: String(raw.subjectRich ?? ''),
     subjectRichParameters: (raw.subjectRichParameters as Record<string, unknown>) ?? {},
     messageRich: String(raw.messageRich ?? ''),
     messageRichParameters: (raw.messageRichParameters as Record<string, unknown>) ?? {},
     icon: raw.icon ? String(raw.icon) : undefined,
     shouldNotify: Boolean(raw.shouldNotify),
-    actions: Array.isArray(raw.actions) ? raw.actions.map(parseAction) : [],
+    actions: Array.isArray(raw.actions)
+      ? raw.actions.map((a) => parseAction(a, baseUrl))
+      : [],
   };
 }
 
-function parseAction(raw: unknown): OcsNotificationAction {
+function parseAction(raw: unknown, baseUrl: string): OcsNotificationAction {
   const r = raw as Record<string, unknown>;
   return {
     label: String(r.label ?? ''),
-    link: String(r.link ?? ''),
+    link: resolveNotificationLink(String(r.link ?? ''), baseUrl),
     type: (r.type as 'GET' | 'POST' | 'DELETE') ?? 'GET',
     primary: Boolean(r.primary),
   };
@@ -81,7 +84,7 @@ export async function fetchNotifications(
   }
 
   const json = (await res.json()) as OcsNotificationsResponse;
-  return json?.ocs?.data?.map(parseNotification) ?? [];
+  return json?.ocs?.data?.map((n) => parseNotification(n, account.baseUrl)) ?? [];
 }
 
 export async function dismissNotification(

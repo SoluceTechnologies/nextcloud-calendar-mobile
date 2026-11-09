@@ -1,4 +1,5 @@
 import { useCallback, useMemo } from 'react';
+import * as Linking from 'expo-linking';
 import { FlatList, StyleSheet, View } from 'react-native';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
@@ -85,6 +86,10 @@ function getNotificationType(subjectRich: string, subject: string): Notification
                 const eventUid = eventParams?.id;
                 if (eventUid) {
                   router.push(`/event/${eventUid}`);
+                } else if (item.link) {
+                  Linking.openURL(item.link).catch((err) =>
+                    console.warn('[NotificationCenter] failed to open link:', err),
+                  );
                 }
               }}
               leading={

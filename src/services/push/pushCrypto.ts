@@ -1,7 +1,10 @@
 import JSEncrypt from 'jsencrypt';
 import { sha512 as sha512Hex } from 'js-sha512';
+import forge from 'node-forge';
 
 const KEY_SIZE = 2048;
+
+export type PushPadding = 'oaep' | 'pkcs1';
 
 export interface PushKeyPair {
   privateKey: string;
@@ -28,7 +31,17 @@ export function sha512(input: string): string {
   return sha512Hex(input);
 }
 
-export function decryptPushSubject(encryptedBase64: string, privateKey: string): string {
+export function decryptPushSubjectOaep(encryptedBase64: string, privateKey: string): string {
+  const bytes = forge.util.decode64(encryptedBase64);
+  const key = forge.pki.privateKeyFromPem(privateKey);
+  const decrypted = key.decrypt(bytes, 'RSA-OAEP', {
+    md: forge.md.sha1.create(),
+    mgf1: { md: forge.md.sha1.create() },
+  });
+  return forge.util.decodeUtf8(decrypted);
+}
+
+function decryptPushSubjectPkcs1(encryptedBase64: string, privateKey: string): string {
   const crypt = new JSEncrypt();
   crypt.setPrivateKey(privateKey);
   const decrypted = crypt.decrypt(encryptedBase64);
@@ -38,8 +51,10 @@ export function decryptPushSubject(encryptedBase64: string, privateKey: string):
   return decrypted;
 }
 
-export function decryptPushSubjectLegacy(encryptedBase64: string, privateKey: string): string {
-  // Nextcloud push payload is base64 of RSA-OAEP encrypted bytes.
-  // JSEncrypt.decrypt expects base64 input and returns the plaintext string.
-  return decryptPushSubject(encryptedBase64, privateKey);
+export function decryptPushSubject(encryptedBase64: string, privateKey: string): string {
+  try {
+    return decryptPushSubjectOaep(encryptedBase64, privateKey);
+  } catch {
+    return decryptPushSubjectPkcs1(encryptedBase64, privateKey);
+  }
 }

@@ -1,5 +1,7 @@
 import { useEffect } from 'react';
+import * as Linking from 'expo-linking';
 import * as Notifications from 'expo-notifications';
+import { router } from 'expo-router';
 import { Platform } from 'react-native';
 
 Notifications.setNotificationHandler({
@@ -28,6 +30,22 @@ export function usePushNotifications(): void {
   useEffect(() => {
     if (Platform.OS === 'web') return;
 
+    const responseSub = Notifications.addNotificationResponseReceivedListener(
+      (response) => {
+        const data = (response.notification.request.content.data ?? {}) as {
+          link?: string;
+          nid?: number;
+        };
+        if (data.link) {
+          Linking.openURL(data.link).catch((err) =>
+            console.warn('[usePushNotifications] failed to open link:', err),
+          );
+        } else if (data.nid) {
+          router.push('/(tabs)/notifications');
+        }
+      },
+    );
+
     void (async () => {
       try {
         const { status } = await Notifications.getPermissionsAsync();
@@ -41,5 +59,7 @@ export function usePushNotifications(): void {
         console.warn('[usePushNotifications] permission error:', err);
       }
     })();
+
+    return () => responseSub.remove();
   }, []);
 }
