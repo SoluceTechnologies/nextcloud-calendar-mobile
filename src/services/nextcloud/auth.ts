@@ -63,26 +63,35 @@ async function migrateKeychainAccessibility(accounts: Account[]): Promise<void> 
 export async function refreshAccountProfiles(): Promise<Account[]> {
   const accounts = await loadAccounts();
   for (const account of accounts) {
+    // Carry the merged object forward — saving from the stale `account` after the
+    // profile save would clobber the fresh email/displayName/timezone.
+    let merged = account;
     try {
       const info = await fetchUserInfo(account);
       const displayName = info.displayName || account.displayName;
       const timezone = info.timezone || account.timezone;
       const email = info.email || account.email;
       if (displayName !== account.displayName || timezone !== account.timezone || email !== account.email) {
-        await saveAccount({ ...account, displayName, timezone, email });
+        merged = { ...account, displayName, timezone, email };
+        await saveAccount(merged);
       }
     } catch {
     }
     // Lazily resolve the principal's calendar-user-address-set once — the ATTENDEE
     // address on received invites may be an alias (principal path, urn:uuid:, or a
     // secondary mailto:) that never equals account.email. Lazy require: caldav.ts
-    // statically pulls ical.js, which must not load at module-init time.
-    if (!account.calendarUserAddresses) {
+    // statically pulls ical.js, which must not load at module-init time. Only a
+    // non-empty set is persisted: an empty result is likely a transient failure and
+    // must not suppress the retry on the next refresh.
+    if (!merged.calendarUserAddresses?.length) {
       try {
         const { fetchCalendarUserAddressSet } = await import('./caldav');
-        const calendarUserAddresses = await fetchCalendarUserAddressSet(account);
-        await saveAccount({ ...account, calendarUserAddresses });
-      } catch {
+        const calendarUserAddresses = await fetchCalendarUserAddressSet(merged);
+        if (calendarUserAddresses.length) {
+          await saveAccount({ ...merged, calendarUserAddresses });
+        }
+      } catch (e) {
+        console.warn('[auth] calendar-user-address-set fetch failed:', String(e));
       }
     }
   }
