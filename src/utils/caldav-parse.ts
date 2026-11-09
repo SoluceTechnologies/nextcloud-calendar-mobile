@@ -56,17 +56,52 @@ export function alarmMinutesList(vevent: ICAL.Component): number[] | undefined {
   return [...new Set(minutes)].sort((a, b) => b - a);
 }
 
+const KNOWN_ATTENDEE_PARAMS = new Set([
+  'cn', 'cutype', 'member', 'role', 'partstat', 'rsvp', 'delegated-to', 'delegated-from',
+  'sent-by', 'schedule-agent', 'schedule-status', 'schedule-force-send',
+]);
+
+function paramString(prop: ICAL.Property, name: string): string | undefined {
+  const value = prop.getParameter(name) as string | string[] | undefined;
+  return typeof value === 'string' ? value : undefined;
+}
+
+function paramList(prop: ICAL.Property, name: string): string[] | undefined {
+  const value = prop.getParameter(name) as string | string[] | undefined;
+  if (Array.isArray(value)) return value.length ? value.map(String) : undefined;
+  return typeof value === 'string' ? [value] : undefined;
+}
+
 function readAttendees(props: ICAL.Property[]): Attendee[] {
   const seen = new Set<string>();
   const attendees: Attendee[] = [];
   for (const prop of props) {
     const value = (prop.getFirstValue() as string) ?? '';
     const email = value.replace(/^mailto:/i, '');
-    const displayName = (prop.getParameter('cn') as string) ?? undefined;
     const key = email.toLowerCase();
     if (email && seen.has(key)) continue;
     if (email) seen.add(key);
-    attendees.push({ email, displayName });
+    const jcalParams = (prop.toJSON()[1] ?? {}) as Record<string, string | string[]>;
+    const extraParams = Object.fromEntries(
+      Object.entries(jcalParams).filter(([name]) => !KNOWN_ATTENDEE_PARAMS.has(name)),
+    );
+    const rsvp = paramString(prop, 'rsvp');
+    attendees.push({
+      email,
+      displayName: paramString(prop, 'cn'),
+      partstat: paramString(prop, 'partstat')?.toLowerCase(),
+      role: paramString(prop, 'role'),
+      rsvp: rsvp === undefined ? undefined : rsvp.toUpperCase() === 'TRUE',
+      cutype: paramString(prop, 'cutype'),
+      member: paramList(prop, 'member'),
+      delegatedTo: paramList(prop, 'delegated-to'),
+      delegatedFrom: paramList(prop, 'delegated-from'),
+      sentBy: paramString(prop, 'sent-by'),
+      scheduleAgent: paramString(prop, 'schedule-agent'),
+      scheduleStatus: paramString(prop, 'schedule-status'),
+      scheduleForceSend: paramString(prop, 'schedule-force-send'),
+      ...(Object.keys(extraParams).length ? { extraParams } : {}),
+    });
   }
   return attendees;
 }
@@ -126,7 +161,7 @@ function isOverridden(slot: ICAL.Time, overrideIds: Set<string>): boolean {
   return overrideIds.has(slot.convertToZone(ICAL.Timezone.utcTimezone).toString());
 }
 
-function resolveInstant(t: ICAL.Time, tzid: string | undefined, isEnd = false): Date {
+export function resolveInstant(t: ICAL.Time, tzid: string | undefined, isEnd = false): Date {
   if (t.isDate) {
     return isEnd
       ? new Date(t.year, t.month - 1, t.day - 1)
@@ -169,7 +204,7 @@ function repairIcsFolding(ics: string): string {
   return out.join('\r\n');
 }
 
-function parseIcsToJcal(ics: string): ReturnType<typeof ICAL.parse> {
+export function parseIcsToJcal(ics: string): ReturnType<typeof ICAL.parse> {
   try {
     return ICAL.parse(ics);
   } catch {

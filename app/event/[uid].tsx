@@ -5,7 +5,7 @@ import * as Clipboard from 'expo-clipboard';
 import { haptic } from '@/utils/haptics';
 import {
   Pencil, Clock, CalendarDays, MapPin, Video, Repeat, Trash2, Copy, Check, Bell,
-  Navigation,
+  Navigation, Mail,
 } from 'lucide-react-native';
 import { useLocalSearchParams, useNavigation, useRouter, useTheme } from 'expo-router';
 import dayjs from 'dayjs';
@@ -20,6 +20,9 @@ import { useDeleteEvent } from '@/features/event/hooks/useMutateEvent';
 import { useEventLocation } from '@/features/map/hooks/useEventLocation';
 import { EventMapPreview, EventMapSheet } from '@/features/map/components';
 import { openMaps } from '@/features/map/utils/mapLinks';
+import { useUpdateAttendeeStatus } from '@/features/invitations/hooks/useUpdateAttendeeStatus';
+import { isCurrentUserAttendee, isOrganizerOfAccount, getAttendeePartstat } from '@/utils/attendees';
+import { isEventPending } from '@/utils/eventPending';
 import { useAccountStore } from '@/stores/accountStore';
 import { useSettingsStore } from '@/stores/settingsStore';
 import { useTimeFormat } from '@/hooks/useTimeFormat';
@@ -28,7 +31,7 @@ import {
   SectionHeader, Avatar, Spinner, ScreenHeader,
   IconButton,
 } from '@/ui/components';
-import type { RecurrenceEditScope } from '@/types';
+import type { InvitationResponse, RecurrenceEditScope } from '@/types';
 import { openTalkRoom, promptTalkRoomOpen } from '@/features/event/utils/openTalkRoom';
 import { askRecurrenceScope, type RecurrenceScopeStrings } from '@/features/event/recurrenceScope';
 import { decideMoveEventScope } from '@/features/calendar/utils/moveEventScope';
@@ -72,8 +75,16 @@ export default function EventDetailScreen() {
 
   const calendar = calendars.find((c) => c.id === event?.calendarId);
   const deleteMutation = useDeleteEvent(activeAccount!);
+  const respondMutation = useUpdateAttendeeStatus(activeAccount);
 
   const canEdit = !calendar?.isReadOnly && !calendar?.isSubscribed && !event?.isTask;
+  const isAttendee =
+    !!event &&
+    activeAccount !== null &&
+    isCurrentUserAttendee(event, activeAccount) &&
+    !isOrganizerOfAccount(event, activeAccount);
+  const myPartstat = event && activeAccount ? getAttendeePartstat(event, activeAccount) : undefined;
+  const pendingInvite = !!event && isEventPending(event, activeAccount);
   const eventsLoading = event === undefined;
 
   const [copied, setCopied] = useState(false);
@@ -164,6 +175,11 @@ export default function EventDetailScreen() {
     [event?.description],
   );
 
+  const handleRespond = useCallback(async (response: InvitationResponse) => {
+    if (!event) return;
+    await respondMutation.mutateAsync(event, response);
+  }, [event, respondMutation]);
+
   const isLoading = eventsLoading;
 
   if (isLoading) {
@@ -248,6 +264,19 @@ export default function EventDetailScreen() {
                 </Stack>
               )}
             </Stack>
+
+            {pendingInvite && (
+              <Stack
+                direction="horizontal" vAlign="center" gap={10}
+                card padding={[12, 14]}
+                style={{ borderStyle: 'dashed', borderWidth: 1, borderColor: theme.colors.border }}
+              >
+                <Mail size={18} color={theme.colors.primary} />
+                <Typography variant="body2" color="secondary" style={{ flex: 1 }}>
+                  {t('event.invitationFrom', { name: event.organizerEmail || '' })}
+                </Typography>
+              </Stack>
+            )}
 
             <List>
               <Item
@@ -360,6 +389,52 @@ export default function EventDetailScreen() {
                       />
                     ))}
                 </List>
+              </Stack>
+            )}
+
+            {isAttendee && !calendar?.isReadOnly && !calendar?.isSubscribed && !event.isTask && (
+              <Stack gap={8}>
+                <SectionHeader title={t('event.myParticipation')} />
+                <Stack card padding={16} gap={12}>
+                  <Typography variant="body2" color="secondary">
+                    {myPartstat === 'accepted'
+                      ? t('event.participationAccepted')
+                      : myPartstat === 'tentative'
+                        ? t('event.participationTentative')
+                        : myPartstat === 'declined'
+                          ? t('event.participationDeclined')
+                          : t('event.participationNeedsAction')}
+                  </Typography>
+                  <Stack direction="horizontal" hAlign="end" gap={8}>
+                    <Button
+                      variant={myPartstat === 'declined' ? 'primary' : 'secondary'}
+                      size="small"
+                      inline
+                      title={t('invitations.decline')}
+                      loading={respondMutation.isPending}
+                      disabled={respondMutation.isPending}
+                      onPress={() => handleRespond('declined')}
+                    />
+                    <Button
+                      variant={myPartstat === 'tentative' ? 'primary' : 'secondary'}
+                      size="small"
+                      inline
+                      title={t('invitations.tentative')}
+                      loading={respondMutation.isPending}
+                      disabled={respondMutation.isPending}
+                      onPress={() => handleRespond('tentative')}
+                    />
+                    <Button
+                      variant={myPartstat === 'accepted' ? 'primary' : 'secondary'}
+                      size="small"
+                      inline
+                      title={t('invitations.accept')}
+                      loading={respondMutation.isPending}
+                      disabled={respondMutation.isPending}
+                      onPress={() => handleRespond('accepted')}
+                    />
+                  </Stack>
+                </Stack>
               </Stack>
             )}
 

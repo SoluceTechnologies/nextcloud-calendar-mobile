@@ -5,7 +5,8 @@ import localizedFormat from 'dayjs/plugin/localizedFormat';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from 'expo-router';
 import { useSettingsStore } from '@/stores/settingsStore';
-import type { CalendarEvent } from '@/types';
+import type { Account, CalendarEvent } from '@/types';
+import { isEventPending } from '@/utils/eventPending';
 import { LONG_PRESS_MS } from '../constants';
 import { contrastFor } from '../utils/eventInk';
 import { dayKey } from '../utils/grid';
@@ -30,11 +31,12 @@ interface Props {
   events: CalendarEvent[];
   height: number;
   todayKey: string;
+  account?: Account | null;
   onOpenDay: (day: Date) => void;
   onLongPressDay: (day: Date) => void;
 }
 
-function Segment({ segment, dimmed, untitled }: { segment: WeekSegment; dimmed: boolean; untitled: string }) {
+function Segment({ segment, dimmed, untitled, pending }: { segment: WeekSegment; dimmed: boolean; untitled: string; pending: boolean }) {
   const { event, startColumn, endColumn, lane, continuesLeft, continuesRight } = segment;
   const ink = contrastFor(event.color);
   return (
@@ -52,13 +54,16 @@ function Segment({ segment, dimmed, untitled }: { segment: WeekSegment; dimmed: 
       <View
         style={[
           styles.chip,
-          { backgroundColor: event.color },
+          pending
+            ? styles.chipPending
+            : { backgroundColor: event.color },
+          pending && { borderColor: event.color },
           continuesLeft && styles.squareLeft,
           continuesRight && styles.squareRight,
         ]}
       >
         <Text
-          style={[styles.chipText, { color: ink.text }]}
+          style={[styles.chipText, { color: pending ? event.color : ink.text }]}
           numberOfLines={1}
           ellipsizeMode="clip"
           allowFontScaling={false}
@@ -71,7 +76,7 @@ function Segment({ segment, dimmed, untitled }: { segment: WeekSegment; dimmed: 
 }
 
 function MonthGridPageImpl({
-  year, month, weekStartsOn, events, height, todayKey, onOpenDay, onLongPressDay,
+  year, month, weekStartsOn, events, height, todayKey, account, onOpenDay, onLongPressDay,
 }: Props) {
   const theme = useTheme();
   const { t } = useTranslation();
@@ -156,6 +161,7 @@ function MonthGridPageImpl({
                   dimmed={days[segment.startColumn].getMonth() !== month
                     && days[segment.endColumn].getMonth() !== month}
                   untitled={untitled}
+                  pending={isEventPending(segment.event, account ?? null)}
                 />
               ))}
               {layout.overflows.map(({ column, count }) => (
@@ -194,6 +200,7 @@ const styles = StyleSheet.create({
   },
   numberText: { fontSize: 12, textAlign: 'center' },
   chip: { height: MONTH_CHIP_HEIGHT, borderRadius: 4, paddingHorizontal: 4, justifyContent: 'center', overflow: 'hidden' },
+  chipPending: { backgroundColor: 'transparent', borderWidth: 1, borderStyle: 'dashed' },
   squareLeft: { borderTopLeftRadius: 0, borderBottomLeftRadius: 0 },
   squareRight: { borderTopRightRadius: 0, borderBottomRightRadius: 0 },
   chipText: { fontSize: 11, lineHeight: 13, fontWeight: '500' },

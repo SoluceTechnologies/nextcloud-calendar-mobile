@@ -159,6 +159,8 @@
     "recurring": "Recurrent",
     "joinTalkRoom": "Rejónher la sala Talk",
     "deleteEvent": "Suprimir l'eveniment",
+    "invitationBadge": "Convit",
+    "invitationFrom": "Convit de {{name}}",
     "delete": "Suprimir",
     "allDayTime": "Jorn entièr",
     "recurrenceScopeMessage": "Quins eveniments volètz modificar ?",
