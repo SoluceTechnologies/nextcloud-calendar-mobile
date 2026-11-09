@@ -28,6 +28,21 @@ export type CalendarMeta = {
 export type Attendee = {
     email: string;
     displayName?: string;
+    // Scheduling parameters preserved from the original ATTENDEE line so an edit does not
+    // reset the invitees' reply state. `partstat` is stored lowercase ('accepted', …).
+    partstat?: string;
+    role?: string;
+    rsvp?: boolean;
+    cutype?: string;
+    member?: string[];
+    delegatedTo?: string[];
+    delegatedFrom?: string[];
+    sentBy?: string;
+    scheduleAgent?: string;
+    scheduleStatus?: string;
+    scheduleForceSend?: string;
+    // Any other ATTENDEE parameter we do not model, keyed by lowercase param name.
+    extraParams?: Record<string, string | string[]>;
 };
 
 export type RecurrenceFreq = 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'YEARLY';
