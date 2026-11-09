@@ -17,6 +17,7 @@ import {
 import { useAccountStore } from '@/stores/accountStore';
 import { useActiveAccount } from '@/hooks/useAccounts';
 import { isEventPending } from '@/utils/eventPending';
+import { Chip } from '@/ui/components';
 
 dayjs.extend(localizedFormat);
 
@@ -127,6 +128,11 @@ const EventRow = memo(({ event, theme, onPress }: EventRowProps) => {
               · {event.location}
             </Text>
           ) : null}
+          {pending && (
+            <Chip small rounded testID={`agenda-invitation-${event.uid}`} disabled>
+              {t('event.invitationBadge')}
+            </Chip>
+          )}
         </View>
       </View>
     </TouchableOpacity>

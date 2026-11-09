@@ -100,6 +100,8 @@
     "attendees": "Участники",
     "attendeePlaceholder": "email@example.com",
     "myParticipation": "My participation",
+    "invitationBadge": "Приглашение",
+    "invitationFrom": "Приглашение от {{name}}",
     "participationAccepted": "You are going",
     "participationTentative": "You might go",
     "participationDeclined": "You declined",

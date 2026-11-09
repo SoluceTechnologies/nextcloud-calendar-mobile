@@ -7,6 +7,12 @@ export type Account = {
     davUserId: string;
     timezone?: string;
     email?: string;
+    /**
+     * `calendar-user-address-set` hrefs for the principal (mailto:, principal paths,
+     * urn:uuid:). Fetched lazily — used to recognise ATTENDEE/ORGANIZER addresses
+     * that alias this account when `email` is absent or ambiguous.
+     */
+    calendarUserAddresses?: string[];
 };
 
 export type CalendarMeta = {

@@ -541,3 +541,30 @@ export async function fetchEventsByHrefs(
   }
   return { events: out, returnedHrefs };
 }
+
+/**
+ * `calendar-user-address-set` of the principal — every cal-address that identifies the
+ * account (mailto:, principal paths, urn:uuid:). Lazily persisted on the account and
+ * used for invitation detection when `email` alone is ambiguous or missing.
+ */
+export async function fetchCalendarUserAddressSet(account: Account): Promise<string[]> {
+  const principalUrl = `${account.baseUrl}/remote.php/dav/principals/users/${encodeURIComponent(account.davUserId)}/`;
+  const res = await davFetch(principalUrl, account, {
+    method: 'PROPFIND',
+    headers: { Depth: '0', 'Content-Type': 'application/xml' },
+    body: '<?xml version="1.0" encoding="utf-8"?>' +
+      '<d:propfind xmlns:d="DAV:" xmlns:cal="urn:ietf:params:xml:ns:caldav">' +
+      '<d:prop><cal:calendar-user-address-set/></d:prop></d:propfind>',
+    maxRetries: 0,
+  });
+  if (!res.ok && res.status !== 207) return [];
+
+  const xml = await res.text();
+  const prop = xml.match(/<[^>]*calendar-user-address-set[^>]*>([\s\S]*?)<\/[^>]*calendar-user-address-set>/);
+  if (!prop?.[1]) return [];
+  const hrefs: string[] = [];
+  const re = /<[^>]*href[^>]*>([^<]+)<\/[^>]*href>/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(prop[1])) !== null) hrefs.push(decodeXmlEntities(m[1]).trim());
+  return hrefs;
+}

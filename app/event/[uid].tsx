@@ -5,7 +5,7 @@ import * as Clipboard from 'expo-clipboard';
 import { haptic } from '@/utils/haptics';
 import {
   Pencil, Clock, CalendarDays, MapPin, Video, Repeat, Trash2, Copy, Check, Bell,
-  Navigation,
+  Navigation, Mail,
 } from 'lucide-react-native';
 import { useLocalSearchParams, useNavigation, useRouter, useTheme } from 'expo-router';
 import dayjs from 'dayjs';
@@ -22,6 +22,7 @@ import { EventMapPreview, EventMapSheet } from '@/features/map/components';
 import { openMaps } from '@/features/map/utils/mapLinks';
 import { useUpdateAttendeeStatus } from '@/features/invitations/hooks/useUpdateAttendeeStatus';
 import { isCurrentUserAttendee, isOrganizerOfAccount, getAttendeePartstat } from '@/utils/attendees';
+import { isEventPending } from '@/utils/eventPending';
 import { useAccountStore } from '@/stores/accountStore';
 import { useSettingsStore } from '@/stores/settingsStore';
 import { useTimeFormat } from '@/hooks/useTimeFormat';
@@ -83,6 +84,7 @@ export default function EventDetailScreen() {
     isCurrentUserAttendee(event, activeAccount) &&
     !isOrganizerOfAccount(event, activeAccount);
   const myPartstat = event && activeAccount ? getAttendeePartstat(event, activeAccount) : undefined;
+  const pendingInvite = !!event && isEventPending(event, activeAccount);
   const eventsLoading = event === undefined;
 
   const [copied, setCopied] = useState(false);
@@ -262,6 +264,19 @@ export default function EventDetailScreen() {
                 </Stack>
               )}
             </Stack>
+
+            {pendingInvite && (
+              <Stack
+                direction="horizontal" vAlign="center" gap={10}
+                card padding={[12, 14]}
+                style={{ borderStyle: 'dashed', borderWidth: 1, borderColor: theme.colors.border }}
+              >
+                <Mail size={18} color={theme.colors.primary} />
+                <Typography variant="body2" color="secondary" style={{ flex: 1 }}>
+                  {t('event.invitationFrom', { name: event.organizerEmail || '' })}
+                </Typography>
+              </Stack>
+            )}
 
             <List>
               <Item

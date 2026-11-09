@@ -100,6 +100,8 @@
     "attendees": "Deelnemers",
     "attendeePlaceholder": "email@voorbeeld.com",
     "myParticipation": "My participation",
+    "invitationBadge": "Uitnodiging",
+    "invitationFrom": "Uitnodiging van {{name}}",
     "participationAccepted": "You are going",
     "participationTentative": "You might go",
     "participationDeclined": "You declined",

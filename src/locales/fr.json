@@ -100,6 +100,8 @@
     "attendees": "Participants",
     "attendeePlaceholder": "email@example.com",
     "myParticipation": "Ma participation",
+    "invitationBadge": "Invitation",
+    "invitationFrom": "Invitation de {{name}}",
     "participationAccepted": "Vous participez",
     "participationTentative": "Vous participerez peut-être",
     "participationDeclined": "Vous avez refusé",

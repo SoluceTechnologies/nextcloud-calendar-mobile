@@ -73,6 +73,18 @@ export async function refreshAccountProfiles(): Promise<Account[]> {
       }
     } catch {
     }
+    // Lazily resolve the principal's calendar-user-address-set once — the ATTENDEE
+    // address on received invites may be an alias (principal path, urn:uuid:, or a
+    // secondary mailto:) that never equals account.email. Lazy require: caldav.ts
+    // statically pulls ical.js, which must not load at module-init time.
+    if (!account.calendarUserAddresses) {
+      try {
+        const { fetchCalendarUserAddressSet } = await import('./caldav');
+        const calendarUserAddresses = await fetchCalendarUserAddressSet(account);
+        await saveAccount({ ...account, calendarUserAddresses });
+      } catch {
+      }
+    }
   }
   return loadAccounts();
 }

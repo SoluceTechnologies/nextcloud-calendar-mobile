@@ -41,33 +41,75 @@ export function dedupeAttendees(attendees: Attendee[]): Attendee[] {
   return result;
 }
 
+/**
+ * Normalises a cal-address for comparison: strips `mailto:`/scheme prefixes and
+ * trailing slashes, lowercases. `readAttendees` keeps the raw URI in `email` when it
+ * is not mailto: (principal paths, urn:uuid:) so both sides go through this.
+ */
+export function normalizeCalAddress(address: string | undefined): string {
+  if (!address) return '';
+  return address
+    .trim()
+    .replace(/^[a-z][a-z0-9+.-]*:/i, '')
+    .replace(/\/+$/, '')
+    .toLowerCase();
+}
+
+/**
+ * Every cal-address that can mean "this account": the configured email, the
+ * `username@` heuristic (username itself contains no `@`), the `davUserId` principal
+ * slug, and each `calendar-user-address-set` href (normalised — `mailto:` entries
+ * become bare addresses, principal paths their last segment).
+ */
+export function accountCalAddresses(account: Account): Set<string> {
+  const mine = new Set<string>();
+  const email = normalizeCalAddress(account.email);
+  if (email) mine.add(email);
+  const username = account.username.toLowerCase();
+  if (username) mine.add(username);
+  const davUserId = account.davUserId?.toLowerCase();
+  if (davUserId) mine.add(davUserId);
+  for (const href of account.calendarUserAddresses ?? []) {
+    const normalized = normalizeCalAddress(href);
+    if (!normalized) continue;
+    mine.add(normalized);
+    const last = normalized.split('/').filter(Boolean).pop();
+    if (last) mine.add(last);
+  }
+  return mine;
+}
+
 export function isAttendeeOfAccount(attendee: Attendee, account: Account): boolean {
+  const address = normalizeCalAddress(attendee.email);
+  if (!address) return false;
+  const mine = accountCalAddresses(account);
+  if (mine.has(address)) return true;
+  // Principal-path attendee (`principals/users/<uid>`) matches the davUserId slug.
+  const last = address.split('/').filter(Boolean).pop();
+  if (last && mine.has(last)) return true;
   const accountEmail = account.email?.toLowerCase();
+  if (accountEmail) return false;
+  // Without a configured email, username@domain remains a plausible match.
   const accountUsername = account.username.toLowerCase();
-  const email = attendee.email?.toLowerCase();
-  if (!email) return false;
-  if (accountEmail) return email === accountEmail;
-  return email.startsWith(`${accountUsername}@`) || email === accountUsername;
+  return address.startsWith(`${accountUsername}@`) || address === accountUsername;
 }
 
 export function findAttendeeForAccount(attendees: Attendee[], account: Account): Attendee | undefined {
   const accountEmail = account.email?.toLowerCase();
-  if (accountEmail) {
-    return attendees.find((att) => att.email?.toLowerCase() === accountEmail);
-  }
-  // Without a configured account email, the username@ heuristic must be unambiguous:
-  // bob@a.com and bob@b.com both match user 'bob' — picking one would reply as the
-  // wrong person, so no candidate is better than a guessed one.
+  const direct = accountEmail
+    ? attendees.find((att) => att.email?.toLowerCase() === accountEmail)
+    : undefined;
+  if (direct) return direct;
+  // Alias/principal-path candidates and the username@ heuristic must stay
+  // unambiguous: bob@a.com and bob@b.com both match user 'bob' — picking one would
+  // reply as the wrong person, so no candidate is better than a guessed one.
   const matches = attendees.filter((att) => isAttendeeOfAccount(att, account));
   return matches.length === 1 ? matches[0] : undefined;
 }
 
 export function isOrganizerOfAccount(event: CalendarEvent, account: Account | null): boolean {
   if (!account || !event.organizerEmail) return false;
-  const organizer = event.organizerEmail.toLowerCase();
-  const accountEmail = account.email?.toLowerCase();
-  if (accountEmail) return organizer === accountEmail;
-  return organizer.startsWith(`${account.username.toLowerCase()}@`) || organizer === account.username.toLowerCase();
+  return isAttendeeOfAccount({ email: event.organizerEmail }, account);
 }
 
 export function getAttendeePartstat(event: CalendarEvent, account: Account): string | undefined {

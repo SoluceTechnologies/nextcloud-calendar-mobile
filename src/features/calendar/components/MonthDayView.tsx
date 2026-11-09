@@ -215,6 +215,7 @@ function MonthDayViewImpl({
           events={events}
           height={pagerHeight}
           todayKey={todayKey}
+          account={activeAccount}
           onOpenDay={onOpenDay}
           onLongPressDay={onPressCell}
         />
