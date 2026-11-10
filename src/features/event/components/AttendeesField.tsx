@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useTheme } from 'expo-router';
 import { X } from 'lucide-react-native';
 import { ContactAvatar } from './ContactAvatar';
+import { AttendeeAvatar } from './AttendeeAvatar';
 import { useContactSuggestions } from '@/features/event/hooks/useContactSuggestions';
 import { dedupeAttendees } from '@/utils/attendees';
 import { Stack, Typography, TextField, Button, IconButton, List, Item, Spinner } from '@/ui/components';
@@ -103,6 +104,7 @@ export function AttendeesField({ attendees, onChange, account, onInputLayout, on
           direction="horizontal" vAlign="center" bordered
           gap={8} padding={[12, 8]}
         >
+          <AttendeeAvatar account={account ?? null} email={att.email} displayName={att.displayName} size={32} />
           <View>
             <Typography variant="body2" color="primary">{att.displayName ?? att.email}</Typography>
             {att.displayName ? (

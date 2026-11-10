@@ -80,6 +80,17 @@ describe('buildIcs', () => {
     expect(ics).toContain('CN=Alice');
   });
 
+  it('preserves a parsed PARTSTAT instead of forcing NEEDS-ACTION', () => {
+    const ics = buildIcs({
+      ...base,
+      attendees: [{ email: 'bob@example.com', displayName: 'Bob', partstat: 'ACCEPTED' }],
+    });
+    expect(ics).toContain('PARTSTAT=ACCEPTED');
+    expect(ics).not.toContain('PARTSTAT=NEEDS-ACTION');
+    const fallback = buildIcs({ ...base, attendees: [{ email: 'c@example.com' }] }).replace(/\r\n /g, '');
+    expect(fallback).toContain('PARTSTAT=NEEDS-ACTION');
+  });
+
   it('escapes special chars in summary', () => {
     const ics = buildIcs({ ...base, summary: 'Sync, Team; All' });
     expect(ics).toContain('SUMMARY:Sync\\, Team\\; All\r\n');
@@ -413,6 +424,43 @@ describe('buildExceptionIcs', () => {
     expect(ics).toContain('DTSTART;VALUE=DATE:20261009');
     expect(ics).toContain('DTEND;VALUE=DATE:20261010');
   });
+
+  it('emits explicit STATUS/TRANSP, including RFC defaults, so an occurrence can override a non-default master', () => {
+    const ics = buildExceptionIcs({
+      ...base,
+      timezone: 'Europe/Paris',
+      recurrenceId: new Date(2026, 9, 9),
+      status: 'confirmed',
+      transp: 'opaque',
+    });
+
+    expect(ics).toContain('STATUS:CONFIRMED\r\n');
+    expect(ics).toContain('TRANSP:OPAQUE\r\n');
+  });
+
+  it('emits non-default STATUS/TRANSP explicitly', () => {
+    const ics = buildExceptionIcs({
+      ...base,
+      timezone: 'Europe/Paris',
+      recurrenceId: new Date(2026, 9, 9),
+      status: 'cancelled',
+      transp: 'transparent',
+    });
+
+    expect(ics).toContain('STATUS:CANCELLED\r\n');
+    expect(ics).toContain('TRANSP:TRANSPARENT\r\n');
+  });
+
+  it('omits STATUS/TRANSP when unset, keeping master inheritance', () => {
+    const ics = buildExceptionIcs({
+      ...base,
+      timezone: 'Europe/Paris',
+      recurrenceId: new Date(2026, 9, 9),
+    });
+
+    expect(ics).not.toContain('STATUS:');
+    expect(ics).not.toContain('TRANSP:');
+  });
 });
 
 describe('truncateRruleUntil', () => {
@@ -487,5 +535,52 @@ describe('VALARM generation', () => {
     const ics = buildIcs({ ...base, alarms: [] });
     const extras = extractExtraVeventLines(ics);
     expect(extras.join('\n')).not.toContain('X-NCM-ALARM-NONE');
+  });
+});
+
+describe('STATUS/TRANSP emission', () => {
+  it('emits STATUS when set to a non-default value', () => {
+    expect(buildIcs({ ...base, status: 'tentative' })).toContain('STATUS:TENTATIVE\r\n');
+    expect(buildIcs({ ...base, status: 'cancelled' })).toContain('STATUS:CANCELLED\r\n');
+    expect(buildAllDayIcs({ ...allDayBase, status: 'tentative' })).toContain('STATUS:TENTATIVE\r\n');
+  });
+
+  it('emits TRANSP only for transparent', () => {
+    expect(buildIcs({ ...base, transp: 'transparent' })).toContain('TRANSP:TRANSPARENT\r\n');
+    expect(buildAllDayIcs({ ...allDayBase, transp: 'transparent' })).toContain('TRANSP:TRANSPARENT\r\n');
+    expect(buildIcs({ ...base, transp: 'opaque' })).not.toContain('TRANSP');
+  });
+
+  it('emits nothing for RFC defaults or unset fields', () => {
+    for (const ics of [
+      buildIcs(base),
+      buildIcs({ ...base, status: 'confirmed', transp: 'opaque' }),
+      buildAllDayIcs(allDayBase),
+    ]) {
+      expect(ics).not.toContain('STATUS');
+      expect(ics).not.toContain('TRANSP');
+    }
+  });
+
+  it('writes them on exception VEVENTs', () => {
+    const ics = buildExceptionIcs({
+      ...base,
+      timezone: 'Europe/Paris',
+      recurrenceId: new Date('2026-08-26T12:00:00Z'),
+      status: 'cancelled',
+      transp: 'transparent',
+    });
+    expect(ics).toContain('STATUS:CANCELLED\r\n');
+    expect(ics).toContain('TRANSP:TRANSPARENT\r\n');
+  });
+
+  it('round-trips status/transp through the CalDAV parser', () => {
+    const ics = buildIcs({ ...base, status: 'tentative', transp: 'transparent' });
+    const [event] = parseIcsObjects(
+      [{ ics, href: '/cal/a.ics' }],
+      { calendarId: 'c1', accountId: 'a1', color: '#000' },
+    );
+    expect(event.status).toBe('tentative');
+    expect(event.transp).toBe('transparent');
   });
 });

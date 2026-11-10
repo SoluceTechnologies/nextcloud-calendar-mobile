@@ -5,7 +5,7 @@ import * as Clipboard from 'expo-clipboard';
 import { haptic } from '@/utils/haptics';
 import {
   Pencil, Clock, CalendarDays, MapPin, Video, Repeat, Trash2, Copy, Check, Bell,
-  Navigation,
+  Navigation, Ban, Info, EyeOff,
 } from 'lucide-react-native';
 import { useLocalSearchParams, useNavigation, useRouter, useTheme } from 'expo-router';
 import dayjs from 'dayjs';
@@ -25,9 +25,11 @@ import { useSettingsStore } from '@/stores/settingsStore';
 import { useTimeFormat } from '@/hooks/useTimeFormat';
 import {
   ViewContainer, Stack, Typography, Button, Chip, Icon, List, Item,
-  SectionHeader, Avatar, Spinner, ScreenHeader,
+  SectionHeader, Spinner, ScreenHeader,
   IconButton,
 } from '@/ui/components';
+import { AttendeeAvatar } from '@/features/event/components/AttendeeAvatar';
+import { PartstatChip } from '@/features/event/components/PartstatChip';
 import type { RecurrenceEditScope } from '@/types';
 import { openTalkRoom, promptTalkRoomOpen } from '@/features/event/utils/openTalkRoom';
 import { askRecurrenceScope, type RecurrenceScopeStrings } from '@/features/event/recurrenceScope';
@@ -238,7 +240,12 @@ export default function EventDetailScreen() {
         <ScrollView style={styles.flex} contentContainerStyle={[styles.content, { paddingBottom: 24 }]}>
           <Stack gap={20}>
             <Stack gap={10}>
-              <Typography variant="h3">{event.summary}</Typography>
+              <Typography
+                variant="h3"
+                style={event.status === 'cancelled' ? styles.cancelledTitle : undefined}
+              >
+                {event.summary}
+              </Typography>
               {event.isRecurring && (
                 <Stack direction="horizontal" gap={6}>
                   <Repeat size={16} color={theme.colors.primary} />
@@ -295,6 +302,28 @@ export default function EventDetailScreen() {
                   }
                 />
               )}
+              {event.status && event.status !== 'confirmed' && (
+                <Item
+                  leading={
+                    <Icon size={20}>
+                      {event.status === 'cancelled'
+                        ? <Ban color={theme.colors.textSecondary} />
+                        : <Info color={theme.colors.textSecondary} />}
+                    </Icon>
+                  }
+                  title={t('event.status')}
+                  description={event.status === 'cancelled'
+                    ? t('event.statusCancelled')
+                    : t('event.statusTentative')}
+                />
+              )}
+              {event.transp === 'transparent' && (
+                <Item
+                  leading={<Icon size={20}><EyeOff color={theme.colors.textSecondary} /></Icon>}
+                  title={t('event.availability')}
+                  description={t('event.availabilityFree')}
+                />
+              )}
             </List>
 
             {coordinates && !isVirtual && (
@@ -345,18 +374,27 @@ export default function EventDetailScreen() {
               </Stack>
             )}
 
-            {event.attendees.length > 0 && (
+            {(event.organizerEmail || event.attendees.length > 0) && (
               <Stack gap={8}>
                 <SectionHeader title={t('event.attendees')} />
                 <List>
+                  {event.organizerEmail && (
+                    <Item
+                      leading={<AttendeeAvatar account={activeAccount} email={event.organizerEmail} size={36} />}
+                      title={event.organizerEmail}
+                      description={t('event.organizer')}
+                    />
+                  )}
                   {event.attendees
+                    .filter((a) => (a.email ?? '').toLowerCase() !== (event.organizerEmail ?? '').toLowerCase())
                     .filter((a, i, arr) => arr.findIndex((b) => (b.email ?? '').toLowerCase() === (a.email ?? '').toLowerCase()) === i)
                     .map((att, i) => (
                       <Item
                         key={att.email || `attendee-${i}`}
-                        leading={<Avatar name={att.displayName ?? att.email} size={36} />}
+                        leading={<AttendeeAvatar account={activeAccount} email={att.email} displayName={att.displayName} size={36} />}
                         title={att.displayName ?? att.email}
                         description={att.displayName ? att.email : undefined}
+                        trailing={<PartstatChip partstat={att.partstat} />}
                       />
                     ))}
                 </List>
@@ -393,4 +431,5 @@ const styles = StyleSheet.create({
   content: { padding: 20 },
   footer: { borderTopWidth: StyleSheet.hairlineWidth },
   link: { textDecorationLine: 'underline' },
+  cancelledTitle: { textDecorationLine: 'line-through', opacity: 0.5 },
 });

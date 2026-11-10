@@ -1,5 +1,5 @@
 import ICAL from 'ical.js';
-import type { CalendarEvent, Attendee } from '@/types';
+import type { CalendarEvent, Attendee, EventStatus, EventTransp } from '@/types';
 import { yieldToUI } from '@/utils/scheduling';
 import { isValidTimeZone, zonedWallTimeToUtc } from '@/utils/timezone';
 import { NO_ALARM_PROP, triggerToMinutes } from '@/features/notifications/alerts';
@@ -63,10 +63,11 @@ function readAttendees(props: ICAL.Property[]): Attendee[] {
     const value = (prop.getFirstValue() as string) ?? '';
     const email = value.replace(/^mailto:/i, '');
     const displayName = (prop.getParameter('cn') as string) ?? undefined;
+    const partstat = (prop.getParameter('partstat') as string) ?? undefined;
     const key = email.toLowerCase();
     if (email && seen.has(key)) continue;
     if (email) seen.add(key);
-    attendees.push({ email, displayName });
+    attendees.push({ email, displayName, partstat });
   }
   return attendees;
 }
@@ -78,8 +79,22 @@ function organizerEmailOf(vevent: ICAL.Component): string | undefined {
 
 type OverridableFields = Pick<
   CalendarEvent,
-  'summary' | 'description' | 'location' | 'talkUrl' | 'attendees' | 'organizerEmail' | 'alarms'
+  'summary' | 'description' | 'location' | 'talkUrl' | 'attendees' | 'organizerEmail' | 'alarms' | 'transp' | 'status'
 >;
+
+const EVENT_TRANSP_VALUES: readonly EventTransp[] = ['opaque', 'transparent'];
+const EVENT_STATUS_VALUES: readonly EventStatus[] = ['confirmed', 'tentative', 'cancelled'];
+
+function enumProp<T extends string>(
+  vevent: ICAL.Component,
+  name: string,
+  allowed: readonly T[],
+): T | undefined {
+  const raw = vevent.getFirstPropertyValue(name);
+  if (typeof raw !== 'string') return undefined;
+  const value = raw.toLowerCase() as T;
+  return allowed.includes(value) ? value : undefined;
+}
 
 function exceptionFields(vevent: ICAL.Component): Partial<OverridableFields> {
   const fields: Partial<OverridableFields> = {};
@@ -103,6 +118,12 @@ function exceptionFields(vevent: ICAL.Component): Partial<OverridableFields> {
 
   const alarms = alarmMinutesList(vevent);
   if (alarms !== undefined) fields.alarms = alarms;
+
+  const transp = enumProp(vevent, 'transp', EVENT_TRANSP_VALUES);
+  if (transp) fields.transp = transp;
+
+  const status = enumProp(vevent, 'status', EVENT_STATUS_VALUES);
+  if (status) fields.status = status;
 
   return fields;
 }
@@ -297,6 +318,8 @@ export function parseIcsItem(
         isRecurring,
         rrule: rruleStr,
         alarms,
+        transp: enumProp(vevent, 'transp', EVENT_TRANSP_VALUES),
+        status: enumProp(vevent, 'status', EVENT_STATUS_VALUES),
       };
 
       if (isRecurring && (rangeStart || rangeEnd)) {
@@ -409,6 +432,7 @@ export function extractSequence(ics: string): number {
 const WRITER_MANAGED_PROPS = new Set([
   'uid', 'dtstamp', 'sequence', 'dtstart', 'dtend', 'summary', 'description',
   'location', 'rrule', 'organizer', 'attendee', 'recurrence-id', 'last-modified', 'prodid',
+  'transp', 'status',
   NO_ALARM_PROP.toLowerCase(),
 ]);
 

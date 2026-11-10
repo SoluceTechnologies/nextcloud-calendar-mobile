@@ -9,7 +9,9 @@ import {
 } from 'react-native-android-widget';
 
 import type { AgendaEventItem, AgendaSnapshot, AgendaTimelineEntry, WidgetSurface } from '../../core/types';
+import { listenDeepLink } from '../../core/types';
 import { type AgendaGroup, agendaGroups, agendaHeader, agendaPalette, compactEvents, emptyLabel } from '../../core/agendaView';
+import i18n from '@/utils/i18n';
 import { onEventColor, widgetPalette, widgetRadius, widgetSpacing, widgetType } from '../../core/theme';
 import { readAgendaSnapshot, writeAgendaTimeline } from '../../storage/widgetStore';
 import { buildFreshTimeline } from '../../core/buildTimeline';
@@ -60,6 +62,24 @@ function EmptyState({ snapshot, palette }: { snapshot: AgendaSnapshot | null; pa
   return <TextWidget text={emptyLabel(snapshot)} style={{ fontSize: widgetType.caption, color: palette.textTertiary }} />;
 }
 
+// 🎧 button → nextcloud-calendar://listen → app opens and starts the briefing.
+function ListenButton({ snapshot, palette, labeled }: { snapshot: AgendaSnapshot | null; palette: Palette; labeled?: boolean }) {
+  const label = i18n.t('briefing.listenAction', { lng: snapshot?.locale });
+  return (
+    <FlexWidget
+      clickAction="OPEN_URI"
+      clickActionData={{ uri: listenDeepLink() }}
+      style={{ paddingHorizontal: 6, paddingVertical: 4, borderRadius: widgetRadius.sm }}
+    >
+      <TextWidget
+        text={labeled ? `🎧 ${label}` : '🎧'}
+        maxLines={1}
+        style={{ fontSize: widgetType.caption, fontWeight: '600', color: palette.primary }}
+      />
+    </FlexWidget>
+  );
+}
+
 function LargeAndroidWidget({ snapshot }: { snapshot: AgendaSnapshot | null }) {
   const palette = agendaPalette(snapshot);
   const groups = agendaGroups(snapshot);
@@ -84,6 +104,9 @@ function LargeAndroidWidget({ snapshot }: { snapshot: AgendaSnapshot | null }) {
       }}
       clickAction="OPEN_APP"
     >
+      <FlexWidget style={{ width: 'match_parent', flexDirection: 'row', justifyContent: 'flex-end' }}>
+        <ListenButton snapshot={snapshot} palette={palette} labeled />
+      </FlexWidget>
       {cells.length === 0 ? (
         <EmptyState snapshot={snapshot} palette={palette} />
       ) : (
@@ -113,6 +136,7 @@ function CompactAndroidWidget({ snapshot, limit }: { snapshot: AgendaSnapshot | 
       <FlexWidget style={{ width: 52, alignItems: 'center' }}>
         <TextWidget text={header.dayLabel} style={{ fontSize: widgetType.caption, fontWeight: '600', color: palette.primary }} />
         <TextWidget text={header.dayNumber} style={{ fontSize: widgetType.heading, fontWeight: '700', color: palette.text }} />
+        <ListenButton snapshot={snapshot} palette={palette} />
       </FlexWidget>
 
       <FlexWidget style={{ flex: 1, paddingLeft: widgetSpacing.sm }}>

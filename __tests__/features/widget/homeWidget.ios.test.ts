@@ -108,6 +108,7 @@ function makeSection(dayKey: string, count: number, isToday = false): AgendaDayS
     weekdayLong: 'Wednesday',
     isToday,
     items: Array.from({ length: count }, (_, i) => makeItem(`${dayKey}-${i}`)),
+    totalCount: count,
   };
 }
 

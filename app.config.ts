@@ -9,7 +9,7 @@ if (![major, minor, patch].every(Number.isInteger)) {
     );
 }
 
-const versionCode = 11000;
+const versionCode = 11100;
 
 if (versionCode !== major * 10000 + minor * 100 + patch) {
     throw new Error(
@@ -73,6 +73,7 @@ const config: ExpoConfig = {
     plugins: [
         './plugins/withAndroidNetworkSecurityConfig',
         './plugins/withAndroidMultiDisplay',
+        './plugins/withAppIntents',
         [
             'expo-build-properties',
             {
@@ -112,6 +113,13 @@ const config: ExpoConfig = {
         'expo-font',
         'expo-notifications',
         'expo-background-task',
+        [
+            'expo-speech-recognition',
+            {
+                microphonePermission: 'Allow Calendar to use the microphone for the voice assistant.',
+                speechRecognitionPermission: 'Allow Calendar to transcribe your voice commands for the voice assistant.',
+            },
+        ],
         [
             'expo-widgets',
             {

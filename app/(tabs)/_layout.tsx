@@ -1,6 +1,6 @@
 import { Tabs, useTheme } from 'expo-router';
 import { NativeTabs } from 'expo-router/unstable-native-tabs';
-import { Calendar, Settings as SettingsIcon, type LucideIcon } from 'lucide-react-native';
+import { Calendar, Search, Settings as SettingsIcon, type LucideIcon } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 import type { SFSymbol } from 'sf-symbols-typescript';
 import type { AndroidSymbol } from 'expo-symbols';
@@ -23,6 +23,13 @@ const TAB_ITEMS: TabItem[] = [
     sf: { default: 'calendar', selected: 'calendar' },
     md: { default: 'calendar_month', selected: 'calendar_month' },
     Icon: Calendar,
+  },
+  {
+    name: 'search/index',
+    labelKey: 'tabs.search',
+    sf: { default: 'magnifyingglass', selected: 'magnifyingglass' },
+    md: { default: 'search', selected: 'search' },
+    Icon: Search,
   },
   {
     name: 'settings',
