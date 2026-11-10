@@ -1,5 +1,16 @@
-import { useSettingsStore } from '../../src/stores/settingsStore';
-import { zustandStorage } from '../../src/storage';
+import { useSettingsStore, type SettingsState } from '@/stores/settingsStore';
+import { storage, zustandStorage } from '@/storage';
+
+type MigratedSettings = Partial<SettingsState> & {
+  timedAlert?: number | null;
+  allDayAlert?: number | null;
+  voiceAssistantEnabled?: boolean;
+};
+
+const runMigrate = (state: unknown, version: number): MigratedSettings | undefined =>
+  useSettingsStore.persist.getOptions().migrate?.(state, version) as
+    | MigratedSettings
+    | undefined;
 
 jest.mock('@react-native-async-storage/async-storage', () =>
   require('@react-native-async-storage/async-storage/jest/async-storage-mock')
@@ -76,6 +87,44 @@ describe('default calendar per account', () => {
   });
 });
 
+describe('voice assistant per account', () => {
+  beforeEach(() => {
+    useSettingsStore.setState({ voiceAssistantByAccount: {} });
+    storage.remove('account_ids');
+  });
+
+  it('defaults to disabled for every account', () => {
+    expect(useSettingsStore.getState().voiceAssistantByAccount).toEqual({});
+  });
+
+  it('setVoiceAssistantEnabled stores the flag for the given account only', () => {
+    useSettingsStore.getState().setVoiceAssistantEnabled('acc-1', true);
+    useSettingsStore.getState().setVoiceAssistantEnabled('acc-2', false);
+    expect(useSettingsStore.getState().voiceAssistantByAccount).toEqual({
+      'acc-1': true,
+      'acc-2': false,
+    });
+  });
+
+  it('migrates the legacy global flag onto every known account', () => {
+    storage.set('account_ids', JSON.stringify(['acc-1', 'acc-2']));
+    const migrated = runMigrate({ voiceAssistantEnabled: true }, 2);
+    expect(migrated?.voiceAssistantByAccount).toEqual({ 'acc-1': true, 'acc-2': true });
+    expect(migrated?.voiceAssistantEnabled).toBeUndefined();
+  });
+
+  it('legacy flag off migrates to an empty map', () => {
+    storage.set('account_ids', JSON.stringify(['acc-1']));
+    const migrated = runMigrate({ voiceAssistantEnabled: false }, 2);
+    expect(migrated?.voiceAssistantByAccount).toEqual({});
+  });
+
+  it('keeps existing per-account entries when the legacy flag is absent', () => {
+    const migrated = runMigrate({ voiceAssistantByAccount: { 'acc-9': true } }, 3);
+    expect(migrated?.voiceAssistantByAccount).toEqual({ 'acc-9': true });
+  });
+});
+
 describe('alert defaults', () => {
   it('defaults to no reminder lists', () => {
     expect(useSettingsStore.getState().timedAlerts).toEqual([]);
@@ -93,11 +142,10 @@ describe('alert defaults', () => {
   });
 
   it('migrates v1 scalar defaults into lists', () => {
-    const options = useSettingsStore.persist.getOptions() as { migrate?: (s: unknown, v: number) => any };
-    const migrated = options.migrate?.({ timedAlert: 15, allDayAlert: null }, 1);
-    expect(migrated.timedAlerts).toEqual([15]);
-    expect(migrated.allDayAlerts).toEqual([]);
-    expect(migrated.timedAlert).toBeUndefined();
+    const migrated = runMigrate({ timedAlert: 15, allDayAlert: null }, 1);
+    expect(migrated?.timedAlerts).toEqual([15]);
+    expect(migrated?.allDayAlerts).toEqual([]);
+    expect(migrated?.timedAlert).toBeUndefined();
   });
 });
 

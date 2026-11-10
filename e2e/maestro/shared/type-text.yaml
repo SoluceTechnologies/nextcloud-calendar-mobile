@@ -1,0 +1,13 @@
+appId: com.soluce.nextcloudcalendar
+---
+- retry:
+    maxRetries: 3
+    commands:
+      - tapOn:
+          id: ${FIELD}
+          point: "95%,50%"
+      - eraseText: 60
+      - inputText: ${TEXT}
+      - assertVisible:
+          id: ${FIELD}
+          text: ${TEXT}

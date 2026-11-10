@@ -16,7 +16,8 @@
   },
   "tabs": {
     "calendar": "Calendrier",
-    "settings": "Paramètres"
+    "settings": "Paramètres",
+    "search": "Recherche"
   },
   "setup": {
     "brand": "Calendrier",
@@ -81,7 +82,9 @@
     },
     "drawerNoCalendars": "Aucun calendrier",
     "calendarNotifications": "Notifications de {{name}}",
-    "calendarVisibility": "Afficher {{name}}"
+    "calendarVisibility": "Afficher {{name}}",
+    "pendingSync": "{{count}} modification(s) en attente — toucher pour réessayer",
+    "drawerTrash": "Supprimés récemment"
   },
   "event": {
     "titleLabel": "Titre *",
@@ -98,6 +101,7 @@
     "description": "Description",
     "descriptionPlaceholder": "Détails...",
     "attendees": "Participants",
+    "organizer": "Organisateur",
     "attendeePlaceholder": "email@example.com",
     "add": "Ajouter",
     "saving": "Enregistrement…",
@@ -176,7 +180,24 @@
     "errorCreateFailed": "Échec de la création de l'événement",
     "errorUpdateFailed": "Échec de la mise à jour de l'événement",
     "errorDeleteFailed": "Échec de la suppression de l'événement",
-    "alerts": "Alertes"
+    "alerts": "Alertes",
+    "findTime": "Trouver un créneau",
+    "findTimeTitle": "Trouver un créneau",
+    "findTimeLoading": "Recherche des créneaux libres…",
+    "findTimeNone": "Aucun créneau libre ce jour.",
+    "findTimeError": "Impossible de charger les disponibilités.",
+    "createQueued": "Enregistré en local — sera envoyé au serveur dès le retour du réseau.",
+    "deleteQueued": "Supprimé en local — sera retiré du serveur dès le retour du réseau.",
+    "queueCreateDropped": "Impossible d'envoyer la création au serveur — l'événement local a été retiré.",
+    "queueDeleteDropped": "Impossible d'envoyer la suppression au serveur — l'événement réapparaîtra à la prochaine synchronisation.",
+    "queueUpdateDropped": "Impossible d'envoyer la modification au serveur — l'événement sera resynchronisé.",
+    "availability": "Disponibilité",
+    "availabilityBusy": "Occupé",
+    "availabilityFree": "Libre",
+    "status": "Statut",
+    "statusConfirmed": "Confirmé",
+    "statusTentative": "Provisoire",
+    "statusCancelled": "Annulé"
   },
   "settings": {
     "title": "Paramètres",
@@ -333,6 +354,12 @@
       "openInApp": "Application Nextcloud Talk",
       "openInBrowser": "Navigateur",
       "askEachTime": "Demander à chaque fois"
+    },
+    "voice": {
+      "title": "Assistant vocal",
+      "tierNote": "Les commandes locales restent sur l'appareil ; les questions libres utilisent l'assistant Nextcloud quand le serveur le propose.",
+      "availabilityTitle": "Agendas comptant pour la dispo",
+      "availabilityHint": "La recherche de créneaux ignore les agendas désactivés."
     }
   },
   "widget": {
@@ -354,6 +381,66 @@
       "tomorrow": "Demain"
     }
   },
+  "briefing": {
+    "listen": "Écouter ma journée",
+    "listenAction": "Écouter",
+    "navigateAction": "Itinéraire",
+    "pause": "Pause",
+    "resume": "Reprendre",
+    "next": "Événement suivant",
+    "stop": "Arrêter le briefing",
+    "emptyDay": "Aucun événement aujourd'hui",
+    "emptyDayDated": "Aucun événement le {{date}}"
+  },
+  "voice": {
+    "open": "Assistant vocal",
+    "listening": "Je vous écoute…",
+    "hint": "Essayez : « rendez-vous dentiste demain à 14 h »",
+    "inputPlaceholder": "Saisissez une commande…",
+    "send": "Envoyer",
+    "confirm": "Confirmer",
+    "cancel": "Annuler",
+    "retry": "Réessayer",
+    "thinking": "Le serveur réfléchit…",
+    "notUnderstood": "Je n'ai pas compris, reformulez.",
+    "sttUnavailable": "Reconnaissance vocale indisponible — utilisez la saisie.",
+    "permissionDenied": "Accès au microphone refusé.",
+    "created": "Événement créé.",
+    "moved": "Événement déplacé.",
+    "deleted": "Événement supprimé.",
+    "nothingFound": "Aucun événement trouvé.",
+    "chooseOne": "Lequel ?",
+    "whichCalendar": "Dans quel agenda ?",
+    "whichEvent": "Lequel ?",
+    "calendarReadOnly": "lecture seule",
+    "noWritableCalendar": "Aucun agenda modifiable.",
+    "whichSlot": "Quel créneau le {{date}} ?",
+    "noFreeSlot": "Aucun créneau libre le {{date}}.",
+    "meetingWith": "Réunion avec {{names}}",
+    "meetingTitle": "Réunion",
+    "enabled": "Assistant vocal",
+    "enabledHint": "Affiche le bouton micro pour piloter l'agenda à la voix ou au clavier — réglage par compte.",
+    "onDevice": "Reconnaissance sur l’appareil",
+    "onDeviceHint": "L’audio vocal reste sur cet appareil quand c’est possible.",
+    "onDeviceUnsupported": "Non pris en charge sur cet appareil — l’audio est envoyé sur le réseau.",
+    "agentAvailable": "Assistant serveur disponible.",
+    "agentUnavailable": "Assistant serveur indisponible — commandes locales uniquement.",
+    "serverError": "Le serveur n'a pas répondu.",
+    "stillThinking": "Le serveur réfléchit encore, réessayez plus tard.",
+    "tapToSpeak": "Touchez pour parler",
+    "confirmCreate": "Créer « {{title}} » le {{when}} dans {{calendar}} ?",
+    "confirmLocation": "Lieu : {{value}}",
+    "confirmDescription": "Description : {{value}}",
+    "confirmMove": "Déplacer « {{title}} » au {{when}} ?",
+    "confirmDelete": "Supprimer « {{title}} » ?",
+    "confirmAgent": "Envoyer cette demande à l'agent Nextcloud ? Il peut modifier votre agenda.",
+    "untitled": "Sans titre",
+    "nothingOnDay": "Rien le {{date}}.",
+    "attendeesDropped": "invités non reconnus : {{names}}",
+    "attendeesBusy": "attention, indisponible sur ce créneau : {{names}}",
+    "pickAltSlot": "choisissez un horaire libre :",
+    "withAttendees": "avec {{names}}"
+  },
   "certTrust": {
     "title": "Certificat non approuvé",
     "body": "Le serveur {{host}} a présenté un certificat qui n'est pas signé par une autorité connue.",
@@ -373,5 +460,98 @@
     "remedy": "Options plus sûres : joindre le serveur via un VPN comme Tailscale ou WireGuard, ou installer un certificat gratuit avec DuckDNS et Let's Encrypt.",
     "connect": "Se connecter quand même",
     "cancel": "Annuler"
+  },
+  "search": {
+    "title": "Rechercher",
+    "placeholder": "Rechercher des événements…",
+    "filters": "FILTRES",
+    "filter": {
+      "calendar": "Dans un calendrier",
+      "attendee": "Avec un participant",
+      "date": "Date",
+      "title": "Dans le titre",
+      "location": "Dans le lieu",
+      "description": "Dans la description"
+    },
+    "hint": {
+      "name": "nom",
+      "person": "personne",
+      "text": "texte"
+    },
+    "more": "Plus de filtres",
+    "moreHint": "titre, lieu, description",
+    "recent": "RÉCENTES",
+    "removeRecent": "Retirer des recherches récentes",
+    "removeFilter": "Retirer le filtre {{filter}}",
+    "use": "Utiliser « {{value}} »",
+    "filterHint": "Filtrer :",
+    "short": {
+      "calendar": "Calendrier",
+      "attendee": "Participant",
+      "date": "Date"
+    },
+    "date": {
+      "today": "Aujourd'hui",
+      "tomorrow": "Demain",
+      "week": "Dans les 7 jours",
+      "month": "Dans le mois",
+      "upcoming": "À venir",
+      "past": "Passés",
+      "before": "Avant une date…",
+      "after": "Après une date…"
+    },
+    "upcoming": "À VENIR",
+    "past": "PASSÉS",
+    "truncated": "Les {{count}} premiers sont affichés, ajoutez un filtre pour affiner",
+    "fromServer": "AUTRES RÉSULTATS DU SERVEUR",
+    "noResults": "Aucun résultat",
+    "noResultsHint": "Essayez moins de filtres ou un mot plus simple.",
+    "offlineNote": "Hors ligne — résultats locaux uniquement",
+    "serverFailed": "Serveur injoignable — résultats locaux uniquement",
+    "openFailed": "Impossible d'ouvrir cet événement"
+  },
+  "ai": {
+    "title": "Assistant IA",
+    "enable": "Activer les fonctions IA",
+    "provider": "Fournisseur d'IA",
+    "providerAvailable": "Disponible : {{name}}",
+    "providerUnavailable": "Aucun fournisseur d'IA disponible sur ce serveur",
+    "privacyNotice": "Lorsque l'option est activée, les titres, horaires et lieux des événements sont envoyés à votre serveur Nextcloud afin que son fournisseur d'IA génère des résumés et des brouillons. Les données restent sur votre serveur ; l'application n'envoie rien à des services tiers.",
+    "disclosure": "Généré par l'IA de votre serveur",
+    "regenerate": "Régénérer",
+    "thinking": "Réflexion…",
+    "copy": "Copier",
+    "descriptionDraft": "Rédiger avec l'IA",
+    "error": "La requête IA a échoué. Réessayez.",
+    "summary": {
+      "empty": "Aucun événement",
+      "events_one": "{{count}} événement",
+      "events_other": "{{count}} événements",
+      "events_few": "{{count}} événements",
+      "events_many": "{{count}} événements",
+      "tasks_one": "{{count}} tâche",
+      "tasks_other": "{{count}} tâches",
+      "tasks_few": "{{count}} tâches",
+      "tasks_many": "{{count}} tâches",
+      "next": "suivant :",
+      "at": "à"
+    }
+  },
+  "trashbin": {
+    "title": "Supprimés récemment",
+    "sectionTitle": "Événements et tâches supprimés",
+    "empty": "La corbeille est vide",
+    "unavailable": "La corbeille n'est pas disponible sur ce serveur",
+    "errorLoad": "Impossible de charger la corbeille",
+    "errorRestore": "Impossible de restaurer cet élément",
+    "errorDelete": "Impossible de supprimer cet élément",
+    "restore": "Restaurer",
+    "deletePermanently": "Supprimer définitivement",
+    "confirmDeleteTitle": "Supprimer définitivement ?",
+    "confirmDeleteMsg": "« {{title}} » sera supprimé définitivement.",
+    "untitled": "Sans titre",
+    "deletedAtLabel": "Supprimé le {{date}}",
+    "refresh": "Actualiser",
+    "hint": "Les éléments sont restaurés dans leur calendrier d'origine."
   }
 }

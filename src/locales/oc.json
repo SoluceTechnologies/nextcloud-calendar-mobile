@@ -16,7 +16,8 @@
   },
   "tabs": {
     "calendar": "Calendari",
-    "settings": "Paramètres"
+    "settings": "Paramètres",
+    "search": "Recercar"
   },
   "setup": {
     "brand": "Calendari",
@@ -81,7 +82,9 @@
     },
     "drawerNoCalendars": "Pas de calendari",
     "calendarNotifications": "Notificacions per {{name}}",
-    "calendarVisibility": "Afichar {{name}}"
+    "calendarVisibility": "Afichar {{name}}",
+    "pendingSync": "{{count}} modificacion(s) en espèra — tocar per tornar ensajar",
+    "drawerTrash": "Suprimits recentament"
   },
   "event": {
     "titleLabel": "Títol *",
@@ -97,6 +100,7 @@
     "description": "Descripcion",
     "descriptionPlaceholder": "Detalhs...",
     "attendees": "Participants",
+    "organizer": "Organizator",
     "attendeePlaceholder": "email@example.com",
     "add": "Apondre",
     "saving": "Salvament…",
@@ -171,7 +175,24 @@
     "errorCreateFailed": "La creacion de l'eveniment a pas capitat",
     "errorUpdateFailed": "La mesa a jorn de l'eveniment a pas capitat",
     "errorDeleteFailed": "La supression de l'eveniment a pas capitat",
-    "alerts": "Alèrtas"
+    "alerts": "Alèrtas",
+    "findTime": "Trobar un crenech",
+    "findTimeTitle": "Trobar un crenech",
+    "findTimeLoading": "Recèrca dels crenechs liures…",
+    "findTimeNone": "Cap de crenech liure aquel jorn.",
+    "findTimeError": "Impossible de cargar las disponibilitats.",
+    "createQueued": "Enregistrat en local — serà mandat al servidor quora la retorna la connexion.",
+    "deleteQueued": "Suprimit en local — serà levat del servidor quora la retorna la connexion.",
+    "queueCreateDropped": "Impossible de mandar la creacion al servidor — l'eveniment local foguèt suprimit.",
+    "queueDeleteDropped": "Impossible de mandar la supression al servidor — l'eveniment tornarà aparéisser a la sincronizacion venenta.",
+    "queueUpdateDropped": "Impossible de mandar la modificacion al servidor — l'eveniment serà sincronizat de nòu.",
+    "availability": "Disponibilitat",
+    "availabilityBusy": "Ocupat",
+    "availabilityFree": "Liure",
+    "status": "Estat",
+    "statusConfirmed": "Confirmat",
+    "statusTentative": "Provisional",
+    "statusCancelled": "Anullat"
   },
   "settings": {
     "title": "Paramètres",
@@ -320,7 +341,13 @@
       "defaultCalendarHint": "Presseleccionat a la creacion d'un eveniment.",
       "defaultCalendarAuto": "Automatic"
     },
-    "accountActive": "Actiu"
+    "accountActive": "Actiu",
+    "voice": {
+      "title": "Assistent vocal",
+      "tierNote": "Las comandas localas demòran sus l'aparelh ; las questions liuras utilizan l'assistent Nextcloud quand lo servidor o prepausa.",
+      "availabilityTitle": "Agendas comptant per la disponibilitat",
+      "availabilityHint": "La recèrca de traucs ignora los agendas desactivats."
+    }
   },
   "widget": {
     "liveRemaining": "Demòra {{duration}}",
@@ -341,6 +368,66 @@
       "tomorrow": "Deman"
     }
   },
+  "briefing": {
+    "listen": "Escotar ma jornada",
+    "listenAction": "Escotar",
+    "navigateAction": "Itinerari",
+    "pause": "Pausa",
+    "resume": "Repréner",
+    "next": "Eveniment seguent",
+    "stop": "Arrestar lo briefing",
+    "emptyDay": "Cap d’eveniment uèi",
+    "emptyDayDated": "Cap d’eveniment per {{date}}"
+  },
+  "voice": {
+    "open": "Assistent vocal",
+    "listening": "Vos escoti…",
+    "hint": "Ensajatz : « rendètz-vos dentista deman a 14 oras »",
+    "inputPlaceholder": "Picatz una comanda…",
+    "send": "Enviar",
+    "confirm": "Confirmar",
+    "cancel": "Anullar",
+    "retry": "Tornar ensajar",
+    "thinking": "Lo servidor reflechís…",
+    "notUnderstood": "Ai pas comprés, reformulatz.",
+    "sttUnavailable": "Reconéissença vocala indisponibla — utilizatz lo clavièr.",
+    "permissionDenied": "Accès al microfòn refusat.",
+    "created": "Eveniment creat.",
+    "moved": "Eveniment desplaçat.",
+    "deleted": "Eveniment suprimit.",
+    "nothingFound": "Cap d’eveniment trobat.",
+    "chooseOne": "Loquin ?",
+    "whichCalendar": "Dins quin agenda ?",
+    "whichEvent": "Loqual ?",
+    "calendarReadOnly": "lectura sola",
+    "noWritableCalendar": "Cap d'agenda modificable.",
+    "whichSlot": "Quin trauc lo {{date}} ?",
+    "noFreeSlot": "Cap de trauc liure lo {{date}}.",
+    "meetingWith": "Reünion amb {{names}}",
+    "meetingTitle": "Reünion",
+    "enabled": "Assistent vocal",
+    "enabledHint": "Aficha lo boton micrò per pilotar l'agenda a la votz o al clavièr — per compte.",
+    "onDevice": "Reconéissença sul periferic",
+    "onDeviceHint": "L’àudio vocal demora sus aqueste periferic quand es possible.",
+    "onDeviceUnsupported": "Pas pres en carga sus aqueste periferic — l’àudio es enviat per la ret.",
+    "agentAvailable": "Assistent servidor disponible.",
+    "agentUnavailable": "Assistent servidor indisponible — comandas localas unicament.",
+    "serverError": "Lo servidor a pas respondut.",
+    "stillThinking": "Lo servidor reflechís encara, tornatz ensajar mai tard.",
+    "tapToSpeak": "Tocatz per parlar",
+    "confirmCreate": "Crear « {{title}} » lo {{when}} dins {{calendar}} ?",
+    "confirmLocation": "Luòc : {{value}}",
+    "confirmDescription": "Descripcion : {{value}}",
+    "confirmMove": "Desplaçar « {{title}} » al {{when}} ?",
+    "confirmDelete": "Suprimir « {{title}} » ?",
+    "confirmAgent": "Mandar aquesta demanda a l'agent Nextcloud ? Pòt modificar vòstre agenda.",
+    "untitled": "Sens títol",
+    "nothingOnDay": "Res lo {{date}}.",
+    "attendeesDropped": "convidats pas reconeguts : {{names}}",
+    "attendeesBusy": "atencion, indisponible a aquesta ora : {{names}}",
+    "pickAltSlot": "causissètz un orari liure :",
+    "withAttendees": "amb {{names}}"
+  },
   "certTrust": {
     "title": "Certificat pas de fisança",
     "body": "Lo servidor {{host}} a presentat un certificat qu'es pas signat per una autoritat coneguda.",
@@ -352,5 +439,98 @@
     "validTo": "Valid fins a",
     "trust": "Far fisança e se connectar",
     "cancel": "Anullar"
+  },
+  "search": {
+    "title": "Recercar",
+    "placeholder": "Recercar d'eveniments…",
+    "filters": "FILTRES",
+    "filter": {
+      "calendar": "Dins un calendari",
+      "attendee": "Amb un participant",
+      "date": "Data",
+      "title": "Dins lo títol",
+      "location": "Dins lo luòc",
+      "description": "Dins la descripcion"
+    },
+    "hint": {
+      "name": "nom",
+      "person": "persona",
+      "text": "tèxte"
+    },
+    "more": "Mai de filtres",
+    "moreHint": "títol, luòc, descripcion",
+    "recent": "RECENTAS",
+    "removeRecent": "Levar de las recentas",
+    "removeFilter": "Levar lo filtre {{filter}}",
+    "use": "Utilizar « {{value}} »",
+    "filterHint": "Filtrar :",
+    "short": {
+      "calendar": "Calendari",
+      "attendee": "Participant",
+      "date": "Data"
+    },
+    "date": {
+      "today": "Uèi",
+      "tomorrow": "Deman",
+      "week": "Dins los 7 jorns",
+      "month": "Dins lo mes",
+      "upcoming": "A venir",
+      "past": "Passats",
+      "before": "Abans una data…",
+      "after": "Aprèp una data…"
+    },
+    "upcoming": "A VENIR",
+    "past": "PASSATS",
+    "truncated": "Los {{count}} primièrs son afichats, apondètz un filtre per afinar",
+    "fromServer": "AUTRES RESULTATS DEL SERVIDOR",
+    "noResults": "Cap de resultat",
+    "noResultsHint": "Ensajatz mens de filtres o un mot mai simple.",
+    "offlineNote": "Fòra linha — resultats locals solament",
+    "serverFailed": "Servidor injonhible — resultats locals solament",
+    "openFailed": "Impossible de dobrir aqueste eveniment"
+  },
+  "ai": {
+    "title": "Assistent IA",
+    "enable": "Activar las foncions IA",
+    "provider": "Proveïdor d'IA",
+    "providerAvailable": "Disponible : {{name}}",
+    "providerUnavailable": "Cap de proveïdor d'IA pas disponible sus aqueste servidor",
+    "privacyNotice": "Quand es activada, los títols, oraris e luòcs dels eveniments son mandats a vòstre servidor Nextcloud per que son proveïdor d'IA genere de resumits e de borrolhs. Las donadas demòran sus vòstre servidor ; l'aplicacion manda res a de servicis tèrces.",
+    "disclosure": "Generat per l'IA de vòstre servidor",
+    "regenerate": "Tornar generar",
+    "thinking": "Reflexion…",
+    "copy": "Copiar",
+    "descriptionDraft": "Redigir amb l'IA",
+    "error": "La requèsta IA a fracassat. Tornatz ensajar.",
+    "summary": {
+      "empty": "Cap d'eveniment",
+      "events_one": "{{count}} eveniment",
+      "events_other": "{{count}} eveniments",
+      "events_few": "{{count}} eveniments",
+      "events_many": "{{count}} eveniments",
+      "tasks_one": "{{count}} tasca",
+      "tasks_other": "{{count}} tasques",
+      "tasks_few": "{{count}} tasques",
+      "tasks_many": "{{count}} tasques",
+      "next": "seguent :",
+      "at": "a"
+    }
+  },
+  "trashbin": {
+    "title": "Suprimits recentament",
+    "sectionTitle": "Eveniments e prèctefacas suprimits",
+    "empty": "L'escobilhièr es void",
+    "unavailable": "L'escobilhièr es pas disponible sus aqueste servidor",
+    "errorLoad": "Impossible de cargar l'escobilhièr",
+    "errorRestore": "Impossible de restablir aqueste element",
+    "errorDelete": "Impossible de suprimir aqueste element",
+    "restore": "Restablir",
+    "deletePermanently": "Suprimir definitivament",
+    "confirmDeleteTitle": "Suprimir definitivament ?",
+    "confirmDeleteMsg": "« {{title}} » serà suprimit definitivament.",
+    "untitled": "Sens títol",
+    "deletedAtLabel": "Suprimit lo {{date}}",
+    "refresh": "Actualizar",
+    "hint": "Los elements son restablits dins lor calendièr d'origina."
   }
 }

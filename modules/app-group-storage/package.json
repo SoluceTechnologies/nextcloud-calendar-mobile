@@ -1,0 +1,7 @@
+{
+  "name": "app-group-storage",
+  "version": "0.1.0",
+  "description": "Key/value storage shared with app extensions and Siri intents via the iOS app group (SharedPreferences on Android)",
+  "main": "src/index.ts",
+  "private": true
+}

@@ -16,7 +16,8 @@
   },
   "tabs": {
     "calendar": "Calendario",
-    "settings": "Ajustes"
+    "settings": "Ajustes",
+    "search": "Buscar"
   },
   "setup": {
     "brand": "Calendario",
@@ -81,7 +82,9 @@
     },
     "drawerNoCalendars": "Ningún calendario",
     "calendarNotifications": "Notificaciones de {{name}}",
-    "calendarVisibility": "Mostrar {{name}}"
+    "calendarVisibility": "Mostrar {{name}}",
+    "pendingSync": "{{count}} cambio(s) pendiente(s) — tocar para reintentar",
+    "drawerTrash": "Eliminados recientemente"
   },
   "event": {
     "titleLabel": "Título *",
@@ -98,6 +101,7 @@
     "description": "Descripción",
     "descriptionPlaceholder": "Detalles...",
     "attendees": "Asistentes",
+    "organizer": "Organizador",
     "attendeePlaceholder": "email@example.com",
     "add": "Añadir",
     "saving": "Guardando…",
@@ -176,7 +180,24 @@
     "errorCreateFailed": "No se pudo crear el evento",
     "errorUpdateFailed": "No se pudo actualizar el evento",
     "errorDeleteFailed": "No se pudo eliminar el evento",
-    "alerts": "Avisos"
+    "alerts": "Avisos",
+    "findTime": "Buscar horario",
+    "findTimeTitle": "Buscar horario",
+    "findTimeLoading": "Buscando huecos libres…",
+    "findTimeNone": "No hay hueco libre ese día.",
+    "findTimeError": "No se pudo cargar la disponibilidad.",
+    "createQueued": "Guardado en local — se enviará cuando vuelva la conexión.",
+    "deleteQueued": "Eliminado en local — se quitará del servidor cuando vuelva la conexión.",
+    "queueCreateDropped": "No se pudo enviar la creación al servidor — el evento local se ha eliminado.",
+    "queueDeleteDropped": "No se pudo enviar la eliminación al servidor — el evento reaparecerá en la próxima sincronización.",
+    "queueUpdateDropped": "No se pudo enviar la modificación al servidor — el evento se resincronizará.",
+    "availability": "Disponibilidad",
+    "availabilityBusy": "Ocupado",
+    "availabilityFree": "Libre",
+    "status": "Estado",
+    "statusConfirmed": "Confirmado",
+    "statusTentative": "Tentativo",
+    "statusCancelled": "Cancelado"
   },
   "settings": {
     "title": "Ajustes",
@@ -333,6 +354,12 @@
       "openInApp": "Nextcloud Talk app",
       "openInBrowser": "Browser",
       "askEachTime": "Ask each time"
+    },
+    "voice": {
+      "title": "Asistente de voz",
+      "tierNote": "Los comandos locales se ejecutan en el dispositivo; las preguntas libres usan el asistente de Nextcloud cuando el servidor lo ofrece.",
+      "availabilityTitle": "Calendarios que cuentan para la disponibilidad",
+      "availabilityHint": "La búsqueda de huecos ignora los calendarios desactivados."
     }
   },
   "widget": {
@@ -354,6 +381,66 @@
       "tomorrow": "Mañana"
     }
   },
+  "briefing": {
+    "listen": "Escuchar mi día",
+    "listenAction": "Escuchar",
+    "navigateAction": "Cómo llegar",
+    "pause": "Pausar",
+    "resume": "Reanudar",
+    "next": "Evento siguiente",
+    "stop": "Detener el briefing",
+    "emptyDay": "No hay eventos hoy",
+    "emptyDayDated": "No hay eventos el {{date}}"
+  },
+  "voice": {
+    "open": "Asistente de voz",
+    "listening": "Te escucho…",
+    "hint": "Prueba: «cita con el dentista mañana a las 14 h»",
+    "inputPlaceholder": "Escribe un comando…",
+    "send": "Enviar",
+    "confirm": "Confirmar",
+    "cancel": "Cancelar",
+    "retry": "Reintentar",
+    "thinking": "El servidor está pensando…",
+    "notUnderstood": "No te he entendido, reformula.",
+    "sttUnavailable": "Reconocimiento de voz no disponible — usa el teclado.",
+    "permissionDenied": "Permiso de micrófono denegado.",
+    "created": "Evento creado.",
+    "moved": "Evento movido.",
+    "deleted": "Evento eliminado.",
+    "nothingFound": "No se encontró ningún evento.",
+    "chooseOne": "¿Cuál?",
+    "whichCalendar": "¿En qué agenda?",
+    "whichEvent": "¿Cuál?",
+    "calendarReadOnly": "solo lectura",
+    "noWritableCalendar": "No hay ningún calendario editable.",
+    "whichSlot": "¿Qué franja el {{date}}?",
+    "noFreeSlot": "No hay hueco libre el {{date}}.",
+    "meetingWith": "Reunión con {{names}}",
+    "meetingTitle": "Reunión",
+    "enabled": "Asistente de voz",
+    "enabledHint": "Muestra el botón de micrófono para controlar el calendario por voz o texto — por cuenta.",
+    "onDevice": "Reconocimiento en el dispositivo",
+    "onDeviceHint": "El audio de voz permanece en este dispositivo cuando es posible.",
+    "onDeviceUnsupported": "No disponible en este dispositivo — el audio se envía por la red.",
+    "agentAvailable": "Asistente del servidor disponible.",
+    "agentUnavailable": "Asistente del servidor no disponible — solo comandos locales.",
+    "serverError": "El servidor no respondió.",
+    "stillThinking": "El servidor sigue pensando, inténtalo más tarde.",
+    "tapToSpeak": "Toca para hablar",
+    "confirmCreate": "¿Crear «{{title}}» el {{when}} en {{calendar}}?",
+    "confirmLocation": "Lugar: {{value}}",
+    "confirmDescription": "Descripción: {{value}}",
+    "confirmMove": "¿Mover «{{title}}» al {{when}}?",
+    "confirmDelete": "¿Eliminar «{{title}}»?",
+    "confirmAgent": "¿Enviar esta solicitud al agente de Nextcloud? Puede modificar tu calendario.",
+    "untitled": "Sin título",
+    "nothingOnDay": "Nada el {{date}}.",
+    "attendeesDropped": "asistentes no reconocidos: {{names}}",
+    "attendeesBusy": "atención, no disponible a esa hora: {{names}}",
+    "pickAltSlot": "elige un horario libre:",
+    "withAttendees": "con {{names}}"
+  },
   "certTrust": {
     "title": "Certificado no confiable",
     "body": "El servidor {{host}} presentó un certificado que no está firmado por una autoridad conocida.",
@@ -373,5 +460,98 @@
     "remedy": "Opciones más seguras: llegar al servidor mediante una VPN como Tailscale o WireGuard, o configurar un certificado gratuito con DuckDNS y Let's Encrypt.",
     "connect": "Conectar de todos modos",
     "cancel": "Cancelar"
+  },
+  "search": {
+    "title": "Buscar",
+    "placeholder": "Buscar eventos…",
+    "filters": "FILTROS",
+    "filter": {
+      "calendar": "En un calendario",
+      "attendee": "Con un asistente",
+      "date": "Fecha",
+      "title": "En el título",
+      "location": "En la ubicación",
+      "description": "En la descripción"
+    },
+    "hint": {
+      "name": "nombre",
+      "person": "persona",
+      "text": "texto"
+    },
+    "more": "Más filtros",
+    "moreHint": "título, ubicación, descripción",
+    "recent": "RECIENTES",
+    "removeRecent": "Quitar de recientes",
+    "removeFilter": "Quitar el filtro {{filter}}",
+    "use": "Usar «{{value}}»",
+    "filterHint": "Filtrar:",
+    "short": {
+      "calendar": "Calendario",
+      "attendee": "Asistente",
+      "date": "Fecha"
+    },
+    "date": {
+      "today": "Hoy",
+      "tomorrow": "Mañana",
+      "week": "En los próximos 7 días",
+      "month": "En el próximo mes",
+      "upcoming": "Próximos",
+      "past": "Pasados",
+      "before": "Antes de una fecha…",
+      "after": "Después de una fecha…"
+    },
+    "upcoming": "PRÓXIMOS",
+    "past": "PASADOS",
+    "truncated": "Se muestran los primeros {{count}}; añade un filtro para acotar",
+    "fromServer": "MÁS RESULTADOS DEL SERVIDOR",
+    "noResults": "Sin resultados",
+    "noResultsHint": "Prueba con menos filtros o una palabra más simple.",
+    "offlineNote": "Sin conexión — mostrando solo resultados locales",
+    "serverFailed": "No se pudo contactar con el servidor — mostrando solo resultados locales",
+    "openFailed": "No se pudo abrir este evento"
+  },
+  "ai": {
+    "title": "Asistente de IA",
+    "enable": "Activar funciones de IA",
+    "provider": "Proveedor de IA",
+    "providerAvailable": "Disponible: {{name}}",
+    "providerUnavailable": "No hay ningún proveedor de IA disponible en este servidor",
+    "privacyNotice": "Al activarla, los títulos, horarios y ubicaciones de los eventos se envían a tu servidor Nextcloud para que su proveedor de IA genere resúmenes y borradores. Los datos permanecen en tu servidor; la app no envía nada a servicios de terceros.",
+    "disclosure": "Generado por la IA de tu servidor",
+    "regenerate": "Regenerar",
+    "thinking": "Pensando…",
+    "copy": "Copiar",
+    "descriptionDraft": "Redactar con IA",
+    "error": "La solicitud de IA falló. Inténtalo de nuevo.",
+    "summary": {
+      "empty": "Sin eventos",
+      "events_one": "{{count}} evento",
+      "events_other": "{{count}} eventos",
+      "events_few": "{{count}} eventos",
+      "events_many": "{{count}} eventos",
+      "tasks_one": "{{count}} tarea",
+      "tasks_other": "{{count}} tareas",
+      "tasks_few": "{{count}} tareas",
+      "tasks_many": "{{count}} tareas",
+      "next": "siguiente:",
+      "at": "a las"
+    }
+  },
+  "trashbin": {
+    "title": "Eliminados recientemente",
+    "sectionTitle": "Eventos y tareas eliminados",
+    "empty": "La papelera está vacía",
+    "unavailable": "La papelera no está disponible en este servidor",
+    "errorLoad": "No se pudo cargar la papelera",
+    "errorRestore": "No se pudo restaurar este elemento",
+    "errorDelete": "No se pudo eliminar este elemento",
+    "restore": "Restaurar",
+    "deletePermanently": "Eliminar definitivamente",
+    "confirmDeleteTitle": "¿Eliminar definitivamente?",
+    "confirmDeleteMsg": "«{{title}}» se eliminará definitivamente.",
+    "untitled": "Sin título",
+    "deletedAtLabel": "Eliminado el {{date}}",
+    "refresh": "Actualizar",
+    "hint": "Los elementos se restauran en su calendario original."
   }
 }

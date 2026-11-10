@@ -423,6 +423,88 @@ describe('EventForm contact suggestions', () => {
   });
 });
 
+describe('EventForm availability and status (#377)', () => {
+  beforeEach(async () => {
+    await i18n.changeLanguage('en');
+  });
+
+  it('submits busy/confirmed defaults for a new event', () => {
+    const formRef = createRef<EventFormHandle>();
+    const onSubmit = jest.fn();
+    render(
+      <EventForm
+        ref={formRef}
+        {...baseProps}
+        onSubmit={onSubmit}
+        initialValues={{ summary: 'Sync' }}
+      />,
+    );
+
+    act(() => formRef.current!.submit());
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({ transp: 'opaque', status: 'confirmed' }),
+    );
+  });
+
+  it('seeds the pickers from initialValues and submits them back', () => {
+    const formRef = createRef<EventFormHandle>();
+    const onSubmit = jest.fn();
+    const { getByText } = render(
+      <EventForm
+        ref={formRef}
+        {...baseProps}
+        onSubmit={onSubmit}
+        initialValues={{ summary: 'Sync', transp: 'transparent', status: 'tentative' }}
+      />,
+    );
+
+    expect(getByText('Free')).toBeTruthy();
+    expect(getByText('Tentative')).toBeTruthy();
+
+    act(() => formRef.current!.submit());
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({ transp: 'transparent', status: 'tentative' }),
+    );
+  });
+
+  it('submits the values chosen in the pickers', () => {
+    const formRef = createRef<EventFormHandle>();
+    const onSubmit = jest.fn();
+    const { getByTestId } = render(
+      <EventForm
+        ref={formRef}
+        {...baseProps}
+        onSubmit={onSubmit}
+        initialValues={{ summary: 'Sync' }}
+      />,
+    );
+
+    fireEvent.press(getByTestId('event-form-availability'));
+    fireEvent.press(getByTestId('event-form-availability-transparent'));
+    fireEvent.press(getByTestId('event-form-status'));
+    fireEvent.press(getByTestId('event-form-status-cancelled'));
+
+    act(() => formRef.current!.submit());
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({ transp: 'transparent', status: 'cancelled' }),
+    );
+  });
+
+  it('disables the pickers when the selected calendar is read-only', () => {
+    const readOnlyCalendars = calendars.map((c) => ({ ...c, isReadOnly: true }));
+    const { getByTestId } = render(
+      <EventForm
+        {...baseProps}
+        calendars={readOnlyCalendars}
+        initialValues={{ summary: 'Sync', calendarId: 'cal-url' }}
+      />,
+    );
+
+    expect(getByTestId('event-form-availability').props.accessibilityState).toMatchObject({ disabled: true });
+    expect(getByTestId('event-form-status').props.accessibilityState).toMatchObject({ disabled: true });
+  });
+});
+
 describe('EventForm testIDs', () => {
   beforeEach(async () => {
     await i18n.changeLanguage('en');

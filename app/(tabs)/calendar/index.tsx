@@ -1,7 +1,7 @@
-import { useCallback, useDeferredValue, useMemo, useRef } from 'react';
+import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { View, StyleSheet } from 'react-native';
 import { useTranslation } from 'react-i18next';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import dayjs from 'dayjs';
 import isoWeek from 'dayjs/plugin/isoWeek';
@@ -11,6 +11,8 @@ import { useSettingsStore } from '@/stores/settingsStore';
 import { ViewContainer, Spinner } from '@/ui/components';
 import { CalendarDrawer } from '@/features/calendar/components/CalendarDrawer';
 import { OfflineBanner } from '@/features/calendar/components/OfflineBanner';
+import { useIsOnline } from '@/services/shared/network';
+import { drainPending } from '@/services/pendingMutations';
 import { MonthDayView } from '@/features/calendar/components/MonthDayView';
 import { AgendaView } from '@/features/calendar/components/AgendaView';
 import { createNavigationGuard } from '@/utils/navigationGuard';
@@ -21,6 +23,7 @@ import { useCalendarDrawer } from '@/features/calendar/hooks/useCalendarDrawer';
 import { useZoom } from '@/features/calendar/hooks/useZoom';
 import { useMonthReturn } from '@/features/calendar/hooks/useMonthReturn';
 import { CalendarTopBar } from '@/features/calendar/components/CalendarTopBar';
+import { DaySummarySheet } from '@/features/ai/DaySummarySheet';
 import { TimeGridView } from '@/features/calendar/components/TimeGridView';
 import { ViewLayer } from '@/features/calendar/components/ViewLayer';
 import { CalendarFab } from '@/features/calendar/components/CalendarFab';
@@ -32,6 +35,10 @@ import { isCalMode, type CalMode } from '@/features/calendar/constants';
 import { CalendarUnavailable } from '@/features/calendar/components/CalendarUnavailable';
 import { useUpdateEvent } from '@/features/event/hooks/useMutateEvent';
 import { askRecurrenceScope } from '@/features/event/recurrenceScope';
+import { useBriefing } from '@/features/briefing/useBriefing';
+import { BriefingBar } from '@/features/briefing/BriefingBar';
+import { useVoiceAssistant } from '@/features/voice/useVoiceAssistant';
+import { VoiceAssistantSheet } from '@/features/voice/VoiceAssistantSheet';
 
 dayjs.extend(isoWeek);
 
@@ -47,9 +54,11 @@ export default function CalendarScreen() {
   const toggleCalendarVisibility = useCalendarStore((s) => s.toggleCalendarVisibility);
   const notifDisabledCalendarIds = useCalendarStore((s) => s.notifDisabledCalendarIds);
   const toggleCalendarNotifications = useCalendarStore((s) => s.toggleCalendarNotifications);
+  const voiceAssistantByAccount = useSettingsStore((s) => s.voiceAssistantByAccount);
 
   const nav = useCalendarNavigation();
   const { viewMode, date, fetchDate, agendaVisibleDate } = nav;
+  const displayedDay = viewMode === 'schedule' ? agendaVisibleDate : date;
   const { openDay } = useMonthReturn(viewMode, nav.switchMode);
 
   const deferredViewMode = useDeferredValue(viewMode);
@@ -65,8 +74,41 @@ export default function CalendarScreen() {
   const {
     activeAccount, calendars, allEvents, agendaEvents, showFullOverlay, showSmallLoader,
   } = useCalendarData(fetchDate, viewMode === 'schedule');
+  const voiceAssistantEnabled = activeAccount
+    ? (voiceAssistantByAccount[activeAccount.id] ?? false)
+    : false;
   const insets = useSafeAreaInsets();
   const drawer = useCalendarDrawer();
+  const voice = useVoiceAssistant(activeAccount, calendars);
+  const briefing = useBriefing(displayedDay);
+  const { start: startBriefing } = briefing;
+  const handleListen = useCallback(() => {
+    void startBriefing();
+  }, [startBriefing]);
+
+  // nextcloud-calendar://listen (home-widget button) redirects here with
+  // ?autolisten=1 — start the briefing once, then clear the param so the next
+  // widget tap re-triggers. Siri intents use ?voice=1 (&say=…) instead.
+  const { autolisten, voice: voiceParam, say } =
+    useLocalSearchParams<{ autolisten?: string; voice?: string; say?: string }>();
+  useEffect(() => {
+    if (autolisten !== '1') return;
+    void startBriefing();
+    router.setParams({ autolisten: undefined });
+  }, [autolisten, startBriefing, router]);
+  useEffect(() => {
+    if (voiceParam !== '1') return;
+    router.setParams({ voice: undefined, say: undefined });
+    if (!voiceAssistantEnabled) return;
+    const trimmed = say?.trim();
+    if (trimmed) voice.openWith(trimmed);
+    else voice.open();
+  }, [voiceParam, say, voiceAssistantEnabled, voice.open, voice.openWith, router]);
+
+  const online = useIsOnline();
+  useEffect(() => {
+    if (online && activeAccount) void drainPending(activeAccount);
+  }, [online, activeAccount]);
 
   const calendarEvents = useMemo(() => toGridEvents(allEvents), [allEvents]);
 
@@ -126,18 +168,21 @@ export default function CalendarScreen() {
     [activeAccount, mutateAsync, t, recurrenceScopeStrings]
   );
 
-  const isToday = viewMode === 'schedule'
-    ? dayjs(agendaVisibleDate).isSame(dayjs(), 'day')
-    : dayjs(date).isSame(dayjs(), 'day');
+  const [summaryOpen, setSummaryOpen] = useState(false);
+  const openSummary = useCallback(() => setSummaryOpen(true), []);
+  const closeSummary = useCallback(() => setSummaryOpen(false), []);
+  const summaryDayIso = useMemo(() => dayjs(displayedDay).format('YYYY-MM-DD'), [displayedDay]);
+
+  const isToday = dayjs(displayedDay).isSame(dayjs(), 'day');
 
   const headerTitle = useMemo(() => {
-    const d = dayjs(viewMode === 'schedule' ? agendaVisibleDate : date);
+    const d = dayjs(displayedDay);
     const monthYear = d.locale(language).format('MMMM YYYY');
     if (viewMode === 'week' || viewMode === '3days' || viewMode === 'day') {
       return `${monthYear}  ·  ${t('calendar.weekAbbr')}${d.isoWeek()}`;
     }
     return monthYear;
-  }, [date, agendaVisibleDate, viewMode, language, t]);
+  }, [displayedDay, viewMode, language, t]);
 
   if (calendarApp === 'unconfigured') {
     return <CalendarUnavailable />;
@@ -152,9 +197,12 @@ export default function CalendarScreen() {
         onOpenDrawer={drawer.openDrawer}
         onToday={nav.goToday}
         onSwitchMode={nav.switchMode}
+        onListen={voiceAssistantEnabled ? undefined : handleListen}
+        onOpenVoice={voiceAssistantEnabled ? voice.open : undefined}
+        onOpenSummary={openSummary}
       />
 
-      <OfflineBanner />
+      <OfflineBanner account={activeAccount ?? null} />
 
       <View style={styles.viewArea}>
         <ViewLayer visible={deferredViewMode === 'month'}>
@@ -211,9 +259,35 @@ export default function CalendarScreen() {
       {showFullOverlay && <CalendarLoadingOverlay label={t('calendar.loadingCalendar')} />}
       {showSmallLoader && <Spinner size="small" color="secondary" style={styles.smallLoader} />}
 
+      <BriefingBar
+        status={briefing.state === 'done' ? 'idle' : briefing.state}
+        currentText={briefing.segments[briefing.index]?.text ?? ''}
+        onPause={briefing.pause}
+        onResume={briefing.resume}
+        onNext={briefing.next}
+        onStop={briefing.stop}
+        style={StyleSheet.flatten([styles.briefingBar, { bottom: insets.bottom + 76 }])}
+      />
+
+      <VoiceAssistantSheet
+        visible={voice.visible}
+        state={voice.state === 'idle' ? 'listening' : voice.state}
+        transcript={voice.transcript}
+        intentDescription={voice.intentDescription}
+        candidates={voice.candidates}
+        reply={voice.reply}
+        errorText={voice.errorText}
+        onSubmitText={voice.submitText}
+        onConfirm={voice.confirm}
+        onCancel={voice.close}
+        onPickCandidate={voice.pickCandidate}
+        onRelisten={voice.relisten}
+        onClose={voice.close}
+      />
+
       <CalendarFab
         onPress={() => navGuard(() => {
-          const shown = viewMode === 'schedule' ? agendaVisibleDate : date;
+          const shown = displayedDay;
           const now = new Date();
           const start = new Date(
             shown.getFullYear(), shown.getMonth(), shown.getDate(), now.getHours(), now.getMinutes()
@@ -221,6 +295,8 @@ export default function CalendarScreen() {
           router.push({ pathname: '/event/new', params: { date: start.toISOString() } });
         })}
       />
+
+      <DaySummarySheet visible={summaryOpen} onClose={closeSummary} dayIso={summaryDayIso} />
 
       <CalendarDrawer
         open={drawer.drawerOpen}
@@ -239,6 +315,10 @@ export default function CalendarScreen() {
           drawer.closeDrawer();
           router.push('/(tabs)/settings');
         }}
+        onNavigateTrash={() => {
+          drawer.closeDrawer();
+          navGuard(() => router.push('/trashbin'));
+        }}
       />
     </ViewContainer>
   );
@@ -247,4 +327,5 @@ export default function CalendarScreen() {
 const styles = StyleSheet.create({
   viewArea: { flex: 1 },
   smallLoader: { position: 'absolute', bottom: 24, left: 16, zIndex: 5 },
+  briefingBar: { position: 'absolute', left: 16, right: 16, zIndex: 8 },
 });

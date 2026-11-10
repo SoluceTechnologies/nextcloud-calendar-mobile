@@ -2,7 +2,7 @@ import { Animated, ScrollView, StyleSheet, View } from 'react-native';
 
 import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ChevronsUpDown, Settings } from 'lucide-react-native';
+import { ChevronsUpDown, Settings, Trash2 } from 'lucide-react-native';
 import { useTheme } from 'expo-router';
 
 import { AvatarImage } from '@/components/AvatarImage';
@@ -27,6 +27,7 @@ interface CalendarDrawerProps {
   toggleCalendarNotifications: (id: string) => void;
   onClose: () => void;
   onNavigateSettings: () => void;
+  onNavigateTrash: () => void;
 }
 
 export function CalendarDrawer({
@@ -43,6 +44,7 @@ export function CalendarDrawer({
   toggleCalendarNotifications,
   onClose,
   onNavigateSettings,
+  onNavigateTrash,
 }: CalendarDrawerProps) {
   const { colors } = useTheme();
   const { t } = useTranslation();
@@ -144,6 +146,14 @@ export function CalendarDrawer({
               })}
             </Stack>
           )}
+          <List>
+            <Item
+              testID="drawer-trashbin"
+              onPress={() => { onClose(); onNavigateTrash(); }}
+              leading={<Trash2 size={20} color={colors.textSecondary} />}
+              title={t('calendar.drawerTrash')}
+            />
+          </List>
         </ScrollView>
       </Animated.View>
     </>

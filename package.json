@@ -1,6 +1,6 @@
 {
   "name": "nextcloud-calendar",
-  "version": "1.10.0",
+  "version": "1.11.0",
   "main": "expo-router/entry",
   "expo": {
     "autolinking": {
@@ -49,6 +49,8 @@
     "expo-router": "~57.0.7",
     "expo-screen-orientation": "~57.0.1",
     "expo-secure-store": "~57.0.1",
+    "expo-speech": "~57.0.3",
+    "expo-speech-recognition": "~57.1.1",
     "expo-splash-screen": "~57.0.4",
     "expo-status-bar": "~57.0.1",
     "expo-task-manager": "~57.0.6",

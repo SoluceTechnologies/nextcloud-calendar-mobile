@@ -1,12 +1,14 @@
-import { forwardRef, useImperativeHandle, useRef, useState } from 'react';
-import { View, StyleSheet, ScrollView, Platform, KeyboardAvoidingView, Keyboard, useWindowDimensions, LayoutChangeEvent } from 'react-native';
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, Platform, KeyboardAvoidingView, Keyboard, useWindowDimensions, LayoutChangeEvent } from 'react-native';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import dayjs from 'dayjs';
 import localizedFormat from 'dayjs/plugin/localizedFormat';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from 'expo-router';
+import { Sparkles } from 'lucide-react-native';
 import { TalkToggle } from './TalkToggle';
 import { AttendeesField } from './AttendeesField';
+import { FindTimeSheet } from './FindTimeSheet';
 import { requestAlertPermission } from '@/features/notifications/scheduleAlerts';
 import { useSettingsStore } from '@/stores/settingsStore';
 import { isWritableCalendar } from '@/utils/calendars';
@@ -14,8 +16,12 @@ import { useTimeFormat } from '@/hooks/useTimeFormat';
 import { getNativePickerLocale } from '@/utils/i18n';
 import { AlertPicker } from './AlertPicker';
 import { RecurrencePicker } from './RecurrencePicker';
-import { Stack, Typography, TextField, DateField, Chip, Toggle } from '@/ui/components';
-import type { CalendarMeta, Attendee, CreateEventInput, RecurrenceRule, TalkRoomType, Account } from '@/types';
+import { Stack, Typography, TextField, DateField, Chip, Toggle, Button, Select } from '@/ui/components';
+import type { SelectOption } from '@/ui/components';
+import { useTaskTypes } from '@/features/ai/useTaskTypes';
+import { useTextTask } from '@/features/ai/useTextTask';
+import { draftDescriptionPrompt } from '@/features/ai/prompts';
+import type { CalendarMeta, Attendee, CreateEventInput, RecurrenceRule, TalkRoomType, Account, EventTransp, EventStatus } from '@/types';
 
 dayjs.extend(localizedFormat);
 
@@ -30,6 +36,8 @@ interface InitialValues {
   attendees?: Attendee[];
   rrule?: RecurrenceRule;
   alarms?: number[];
+  transp?: EventTransp;
+  status?: EventStatus;
 }
 
 interface Props {
@@ -40,7 +48,7 @@ interface Props {
   onSubmit: (input: CreateEventInput) => void;
   initialValues?: InitialValues;
   disableCalendarChange?: boolean;
-  account?: Pick<Account, 'id' | 'baseUrl' | 'username' | 'appPassword'> | null;
+  account?: (Pick<Account, 'id' | 'baseUrl' | 'username' | 'appPassword'> & Partial<Account>) | null;
 }
 
 export interface EventFormHandle {
@@ -57,6 +65,17 @@ export const EventForm = forwardRef<EventFormHandle, Props>(function EventForm({
   const { t } = useTranslation();
   const { use24h, timeFormat, formatTime } = useTimeFormat();
   const language = useSettingsStore((s) => s.language);
+  const aiEnabled = useSettingsStore((s) => s.aiEnabled);
+  const { textTaskType } = useTaskTypes();
+  const {
+    state: aiDraftState,
+    output: aiDraftOutput,
+    error: aiDraftError,
+    run: runTextTask,
+    reset: resetTextTask,
+  } = useTextTask();
+  const aiDraftVisible = aiEnabled && !!textTaskType;
+  const aiDraftRunning = aiDraftState === 'scheduling' || aiDraftState === 'running';
   const twoColDates = useWindowDimensions().width >= 600;
 
   const iosPickerLocale = timeFormat === 'auto'
@@ -89,11 +108,14 @@ export const EventForm = forwardRef<EventFormHandle, Props>(function EventForm({
   const [attendees, setAttendees] = useState<Attendee[]>(initialValues?.attendees ?? []);
   const [rrule, setRrule] = useState<RecurrenceRule | undefined>(initialValues?.rrule);
   const [alarms, setAlarms] = useState<number[] | undefined>(initialValues?.alarms);
+  const [transp, setTransp] = useState<EventTransp>(initialValues?.transp ?? 'opaque');
+  const [status, setStatus] = useState<EventStatus>(initialValues?.status ?? 'confirmed');
   const [titleError, setTitleError] = useState<string | null>(null);
   const [calendarError, setCalendarError] = useState<string | null>(null);
   const [endError, setEndError] = useState<string | null>(null);
 
   const [androidStep, setAndroidStep] = useState<AndroidPickerStep>(null);
+  const [findTimeOpen, setFindTimeOpen] = useState(false);
 
   const scrollRef = useRef<ScrollView>(null);
   const inputOffsets = useRef<Record<string, number>>({});
@@ -207,11 +229,43 @@ export const EventForm = forwardRef<EventFormHandle, Props>(function EventForm({
     onSubmit({
       summary: summary.trim(), calendarId, dtstart, dtend, allDay,
       description, location, attendees, withTalkRoom, talkRoomType,
-      organizerEmail, organizerName, rrule, alarms,
+      organizerEmail, organizerName, rrule, alarms, transp, status,
     });
   }
 
   useImperativeHandle(ref, () => ({ submit: handleSubmit }));
+
+  useEffect(() => {
+    if (aiDraftState === 'done' && aiDraftOutput) {
+      setDescription(aiDraftOutput);
+      resetTextTask();
+    }
+  }, [aiDraftState, aiDraftOutput, resetTextTask]);
+
+  function handleAiDraft() {
+    void runTextTask(
+      draftDescriptionPrompt({
+        summary: summary.trim(),
+        start: dtstart.toISOString(),
+        end: dtend.toISOString(),
+        location: location.trim() || undefined,
+        locale: language,
+      })
+    );
+  }
+
+  const selectedCalendarIsReadOnly =
+    calendars.find((c) => c.id === calendarId)?.isReadOnly ?? false;
+
+  const TRANSP_OPTIONS: SelectOption<EventTransp>[] = [
+    { value: 'opaque', label: t('event.availabilityBusy') },
+    { value: 'transparent', label: t('event.availabilityFree') },
+  ];
+  const STATUS_OPTIONS: SelectOption<EventStatus>[] = [
+    { value: 'confirmed', label: t('event.statusConfirmed') },
+    { value: 'tentative', label: t('event.statusTentative') },
+    { value: 'cancelled', label: t('event.statusCancelled') },
+  ];
 
   const startBlock = (
     <View style={twoColDates ? styles.grow : undefined}>
@@ -337,6 +391,14 @@ export const EventForm = forwardRef<EventFormHandle, Props>(function EventForm({
           {endBlock}
         </Stack>
 
+        {account && !allDay && (
+          <Button
+            testID="event-form-find-time"
+            title={t('event.findTime')}
+            onPress={() => setFindTimeOpen(true)}
+          />
+        )}
+
         {Platform.OS === 'android' && androidStep !== null && (
           <DateTimePicker
             key={`android-picker-${androidStep.target}-${androidStep.step}`}
@@ -346,7 +408,6 @@ export const EventForm = forwardRef<EventFormHandle, Props>(function EventForm({
             onChange={handleAndroidChange}
           />
         )}
-
 
         <Stack
           direction={twoColDates ? 'horizontal' : 'vertical'}
@@ -358,6 +419,35 @@ export const EventForm = forwardRef<EventFormHandle, Props>(function EventForm({
           </View>
           <View style={twoColDates ? styles.grow : undefined}>
             <AlertPicker value={alarms} onChange={setAlarms} />
+          </View>
+        </Stack>
+
+        <Stack
+          direction={twoColDates ? 'horizontal' : 'vertical'}
+          gap={twoColDates ? 12 : 16}
+          hAlign="stretch"
+        >
+          <View style={twoColDates ? styles.grow : undefined}>
+            <Text style={[styles.pickerLabel, { color: theme.colors.textSecondary }]}>{t('event.availability')}</Text>
+            <Select
+              testID="event-form-availability"
+              value={transp}
+              options={TRANSP_OPTIONS}
+              onChange={setTransp}
+              accessibilityLabel={t('event.availability')}
+              disabled={selectedCalendarIsReadOnly}
+            />
+          </View>
+          <View style={twoColDates ? styles.grow : undefined}>
+            <Text style={[styles.pickerLabel, { color: theme.colors.textSecondary }]}>{t('event.status')}</Text>
+            <Select
+              testID="event-form-status"
+              value={status}
+              options={STATUS_OPTIONS}
+              onChange={setStatus}
+              accessibilityLabel={t('event.status')}
+              disabled={selectedCalendarIsReadOnly}
+            />
           </View>
         </Stack>
 
@@ -378,16 +468,39 @@ export const EventForm = forwardRef<EventFormHandle, Props>(function EventForm({
         </View>
 
         <View onLayout={(e) => onFieldLayout('description', e)}>
-          <TextField
-            label={t('event.description')}
-            value={description}
-            onChangeText={setDescription}
-            placeholder={t('event.descriptionPlaceholder')}
-            multiline
-            numberOfLines={3}
-            style={styles.multiline}
-            onFocus={() => scrollToField('description')}
-          />
+          <Stack gap={4} hAlign="stretch">
+            <TextField
+              label={t('event.description')}
+              value={description}
+              onChangeText={setDescription}
+              placeholder={t('event.descriptionPlaceholder')}
+              multiline
+              numberOfLines={3}
+              style={styles.multiline}
+              onFocus={() => scrollToField('description')}
+            />
+            {aiDraftVisible && (
+              <>
+                <Button
+                  testID="event-form-ai-draft"
+                  variant="link"
+                  size="small"
+                  inline
+                  alignment="start"
+                  loading={aiDraftRunning}
+                  disabled={!summary.trim()}
+                  icon={<Sparkles size={16} color={theme.colors.primary} />}
+                  title={t('ai.descriptionDraft')}
+                  onPress={handleAiDraft}
+                />
+                {aiDraftState === 'failed' && aiDraftError ? (
+                  <Typography variant="caption" color="danger" testID="event-form-ai-draft-error">
+                    {aiDraftError}
+                  </Typography>
+                ) : null}
+              </>
+            )}
+          </Stack>
         </View>
 
         <AttendeesField
@@ -404,6 +517,19 @@ export const EventForm = forwardRef<EventFormHandle, Props>(function EventForm({
           roomType={talkRoomType}
           onRoomTypeChange={setTalkRoomType}
         />
+
+        {account && findTimeOpen && (
+          <FindTimeSheet
+            visible
+            onClose={() => setFindTimeOpen(false)}
+            account={account}
+            calendars={calendars}
+            day={dtstart}
+            durationMin={Math.max(15, Math.round((dtend.getTime() - dtstart.getTime()) / 60000))}
+            attendees={attendees}
+            onPick={(slot) => { setDtstart(slot.start); setDtend(slot.end); }}
+          />
+        )}
       </Stack>
     </ScrollView>
     </KeyboardAvoidingView>
@@ -416,6 +542,7 @@ const styles = StyleSheet.create({
   multiline: { height: 80, textAlignVertical: 'top' },
   chipRow: { gap: 8 },
   grow: { flex: 1 },
+  pickerLabel: { fontSize: 13, fontWeight: '600', marginBottom: 8 },
   pushRight: { marginLeft: 'auto' },
   iosPickerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 44 },
 });
