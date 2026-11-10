@@ -74,11 +74,11 @@ function cachedFold(): (text: string) => string {
   };
 }
 
-export function useLocalSearch(accountId: string | null, term: string): LocalSearchResult {
+export function useLocalSearch(accountIds: string | string[] | null, term: string): LocalSearchResult {
   const deferredTerm = useDeferredValue(term);
   const query = useMemo(() => parseQuery(deferredTerm), [deferredTerm]);
-  const rows = useEventsForRange(accountId ?? '', MIN_DATE, MAX_DATE);
-  const accountCalendars = useCalendarsFromDb(accountId);
+  const rows = useEventsForRange(accountIds ?? [], MIN_DATE, MAX_DATE);
+  const accountCalendars = useCalendarsFromDb(accountIds);
   const hiddenCalendarIds = useCalendarStore((state) => state.hiddenCalendarIds);
 
   const calendars = useMemo(

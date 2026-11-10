@@ -3,74 +3,93 @@ import { useTranslation } from 'react-i18next';
 import { useTheme } from 'expo-router';
 import { CircleCheck, ChevronRight } from 'lucide-react-native';
 import { AvatarImage } from '@/components/AvatarImage';
-import { Stack, Typography, Icon, Button, AnimatedPressable } from '@/ui/components';
+import { Stack, Typography, Icon, Button, AnimatedPressable, Toggle } from '@/ui/components';
 import { hostnameOf } from '../utils/account';
 import type { Account } from '@/types';
 
 interface Props {
   account: Account;
   isActive: boolean;
+  /** Whether the account contributes to the merged calendar view. */
+  isVisible: boolean;
+  /** True when this is the last visible account — hiding is not allowed. */
+  visibleLocked: boolean;
   onSetActive: () => void;
   onOpen: () => void;
+  onToggleVisible: (visible: boolean) => void;
 }
 
 
-export function AccountCard({ account, isActive, onSetActive, onOpen }: Props) {
+export function AccountCard({ account, isActive, isVisible, visibleLocked, onSetActive, onOpen, onToggleVisible }: Props) {
   const { colors } = useTheme();
   const { t } = useTranslation();
 
   return (
     <Stack
       card
-      direction="horizontal"
-      hAlign="center"
-      gap={10}
+      gap={4}
       padding={12}
       backgroundColor={isActive ? `${colors.primary}14` : undefined}
       borderColor={isActive ? colors.primary : undefined}
       borderWidth={isActive ? 1.5 : undefined}
-      style={styles.card}
+      style={[styles.card, !isVisible && styles.dimmed]}
     >
-      <AnimatedPressable onPress={onOpen} accessibilityRole="button" style={styles.identity}>
-        <Stack direction="horizontal" hAlign="center" gap={12}>
-          <AvatarImage account={account} size={44} />
-          <Stack gap={2} flex>
-            <Typography variant="body1" nowrap>{account.displayName}</Typography>
-            <Typography variant="caption" color="secondary" nowrap>
-              {hostnameOf(account.baseUrl)}
+      <Stack direction="horizontal" hAlign="center" gap={10}>
+        <AnimatedPressable onPress={onOpen} accessibilityRole="button" style={styles.identity}>
+          <Stack direction="horizontal" hAlign="center" gap={12}>
+            <AvatarImage account={account} size={44} />
+            <Stack gap={2} flex>
+              <Typography variant="body1" nowrap>{account.displayName}</Typography>
+              <Typography variant="caption" color="secondary" nowrap>
+                {hostnameOf(account.baseUrl)}
+              </Typography>
+            </Stack>
+          </Stack>
+        </AnimatedPressable>
+
+        {isActive ? (
+          <Stack direction="horizontal" hAlign="center" gap={4} inline>
+            <Icon size={16}><CircleCheck color={colors.primary} /></Icon>
+            <Typography variant="caption" color="primary" nowrap>
+              {t('settings.accountActive')}
             </Typography>
           </Stack>
-        </Stack>
-      </AnimatedPressable>
+        ) : (
+          <Button
+            testID={`account-card-activate-${account.username}`}
+            variant="link"
+            size="small"
+            inline
+            title={t('settings.account.use')}
+            onPress={onSetActive}
+            style={styles.use}
+          />
+        )}
 
-      {isActive ? (
-        <Stack direction="horizontal" hAlign="center" gap={4} inline>
-          <Icon size={16}><CircleCheck color={colors.primary} /></Icon>
-          <Typography variant="caption" color="primary" nowrap>
-            {t('settings.accountActive')}
-          </Typography>
-        </Stack>
-      ) : (
-        <Button
-          testID={`account-card-activate-${account.username}`}
-          variant="link"
-          size="small"
-          inline
-          title={t('settings.account.use')}
-          onPress={onSetActive}
-          style={styles.use}
+        <AnimatedPressable onPress={onOpen} accessibilityRole="button">
+          <ChevronRight size={20} color={colors.textTertiary} />
+        </AnimatedPressable>
+      </Stack>
+
+      <Stack direction="horizontal" hAlign="center" style={styles.visibleRow}>
+        <Typography variant="body2" color="secondary" style={styles.identity}>
+          {t('settings.account.visible')}
+        </Typography>
+        <Toggle
+          testID={`account-card-visible-${account.username}`}
+          value={isVisible}
+          disabled={visibleLocked}
+          onValueChange={onToggleVisible}
         />
-      )}
-
-      <AnimatedPressable onPress={onOpen} accessibilityRole="button">
-        <ChevronRight size={20} color={colors.textTertiary} />
-      </AnimatedPressable>
+      </Stack>
     </Stack>
   );
 }
 
 const styles = StyleSheet.create({
   card: { marginHorizontal: 16, marginBottom: 12 },
+  dimmed: { opacity: 0.6 },
   identity: { flex: 1 },
   use: { paddingHorizontal: 6 },
+  visibleRow: { paddingLeft: 56, paddingTop: 4 },
 });

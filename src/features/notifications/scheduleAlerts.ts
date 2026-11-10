@@ -4,6 +4,9 @@ import { Platform } from 'react-native';
 import { readUpcomingEvents } from '@/features/widget/core/readEvents';
 import { useSettingsStore } from '@/stores/settingsStore';
 import { useCalendarStore } from '@/stores/calendarStore';
+import { useAccountStore } from '@/stores/accountStore';
+import { loadAccounts } from '@/services/nextcloud/auth';
+import { enabledAccounts } from '@/features/account/utils/account';
 import i18n from '@/utils/i18n';
 
 import { alertBody } from './alertContent';
@@ -56,7 +59,9 @@ export async function scheduleEventAlerts(now: Date = new Date()): Promise<void>
       await ensureChannel();
 
       const notifDisabled = useCalendarStore.getState().notifDisabledCalendarIds;
-      const events = (await readUpcomingEvents(HORIZON_DAYS, now))
+      const { disabledAccountIds } = useAccountStore.getState();
+      const enabledIds = enabledAccounts(await loadAccounts(), disabledAccountIds).map((a) => a.id);
+      const events = (await readUpcomingEvents(HORIZON_DAYS, now, enabledIds))
         .filter((event) => !notifDisabled.includes(event.calendarId));
 
       const due = events

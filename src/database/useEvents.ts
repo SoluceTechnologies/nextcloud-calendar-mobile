@@ -43,14 +43,20 @@ function eventsFingerprint(rows: Event[]): string {
   return keys.join('\0');
 }
 
-export function useEventsForRange(accountId: string, start: Date, end: Date, refresh = 0) {
+export function useEventsForRange(accountIds: string | string[], start: Date, end: Date, refresh = 0) {
   const database = useDatabase();
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const fingerprintRef = useRef<string>('');
+  const ids = Array.isArray(accountIds) ? accountIds : [accountIds];
+  const idsKey = ids.join('|');
 
   useEffect(() => {
+    if (ids.length === 0) {
+      setEvents([]);
+      return;
+    }
     const query = database.get<Event>('events').query(
-      Q.where('account_id', accountId),
+      Q.where('account_id', Q.oneOf(ids)),
       Q.where('start', Q.lt(end.getTime())),
       Q.where('end', Q.gte(start.getTime())),
     );
@@ -66,7 +72,8 @@ export function useEventsForRange(accountId: string, start: Date, end: Date, ref
       setEvents(next);
     });
     return () => subscription.unsubscribe();
-  }, [accountId, start, end, database, refresh]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [idsKey, start, end, database, refresh]);
 
   return events;
 }

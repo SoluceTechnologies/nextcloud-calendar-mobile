@@ -320,13 +320,16 @@
         "accountMismatch": "Este código QR pertence a outra conta."
       },
       "connectionLost": "A ligação a este servidor expirou. Volte a ligar-se para continuar a sincronizar.",
-      "use": "Usar",
+      "use": "Definir padrão",
       "editOnNextcloud": "Editar no Nextcloud",
       "defaultCalendar": "Calendário padrão",
       "defaultCalendarHint": "Pré-selecionado ao criar um evento.",
-      "defaultCalendarAuto": "Automático"
+      "defaultCalendarAuto": "Automático",
+      "visible": "Visível",
+      "lastVisibleTitle": "A conta permanece visível",
+      "lastVisibleMsg": "Pelo menos uma conta deve permanecer visível."
     },
-    "accountActive": "Ativa",
+    "accountActive": "Padrão",
     "talk": {
       "title": "Talk",
       "openWith": "Open Talk links with",

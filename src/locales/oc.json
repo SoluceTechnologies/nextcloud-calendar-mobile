@@ -315,13 +315,16 @@
         "accountMismatch": "Aqueste còdi QR aparten a un compte diferent."
       },
       "connectionLost": "La connexion a aqueste servidor a expirat. Reconnectatz-vos per contunhar la sincronizacion.",
-      "use": "Utilizar",
+      "use": "Definir per defaut",
       "editOnNextcloud": "Modificar sus Nextcloud",
       "defaultCalendar": "Calendièr per defaut",
       "defaultCalendarHint": "Presseleccionat a la creacion d'un eveniment.",
-      "defaultCalendarAuto": "Automatic"
+      "defaultCalendarAuto": "Automatic",
+      "visible": "Visible",
+      "lastVisibleTitle": "Compte totjorn visible",
+      "lastVisibleMsg": "Almens un compte deu demorar visible."
     },
-    "accountActive": "Actiu"
+    "accountActive": "Per defaut"
   },
   "widget": {
     "liveRemaining": "Demòra {{duration}}",

@@ -320,13 +320,16 @@
         "accountMismatch": "Ce QR code correspond à un autre compte."
       },
       "connectionLost": "La connexion à ce serveur a expiré. Reconnectez-vous pour continuer à synchroniser.",
-      "use": "Utiliser",
+      "use": "Définir par défaut",
       "editOnNextcloud": "Éditer sur Nextcloud",
       "defaultCalendar": "Calendrier par défaut",
       "defaultCalendarHint": "Présélectionné lors de la création d'un événement.",
-      "defaultCalendarAuto": "Automatique"
+      "defaultCalendarAuto": "Automatique",
+      "visible": "Visible",
+      "lastVisibleTitle": "Compte toujours visible",
+      "lastVisibleMsg": "Au moins un compte doit rester visible."
     },
-    "accountActive": "Actif",
+    "accountActive": "Par défaut",
     "talk": {
       "title": "Talk",
       "openWith": "Ouvrir les liens Talk avec",

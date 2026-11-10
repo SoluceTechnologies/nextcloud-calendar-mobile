@@ -5,8 +5,8 @@ import { syncVisibleRange } from '@/database/sync';
 import { useEventsForRange } from '@/database/useEvents';
 import { useAccountStore } from '@/stores/accountStore';
 import { useCalendarStore } from '@/stores/calendarStore';
-import { useActiveAccount } from '@/hooks/useAccounts';
-import { useCalendars } from '@/hooks/useCalendars';
+import { useActiveAccount, useEnabledAccounts } from '@/hooks/useAccounts';
+import { useMergedCalendars } from '@/hooks/useCalendars';
 import { normalizeEvents } from '@/utils/normalizeEvent';
 import { monthRange } from '../utils/range';
 import { AGENDA_FUTURE_DAYS, AGENDA_PAST_DAYS } from '../utils/agendaSections';
@@ -16,29 +16,32 @@ export function useCalendarData(date: Date, agendaEnabled = false) {
   const activeAccountId = useAccountStore((s) => s.activeAccountId);
   const hiddenCalendarIds = useCalendarStore((s) => s.hiddenCalendarIds);
   const activeAccount = useActiveAccount(activeAccountId);
+  const visibleAccounts = useEnabledAccounts();
 
-  const { data: calendars = [], isFetching: calsFetching } = useCalendars(activeAccount);
+  const enabledIds = useMemo(() => visibleAccounts.map((a) => a.id), [visibleAccounts]);
+  const enabledIdsKey = enabledIds.join('|');
+  const { data: calendars = [], isFetching: calsFetching } = useMergedCalendars(visibleAccounts);
 
   const year = dayjs(date).year();
   const month = dayjs(date).month();
   const { start, end } = useMemo(() => monthRange(date), [year, month]);
 
-  const dbEvents = useEventsForRange(activeAccountId ?? '', start, end);
+  const dbEvents = useEventsForRange(enabledIds, start, end);
   const agendaRange = useMemo(() => ({
     start: dayjs().subtract(AGENDA_PAST_DAYS, 'day').startOf('day').toDate(),
     end: dayjs().add(AGENDA_FUTURE_DAYS, 'day').endOf('day').toDate(),
   }), []);
   const agendaDbEvents = useEventsForRange(
-    agendaEnabled ? activeAccountId ?? '' : '', agendaRange.start, agendaRange.end,
+    agendaEnabled ? enabledIds : [], agendaRange.start, agendaRange.end,
   );
 
   const [syncing, setSyncing] = useState(false);
 
   useEffect(() => {
-    if (!activeAccount || calendars.length === 0) return;
-    if (calendars.some((c) => c.accountId !== activeAccount.id)) {
+    if (visibleAccounts.length === 0 || calendars.length === 0) return;
+    if (calendars.some((c) => !visibleAccounts.some((a) => a.id === c.accountId))) {
       if (__DEV__) {
-        console.warn('[useCalendarData] stale calendars for account, skipping sync', activeAccount.id);
+        console.warn('[useCalendarData] stale calendars for account set, skipping sync');
       }
       return;
     }
@@ -46,7 +49,14 @@ export function useCalendarData(date: Date, agendaEnabled = false) {
     setSyncing(true);
     (async () => {
       try {
-        await syncVisibleRange(activeAccount, calendars, start, end);
+        await Promise.all(visibleAccounts.map((account) =>
+          syncVisibleRange(
+            account,
+            calendars.filter((c) => c.accountId === account.id),
+            start,
+            end,
+          ),
+        ));
       } catch (error) {
         console.warn('[useCalendarData] syncVisibleRange failed:', String(error));
       } finally {
@@ -58,7 +68,7 @@ export function useCalendarData(date: Date, agendaEnabled = false) {
       setSyncing(false);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeAccount?.id, calendars, start.getTime(), end.getTime()]);
+  }, [enabledIdsKey, calendars, start.getTime(), end.getTime()]);
 
   const prepare = useMemo(() => {
     const nonEditableCalendarIds = new Set(
@@ -79,7 +89,7 @@ export function useCalendarData(date: Date, agendaEnabled = false) {
   }, [allEvents]);
   useEffect(() => {
     hadEventsRef.current = false;
-  }, [activeAccountId]);
+  }, [activeAccountId, enabledIdsKey]);
 
   const showFullOverlay = !hadEventsRef.current && syncing && allEvents.length === 0;
   const showSmallLoader = (syncing || calsFetching) && !showFullOverlay;

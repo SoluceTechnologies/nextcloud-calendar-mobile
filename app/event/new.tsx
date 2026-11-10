@@ -4,8 +4,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter, useTheme } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { Check } from 'lucide-react-native';
-import { useAccounts } from '@/hooks/useAccounts';
-import { useCalendars } from '@/hooks/useCalendars';
+import { useAccounts, useEnabledAccounts } from '@/hooks/useAccounts';
+import { useMergedCalendars } from '@/hooks/useCalendars';
 import { useCreateEvent } from '@/features/event/hooks/useMutateEvent';
 import { resolveOrganizer } from '@/features/event/utils/organizer';
 import { useAccountStore } from '@/stores/accountStore';
@@ -22,21 +22,30 @@ export default function NewEventScreen() {
   const activeAccountId = useAccountStore((s) => s.activeAccountId);
 
   const accounts = useAccounts();
+  const enabled = useEnabledAccounts();
   const activeAccount = accounts.find((a) => a.id === activeAccountId) ?? null;
-  const { data: calendars = [] } = useCalendars(activeAccount);
+  const defaultAccount = activeAccount ?? enabled[0] ?? null;
+  const { data: calendars = [] } = useMergedCalendars(enabled);
 
   const defaultDate = useMemo(() => (date ? new Date(date) : new Date()), [date]);
 
-  const createMutation = useCreateEvent(activeAccount!, calendars);
+  const createMutation = useCreateEvent(accounts, calendars);
   const formRef = useRef<EventFormHandle>(null);
 
   async function handleSubmit(input: CreateEventInput) {
-    if (!activeAccount) return;
-    await createMutation.mutateAsync(input);
+    const cal = calendars.find((c) => c.id === input.calendarId);
+    const targetAccount = cal ? accounts.find((a) => a.id === cal.accountId) : defaultAccount;
+    if (!targetAccount) return;
+    const organizer = resolveOrganizer(targetAccount);
+    await createMutation.mutateAsync({
+      ...input,
+      organizerEmail: organizer.organizerEmail,
+      organizerName: organizer.organizerName,
+    });
     goBackOrHome(router);
   }
 
-  if (!activeAccount || calendars.length === 0) {
+  if (!defaultAccount || calendars.length === 0) {
     return (
       <ViewContainer>
         <Stack flex vAlign="center" hAlign="center">
@@ -46,7 +55,7 @@ export default function NewEventScreen() {
     );
   }
 
-  const { organizerEmail, organizerName } = resolveOrganizer(activeAccount);
+  const { organizerEmail, organizerName } = resolveOrganizer(defaultAccount);
 
   return (
     <ViewContainer>
@@ -77,7 +86,7 @@ export default function NewEventScreen() {
           organizerEmail={organizerEmail}
           organizerName={organizerName}
           onSubmit={handleSubmit}
-          account={activeAccount}
+          account={defaultAccount}
         />
       </SafeAreaView>
     </ViewContainer>

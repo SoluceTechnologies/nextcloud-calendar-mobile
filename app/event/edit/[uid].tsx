@@ -5,12 +5,11 @@ import { useLocalSearchParams, useRouter, useTheme } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { Check } from 'lucide-react-native';
 import { useEventByUid } from '@/database/useEventByUid';
-import { useCalendars } from '@/hooks/useCalendars';
-import { useAccounts } from '@/hooks/useAccounts';
+import { useMergedCalendars } from '@/hooks/useCalendars';
+import { useAccounts, useEnabledAccounts } from '@/hooks/useAccounts';
 import { useUpdateEvent } from '@/features/event/hooks/useMutateEvent';
 import { resolveOrganizer } from '@/features/event/utils/organizer';
 import { parseRrule } from '@/features/calendar/utils/parseRrule';
-import { useAccountStore } from '@/stores/accountStore';
 import { EventForm, type EventFormHandle } from '@/features/event/components/EventForm';
 import {
   ViewContainer, Stack, Typography, Button, IconButton, Spinner, ScreenHeader,
@@ -23,12 +22,13 @@ export default function EditEventScreen() {
   const router = useRouter();
   const { t } = useTranslation();
   const { colors } = useTheme();
-  const activeAccountId = useAccountStore((s) => s.activeAccountId);
   const accounts = useAccounts();
-  const activeAccount = accounts.find((a) => a.id === activeAccountId) ?? null;
-  const { data: calendars = [] } = useCalendars(activeAccount);
+  const enabled = useEnabledAccounts();
+  const enabledIds = enabled.map((a) => a.id);
+  const { data: calendars = [] } = useMergedCalendars(enabled);
 
-  const event = useEventByUid(activeAccountId, uid);
+  const event = useEventByUid(enabledIds, uid);
+  const eventAccount = event ? accounts.find((a) => a.id === event.accountId) ?? null : null;
 
   const eventsLoading = event === undefined;
 
@@ -37,18 +37,25 @@ export default function EditEventScreen() {
     : scopeParam === 'thisAndFollowing' ? 'thisAndFollowing'
     : 'all';
 
-  const updateMutation = useUpdateEvent(activeAccount!, calendars);
+  const updateMutation = useUpdateEvent(accounts, calendars);
   const formRef = useRef<EventFormHandle>(null);
 
   async function handleSubmit(input: CreateEventInput) {
-    if (!activeAccount || !event) return;
-    await updateMutation.mutateAsync({ event, input, scope });
+    if (!eventAccount || !event) return;
+    const cal = calendars.find((c) => c.id === input.calendarId);
+    const target = cal ? accounts.find((a) => a.id === cal.accountId) : eventAccount;
+    const organizer = target && target.id !== eventAccount.id ? resolveOrganizer(target) : null;
+    await updateMutation.mutateAsync({
+      event,
+      input: organizer ? { ...input, ...organizer } : input,
+      scope,
+    });
     goBackOrHome(router);
   }
 
   const isLoading = eventsLoading;
 
-  if (isLoading || !activeAccount || calendars.length === 0) {
+  if (isLoading || !eventAccount || calendars.length === 0) {
     return (
       <ViewContainer>
         <Stack flex vAlign="center" hAlign="center">
@@ -69,7 +76,7 @@ export default function EditEventScreen() {
     );
   }
 
-  const { organizerEmail, organizerName } = resolveOrganizer(activeAccount);
+  const { organizerEmail, organizerName } = resolveOrganizer(eventAccount);
 
   const initialValues = {
     summary: event.summary,
@@ -119,7 +126,7 @@ export default function EditEventScreen() {
           onSubmit={handleSubmit}
           initialValues={initialValues}
           disableCalendarChange={event.isRecurring}
-          account={activeAccount}
+          account={eventAccount}
         />
       </SafeAreaView>
     </ViewContainer>

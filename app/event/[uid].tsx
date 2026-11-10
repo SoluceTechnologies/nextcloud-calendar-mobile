@@ -14,13 +14,12 @@ import { useTranslation } from 'react-i18next';
 import { useEventByUid } from '@/database/useEventByUid';
 import { parseRrule } from '@/features/calendar/utils/parseRrule';
 import { formatRecurrenceRule } from '@/features/event/utils/recurrencePattern';
-import { useCalendars } from '@/hooks/useCalendars';
-import { useAccounts } from '@/hooks/useAccounts';
+import { useMergedCalendars } from '@/hooks/useCalendars';
+import { useAccounts, useEnabledAccounts } from '@/hooks/useAccounts';
 import { useDeleteEvent } from '@/features/event/hooks/useMutateEvent';
 import { useEventLocation } from '@/features/map/hooks/useEventLocation';
 import { EventMapPreview, EventMapSheet } from '@/features/map/components';
 import { openMaps } from '@/features/map/utils/mapLinks';
-import { useAccountStore } from '@/stores/accountStore';
 import { useSettingsStore } from '@/stores/settingsStore';
 import { useTimeFormat } from '@/hooks/useTimeFormat';
 import {
@@ -48,12 +47,12 @@ export default function EventDetailScreen() {
   const insets = useSafeAreaInsets();
   const theme = useTheme();
   const { t, i18n } = useTranslation();
-  const activeAccountId = useAccountStore((s) => s.activeAccountId);
   const accounts = useAccounts();
-  const activeAccount = accounts.find((a) => a.id === activeAccountId) ?? null;
-  const { data: calendars = [] } = useCalendars(activeAccount);
+  const enabled = useEnabledAccounts();
+  const enabledIds = enabled.map((a) => a.id);
+  const { data: calendars = [] } = useMergedCalendars(enabled);
 
-  const event = useEventByUid(activeAccountId, uid);
+  const event = useEventByUid(enabledIds, uid);
   const talkOpenMode = useSettingsStore((s) => s.talkOpenMode);
   const { formatTime } = useTimeFormat();
 
@@ -71,7 +70,7 @@ export default function EventDetailScreen() {
   }, [navigation]);
 
   const calendar = calendars.find((c) => c.id === event?.calendarId);
-  const deleteMutation = useDeleteEvent(activeAccount!);
+  const deleteMutation = useDeleteEvent(accounts);
 
   const canEdit = !calendar?.isReadOnly && !calendar?.isSubscribed && !event?.isTask;
   const eventsLoading = event === undefined;

@@ -119,6 +119,7 @@ beforeEach(() => {
   act(() => {
     setAccounts([account]);
     useAccountStore.getState().setActiveAccountId('a1');
+    useAccountStore.setState({ disabledAccountIds: [] });
     useRecentSearchStore.setState({ byAccount: {} });
     useCalendarStore.setState({ hiddenCalendarIds: [] });
   });
@@ -222,7 +223,7 @@ it('keeps results while an event screen is pushed on top', async () => {
   (useIsFocused as jest.Mock).mockReturnValue(false);
   (useEventsForRange as jest.Mock).mockClear();
   fireEvent.changeText(input(), 'dentist ');
-  for (const [accountId] of (useEventsForRange as jest.Mock).mock.calls) expect(accountId).toBe('a1');
+  for (const [accountIds] of (useEventsForRange as jest.Mock).mock.calls) expect(accountIds).toEqual(['a1']);
   expect(screen.getByTestId('result-event-dentist')).toBeTruthy();
 });
 
@@ -237,6 +238,6 @@ it('does not subscribe to events while another tab is selected', () => {
   mockTabState.index = 0;
   renderScreen();
   fireEvent.changeText(input(), 'dentist');
-  for (const [accountId] of (useEventsForRange as jest.Mock).mock.calls) expect(accountId).toBe('');
+  for (const [accountIds] of (useEventsForRange as jest.Mock).mock.calls) expect(accountIds).toEqual([]);
   for (const [accountId] of (useRemoteSearch as jest.Mock).mock.calls) expect(accountId).toBeNull();
 });
