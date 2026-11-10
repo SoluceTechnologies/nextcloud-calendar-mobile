@@ -324,7 +324,10 @@
       "editOnNextcloud": "Bewerken in Nextcloud",
       "defaultCalendar": "Standaardagenda",
       "defaultCalendarHint": "Vooraf geselecteerd bij het aanmaken van een evenement.",
-      "defaultCalendarAuto": "Automatisch"
+      "defaultCalendarAuto": "Automatisch",
+      "visible": "Zichtbaar",
+      "lastVisibleTitle": "Account blijft zichtbaar",
+      "lastVisibleMsg": "Minstens één account moet zichtbaar blijven."
     },
     "accountActive": "Actief",
     "talk": {

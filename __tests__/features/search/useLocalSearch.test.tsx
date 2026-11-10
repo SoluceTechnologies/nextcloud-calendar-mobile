@@ -138,7 +138,7 @@ describe('useLocalSearch', () => {
     (useEventsForRange as jest.Mock).mockReturnValue([]);
     (useCalendarsFromDb as jest.Mock).mockReturnValue([]);
     renderHook(() => useLocalSearch(null, 'lunch'));
-    expect((useEventsForRange as jest.Mock).mock.calls[0][0]).toBe('');
+    expect((useEventsForRange as jest.Mock).mock.calls[0][0]).toEqual([]);
     expect(useCalendarsFromDb).toHaveBeenCalledWith(null);
   });
 

@@ -32,6 +32,7 @@ import { isCalMode, type CalMode } from '@/features/calendar/constants';
 import { CalendarUnavailable } from '@/features/calendar/components/CalendarUnavailable';
 import { useUpdateEvent } from '@/features/event/hooks/useMutateEvent';
 import { askRecurrenceScope } from '@/features/event/recurrenceScope';
+import { useAccounts } from '@/hooks/useAccounts';
 
 dayjs.extend(isoWeek);
 
@@ -65,6 +66,7 @@ export default function CalendarScreen() {
   const {
     activeAccount, calendars, allEvents, agendaEvents, showFullOverlay, showSmallLoader,
   } = useCalendarData(fetchDate, viewMode === 'schedule');
+  const accounts = useAccounts();
   const insets = useSafeAreaInsets();
   const drawer = useCalendarDrawer();
 
@@ -90,7 +92,7 @@ export default function CalendarScreen() {
     [router, navGuard]
   );
 
-  const updateMutation = useUpdateEvent(activeAccount!, calendars);
+  const updateMutation = useUpdateEvent(accounts, calendars);
   const { mutateAsync } = updateMutation;
 
   const recurrenceScopeStrings = useMemo(
@@ -106,12 +108,13 @@ export default function CalendarScreen() {
 
   const handleMoveEvent = useCallback(
     (gridEvent: GridEvent, nextStart: Date, nextEnd: Date) => {
-      if (!activeAccount) return;
       const event = gridEvent._event;
+      const eventAccount = accounts.find((a) => a.id === event.accountId) ?? activeAccount;
+      if (!eventAccount) return;
       const apply = (scope: RecurrenceEditScope) => {
         void mutateAsync({
           event,
-          input: { ...eventToInput(event, activeAccount), dtstart: nextStart, dtend: nextEnd },
+          input: { ...eventToInput(event, eventAccount), dtstart: nextStart, dtend: nextEnd },
           scope,
           datesOnly: true,
         });
@@ -123,7 +126,7 @@ export default function CalendarScreen() {
       }
       apply(decision.scope);
     },
-    [activeAccount, mutateAsync, t, recurrenceScopeStrings]
+    [accounts, activeAccount, mutateAsync, t, recurrenceScopeStrings]
   );
 
   const isToday = viewMode === 'schedule'

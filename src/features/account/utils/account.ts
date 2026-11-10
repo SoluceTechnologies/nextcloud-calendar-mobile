@@ -35,6 +35,32 @@ export function hostnameOf(url: string): string {
   }
 }
 
+export function isAccountEnabled(accountId: string, disabledIds: string[]): boolean {
+  return !disabledIds.includes(accountId);
+}
+
+/** Accounts visible in the merged calendar view. */
+export function enabledAccounts<T extends { id: string }>(accounts: T[], disabledIds: string[]): T[] {
+  return accounts.filter((a) => isAccountEnabled(a.id, disabledIds));
+}
+
+/** True if disabling `accountId` would leave the app with zero enabled accounts. */
+export function isLastEnabledAccount(
+  accountId: string,
+  accounts: { id: string }[],
+  disabledIds: string[],
+): boolean {
+  return enabledAccounts(accounts, disabledIds).every((a) => a.id === accountId);
+}
+
+/** Account to promote as active when the current one gets disabled or removed. */
+export function nextActiveAccountId(
+  accounts: { id: string }[],
+  disabledIds: string[],
+): string | null {
+  return enabledAccounts(accounts, disabledIds)[0]?.id ?? null;
+}
+
 export function diffProfile(account: Account, patch: AccountProfilePatch): AccountProfilePatch {
   const changes: AccountProfilePatch = {};
   const displayName = normalize(patch.displayName);

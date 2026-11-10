@@ -1,8 +1,8 @@
 import { useEffect } from 'react';
 import { AppState, type AppStateStatus } from 'react-native';
 
-import { useAccountStore } from '@/stores/accountStore';
 import { EVENT_OBSERVED_COLUMNS } from '@/database/observedColumns';
+import { useEnabledAccounts } from '@/hooks/useAccounts';
 import { useSettingsStore } from '@/stores/settingsStore';
 import { useCalendarStore } from '@/stores/calendarStore';
 import { observeTodayEventsQuery } from '@/features/widget/core/readEvents';
@@ -10,17 +10,19 @@ import { observeTodayEventsQuery } from '@/features/widget/core/readEvents';
 import { scheduleEventAlerts } from './scheduleAlerts';
 
 export function useEventAlerts(): void {
-  const activeAccountId = useAccountStore((s) => s.activeAccountId);
+  const enabled = useEnabledAccounts();
+  const enabledIdsKey = enabled.map((a) => a.id).join('|');
   const timedAlerts = useSettingsStore((s) => s.timedAlerts);
   const allDayAlerts = useSettingsStore((s) => s.allDayAlerts);
   const notifDisabledCalendarIds = useCalendarStore((s) => s.notifDisabledCalendarIds);
 
   useEffect(() => {
-    if (!activeAccountId) return;
+    const enabledIds = enabledIdsKey ? enabledIdsKey.split('|') : [];
+    if (enabledIds.length === 0) return;
 
     void scheduleEventAlerts();
 
-    const sub = observeTodayEventsQuery(activeAccountId)
+    const sub = observeTodayEventsQuery(enabledIds)
       .observeWithColumns(EVENT_OBSERVED_COLUMNS)
       .subscribe(() => {
         void scheduleEventAlerts();
@@ -35,5 +37,5 @@ export function useEventAlerts(): void {
       sub.unsubscribe();
       appSub.remove();
     };
-  }, [activeAccountId, timedAlerts, allDayAlerts, notifDisabledCalendarIds]);
+  }, [enabledIdsKey, timedAlerts, allDayAlerts, notifDisabledCalendarIds]);
 }

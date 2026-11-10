@@ -1,6 +1,8 @@
-import { useSyncExternalStore } from 'react';
+import { useMemo, useSyncExternalStore } from 'react';
 
 import { loadAccounts } from '@/services/nextcloud/auth';
+import { useAccountStore } from '@/stores/accountStore';
+import { enabledAccounts } from '@/features/account/utils/account';
 import type { Account } from '@/types';
 
 let accounts: Account[] = [];
@@ -39,4 +41,11 @@ export function useAccounts(): Account[] {
 export function useActiveAccount(activeAccountId: string | null): Account | null {
   const list = useAccounts();
   return list.find((a) => a.id === activeAccountId) ?? null;
+}
+
+/** Accounts shown in the merged calendar view (all minus user-disabled). */
+export function useEnabledAccounts(): Account[] {
+  const list = useAccounts();
+  const disabledIds = useAccountStore((s) => s.disabledAccountIds);
+  return useMemo(() => enabledAccounts(list, disabledIds), [list, disabledIds]);
 }

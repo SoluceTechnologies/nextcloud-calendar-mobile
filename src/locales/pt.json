@@ -324,7 +324,10 @@
       "editOnNextcloud": "Editar no Nextcloud",
       "defaultCalendar": "Calendário padrão",
       "defaultCalendarHint": "Pré-selecionado ao criar um evento.",
-      "defaultCalendarAuto": "Automático"
+      "defaultCalendarAuto": "Automático",
+      "visible": "Visível",
+      "lastVisibleTitle": "A conta permanece visível",
+      "lastVisibleMsg": "Pelo menos uma conta deve permanecer visível."
     },
     "accountActive": "Ativa",
     "talk": {

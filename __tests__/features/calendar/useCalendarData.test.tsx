@@ -3,14 +3,14 @@ import { renderHook, waitFor } from '@testing-library/react-native';
 import { useCalendarData } from '@/features/calendar/hooks/useCalendarData';
 import { syncVisibleRange } from '@/database/sync';
 import { useEventsForRange } from '@/database/useEvents';
-import { useCalendars } from '@/hooks/useCalendars';
+import { useMergedCalendars } from '@/hooks/useCalendars';
 import { setAccounts } from '@/hooks/useAccounts';
 import { useAccountStore } from '@/stores/accountStore';
 import type { Account, CalendarMeta } from '@/types';
 
 jest.mock('@/database/sync', () => ({ syncVisibleRange: jest.fn() }));
 jest.mock('@/database/useEvents', () => ({ useEventsForRange: jest.fn(() => []) }));
-jest.mock('@/hooks/useCalendars', () => ({ useCalendars: jest.fn() }));
+jest.mock('@/hooks/useCalendars', () => ({ useMergedCalendars: jest.fn() }));
 
 const account = {
   id: 'a1',
@@ -42,7 +42,7 @@ function deferred<T = void>() {
 }
 
 function mockCalendars(list: CalendarMeta[]) {
-  (useCalendars as jest.Mock).mockReturnValue({ data: list, isFetching: false });
+  (useMergedCalendars as jest.Mock).mockReturnValue({ data: list, isFetching: false });
 }
 
 beforeEach(() => {
@@ -50,6 +50,7 @@ beforeEach(() => {
   (useEventsForRange as jest.Mock).mockReturnValue([]);
   setAccounts([account]);
   useAccountStore.getState().setActiveAccountId(account.id);
+  useAccountStore.setState({ disabledAccountIds: [] });
   mockCalendars([cal]);
 });
 
@@ -127,5 +128,42 @@ describe('useCalendarData loading overlay', () => {
     const { result } = renderHook(() => useCalendarData(new Date()));
     expect(result.current.showFullOverlay).toBe(false);
     expect(syncVisibleRange).not.toHaveBeenCalled();
+  });
+});
+
+describe('multi-account merge', () => {
+  const account2 = {
+    ...account,
+    id: 'a2',
+    baseUrl: 'https://cloud2.example.com',
+    username: 'u2',
+  } as Account;
+  const cal2 = { ...cal, id: 'cal-a2', accountId: 'a2' } as CalendarMeta;
+
+  it('queries events across every enabled account and syncs each one', async () => {
+    setAccounts([account, account2]);
+    mockCalendars([cal, cal2]);
+    renderHook(() => useCalendarData(new Date()));
+
+    const queried = (useEventsForRange as jest.Mock).mock.calls.map(([ids]) => ids).flat();
+    expect(queried).toEqual(expect.arrayContaining(['a1', 'a2']));
+
+    await waitFor(() => expect(syncVisibleRange).toHaveBeenCalledTimes(2));
+    expect((syncVisibleRange as jest.Mock).mock.calls[0][0].id).toBe('a1');
+    expect((syncVisibleRange as jest.Mock).mock.calls[0][1]).toEqual([cal]);
+    expect((syncVisibleRange as jest.Mock).mock.calls[1][0].id).toBe('a2');
+    expect((syncVisibleRange as jest.Mock).mock.calls[1][1]).toEqual([cal2]);
+  });
+
+  it('excludes a disabled account from events and sync', async () => {
+    setAccounts([account, account2]);
+    useAccountStore.getState().setAccountDisabled('a2', true);
+    mockCalendars([cal]);
+    renderHook(() => useCalendarData(new Date()));
+
+    const queried = (useEventsForRange as jest.Mock).mock.calls.map(([ids]) => ids).flat();
+    expect(queried).not.toContain('a2');
+    await waitFor(() => expect(syncVisibleRange).toHaveBeenCalledTimes(1));
+    expect((syncVisibleRange as jest.Mock).mock.calls[0][0].id).toBe('a1');
   });
 });

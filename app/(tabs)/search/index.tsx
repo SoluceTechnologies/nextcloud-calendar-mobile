@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 
-import { useActiveAccount } from '@/hooks/useAccounts';
+import { useActiveAccount, useEnabledAccounts } from '@/hooks/useAccounts';
 import { useAccountStore } from '@/stores/accountStore';
 import { useCalendarStore } from '@/stores/calendarStore';
 import { useRecentSearchStore, type RecentSearch } from '@/stores/recentSearchStore';
@@ -55,8 +55,10 @@ export default function SearchScreen() {
   const navGuard = useRef(createNavigationGuard()).current;
   const [openingHref, setOpeningHref] = useState<string | null>(null);
 
+  const enabled = useEnabledAccounts();
+  const enabledIds = enabled.map((a) => a.id);
   const [model, dispatch] = useReducer(reducer, EMPTY_MODEL);
-  const local = useLocalSearch(selected ? accountId : null, toTerm(model));
+  const local = useLocalSearch(selected ? enabledIds : null, toTerm(model));
   const data = local.suggestionData;
   const resolve = useCallback<Resolve>((key, raw) => resolveValue(key, raw, data), [data]);
   const send = useCallback((action: SearchAction) => dispatch({ action, resolve }), [resolve]);

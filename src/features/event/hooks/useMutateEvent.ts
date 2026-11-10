@@ -81,6 +81,10 @@ function resolveCalendar(calendars: CalendarMeta[], calendarId: string): Calenda
   return calendars.find((c) => c.id === calendarId) ?? calendars[0];
 }
 
+function resolveAccount(accounts: Account[], accountId: string | undefined): Account | undefined {
+  return accounts.find((a) => a.id === accountId);
+}
+
 function resolveAlarms(input: CreateEventInput): number[] | undefined {
   if (input.alarms !== undefined) return input.alarms;
   const { timedAlerts, allDayAlerts } = useSettingsStore.getState();
@@ -194,11 +198,12 @@ function expandOccurrences(
   );
 }
 
-export function useCreateEvent(account: Account, calendars: CalendarMeta[]) {
+export function useCreateEvent(accounts: Account[], calendars: CalendarMeta[]) {
   return useAction<CreateEventInput>(
     useCallback(async (input: CreateEventInput) => {
       const calendar = resolveCalendar(calendars, input.calendarId);
-      if (!calendar) return;
+      const account = resolveAccount(accounts, calendar?.accountId);
+      if (!calendar || !account) return;
 
       const uid = Crypto.randomUUID();
       const optimistic = input.rrule
@@ -220,13 +225,15 @@ export function useCreateEvent(account: Account, calendars: CalendarMeta[]) {
         await removeWhere(account.id, (e) => seriesBaseUid(e.uid) === uid);
         Alert.alert(i18n.t('event.errorCreateFailed'), describeMutationError(error));
       }
-    }, [account, calendars]),
+    }, [accounts, calendars]),
   );
 }
 
-export function useUpdateEvent(account: Account, calendars: CalendarMeta[]) {
+export function useUpdateEvent(accounts: Account[], calendars: CalendarMeta[]) {
   return useAction<{ event: CalendarEvent; input: CreateEventInput; scope?: RecurrenceEditScope; datesOnly?: boolean }>(
     useCallback(async ({ event, input, scope = 'all', datesOnly = false }) => {
+      const account = resolveAccount(accounts, event.accountId);
+      if (!account) return;
       const base = seriesBaseUid(event.uid);
       const snapshot = await snapshotByBase(account.id, base);
 
@@ -256,6 +263,7 @@ export function useUpdateEvent(account: Account, calendars: CalendarMeta[]) {
             calendarId: targetCal.id,
             color: targetCal.color,
             href: `${targetCal.url}${event.uid}.ics`,
+            ...(targetCal.accountId !== event.accountId && { accountId: targetCal.accountId }),
           }),
         });
       }
@@ -266,6 +274,7 @@ export function useUpdateEvent(account: Account, calendars: CalendarMeta[]) {
         const scheduled = withServerOrganizer(input, event);
 
         if (!event.isRecurring || scope === 'all') {
+          let updatedIcs: string | undefined;
           if (datesOnly) {
             const masterIcs = await fetchEventIcs(account, event.href);
             const tz = extractDtstartTzid(masterIcs) ?? timezone;
@@ -278,7 +287,8 @@ export function useUpdateEvent(account: Account, calendars: CalendarMeta[]) {
               newStart = new Date(bounds.dtstart.getTime() + deltaStart);
               newEnd = new Date(bounds.dtend.getTime() + deltaEnd);
             }
-            await updateEvent(account, event.href, shiftIcsDates(masterIcs, newStart, newEnd, tz, input.allDay, sequence));
+            updatedIcs = shiftIcsDates(masterIcs, newStart, newEnd, tz, input.allDay, sequence);
+            await updateEvent(account, event.href, updatedIcs);
           } else {
             let uid = event.uid;
             let masterInput = scheduled;
@@ -302,12 +312,20 @@ export function useUpdateEvent(account: Account, calendars: CalendarMeta[]) {
                 console.warn('[useUpdateEvent] failed to fetch master ics for sequence/extra lines:', error);
               }
             }
-            await updateEvent(account, event.href, buildIcsForInput(uid, masterInput, location, description, timezone, sequence, preserved));
+            updatedIcs = buildIcsForInput(uid, masterInput, location, description, timezone, sequence, preserved);
+            await updateEvent(account, event.href, updatedIcs);
           }
           if (!event.isRecurring && input.calendarId !== event.calendarId) {
             const cal = calendars.find((c) => c.id === input.calendarId);
             if (!cal) throw new Error('Target calendar not found');
-            await moveEvent(account, event.href, cal, event.uid);
+            if (cal.accountId !== event.accountId) {
+              const targetAccount = resolveAccount(accounts, cal.accountId);
+              if (!targetAccount) throw new Error('Target account not found');
+              await putEvent(targetAccount, cal, event.uid, updatedIcs ?? await fetchEventIcs(account, event.href));
+              await deleteEvent(account, event.href);
+            } else {
+              await moveEvent(account, event.href, cal, event.uid);
+            }
           }
         } else if (scope === 'this') {
           const masterIcs = await fetchEventIcs(account, event.href);
@@ -335,13 +353,15 @@ export function useUpdateEvent(account: Account, calendars: CalendarMeta[]) {
         await restoreSeries(account.id, base, snapshot);
         Alert.alert(i18n.t('event.errorUpdateFailed'), describeMutationError(error));
       }
-    }, [account, calendars]),
+    }, [accounts, calendars]),
   );
 }
 
-export function useDeleteEvent(account: Account) {
+export function useDeleteEvent(accounts: Account[]) {
   return useAction<{ event: CalendarEvent; scope?: RecurrenceEditScope }>(
     useCallback(async ({ event, scope = 'all' }) => {
+      const account = resolveAccount(accounts, event.accountId);
+      if (!account) return;
       const base = seriesBaseUid(event.uid);
       let removed: CalendarEvent[];
       if (!event.isRecurring || scope === 'all') {
@@ -373,6 +393,6 @@ export function useDeleteEvent(account: Account) {
         await insertEvents(removed);
         Alert.alert(i18n.t('event.errorDeleteFailed'), describeMutationError(error));
       }
-    }, [account]),
+    }, [accounts]),
   );
 }

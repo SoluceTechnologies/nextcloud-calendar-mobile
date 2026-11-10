@@ -9,25 +9,28 @@ import { EVENT_OBSERVED_COLUMNS } from './observedColumns';
 import Event from './models/Event';
 
 export function useEventByUid(
-  accountId: string | null,
+  accountIds: string | string[] | null,
   uid: string | undefined,
 ): CalendarEvent | null | undefined {
   const database = useDatabase();
   const [event, setEvent] = useState<CalendarEvent | null | undefined>(undefined);
+  const ids = accountIds == null ? null : Array.isArray(accountIds) ? accountIds : [accountIds];
+  const idsKey = ids?.join('|') ?? null;
 
   useEffect(() => {
-    if (!accountId || !uid) {
+    if (!ids || ids.length === 0 || !uid) {
       setEvent(null);
       return;
     }
     setEvent(undefined);
     const subscription = database
       .get<Event>('events')
-      .query(Q.where('account_id', accountId), Q.where('uid', uid))
+      .query(Q.where('account_id', Q.oneOf(ids)), Q.where('uid', uid))
       .observeWithColumns(EVENT_OBSERVED_COLUMNS)
       .subscribe((rows) => setEvent(rows[0] ? mapEventToShared(rows[0]) : null));
     return () => subscription.unsubscribe();
-  }, [accountId, uid, database]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [idsKey, uid, database]);
 
   return event;
 }

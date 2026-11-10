@@ -8,6 +8,7 @@ describe('accountStore', () => {
   beforeEach(() => {
     useAccountStore.setState({
       activeAccountId: null,
+      disabledAccountIds: [],
       capabilities: { talkEnabled: false, calendarApp: 'unknown' },
     });
   });
@@ -26,5 +27,21 @@ describe('accountStore', () => {
   it('sets capabilities', () => {
     useAccountStore.getState().setCapabilities({ talkEnabled: true, calendarApp: 'available' });
     expect(useAccountStore.getState().capabilities.talkEnabled).toBe(true);
+  });
+
+  it('disables and re-enables an account', () => {
+    const { setAccountDisabled } = useAccountStore.getState();
+    setAccountDisabled('acc-1', true);
+    expect(useAccountStore.getState().disabledAccountIds).toEqual(['acc-1']);
+    setAccountDisabled('acc-1', false);
+    expect(useAccountStore.getState().disabledAccountIds).toEqual([]);
+  });
+
+  it('does not duplicate ids in disabledAccountIds', () => {
+    const { setAccountDisabled } = useAccountStore.getState();
+    setAccountDisabled('acc-1', true);
+    setAccountDisabled('acc-1', true);
+    setAccountDisabled('acc-2', true);
+    expect(useAccountStore.getState().disabledAccountIds).toEqual(['acc-1', 'acc-2']);
   });
 });

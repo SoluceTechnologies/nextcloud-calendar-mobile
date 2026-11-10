@@ -32,6 +32,7 @@ function applyPatch(row: Event, patch: Partial<CalendarEvent>): void {
   if (patch.location !== undefined) row.location = patch.location ?? undefined;
   if (patch.attendees !== undefined) row.attendees = JSON.stringify(patch.attendees);
   if (patch.calendarId !== undefined) row.calendarId = patch.calendarId;
+  if (patch.accountId !== undefined) row.accountId = patch.accountId;
   if (patch.color !== undefined) row.color = patch.color;
   if (patch.href !== undefined) row.href = patch.href;
   if ('alarms' in patch) {
