@@ -6,7 +6,9 @@ import dayjs from 'dayjs';
 import DateTimePicker, { type DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { ArrowLeft, ArrowRight, CornerDownLeft } from 'lucide-react-native';
 
-import { Avatar, Item, List, Stack, Typography } from '@/ui/components';
+import { Item, List, Stack, Typography } from '@/ui/components';
+import { AttendeeAvatar } from '@/features/event/components/AttendeeAvatar';
+import type { Account } from '@/types';
 import type { FilterKey, Resolved } from '../searchModel';
 import type { Suggestion } from '../suggestions';
 
@@ -20,6 +22,7 @@ const isCalendarNavigation = (draft: Date, date: Date) =>
   date.getDate() === Math.min(draft.getDate(), dayjs(date).daysInMonth());
 
 export type ValueSuggestionsProps = {
+  account?: Pick<Account, 'id' | 'baseUrl' | 'username' | 'appPassword'> | null;
   pending: FilterKey;
   typed: string;
   suggestions: Suggestion[];
@@ -27,7 +30,7 @@ export type ValueSuggestionsProps = {
   onUseTyped: () => void;
 };
 
-export function ValueSuggestions({ pending, typed, suggestions, onPick, onUseTyped }: ValueSuggestionsProps) {
+export function ValueSuggestions({ account, pending, typed, suggestions, onPick, onUseTyped }: ValueSuggestionsProps) {
   const { t } = useTranslation();
   const { colors, dark } = useTheme();
   const [picker, setPicker] = useState<OpenPicker | null>(null);
@@ -83,7 +86,7 @@ export function ValueSuggestions({ pending, typed, suggestions, onPick, onUseTyp
       <Item
         key={`${suggestion.key}-${suggestion.value}`}
         testID={`suggestion-${suggestion.value}`}
-        leading={<SuggestionLeading suggestion={suggestion} />}
+        leading={<SuggestionLeading account={account} suggestion={suggestion} />}
         title={suggestion.key === 'date' ? t(`search.date.${suggestion.value}`) : suggestion.label}
         description={suggestion.detail}
         trailing={
@@ -130,8 +133,10 @@ export function ValueSuggestions({ pending, typed, suggestions, onPick, onUseTyp
   );
 }
 
-function SuggestionLeading({ suggestion }: { suggestion: Suggestion }) {
-  if (suggestion.key === 'attendee') return <Avatar name={suggestion.label} size={28} />;
+function SuggestionLeading({ account, suggestion }: { account: ValueSuggestionsProps['account']; suggestion: Suggestion }) {
+  if (suggestion.key === 'attendee') {
+    return <AttendeeAvatar account={account ?? null} email={suggestion.value} displayName={suggestion.label} size={28} />;
+  }
   return (
     <View style={styles.leading}>
       {suggestion.color ? (

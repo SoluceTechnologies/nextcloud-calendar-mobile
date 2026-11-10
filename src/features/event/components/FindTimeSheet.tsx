@@ -1,15 +1,18 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { View, StyleSheet } from 'react-native';
+import { useTheme } from 'expo-router';
 import dayjs from 'dayjs';
 
-import type { Account, Attendee, CalendarMeta, CalendarEvent } from '@/types';
+import type { Account, Attendee, AttendeeAvailability, CalendarMeta, CalendarEvent } from '@/types';
 import { eventsOnDay, busyCalendarIds, findFreeSlots, type FreeSlot } from '@/services/voice/actions';
 import { fetchFreeBusy } from '@/services/nextcloud/freeBusy';
 import { mergeBusySlots } from '@/utils/freeBusy';
 import { resolveOrganizer } from '@/features/event/utils/organizer';
 import { useCalendarStore } from '@/stores/calendarStore';
 import { useTimeFormat } from '@/hooks/useTimeFormat';
-import { Button, Sheet, Spinner, Stack, Typography } from '@/ui/components';
+import { Button, Chip, Sheet, Spinner, Stack, Typography } from '@/ui/components';
+import { AttendeeAvatar } from './AttendeeAvatar';
 
 interface Props {
     visible: boolean;
@@ -27,11 +30,14 @@ interface Props {
 export function FindTimeSheet({ visible, onClose, account, calendars, day, durationMin, attendees, onPick }: Props) {
     const { t } = useTranslation();
     const { formatTime } = useTimeFormat();
+    const { colors } = useTheme();
     const [slots, setSlots] = useState<FreeSlot[] | null>(null);
+    const [availability, setAvailability] = useState<AttendeeAvailability[] | null>(null);
     const [failed, setFailed] = useState(false);
 
     const load = useCallback(async () => {
         setSlots(null);
+        setAvailability(null);
         setFailed(false);
         try {
             const events = await eventsOnDay(account.id, day);
@@ -47,6 +53,7 @@ export function FindTimeSheet({ visible, onClose, account, calendars, day, durat
                         dayjs(day).startOf('day').toDate(),
                         dayjs(day).endOf('day').toDate(),
                     );
+                    setAvailability(avail);
                     for (const b of mergeBusySlots(avail)) {
                         busyEvents.push({ dtstart: b.start, dtend: b.end, allDay: false, isTask: false, calendarId: '__freebusy__' } as CalendarEvent);
                     }
@@ -67,6 +74,28 @@ export function FindTimeSheet({ visible, onClose, account, calendars, day, durat
     return (
         <Sheet visible={visible} onClose={onClose} title={t('event.findTimeTitle')}>
             <Stack gap={12} padding={16} hAlign="stretch">
+                {availability && availability.length > 0 && (
+                    <View style={styles.chipsRow}>
+                        {availability.map((a) => (
+                            <Chip
+                                key={a.email}
+                                small
+                                activeColor={a.available ? colors.success : colors.danger}
+                                active={!a.available}
+                                icon={
+                                    <AttendeeAvatar
+                                        account={account}
+                                        email={a.email}
+                                        displayName={a.displayName}
+                                        size={18}
+                                    />
+                                }
+                            >
+                                {a.displayName ?? a.email.split('@')[0]}
+                            </Chip>
+                        ))}
+                    </View>
+                )}
                 {slots === null && !failed && (
                     <Stack direction="horizontal" gap={8} vAlign="center">
                         <Spinner />
@@ -89,3 +118,7 @@ export function FindTimeSheet({ visible, onClose, account, calendars, day, durat
         </Sheet>
     );
 }
+
+const styles = StyleSheet.create({
+    chipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+});

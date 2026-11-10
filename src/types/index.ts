@@ -28,6 +28,8 @@ export type CalendarMeta = {
 export type Attendee = {
     email: string;
     displayName?: string;
+    /** PARTSTAT parameter (NEEDS-ACTION / ACCEPTED / TENTATIVE / DECLINED / DELEGATED). */
+    partstat?: string;
 };
 
 export type FreeBusyType = 'BUSY' | 'BUSY-UNAVAILABLE' | 'BUSY-TENTATIVE' | 'FREE';

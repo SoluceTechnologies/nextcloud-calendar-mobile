@@ -29,6 +29,7 @@ export interface ThemeColors {
   talk: string;
   danger: string;
   warning: string;
+  success: string;
   tabBar: string;
   tabBarBorder: string;
   tabBarInactive: string;
@@ -105,6 +106,7 @@ const lightColors: ThemeColors = {
   talk: '#0082c9',
   danger: '#d32f2f',
   warning: '#f57c00',
+  success: '#43a047',
   tabBar: '#ffffff',
   tabBarBorder: '#e0e0e0',
   tabBarInactive: '#8e8e93',
@@ -130,6 +132,7 @@ const darkColors: ThemeColors = {
   talk: '#29b6f6',
   danger: '#ef5350',
   warning: '#ffa726',
+  success: '#66bb6a',
   tabBar: '#1c1c1e',
   tabBarBorder: '#2c2c2e',
   tabBarInactive: '#636366',

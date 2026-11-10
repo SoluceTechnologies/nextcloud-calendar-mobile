@@ -80,6 +80,17 @@ describe('buildIcs', () => {
     expect(ics).toContain('CN=Alice');
   });
 
+  it('preserves a parsed PARTSTAT instead of forcing NEEDS-ACTION', () => {
+    const ics = buildIcs({
+      ...base,
+      attendees: [{ email: 'bob@example.com', displayName: 'Bob', partstat: 'ACCEPTED' }],
+    });
+    expect(ics).toContain('PARTSTAT=ACCEPTED');
+    expect(ics).not.toContain('PARTSTAT=NEEDS-ACTION');
+    const fallback = buildIcs({ ...base, attendees: [{ email: 'c@example.com' }] }).replace(/\r\n /g, '');
+    expect(fallback).toContain('PARTSTAT=NEEDS-ACTION');
+  });
+
   it('escapes special chars in summary', () => {
     const ics = buildIcs({ ...base, summary: 'Sync, Team; All' });
     expect(ics).toContain('SUMMARY:Sync\\, Team\\; All\r\n');

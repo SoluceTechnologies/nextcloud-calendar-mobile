@@ -104,7 +104,8 @@ function schedulingLines(name: string, email: string, attendees: Attendee[]): st
 function attendeeLines(attendees: Attendee[]): string[] {
     return attendees.map((att) => {
         const cn = att.displayName ? `;CN=${att.displayName}` : '';
-        return `ATTENDEE;CUTYPE=INDIVIDUAL;ROLE=REQ-PARTICIPANT;RSVP=TRUE;PARTSTAT=NEEDS-ACTION${cn}:mailto:${att.email}`;
+        const partstat = att.partstat ? `PARTSTAT=${att.partstat}` : 'PARTSTAT=NEEDS-ACTION';
+        return `ATTENDEE;CUTYPE=INDIVIDUAL;ROLE=REQ-PARTICIPANT;RSVP=TRUE;${partstat}${cn}:mailto:${att.email}`;
     });
 }
 

@@ -104,7 +104,7 @@ Add and switch between multiple Nextcloud accounts. Each account's calendars are
 Create, view, and edit calendar events with support for:
 - Title, description, location
 - All-day and timed events
-- Attendee lists with display names
+- Attendee lists with display names, contact photos (resolved via the sharees autocompletion, with initials fallback) and RSVP status chips
 - Recurring event detection
 - Multiple reminders per event, configurable defaults, and custom offsets
 
