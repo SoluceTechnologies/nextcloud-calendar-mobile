@@ -320,7 +320,7 @@
         "accountMismatch": "Questo codice QR appartiene a un altro account."
       },
       "connectionLost": "La connessione a questo server è scaduta. Riconnettiti per continuare a sincronizzare.",
-      "use": "Usa",
+      "use": "Imposta predefinito",
       "editOnNextcloud": "Modifica su Nextcloud",
       "defaultCalendar": "Calendario predefinito",
       "defaultCalendarHint": "Preselezionato alla creazione di un evento.",
@@ -329,7 +329,7 @@
       "lastVisibleTitle": "L'account resta visibile",
       "lastVisibleMsg": "Almeno un account deve restare visibile."
     },
-    "accountActive": "Attivo",
+    "accountActive": "Predefinito",
     "talk": {
       "title": "Talk",
       "openWith": "Open Talk links with",

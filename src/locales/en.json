@@ -320,7 +320,7 @@
         "accountMismatch": "This QR code belongs to a different account."
       },
       "connectionLost": "The connection to this server has expired. Reconnect to keep syncing.",
-      "use": "Use",
+      "use": "Set as default",
       "editOnNextcloud": "Edit on Nextcloud",
       "defaultCalendar": "Default calendar",
       "defaultCalendarHint": "Pre-selected when you create an event.",
@@ -329,7 +329,7 @@
       "lastVisibleTitle": "Account stays visible",
       "lastVisibleMsg": "At least one account must stay visible."
     },
-    "accountActive": "Active",
+    "accountActive": "Default",
     "talk": {
       "title": "Talk",
       "openWith": "Open Talk links with",

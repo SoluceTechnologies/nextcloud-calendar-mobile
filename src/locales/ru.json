@@ -320,7 +320,7 @@
         "accountMismatch": "Этот QR-код принадлежит другой учётной записи."
       },
       "connectionLost": "Подключение к этому серверу истекло. Переподключитесь, чтобы продолжить синхронизацию.",
-      "use": "Выбрать",
+      "use": "Сделать основным",
       "editOnNextcloud": "Изменить в Nextcloud",
       "defaultCalendar": "Календарь по умолчанию",
       "defaultCalendarHint": "Выбирается автоматически при создании события.",
@@ -329,7 +329,7 @@
       "lastVisibleTitle": "Аккаунт остаётся видимым",
       "lastVisibleMsg": "Хотя бы один аккаунт должен оставаться видимым."
     },
-    "accountActive": "Активный",
+    "accountActive": "По умолчанию",
     "talk": {
       "title": "Talk",
       "openWith": "Open Talk links with",

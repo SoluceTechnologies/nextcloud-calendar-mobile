@@ -320,7 +320,7 @@
         "accountMismatch": "Deze QR-code hoort bij een ander account."
       },
       "connectionLost": "De verbinding met deze server is verlopen. Maak opnieuw verbinding om te blijven synchroniseren.",
-      "use": "Gebruiken",
+      "use": "Als standaard",
       "editOnNextcloud": "Bewerken in Nextcloud",
       "defaultCalendar": "Standaardagenda",
       "defaultCalendarHint": "Vooraf geselecteerd bij het aanmaken van een evenement.",
@@ -329,7 +329,7 @@
       "lastVisibleTitle": "Account blijft zichtbaar",
       "lastVisibleMsg": "Minstens één account moet zichtbaar blijven."
     },
-    "accountActive": "Actief",
+    "accountActive": "Standaard",
     "talk": {
       "title": "Talk",
       "openWith": "Open Talk links with",

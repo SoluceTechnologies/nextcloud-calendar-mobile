@@ -320,7 +320,7 @@
         "accountMismatch": "Dieser QR-Code gehört zu einem anderen Konto."
       },
       "connectionLost": "Die Verbindung zu diesem Server ist abgelaufen. Verbinden Sie sich neu, um weiter zu synchronisieren.",
-      "use": "Verwenden",
+      "use": "Als Standard",
       "editOnNextcloud": "In Nextcloud bearbeiten",
       "defaultCalendar": "Standardkalender",
       "defaultCalendarHint": "Wird beim Erstellen eines Termins vorausgewählt.",
@@ -329,7 +329,7 @@
       "lastVisibleTitle": "Konto bleibt sichtbar",
       "lastVisibleMsg": "Mindestens ein Konto muss sichtbar bleiben."
     },
-    "accountActive": "Aktiv",
+    "accountActive": "Standard",
     "talk": {
       "title": "Talk",
       "openWith": "Open Talk links with",
