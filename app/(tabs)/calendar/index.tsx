@@ -315,6 +315,10 @@ export default function CalendarScreen() {
           drawer.closeDrawer();
           router.push('/(tabs)/settings');
         }}
+        onNavigateTrash={() => {
+          drawer.closeDrawer();
+          navGuard(() => router.push('/trashbin'));
+        }}
       />
     </ViewContainer>
   );

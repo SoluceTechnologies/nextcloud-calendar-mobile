@@ -98,6 +98,14 @@ export type CalendarEvent = {
     status?: EventStatus;
 };
 
+export type DeletedCalendarObject = {
+    trashHref: string;
+    etag?: string;
+    deletedAt?: Date;
+    ics: string;
+    event: CalendarEvent;
+};
+
 export type CreateEventInput = {
     summary: string;
     calendarId: string;

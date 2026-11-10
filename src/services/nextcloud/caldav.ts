@@ -1,4 +1,4 @@
-import type { Account, CalendarMeta, CalendarEvent } from '@/types';
+import type { Account, CalendarMeta, CalendarEvent, DeletedCalendarObject } from '@/types';
 import { parseIcsObjectsAsync } from '@/utils/caldav-parse';
 import { settleAll } from '@/utils/settle';
 import { httpErrorFrom } from '../shared/errors';
@@ -477,6 +477,107 @@ export async function deleteEvent(
   const res = await davFetch(href, account, { method: 'DELETE' });
   if (res.status === 404) console.warn('[deleteEvent] 404, nothing deleted at', href);
   if (!res.ok && res.status !== 404) throw httpErrorFrom(res, 'deleteEvent');
+}
+
+function trashbinQueryBody(): string {
+  return `<?xml version="1.0"?>
+<c:calendar-query xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav" xmlns:ncc="http://nextcloud.com/ns">
+  <d:prop>
+    <d:getetag/>
+    <c:calendar-data/>
+    <ncc:deleted-at/>
+  </d:prop>
+  <c:filter>
+    <c:comp-filter name="VCALENDAR">
+      <c:comp-filter name="VEVENT">
+      </c:comp-filter>
+    </c:comp-filter>
+  </c:filter>
+</c:calendar-query>`;
+}
+
+export type TrashBinResult = {
+  supported: boolean;
+  objects: DeletedCalendarObject[];
+};
+
+export async function fetchTrashObjects(account: Account): Promise<TrashBinResult> {
+  const res = await davFetch(calUrl(account, 'trashbin/objects/'), account, {
+    method: 'REPORT',
+    headers: { Depth: '1', 'Content-Type': 'application/xml' },
+    body: trashbinQueryBody(),
+  });
+  if (res.status === 404 || res.status === 405) {
+    return { supported: false, objects: [] };
+  }
+  if (res.status !== 207) {
+    throw httpErrorFrom(res, 'fetchTrashObjects');
+  }
+  const xml = await res.text();
+
+  const items: { ics: string; href: string }[] = [];
+  const metaByHref = new Map<string, { etag?: string; deletedAt?: Date }>();
+  for (const chunk of splitResponses(xml)) {
+    const hrefMatch = chunk.match(/<d:href>([^<]+)<\/d:href>/);
+    const dataMatch = chunk.match(/<[\w]+:calendar-data[^>]*>([\s\S]*?)<\/[\w]+:calendar-data>/);
+    if (!hrefMatch?.[1]) continue;
+    const href = absUrl(account, hrefMatch[1]);
+    const etag = chunk.match(/<[\w]+:getetag[^>]*>([^<]+)<\/[\w]+:getetag>/)?.[1];
+    const deletedAtRaw = chunk.match(/<[\w]+:deleted-at[^>]*>([^<]+)<\/[\w]+:deleted-at>/)?.[1];
+    const deletedAt = deletedAtRaw && /^\d+$/.test(deletedAtRaw.trim())
+      ? new Date(Number(deletedAtRaw.trim()) * 1000)
+      : undefined;
+    metaByHref.set(href, { etag, deletedAt });
+    if (dataMatch?.[1]) {
+      items.push({ ics: decodeXmlEntities(dataMatch[1].trim()), href });
+    }
+  }
+
+  const meta = {
+    calendarId: '__trashbin__',
+    accountId: account.id,
+    color: '#8e8e93',
+  };
+  const objects: DeletedCalendarObject[] = [];
+  for (const item of items) {
+    const parsed = await parseIcsObjectsAsync([item], meta);
+    objects.push({
+      trashHref: item.href,
+      etag: metaByHref.get(item.href)?.etag,
+      deletedAt: metaByHref.get(item.href)?.deletedAt,
+      ics: item.ics,
+      event: parsed[0] ?? ({
+        uid: item.href,
+        href: item.href,
+        calendarId: '__trashbin__',
+        accountId: account.id,
+        summary: '',
+        dtstart: new Date(0),
+        dtend: new Date(0),
+        allDay: false,
+        color: '#8e8e93',
+        attendees: [],
+        isRecurring: false,
+      } as CalendarEvent),
+    });
+  }
+
+  return { supported: true, objects };
+}
+
+export async function restoreTrashObject(account: Account, trashHref: string): Promise<void> {
+  const name = trashHref.replace(/\/$/, '').split('/').pop() ?? '';
+  const res = await davFetch(trashHref, account, {
+    method: 'MOVE',
+    headers: { Destination: calUrl(account, `trashbin/restore/${name}`) },
+  });
+  if (!res.ok) throw httpErrorFrom(res, 'restoreTrashObject');
+}
+
+export async function deleteTrashObject(account: Account, trashHref: string): Promise<void> {
+  const res = await davFetch(trashHref, account, { method: 'DELETE' });
+  if (res.status === 404) console.warn('[deleteTrashObject] 404, nothing deleted at', trashHref);
+  if (!res.ok && res.status !== 404) throw httpErrorFrom(res, 'deleteTrashObject');
 }
 
 export const MULTIGET_BATCH = 50;

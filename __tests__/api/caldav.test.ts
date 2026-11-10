@@ -1,4 +1,4 @@
-import { deleteEvent, moveEvent, syncCollection, fetchEvents, fetchEventsByHrefs, fetchCalendars, validateCredentials, MULTIGET_BATCH } from '../../src/services/nextcloud/caldav';
+import { deleteEvent, moveEvent, syncCollection, fetchEvents, fetchEventsByHrefs, fetchCalendars, validateCredentials, fetchTrashObjects, restoreTrashObject, deleteTrashObject, MULTIGET_BATCH } from '../../src/services/nextcloud/caldav';
 import type { Account, CalendarMeta } from '../../src/types';
 
 const account: Account = {
@@ -736,5 +736,106 @@ describe('fetchEvents — subscribed feed with unstable UIDs', () => {
     const events = await fetchEvents(account, subscribed, range.s, range.e);
     expect(events).toHaveLength(2);
     expect(new Set(events.map((e) => e.uid)).size).toBe(2);
+  });
+});
+
+describe('trashbin', () => {
+  const trashUrl = 'https://cloud.example.com/remote.php/dav/calendars/john/trashbin/objects/';
+
+  const multistatus = (inner: string) => `<?xml version="1.0"?>
+<d:multistatus xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav" xmlns:ncc="http://nextcloud.com/ns">
+${inner}
+</d:multistatus>`;
+
+  const response207 = (href: string, deletedAt: string, ics: string) => `
+  <d:response>
+    <d:href>${href}</d:href>
+    <d:propstat>
+      <d:prop>
+        <d:getetag>"abc123"</d:getetag>
+        <c:calendar-data>${ics}</c:calendar-data>
+        <ncc:deleted-at>${deletedAt}</ncc:deleted-at>
+      </d:prop>
+      <d:status>HTTP/1.1 200 OK</d:status>
+    </d:propstat>
+  </d:response>`;
+
+  const eventIcs = [
+    'BEGIN:VCALENDAR', 'VERSION:2.0',
+    'BEGIN:VEVENT', 'UID:trash-evt-1', 'DTSTAMP:20261101T000000Z',
+    'DTSTART:20261105T100000Z', 'DTEND:20261105T110000Z',
+    'SUMMARY:Réunion supprimée', 'END:VEVENT',
+    'END:VCALENDAR',
+  ].join('\r\n');
+
+  it('REPORTs trashbin/objects with a Depth-1 calendar-query carrying the ncc prop', async () => {
+    mockFetch.mockResolvedValue({ ok: true, status: 207, text: async () => multistatus('') });
+    await fetchTrashObjects(account);
+    const [url, opts] = mockFetch.mock.calls[0];
+    expect(url).toBe(trashUrl);
+    expect(opts.method).toBe('REPORT');
+    expect(opts.headers.Depth).toBe('1');
+    expect(opts.body).toContain('xmlns:ncc="http://nextcloud.com/ns"');
+    expect(opts.body).toContain('<ncc:deleted-at/>');
+  });
+
+  it('parses href, deleted-at and ICS from a 207 response', async () => {
+    const href = '/remote.php/dav/calendars/john/trashbin/objects/12345.ics';
+    mockFetch.mockResolvedValue({
+      ok: true, status: 207,
+      text: async () => multistatus(response207(href, '1762300000', eventIcs)),
+    });
+    const res = await fetchTrashObjects(account);
+    expect(res.supported).toBe(true);
+    expect(res.objects).toHaveLength(1);
+    const obj = res.objects[0];
+    expect(obj.trashHref).toBe('https://cloud.example.com' + href);
+    expect(obj.deletedAt?.getTime()).toBe(1762300000 * 1000);
+    expect(obj.event.summary).toBe('Réunion supprimée');
+    expect(obj.ics).toContain('UID:trash-evt-1');
+  });
+
+  it('tolerates arbitrary prefixes and a missing deleted-at', async () => {
+    const alt = multistatus(`
+  <d:response>
+    <d:href>/remote.php/dav/calendars/john/trashbin/objects/9.ics</d:href>
+    <d:propstat>
+      <d:prop>
+        <cal:calendar-data xmlns:cal="urn:ietf:params:xml:ns:caldav">${eventIcs}</cal:calendar-data>
+      </d:prop>
+      <d:status>HTTP/1.1 200 OK</d:status>
+    </d:propstat>
+  </d:response>`).replace('xmlns:ncc', 'xmlns:nc');
+    mockFetch.mockResolvedValue({ ok: true, status: 207, text: async () => alt });
+    const res = await fetchTrashObjects(account);
+    expect(res.objects).toHaveLength(1);
+    expect(res.objects[0].deletedAt).toBeUndefined();
+    expect(res.objects[0].event.summary).toBe('Réunion supprimée');
+  });
+
+  it.each([404, 405])('reports supported=false on HTTP %i (old server / disabled)', async (status) => {
+    mockFetch.mockResolvedValue({ ok: false, status });
+    const res = await fetchTrashObjects(account);
+    expect(res.supported).toBe(false);
+    expect(res.objects).toEqual([]);
+  });
+
+  it('MOVEs the trash href to trashbin/restore/<basename>', async () => {
+    mockFetch.mockResolvedValue({ ok: true, status: 201 });
+    const href = 'https://cloud.example.com/remote.php/dav/calendars/john/trashbin/objects/12345.ics';
+    await restoreTrashObject(account, href);
+    const [url, opts] = mockFetch.mock.calls[0];
+    expect(url).toBe(href);
+    expect(opts.method).toBe('MOVE');
+    expect(opts.headers.Destination).toBe(
+      'https://cloud.example.com/remote.php/dav/calendars/john/trashbin/restore/12345.ics',
+    );
+  });
+
+  it('DELETEs the trash href verbatim', async () => {
+    mockFetch.mockResolvedValue({ ok: true, status: 204 });
+    const href = 'https://cloud.example.com/remote.php/dav/calendars/john/trashbin/objects/77.ics';
+    await deleteTrashObject(account, href);
+    expect(mockFetch).toHaveBeenCalledWith(href, expect.objectContaining({ method: 'DELETE' }));
   });
 });
