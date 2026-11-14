@@ -360,6 +360,9 @@ export async function fetchEvents(
         const r = await trustedFetch(sourceUrl, { timeoutMs: 20000 });
         if (!r.ok) throw new Error(`fetchSubscribed HTTP ${r.status}`);
         const icsText = await r.text();
+        if (!icsText.replace(/^\uFEFF/, '').trimStart().toUpperCase().startsWith('BEGIN:VCALENDAR')) {
+            throw new Error(`fetchSubscribed ${calendar.slug}: source is not an ICS feed`);
+        }
         const parsed = await parseIcsObjectsAsync(
             [{ ics: icsText, href: calendar.sourceUrl }],
             { calendarId: calendar.id, accountId: account.id, color: calendar.color },

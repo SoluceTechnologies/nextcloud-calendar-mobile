@@ -737,4 +737,31 @@ describe('fetchEvents — subscribed feed with unstable UIDs', () => {
     expect(events).toHaveLength(2);
     expect(new Set(events.map((e) => e.uid)).size).toBe(2);
   });
+
+  it('rejects a 200 HTML body (share page link stored as cs:source)', async () => {
+    mockFetch.mockResolvedValue({
+      ok: true,
+      status: 200,
+      text: async () => '<!DOCTYPE html><html><head><title>Calendar</title></head><body></body></html>',
+    });
+    await expect(fetchEvents(account, subscribed, range.s, range.e))
+      .rejects.toThrow(/fetchSubscribed/);
+  });
+
+  it('rejects an error status instead of treating the calendar as synced', async () => {
+    mockFetch.mockResolvedValue({ ok: false, status: 404, text: async () => '' });
+    await expect(fetchEvents(account, subscribed, range.s, range.e))
+      .rejects.toThrow(/fetchSubscribed HTTP 404/);
+  });
+
+  it('accepts a feed that starts with a UTF-8 BOM or leading whitespace', async () => {
+    const ics = [
+      'BEGIN:VCALENDAR', 'VERSION:2.0',
+      'BEGIN:VEVENT', 'UID:b1', 'DTSTART;VALUE=DATE:20260902', 'SUMMARY:Gelbe Tonne', 'END:VEVENT',
+      'END:VCALENDAR',
+    ].join('\r\n');
+    mockFetch.mockResolvedValue({ ok: true, status: 200, text: async () => '\uFEFF  ' + ics });
+    const events = await fetchEvents(account, subscribed, range.s, range.e);
+    expect(events).toHaveLength(1);
+  });
 });
