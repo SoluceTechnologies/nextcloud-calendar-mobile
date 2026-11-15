@@ -764,4 +764,26 @@ describe('fetchEvents — subscribed feed with unstable UIDs', () => {
     const events = await fetchEvents(account, subscribed, range.s, range.e);
     expect(events).toHaveLength(1);
   });
+
+  it('sends the account credentials only for a same-origin feed URL', async () => {
+    const privateSource: CalendarMeta = {
+      ...subscribed,
+      sourceUrl: 'https://cloud.example.com/remote.php/dav/public-calendars/token?export',
+    };
+    mockFetch.mockResolvedValue({ ok: true, status: 200, text: async () => feed('p1') });
+    await fetchEvents(account, privateSource, range.s, range.e);
+    expect(mockFetch).toHaveBeenLastCalledWith(
+      'https://cloud.example.com/remote.php/dav/public-calendars/token?export',
+      expect.objectContaining({
+        headers: expect.objectContaining({ Authorization: 'Basic ' + Buffer.from('john:xxxx').toString('base64') }),
+      }),
+    );
+  });
+
+  it('does not leak credentials to a third-party feed host', async () => {
+    mockFetch.mockResolvedValue({ ok: true, status: 200, text: async () => feed('e1') });
+    await fetchEvents(account, subscribed, range.s, range.e);
+    const [, init] = mockFetch.mock.calls.at(-1)!;
+    expect(init.headers?.Authorization).toBeUndefined();
+  });
 });
