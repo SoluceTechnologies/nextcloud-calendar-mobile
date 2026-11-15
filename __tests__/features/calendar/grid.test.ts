@@ -19,6 +19,7 @@ const iso = (d: Date) => dayKey(d);
 describe('daysPerPage', () => {
   it('maps each mode to its page span', () => {
     expect(daysPerPage('week')).toBe(7);
+    expect(daysPerPage('workweek')).toBe(5);
     expect(daysPerPage('3days')).toBe(3);
     expect(daysPerPage('day')).toBe(1);
   });
@@ -82,6 +83,37 @@ describe('pageDates', () => {
     const d = pageDates(new Date(2026, 7, 7, 17, 45), 0, 'day', 1)[0];
     expect(d.getHours()).toBe(0);
     expect(d.getMinutes()).toBe(0);
+  });
+
+  describe('workweek', () => {
+    it('shows Monday–Friday columns only', () => {
+      const d = pageDates(friday, 0, 'workweek', 1);
+      expect(d).toHaveLength(5);
+      expect(d.map(iso)).toEqual([
+        '2026-08-03', '2026-08-04', '2026-08-05', '2026-08-06', '2026-08-07',
+      ]);
+    });
+
+    it('always snaps to Monday even when weekStartsOn is Sunday', () => {
+      const d = pageDates(friday, 0, 'workweek', 0);
+      expect(d).toHaveLength(5);
+      expect(iso(d[0])).toBe('2026-08-03');
+      expect(iso(d[4])).toBe('2026-08-07');
+    });
+
+    it('shifts one week per index, skipping weekends', () => {
+      expect(pageDates(friday, 1, 'workweek', 1).map(iso)).toEqual([
+        '2026-08-10', '2026-08-11', '2026-08-12', '2026-08-13', '2026-08-14',
+      ]);
+      expect(iso(pageDates(friday, -1, 'workweek', 1)[0])).toBe('2026-07-27');
+    });
+
+    it('a Sunday anchor belongs to the past Mon–Fri page (ISO week)', () => {
+      const sunday = new Date(2026, 7, 9);
+      const d = pageDates(sunday, 0, 'workweek', 1);
+      expect(iso(d[0])).toBe('2026-08-03');
+      expect(iso(d[4])).toBe('2026-08-07');
+    });
   });
 });
 
@@ -333,6 +365,15 @@ describe('pageIndexForDate', () => {
     const sunday = new Date(2026, 7, 9);
     expect(pageIndexForDate(friday, sunday, 'week', 1)).toBe(0);
     expect(pageIndexForDate(friday, sunday, 'week', 0)).toBe(1);
+  });
+
+  it('workweek pages move by whole weeks regardless of weekStartsOn', () => {
+    expect(pageIndexForDate(friday, new Date(2026, 7, 10), 'workweek', 1)).toBe(1);
+    expect(pageIndexForDate(friday, new Date(2026, 7, 16), 'workweek', 1)).toBe(1);
+    expect(pageIndexForDate(friday, new Date(2026, 6, 27), 'workweek', 1)).toBe(-1);
+    // Sunday stays on the same Mon–Fri page as its ISO week, even at wso=0.
+    const sunday = new Date(2026, 7, 9);
+    expect(pageIndexForDate(friday, sunday, 'workweek', 0)).toBe(0);
   });
 
   it('counts spans of three in 3days mode', () => {
