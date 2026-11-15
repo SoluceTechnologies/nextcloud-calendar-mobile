@@ -357,9 +357,21 @@ export async function fetchEvents(
 ): Promise<CalendarEvent[]> {
     if (calendar.isSubscribed && calendar.sourceUrl) {
         const sourceUrl = calendar.sourceUrl.replace(/^webcals?:\/\//i, 'https://');
-        const r = await trustedFetch(sourceUrl, { timeoutMs: 20000 });
+        // Send the account's credentials only to a same-origin (private) feed
+        // — Basic auth must never leak to a third-party host.
+        let sameOrigin = false;
+        try {
+            sameOrigin = new URL(sourceUrl).origin === new URL(account.baseUrl).origin;
+        } catch { /* unparseable URL: anonymous fetch */ }
+        const r = await trustedFetch(sourceUrl, {
+            timeoutMs: 20000,
+            headers: sameOrigin ? { Authorization: basicAuth(account) } : undefined,
+        });
         if (!r.ok) throw new Error(`fetchSubscribed HTTP ${r.status}`);
         const icsText = await r.text();
+        if (!icsText.replace(/^\uFEFF/, '').trimStart().toUpperCase().startsWith('BEGIN:VCALENDAR')) {
+            throw new Error(`fetchSubscribed ${calendar.slug}: source is not an ICS feed`);
+        }
         const parsed = await parseIcsObjectsAsync(
             [{ ics: icsText, href: calendar.sourceUrl }],
             { calendarId: calendar.id, accountId: account.id, color: calendar.color },
