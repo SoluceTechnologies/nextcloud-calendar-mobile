@@ -88,6 +88,14 @@ describe('agendaGroups', () => {
     expect(groups.flatMap((g) => g.items.map((i) => i.uid))).toEqual(['a', 'b', 'c', 'd']);
   });
 
+  it('carries the short day labels for per-row day cells', () => {
+    const groups = agendaGroups(snap);
+    expect(groups[0].dayLabel).toBe('MON');
+    expect(groups[0].dayNumber).toBe('1');
+    expect(groups[1].dayLabel).toBe('MON');
+    expect(groups[1].dayNumber).toBe('3');
+  });
+
   it('caps the total item count at the budget across days', () => {
     const groups = agendaGroups(snap, 3);
     expect(groups.flatMap((g) => g.items.map((i) => i.uid))).toEqual(['a', 'b', 'c']);
