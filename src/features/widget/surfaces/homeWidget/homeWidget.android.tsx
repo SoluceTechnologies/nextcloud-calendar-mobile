@@ -16,30 +16,41 @@ import { buildFreshTimeline } from '../../core/buildTimeline';
 
 type Palette = ReturnType<typeof widgetPalette>;
 
-const WIDGET_NAMES = ['CalendarSmallWidget', 'CalendarMediumWidget', 'CalendarLargeWidget'] as const;
+const WIDGET_NAMES = [
+  'CalendarSmallWidget',
+  'CalendarMediumWidget',
+  'CalendarLargeWidget',
+  'CalendarNextEventsWidget',
+] as const;
 
 function compactLimit(widgetName: string): number {
   return widgetName === 'CalendarSmallWidget' ? 2 : 3;
 }
 
-function EventRow({ event }: { event: AgendaEventItem }) {
+function EventBlock({ event }: { event: AgendaEventItem }) {
   const fg = onEventColor(event.color);
   return (
+    <FlexWidget
+      style={{
+        width: 'match_parent',
+        flexDirection: 'column',
+        backgroundColor: event.color as `#${string}`,
+        borderRadius: widgetRadius.sm,
+        padding: 10,
+      }}
+      clickAction="OPEN_URI"
+      clickActionData={{ uri: event.deepLink }}
+    >
+      <TextWidget text={event.title} maxLines={1} style={{ fontSize: widgetType.body, fontWeight: '500', color: fg }} />
+      <TextWidget text={event.timeLabel} maxLines={1} style={{ fontSize: widgetType.time, color: fg, marginTop: 2 }} />
+    </FlexWidget>
+  );
+}
+
+function EventRow({ event }: { event: AgendaEventItem }) {
+  return (
     <FlexWidget style={{ width: 'match_parent', flexDirection: 'column', paddingTop: widgetSpacing.sm }}>
-      <FlexWidget
-        style={{
-          width: 'match_parent',
-          flexDirection: 'column',
-          backgroundColor: event.color as `#${string}`,
-          borderRadius: widgetRadius.sm,
-          padding: 10,
-        }}
-        clickAction="OPEN_URI"
-        clickActionData={{ uri: event.deepLink }}
-      >
-        <TextWidget text={event.title} maxLines={1} style={{ fontSize: widgetType.body, fontWeight: '500', color: fg }} />
-        <TextWidget text={event.timeLabel} maxLines={1} style={{ fontSize: widgetType.time, color: fg, marginTop: 2 }} />
-      </FlexWidget>
+      <EventBlock event={event} />
     </FlexWidget>
   );
 }
@@ -69,6 +80,79 @@ function LargeAndroidWidget({ snapshot }: { snapshot: AgendaSnapshot | null }) {
     cells.push(<DayHeaderCell key={`h-${group.key}`} group={group} palette={palette} />);
     for (const event of group.items) {
       cells.push(<EventRow key={`${group.key}-${event.uid}-${event.startIso}`} event={event} />);
+    }
+  }
+
+  return (
+    <FlexWidget
+      style={{
+        height: 'match_parent',
+        width: 'match_parent',
+        backgroundColor: palette.background,
+        borderRadius: widgetRadius.lg,
+        padding: widgetSpacing.md,
+        flexDirection: 'column',
+      }}
+      clickAction="OPEN_APP"
+    >
+      {cells.length === 0 ? (
+        <EmptyState snapshot={snapshot} palette={palette} />
+      ) : (
+        <ListWidget style={{ height: 'match_parent', width: 'match_parent' }}>{cells}</ListWidget>
+      )}
+    </FlexWidget>
+  );
+}
+
+function NextEventsRow({ group, event, firstOfDay, palette }: {
+  group: AgendaGroup;
+  event: AgendaEventItem;
+  firstOfDay: boolean;
+  palette: Palette;
+}) {
+  return (
+    <FlexWidget style={{ width: 'match_parent', flexDirection: 'row', paddingTop: widgetSpacing.sm }}>
+      <FlexWidget style={{ width: 40, alignItems: 'center', paddingTop: 10 }}>
+        {firstOfDay && (
+          <TextWidget
+            text={group.dayLabel}
+            maxLines={1}
+            style={{ fontSize: widgetType.time, fontWeight: '600', color: group.isToday ? palette.primary : palette.textSecondary }}
+          />
+        )}
+        {firstOfDay && (
+          <TextWidget
+            text={group.dayNumber}
+            maxLines={1}
+            style={{ fontSize: widgetType.title, fontWeight: '700', color: group.isToday ? palette.primary : palette.text }}
+          />
+        )}
+      </FlexWidget>
+      <FlexWidget style={{ flex: 1, paddingLeft: widgetSpacing.sm }}>
+        <EventBlock event={event} />
+      </FlexWidget>
+    </FlexWidget>
+  );
+}
+
+const NEXT_EVENTS_BUDGET = 15;
+
+function NextEventsAndroidWidget({ snapshot }: { snapshot: AgendaSnapshot | null }) {
+  const palette = agendaPalette(snapshot);
+  const groups = agendaGroups(snapshot, NEXT_EVENTS_BUDGET);
+
+  const cells: React.ReactElement[] = [];
+  for (const group of groups) {
+    for (const [index, event] of group.items.entries()) {
+      cells.push(
+        <NextEventsRow
+          key={`${group.key}-${event.uid}-${event.startIso}`}
+          group={group}
+          event={event}
+          firstOfDay={index === 0}
+          palette={palette}
+        />,
+      );
     }
   }
 
@@ -129,6 +213,9 @@ function CompactAndroidWidget({ snapshot, limit }: { snapshot: AgendaSnapshot | 
 function AndroidWidget({ widgetName, snapshot }: { widgetName: string; snapshot: AgendaSnapshot | null }) {
   if (widgetName === 'CalendarLargeWidget') {
     return <LargeAndroidWidget snapshot={snapshot} />;
+  }
+  if (widgetName === 'CalendarNextEventsWidget') {
+    return <NextEventsAndroidWidget snapshot={snapshot} />;
   }
   return <CompactAndroidWidget snapshot={snapshot} limit={compactLimit(widgetName)} />;
 }
