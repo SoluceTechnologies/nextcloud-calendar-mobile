@@ -56,6 +56,36 @@ function evt(href: string): CalendarEvent {
   } as CalendarEvent;
 }
 
+/**
+ * A row mirroring exactly what writeEvent would have persisted for `ev`,
+ * so eventUnchanged can recognize the content as identical.
+ */
+function fullRow(ev: CalendarEvent) {
+  return {
+    href: ev.href,
+    accountId: ev.accountId,
+    calendarId: ev.calendarId,
+    uid: ev.uid,
+    summary: ev.summary,
+    description: undefined,
+    location: undefined,
+    start: ev.dtstart.getTime(),
+    end: ev.dtend.getTime(),
+    allDay: ev.allDay,
+    color: ev.color,
+    attendees: '[]',
+    organizerEmail: undefined,
+    talkUrl: undefined,
+    isRecurring: ev.isRecurring,
+    rrule: undefined,
+    recurrenceId: undefined,
+    alarms: undefined,
+    isTask: false,
+    prepareMarkAsDeleted: jest.fn(() => ({ _op: 'del', uid: ev.uid })),
+    prepareUpdate: jest.fn(() => ({ _op: 'upd', uid: ev.uid })),
+  };
+}
+
 /** Shape returned by fetchEventsForCalendars: per-calendar partial success. */
 function outcome(
   events: CalendarEvent[],
@@ -275,6 +305,90 @@ describe('syncCalendarDelta — non-destructive guards', () => {
 
     expect(batch).not.toHaveBeenCalled();
     expect(row.prepareUpdate).not.toHaveBeenCalled();
+  });
+});
+
+describe('syncCalendarDelta — in-place diff', () => {
+  it('writes nothing but the token when the re-fetched object is unchanged', async () => {
+    mockSyncCollection.mockResolvedValue({ changed: ['h1'], deleted: [], newToken: 't2', reset: false });
+    const ev = evt('h1');
+    mockFetchByHrefs.mockResolvedValue({ events: [ev], returnedHrefs: new Set(['h1']) });
+    const row = fullRow(ev);
+    const { db, batch, prepareCreate } = makeDb({ calendarRow: tokenRow(), eventRows: [row] });
+    mockGetDb.mockReturnValue(db);
+
+    await syncCalendarDelta(account, calendar);
+
+    expect(row.prepareMarkAsDeleted).not.toHaveBeenCalled();
+    expect(row.prepareUpdate).not.toHaveBeenCalled();
+    expect(prepareCreate).not.toHaveBeenCalled();
+    // Only the sync-token bookkeeping op is batched — no event write at all.
+    expect(batch).toHaveBeenCalledTimes(1);
+    expect((batch.mock.calls[0] as unknown[])[0]).toHaveLength(1);
+  });
+
+  it('updates a changed row in place instead of delete+recreate', async () => {
+    mockSyncCollection.mockResolvedValue({ changed: ['h1'], deleted: [], newToken: 't2', reset: false });
+    const ev = { ...evt('h1'), summary: 'renamed remotely' };
+    mockFetchByHrefs.mockResolvedValue({ events: [ev], returnedHrefs: new Set(['h1']) });
+    const row = fullRow(evt('h1'));
+    const { db, prepareCreate } = makeDb({ calendarRow: tokenRow(), eventRows: [row] });
+    mockGetDb.mockReturnValue(db);
+
+    await syncCalendarDelta(account, calendar);
+
+    expect(row.prepareUpdate).toHaveBeenCalledTimes(1);
+    expect(row.prepareMarkAsDeleted).not.toHaveBeenCalled();
+    expect(prepareCreate).not.toHaveBeenCalled();
+  });
+
+  it('restructures occurrences: drops the vanished ones, creates the new, keeps the stable', async () => {
+    mockSyncCollection.mockResolvedValue({ changed: ['h1'], deleted: [], newToken: 't2', reset: false });
+    const master = evt('h1');
+    const occ2 = { ...evt('h1'), uid: 'h1-uid_occ_2' };
+    const occ3 = { ...evt('h1'), uid: 'h1-uid_occ_3' };
+    // Server now expands to master + occ3; the DB still has master + occ2.
+    mockFetchByHrefs.mockResolvedValue({ events: [master, occ3], returnedHrefs: new Set(['h1']) });
+    const masterRow = fullRow(master);
+    const occ2Row = fullRow(occ2);
+    const { db, prepareCreate } = makeDb({ calendarRow: tokenRow(), eventRows: [masterRow, occ2Row] });
+    mockGetDb.mockReturnValue(db);
+
+    await syncCalendarDelta(account, calendar);
+
+    expect(masterRow.prepareMarkAsDeleted).not.toHaveBeenCalled();
+    expect(masterRow.prepareUpdate).not.toHaveBeenCalled();
+    expect(occ2Row.prepareMarkAsDeleted).toHaveBeenCalled();
+    expect(prepareCreate).toHaveBeenCalledTimes(1);
+  });
+
+  it('drops duplicate rows of the same event key, keeping the first', async () => {
+    mockSyncCollection.mockResolvedValue({ changed: ['h1'], deleted: [], newToken: 't2', reset: false });
+    const ev = evt('h1');
+    mockFetchByHrefs.mockResolvedValue({ events: [ev], returnedHrefs: new Set(['h1']) });
+    const first = fullRow(ev);
+    const dupe = fullRow(ev);
+    const { db, prepareCreate } = makeDb({ calendarRow: tokenRow(), eventRows: [first, dupe] });
+    mockGetDb.mockReturnValue(db);
+
+    await syncCalendarDelta(account, calendar);
+
+    expect(first.prepareMarkAsDeleted).not.toHaveBeenCalled();
+    expect(dupe.prepareMarkAsDeleted).toHaveBeenCalled();
+    expect(prepareCreate).not.toHaveBeenCalled();
+  });
+
+  it('picks up an organizer-only change (previously invisible to the diff)', async () => {
+    mockSyncCollection.mockResolvedValue({ changed: ['h1'], deleted: [], newToken: 't2', reset: false });
+    const ev = { ...evt('h1'), organizerEmail: 'boss@example.com' };
+    mockFetchByHrefs.mockResolvedValue({ events: [ev], returnedHrefs: new Set(['h1']) });
+    const row = fullRow(evt('h1'));
+    const { db } = makeDb({ calendarRow: tokenRow(), eventRows: [row] });
+    mockGetDb.mockReturnValue(db);
+
+    await syncCalendarDelta(account, calendar);
+
+    expect(row.prepareUpdate).toHaveBeenCalledTimes(1);
   });
 });
 

@@ -106,7 +106,9 @@ function eventUnchanged(row: Event, ev: CalendarEvent): boolean {
         (row.recurrenceId ?? undefined) === (ev.recurrenceId?.getTime() ?? undefined) &&
         !!row.isTask === !!ev.isTask &&
         (row.alarms ?? undefined) === serializeAlarms(ev.alarms) &&
-        (row.attendees ?? '[]') === JSON.stringify(ev.attendees ?? [])
+        (row.attendees ?? '[]') === JSON.stringify(ev.attendees ?? []) &&
+        (row.organizerEmail ?? undefined) === (ev.organizerEmail ?? undefined) &&
+        (row.talkUrl ?? undefined) === (ev.talkUrl ?? undefined)
     );
 }
 
@@ -408,13 +410,41 @@ export async function syncCalendarDelta(account: Account, calendar: CalendarMeta
         const touched = new Set<string>([...result.deleted, ...returnedHrefs]);
         const existing = await collectByHref(events, account.id, touched);
         if (localWriteEpoch() !== epoch) return;
+
+        const remoteByKey = new Map<string, CalendarEvent>();
+        for (const ev of fetched) {
+            remoteByKey.set(eventKey(ev.accountId, ev.calendarId, ev.uid), ev);
+        }
+
+        // Diff in place rather than delete+recreate: rewriting rows wholesale
+        // churns SQLite, rekeys every row and re-fires every observer even
+        // when the re-fetched object is byte-identical to what we store.
+        const claimedKeys = new Set<string>();
         for (const r of existing) {
-            if (deletedSet.has(r.href) || returnedHrefs.has(r.href)) {
+            if (deletedSet.has(r.href)) {
                 ops.push(r.prepareMarkAsDeleted());
+                continue;
+            }
+            const k = rowKey(r);
+            const remote = remoteByKey.get(k);
+            if (!remote || claimedKeys.has(k)) {
+                // The occurrence is gone from the re-fetched object (excluded,
+                // restructured) or this row is a duplicate of one already kept.
+                ops.push(r.prepareMarkAsDeleted());
+                continue;
+            }
+            claimedKeys.add(k);
+            if (!eventUnchanged(r, remote)) {
+                ops.push(r.prepareUpdate((rec: Event) => writeEvent(rec, remote)));
             }
         }
 
-        for (const ev of fetched) ops.push(prepareCreateEvent(events, ev));
+        for (const ev of fetched) {
+            const k = eventKey(ev.accountId, ev.calendarId, ev.uid);
+            if (!claimedKeys.has(k) && remoteByKey.get(k) === ev) {
+                ops.push(prepareCreateEvent(events, ev));
+            }
+        }
         pushSyncTokenOp(ops, calendars, row, calendar, account, result.newToken, now);
 
         if (ops.length > 0) await db.batch(ops);
