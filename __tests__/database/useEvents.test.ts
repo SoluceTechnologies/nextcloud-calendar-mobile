@@ -34,6 +34,7 @@ function makeRow(
     rrule: undefined,
     recurrenceId: undefined,
     alarmMinutes: undefined,
+    alarms: undefined,
     isTask: false,
   };
 }
@@ -140,5 +141,58 @@ describe('useEventsForRange', () => {
     act(() => { eventsSubject.next([row]); });
 
     await waitFor(() => expect(result.current[0].summary).toBe('New title'));
+  });
+
+  it('does not re-emit when rows are recreated with identical content (delta sync rewrite)', async () => {
+    const start = new Date('2026-08-25T08:00:00.000Z');
+    const end = new Date('2026-08-25T20:00:00.000Z');
+    const { result } = renderHook(() => useEventsForRange('a1', start, end));
+    const row = makeRow(
+      'e1',
+      Date.parse('2026-08-25T10:00:00.000Z'),
+      Date.parse('2026-08-25T11:00:00.000Z'),
+    );
+
+    act(() => { eventsSubject.next([row]); });
+    await waitFor(() => expect(result.current).toHaveLength(1));
+    const firstReference = result.current;
+
+    // The delta sync deletes and re-inserts rows: the WatermelonDB id changes
+    // but every user-visible field stays the same — the UI must not re-render.
+    const recreated = { ...makeRow(
+      'e1',
+      Date.parse('2026-08-25T10:00:00.000Z'),
+      Date.parse('2026-08-25T11:00:00.000Z'),
+    ), id: 'brand-new-row-id' };
+    act(() => { eventsSubject.next([recreated]); });
+
+    // Give the subscription a chance to propagate, then assert identity.
+    await act(async () => { await new Promise((r) => setTimeout(r, 10)); });
+    expect(result.current).toBe(firstReference);
+  });
+
+  it('updates when only the alarms column changes (multi-alarm edit)', async () => {
+    const start = new Date('2026-08-25T08:00:00.000Z');
+    const end = new Date('2026-08-25T20:00:00.000Z');
+    const { result } = renderHook(() => useEventsForRange('a1', start, end));
+    const row = {
+      ...makeRow(
+        'e1',
+        Date.parse('2026-08-25T10:00:00.000Z'),
+        Date.parse('2026-08-25T11:00:00.000Z'),
+      ),
+      alarmMinutes: 15,
+      alarms: '[15]',
+    };
+
+    act(() => { eventsSubject.next([row]); });
+    await waitFor(() => expect(result.current).toHaveLength(1));
+    const before = result.current;
+
+    row.alarms = '[15,5]';
+    act(() => { eventsSubject.next([row]); });
+
+    await act(async () => { await new Promise((r) => setTimeout(r, 10)); });
+    expect(result.current).not.toBe(before);
   });
 });

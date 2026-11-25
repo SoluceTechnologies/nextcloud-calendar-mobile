@@ -115,22 +115,7 @@ export function eventPositionStyle(start: Date, end: Date): { top: string; heigh
   };
 }
 
-const DAY_INDEX_CACHE = new Map<string, Map<string, GridEvent[]>>();
-const DAY_INDEX_CACHE_LIMIT = 8;
-
-function dayIndexKey(events: GridEvent[]): string {
-  let hash = '';
-  for (const e of events) {
-    hash += `${e._event.uid},${e.start.getTime()},${e.end.getTime()},${e.title},${e.color};`;
-  }
-  return hash;
-}
-
 export function buildDayIndex(events: GridEvent[]): Map<string, GridEvent[]> {
-  const key = dayIndexKey(events);
-  const cached = DAY_INDEX_CACHE.get(key);
-  if (cached) return cached;
-
   const index = new Map<string, GridEvent[]>();
 
   const push = (key: string, slice: GridEvent) => {
@@ -171,12 +156,6 @@ export function buildDayIndex(events: GridEvent[]): Map<string, GridEvent[]> {
       dayStart = new Date(nextMs);
     }
   }
-
-  if (DAY_INDEX_CACHE.size >= DAY_INDEX_CACHE_LIMIT) {
-    const first = DAY_INDEX_CACHE.keys().next().value;
-    if (first !== undefined) DAY_INDEX_CACHE.delete(first);
-  }
-  DAY_INDEX_CACHE.set(key, index);
 
   return index;
 }
