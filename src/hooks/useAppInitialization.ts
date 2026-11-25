@@ -17,6 +17,7 @@ import { setupOnlineManager } from '@/services/shared/network';
 import { initializeDatabaseOnStartup } from '@/database/utils/initialization';
 import { syncCalendars } from '@/database/sync';
 import { migrateFromAsyncStorage } from '@/storage';
+import { yieldToUI } from '@/utils/scheduling';
 import { pushPinsToNative } from '@/services/shared/certPins';
 
 SplashScreen.preventAutoHideAsync();
@@ -62,9 +63,16 @@ export function useAppInitialization() {
           setStoreAccountId(id);
 
           const activeAccount = accounts.find((a) => a.id === id) ?? accounts[0];
-          void syncCalendars(activeAccount).catch((e) => {
-            console.warn('[useAppInitialization] syncCalendars failed:', String(e));
-          });
+          // Defer the first sync until the UI goes idle. Boot-time sync churn
+          // (batch fetches, ICS parsing, RRULE expansion, DB writes) competing
+          // with the splash/first render spikes memory hard enough that the OS
+          // can kill the process before any UI ever appears — which users
+          // perceive as a crash on the splash screen.
+          void yieldToUI()
+            .then(() => syncCalendars(activeAccount))
+            .catch((e) => {
+              console.warn('[useAppInitialization] syncCalendars failed:', String(e));
+            });
           // Profile refresh only ever enriches display names and timezones. It
           // re-reads secure storage, so an empty result means that read failed,
           // never that the user signed out — dropping the accounts here would
