@@ -25,6 +25,10 @@ Notifications.setNotificationHandler({
 });
 
 let running: Promise<void> | null = null;
+let queued = false;
+// Fingerprint of what we last pushed to the OS — cancel-all + re-scheduling
+// the exact same set is pure native-bridge churn.
+let lastFingerprint: string | null = null;
 
 async function ensureChannel(): Promise<void> {
   if (Platform.OS !== 'android') return;
@@ -45,45 +49,76 @@ export async function requestAlertPermission(): Promise<boolean> {
 }
 
 export async function scheduleEventAlerts(now: Date = new Date()): Promise<void> {
-  if (running) return running;
+  // Coalesce: a run requested while one is in flight is not dropped — it is
+  // replayed once the current run settles, with a fresh clock reading.
+  if (running) {
+    queued = true;
+    return running;
+  }
   running = (async () => {
     try {
-      await Notifications.cancelAllScheduledNotificationsAsync();
-
-      const { timedAlerts, allDayAlerts } = useSettingsStore.getState();
-      if (!(await hasAlertPermission())) return;
-
-      await ensureChannel();
-
-      const notifDisabled = useCalendarStore.getState().notifDisabledCalendarIds;
-      const events = (await readUpcomingEvents(HORIZON_DAYS, now))
-        .filter((event) => !notifDisabled.includes(event.calendarId));
-
-      const due = events
-        .flatMap((event) => alertTimes(event, timedAlerts, allDayAlerts).map((at) => ({ event, at })))
-        .filter((x) => x.at.getTime() > now.getTime())
-        .sort((a, b) => a.at.getTime() - b.at.getTime())
-        .slice(0, MAX_SCHEDULED);
-
-      for (const { event, at } of due) {
-        await Notifications.scheduleNotificationAsync({
-          content: {
-            title: event.summary,
-            body: alertBody(event, at),
-            data: { uid: event.uid },
-          },
-          trigger: {
-            type: Notifications.SchedulableTriggerInputTypes.DATE,
-            date: at,
-            channelId: CHANNEL_ID,
-          },
-        });
-      }
-    } catch (error) {
-      if (__DEV__) console.warn('[alerts] scheduling failed', error);
+      do {
+        queued = false;
+        await scheduleOnce(now);
+        now = new Date();
+      } while (queued);
     } finally {
       running = null;
     }
   })();
   return running;
+}
+
+async function scheduleOnce(now: Date): Promise<void> {
+  try {
+    const granted = await hasAlertPermission();
+
+    const notifDisabled = useCalendarStore.getState().notifDisabledCalendarIds;
+    const events = granted
+      ? (await readUpcomingEvents(HORIZON_DAYS, now)).filter(
+          (event) => !notifDisabled.includes(event.calendarId),
+        )
+      : [];
+
+    const { timedAlerts, allDayAlerts } = useSettingsStore.getState();
+    const due = events
+      .flatMap((event) => alertTimes(event, timedAlerts, allDayAlerts).map((at) => ({ event, at })))
+      .filter((x) => x.at.getTime() > now.getTime())
+      .sort((a, b) => a.at.getTime() - b.at.getTime())
+      .slice(0, MAX_SCHEDULED);
+
+    // Dirty-check: the desired OS state is fully described by (uid, trigger
+    // time, summary) per entry — alert bodies derive from those. Settings
+    // changes (lead times, disabled calendars) are inherently captured since
+    // they alter this list. Skipping identical rewrites eliminates the
+    // cancel-all + up-to-60 serial native calls on every sync emission.
+    const fingerprint = due.map(({ event, at }) => `${event.uid}|${at.getTime()}|${event.summary}`).join(';');
+    if (fingerprint === lastFingerprint) return;
+
+    await Notifications.cancelAllScheduledNotificationsAsync();
+    if (!granted) {
+      lastFingerprint = fingerprint;
+      return;
+    }
+
+    await ensureChannel();
+
+    for (const { event, at } of due) {
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          title: event.summary,
+          body: alertBody(event, at),
+          data: { uid: event.uid },
+        },
+        trigger: {
+          type: Notifications.SchedulableTriggerInputTypes.DATE,
+          date: at,
+          channelId: CHANNEL_ID,
+        },
+      });
+    }
+    lastFingerprint = fingerprint;
+  } catch (error) {
+    if (__DEV__) console.warn('[alerts] scheduling failed', error);
+  }
 }
