@@ -318,9 +318,26 @@ export async function syncVisibleRange(
     }
 }
 
+// SQLite caps the number of host variables per query; stay well under.
+const HREF_QUERY_CHUNK = 200;
+
 async function collectByHref(events: Collection<Event>, accountId: string, hrefs: Set<string>) {
-    const rows = await events.query(Q.where('account_id', accountId)).fetch();
-    return rows.filter((r) => hrefs.has(r.href));
+    if (hrefs.size === 0) return [];
+    const all = Array.from(hrefs);
+    const out: Event[] = [];
+    for (let i = 0; i < all.length; i += HREF_QUERY_CHUNK) {
+        const chunk = all.slice(i, i + HREF_QUERY_CHUNK);
+        const rows = await events
+            .query(Q.where('account_id', accountId), Q.where('href', Q.oneOf(chunk)))
+            .fetch();
+        // The query does the heavy lifting (indexed lookup instead of a
+        // full-table scan); the in-memory recheck is a cheap guard against
+        // href sets drifting between the fetch and the diff.
+        for (const r of rows) {
+            if (hrefs.has(r.href)) out.push(r);
+        }
+    }
+    return out;
 }
 
 

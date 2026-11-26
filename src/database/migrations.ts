@@ -3,6 +3,18 @@ import { schemaMigrations, addColumns, unsafeExecuteSql } from '@nozbe/watermelo
 export const migrations = schemaMigrations({
   migrations: [
     {
+      toVersion: 10,
+      steps: [
+        // Mirror the DDL WatermelonDB generates for isIndexed columns
+        // (`{table}_{column}`, verified in adapters/sqlite/encodeSchema) so
+        // upgraded installs get the same indexes as fresh ones.
+        unsafeExecuteSql(
+          'CREATE INDEX IF NOT EXISTS "events_href" ON "events" ("href");' +
+          'CREATE INDEX IF NOT EXISTS "events_end" ON "events" ("end");',
+        ),
+      ],
+    },
+    {
       toVersion: 9,
       steps: [
         addColumns({
