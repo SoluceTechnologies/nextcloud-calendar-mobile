@@ -1,4 +1,5 @@
 import { memo } from 'react';
+import { Freeze } from 'react-freeze';
 import { View, StyleSheet, Platform, type ViewProps, type ViewStyle } from 'react-native';
 
 interface Props extends ViewProps {
@@ -20,7 +21,14 @@ function ViewLayerImpl({ visible, style, children, ...rest }: Props) {
       style={[StyleSheet.absoluteFill, visibilityStyle(visible), style]}
       pointerEvents={visible ? 'auto' : 'none'}
     >
-      {children}
+      {/*
+        Hidden layers keep their React tree alive so switching views is instant,
+        but freezing them stops every re-render/layout recompute while invisible
+        (React keeps the last committed frame, which is exactly what we want to
+        show again on unfreeze). As a side effect, a layer that was never shown
+        does not mount at all until first revealed.
+      */}
+      <Freeze freeze={!visible}>{children}</Freeze>
     </View>
   );
 }
