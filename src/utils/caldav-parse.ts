@@ -512,7 +512,10 @@ export async function parseIcsObjectsAsync(
       if (parsed.length) events.push(...parsed);
     }
 
-    if (i + chunkSize < items.length || Date.now() - sliceStart >= frameBudgetMs) {
+    // Yield only when the frame budget is actually blown *and* work remains —
+    // yielding after every chunk regardless of cost turns an initial sync of
+    // 2000 objects into ~200 forced idle waits of pure overhead.
+    if (i + chunkSize < items.length && Date.now() - sliceStart >= frameBudgetMs) {
       await yieldToUI();
       sliceStart = Date.now();
     }

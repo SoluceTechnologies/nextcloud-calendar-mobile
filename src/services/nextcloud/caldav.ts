@@ -34,6 +34,8 @@ const NAMED_XML_ENTITIES: Record<string, string> = {
 };
 
 export function decodeXmlEntities(input: string): string {
+  // Most ICS payloads contain no entities at all; skip the regex scan entirely.
+  if (!input.includes('&')) return input;
   return input.replace(/&(#x[0-9a-fA-F]+|#[0-9]+|[a-zA-Z]+);/g, (match, entity) => {
     if (entity[0] === '#') {
       const code =
@@ -480,6 +482,7 @@ export async function deleteEvent(
 }
 
 export const MULTIGET_BATCH = 50;
+const MULTIGET_CONCURRENCY = 3;
 
 function toPath(absHref: string): string {
   try {
@@ -505,8 +508,8 @@ export async function fetchEventsByHrefs(
   if (hrefs.length === 0) return { events: [], returnedHrefs };
 
   const out: CalendarEvent[] = [];
-  for (let i = 0; i < hrefs.length; i += MULTIGET_BATCH) {
-    const batch = hrefs.slice(i, i + MULTIGET_BATCH);
+
+  const fetchBatch = async (batch: string[]): Promise<CalendarEvent[]> => {
     const hrefEls = batch.map((h) => `<d:href>${toPath(h)}</d:href>`).join('');
     const body = `<?xml version="1.0"?>
 <c:calendar-multiget xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav">
@@ -532,12 +535,26 @@ export async function fetchEventsByHrefs(
       }
     }
 
-    const parsed = await parseIcsObjectsAsync(
+    return parseIcsObjectsAsync(
       items,
       { calendarId: calendar.id, accountId: account.id, color: calendar.color },
       rangeStart, rangeEnd,
     );
-    out.push(...parsed);
+  };
+
+  // Run a few multiget batches concurrently instead of strictly in series —
+  // large delta syncs are network-bound, so overlapping the round trips cuts
+  // most of the wall time. Keep the window small to avoid slamming the server;
+  // any batch failure still aborts the whole sync (Promise.all semantics).
+  for (let i = 0; i < hrefs.length; i += MULTIGET_BATCH * MULTIGET_CONCURRENCY) {
+    const windowTasks: Promise<CalendarEvent[]>[] = [];
+    for (let j = 0; j < MULTIGET_CONCURRENCY; j++) {
+      const start = i + j * MULTIGET_BATCH;
+      if (start >= hrefs.length) break;
+      windowTasks.push(fetchBatch(hrefs.slice(start, start + MULTIGET_BATCH)));
+    }
+    const results = await Promise.all(windowTasks);
+    for (const r of results) out.push(...r);
   }
   return { events: out, returnedHrefs };
 }
