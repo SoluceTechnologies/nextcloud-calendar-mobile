@@ -1,6 +1,6 @@
 import { createRef } from 'react';
 import { FlatList } from 'react-native';
-import { render as rtlRender } from '@testing-library/react-native';
+import { act, render as rtlRender } from '@testing-library/react-native';
 import { ThemeWrapper } from '../../helpers/theme';
 import { AgendaView, type AgendaViewHandle } from '@/features/calendar/components/AgendaView';
 
@@ -20,7 +20,13 @@ function renderAgenda() {
   return { ref, list: screen.UNSAFE_getByType(FlatList) };
 }
 
-const scrollEventAt = (y: number) => ({ nativeEvent: { contentOffset: { x: 0, y } } });
+const scrollEventAt = (y: number, contentHeight = 10_000, viewportHeight = 800) => ({
+  nativeEvent: {
+    contentOffset: { x: 0, y },
+    contentSize: { width: 400, height: contentHeight },
+    layoutMeasurement: { width: 400, height: viewportHeight },
+  },
+});
 
 describe('AgendaView scrollToToday', () => {
   let scrollSpy: jest.SpyInstance;
@@ -95,9 +101,57 @@ describe('AgendaView scrollToToday', () => {
     expect(scrollSpy).toHaveBeenCalledTimes(1);
 
     list.props.onScrollBeginDrag();
-    list.props.onScroll(scrollEventAt(0));
+    list.props.onScroll(scrollEventAt(700));
     list.props.onScrollEndDrag();
 
     expect(scrollSpy).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('AgendaView incremental window', () => {
+  let scrollSpy: jest.SpyInstance;
+
+  beforeEach(() => {
+    scrollSpy = jest.spyOn(FlatList.prototype, 'scrollToOffset').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    scrollSpy.mockRestore();
+  });
+
+  it('does not materialize the full four-year range on first render', () => {
+    const { list } = renderAgenda();
+
+    expect(list.props.data.length).toBeLessThan(150);
+  });
+
+  it('prepends past days near the start and preserves the visual anchor', () => {
+    const { list } = renderAgenda();
+    const initialLength = list.props.data.length;
+
+    act(() => {
+      list.props.onScrollBeginDrag();
+      list.props.onScroll(scrollEventAt(100));
+    });
+
+    expect(list.props.data.length).toBe(initialLength + 60);
+    const correction = scrollSpy.mock.calls.at(-1)?.[0];
+    expect(correction?.animated).toBe(false);
+    expect(correction?.offset).toBeGreaterThan(3000);
+
+    act(() => {
+      list.props.onScrollEndDrag();
+    });
+  });
+
+  it('appends future days when the end is reached', () => {
+    const { list } = renderAgenda();
+    const initialLength = list.props.data.length;
+
+    act(() => {
+      list.props.onEndReached();
+    });
+
+    expect(list.props.data.length).toBe(initialLength + 60);
   });
 });
