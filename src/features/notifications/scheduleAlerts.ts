@@ -87,12 +87,14 @@ async function scheduleOnce(now: Date): Promise<void> {
       .sort((a, b) => a.at.getTime() - b.at.getTime())
       .slice(0, MAX_SCHEDULED);
 
-    // Dirty-check: the desired OS state is fully described by (uid, trigger
-    // time, summary) per entry — alert bodies derive from those. Settings
-    // changes (lead times, disabled calendars) are inherently captured since
-    // they alter this list. Skipping identical rewrites eliminates the
-    // cancel-all + up-to-60 serial native calls on every sync emission.
-    const fingerprint = due.map(({ event, at }) => `${event.uid}|${at.getTime()}|${event.summary}`).join(';');
+    // Dirty-check: the desired OS state is fully described by the uid, trigger
+    // time, title and exact body per entry. Settings changes (lead times,
+    // disabled calendars) are inherently captured since they alter this list.
+    // Skipping identical rewrites eliminates the cancel-all + up-to-60 serial
+    // native calls on every sync emission.
+    const fingerprint = JSON.stringify(
+      due.map(({ event, at }) => [event.uid, at.getTime(), event.summary, alertBody(event, at)]),
+    );
     if (fingerprint === lastFingerprint) return;
 
     await Notifications.cancelAllScheduledNotificationsAsync();
