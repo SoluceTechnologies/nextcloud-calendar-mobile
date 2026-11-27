@@ -285,6 +285,12 @@ const AgendaViewImpl = forwardRef<AgendaViewHandle, Props>(function AgendaView(
     listRef.current?.scrollToOffset({ offset: y, animated: false });
   }, [rows, offsets, rangeDays]);
 
+  useEffect(() => {
+    if (__DEV__) {
+      console.log(`[AgendaView] materialized ${rows.length} rows for -${rangeDays.past}/+${rangeDays.future} days`);
+    }
+  }, [rows.length, rangeDays]);
+
   const initialIndexRef = useRef(todayIndex);
   const todayKeyRef = useRef(todayKey);
   todayKeyRef.current = todayKey;

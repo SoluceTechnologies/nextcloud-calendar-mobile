@@ -160,10 +160,13 @@ export function syncCalendars(account: Account): Promise<CalendarMeta[]> {
     const inFlight = calendarSyncsInFlight.get(account.id);
     if (inFlight) return inFlight;
 
+    const startedAt = Date.now();
     const promise = (async () => {
         try {
             return await syncCalendarsUncoordinated(account);
         } finally {
+            const duration = Date.now() - startedAt;
+            if (__DEV__ && duration >= 20) console.log(`[sync] syncCalendars completed in ${duration}ms`);
             calendarSyncsInFlight.delete(account.id);
         }
     })();
@@ -356,6 +359,7 @@ interface VisibleSyncJob {
     promise: Promise<void>;
     resolve: () => void;
     reject: (reason: unknown) => void;
+    startedAt: number;
 }
 
 interface VisibleSyncLane {
@@ -376,6 +380,10 @@ function visibleSyncKey(request: VisibleSyncRequest): string {
 }
 
 function completeVisibleSync(lane: VisibleSyncLane, job: VisibleSyncJob, error?: unknown): void {
+    const duration = Date.now() - job.startedAt;
+    if (__DEV__ && duration >= 20) {
+        console.log(`[sync] syncVisibleRange ${error === undefined ? 'completed' : 'failed'} in ${duration}ms`);
+    }
     if (lane.running === job) lane.running = undefined;
     const next = lane.pending;
     lane.pending = undefined;
@@ -425,7 +433,7 @@ export function syncVisibleRange(
         resolve = res;
         reject = rej;
     });
-    const job: VisibleSyncJob = {key, request, promise, resolve, reject};
+    const job: VisibleSyncJob = {key, request, promise, resolve, reject, startedAt: Date.now()};
 
     if (!lane.running) {
         lane.running = job;
