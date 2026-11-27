@@ -284,7 +284,6 @@ const AgendaViewImpl = forwardRef<AgendaViewHandle, Props>(function AgendaView(
     if (idx < 0) return;
     const y = offsets[idx] + anchor.delta;
     if (Math.abs(y - scrollYRef.current) < 1) return;
-    scrollYRef.current = y;
     listRef.current?.scrollToOffset({ offset: y, animated: false });
     if (!userScrollingRef.current) {
       pendingJumpRef.current = {

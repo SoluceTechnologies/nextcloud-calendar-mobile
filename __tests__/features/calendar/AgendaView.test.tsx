@@ -196,4 +196,49 @@ describe('AgendaView incremental window', () => {
     expect(scrollSpy).toHaveBeenCalledTimes(2);
     expect(scrollSpy.mock.calls[1][0].offset).toBe(scrollSpy.mock.calls[0][0].offset);
   });
+
+  it('retries the automatic correction on a timer when no scroll event is emitted', () => {
+    const ref = createRef<AgendaViewHandle>();
+    const props = {
+      date: new Date(),
+      onPressEvent: jest.fn(),
+      onPressCell: jest.fn(),
+    };
+    const screen = render(<AgendaView ref={ref} events={[]} {...props} />);
+    scrollSpy.mockClear();
+
+    const start = new Date();
+    start.setDate(start.getDate() - 10);
+    start.setHours(10, 0, 0, 0);
+    const end = new Date(start);
+    end.setHours(11, 0, 0, 0);
+    const event: CalendarEvent = {
+      uid: 'late-event',
+      href: 'https://example.test/late-event.ics',
+      calendarId: 'calendar',
+      accountId: 'account',
+      summary: 'Late event',
+      dtstart: start,
+      dtend: end,
+      allDay: false,
+      color: '#0082c9',
+      attendees: [],
+      isRecurring: false,
+    };
+
+    jest.useFakeTimers();
+    try {
+      screen.rerender(<AgendaView ref={ref} events={[event]} {...props} />);
+      expect(scrollSpy).toHaveBeenCalledTimes(1);
+
+      act(() => {
+        jest.advanceTimersByTime(121);
+      });
+
+      expect(scrollSpy).toHaveBeenCalledTimes(2);
+      expect(scrollSpy.mock.calls[1][0].offset).toBe(scrollSpy.mock.calls[0][0].offset);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
 });
