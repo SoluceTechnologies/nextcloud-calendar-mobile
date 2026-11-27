@@ -200,8 +200,15 @@ const AgendaViewImpl = forwardRef<AgendaViewHandle, Props>(function AgendaView(
   const anchorRef = useRef({ key: todayKey, delta: 0 });
   const layoutRef = useRef({ rows, offsets });
   const userScrollingRef = useRef(false);
-  const onUserScrollStart = useCallback(() => { userScrollingRef.current = true; }, []);
+  const hasUserScrolledRef = useRef(false);
+  const onUserScrollStart = useCallback(() => {
+    userScrollingRef.current = true;
+    hasUserScrolledRef.current = true;
+  }, []);
   const onUserScrollEnd = useCallback(() => { userScrollingRef.current = false; }, []);
+  const handleEndReached = useCallback(() => {
+    if (hasUserScrolledRef.current) extendFuture();
+  }, [extendFuture]);
 
   const pendingJumpRef = useRef<{ key: string; delta: number; expiresAt: number } | null>(null);
   const jumpTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -352,7 +359,7 @@ const AgendaViewImpl = forwardRef<AgendaViewHandle, Props>(function AgendaView(
       style={{ flex: 1, backgroundColor: theme.colors.background }}
       contentContainerStyle={{ paddingBottom: 80 }}
       onScroll={onScroll}
-      onEndReached={extendFuture}
+      onEndReached={handleEndReached}
       onEndReachedThreshold={0.5}
       onScrollBeginDrag={onUserScrollStart}
       onScrollEndDrag={onUserScrollEnd}

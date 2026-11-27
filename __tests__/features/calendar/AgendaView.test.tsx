@@ -145,11 +145,24 @@ describe('AgendaView incremental window', () => {
     });
   });
 
-  it('appends future days when the end is reached', () => {
+  it('does not append future days for a mount-time end reached before user scrolling', () => {
     const { list } = renderAgenda();
     const initialLength = list.props.data.length;
 
     act(() => {
+      list.props.onEndReached();
+    });
+
+    expect(list.props.data.length).toBe(initialLength);
+  });
+
+  it('appends future days when the end is reached after user scrolling', () => {
+    const { list } = renderAgenda();
+    const initialLength = list.props.data.length;
+
+    act(() => {
+      list.props.onScrollBeginDrag();
+      list.props.onScroll(scrollEventAt(1000));
       list.props.onEndReached();
     });
 
