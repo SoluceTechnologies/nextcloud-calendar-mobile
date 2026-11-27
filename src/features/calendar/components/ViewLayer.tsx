@@ -1,4 +1,4 @@
-import { memo } from 'react';
+import { memo, useEffect, useState } from 'react';
 import { Freeze } from 'react-freeze';
 import { View, StyleSheet, Platform, type ViewProps, type ViewStyle } from 'react-native';
 
@@ -14,6 +14,12 @@ function visibilityStyle(visible: boolean): ViewStyle {
 }
 
 function ViewLayerImpl({ visible, style, children, ...rest }: Props) {
+  const [frozen, setFrozen] = useState(!visible);
+
+  useEffect(() => {
+    setFrozen(!visible);
+  }, [visible]);
+
   return (
     <View
       {...rest}
@@ -22,13 +28,13 @@ function ViewLayerImpl({ visible, style, children, ...rest }: Props) {
       pointerEvents={visible ? 'auto' : 'none'}
     >
       {/*
-        Hidden layers keep their React tree alive so switching views is instant,
-        but freezing them stops every re-render/layout recompute while invisible
-        (React keeps the last committed frame, which is exactly what we want to
-        show again on unfreeze). As a side effect, a layer that was never shown
-        does not mount at all until first revealed.
+        Hidden layers keep their React tree alive so switching views is instant.
+        Freezing is applied one commit after hiding: suspending the child in the
+        same commit as display:none would prevent that hiding style from being
+        committed at all. As a side effect, a layer that was never shown does
+        not mount at all until first revealed.
       */}
-      <Freeze freeze={!visible}>{children}</Freeze>
+      <Freeze freeze={frozen && !visible}>{children}</Freeze>
     </View>
   );
 }
