@@ -128,4 +128,16 @@ describe('useCalendarData loading overlay', () => {
     expect(result.current.showFullOverlay).toBe(false);
     expect(syncVisibleRange).not.toHaveBeenCalled();
   });
+
+  it('keeps the agenda database observation bounded around the visible date', () => {
+    renderHook(() => useCalendarData(new Date('2026-06-15T12:00:00Z'), true));
+
+    const agendaCall = (useEventsForRange as jest.Mock).mock.calls[1];
+    const [, start, end] = agendaCall;
+    const days = (end.getTime() - start.getTime()) / (24 * 60 * 60 * 1000);
+
+    expect(days).toBeLessThan(250);
+    expect(start.getTime()).toBeLessThan(new Date('2026-06-15T00:00:00Z').getTime());
+    expect(end.getTime()).toBeGreaterThan(new Date('2026-06-15T00:00:00Z').getTime());
+  });
 });

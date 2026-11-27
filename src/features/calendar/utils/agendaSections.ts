@@ -3,6 +3,7 @@ import type { CalendarEvent } from '@/types';
 
 export const AGENDA_PAST_DAYS = 730;
 export const AGENDA_FUTURE_DAYS = 730;
+export const AGENDA_QUERY_RADIUS_DAYS = 120;
 
 export interface AgendaSection {
   key: string;
