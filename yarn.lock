@@ -9283,6 +9283,7 @@ __metadata:
     patch-package: "npm:^8.0.1"
     react: "npm:19.2.3"
     react-dom: "npm:19.2.3"
+    react-freeze: "npm:^1.0.4"
     react-i18next: "npm:^17.0.8"
     react-native: "npm:0.86.0"
     react-native-android-widget: "npm:^0.21.0"
@@ -10177,7 +10178,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"react-freeze@npm:^1.0.0":
+"react-freeze@npm:^1.0.0, react-freeze@npm:^1.0.4":
   version: 1.0.4
   resolution: "react-freeze@npm:1.0.4"
   peerDependencies:

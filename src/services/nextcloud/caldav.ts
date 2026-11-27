@@ -401,6 +401,7 @@ export async function fetchEventsForCalendars(
 ): Promise<CalendarFetchOutcome> {
   const { values, failures, fulfilledIndexes } = await settleAll(
     calendars.map((cal) => () => fetchEvents(account, cal, start, end)),
+    3,
   );
   return {
     events: values,

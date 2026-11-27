@@ -113,7 +113,7 @@ function eventUnchanged(row: Event, ev: CalendarEvent): boolean {
 }
 
 
-export async function syncCalendars(account: Account): Promise<CalendarMeta[]> {
+async function syncCalendarsUncoordinated(account: Account): Promise<CalendarMeta[]> {
     const remote = await fetchCalendars(account);
     const db = getDatabaseInstance();
     const calendars = db.get<Calendar>('calendars');
@@ -152,6 +152,27 @@ export async function syncCalendars(account: Account): Promise<CalendarMeta[]> {
     }, 20000, 'syncCalendars');
 
     return remote;
+}
+
+const calendarSyncsInFlight = new Map<string, Promise<CalendarMeta[]>>();
+
+export function syncCalendars(account: Account): Promise<CalendarMeta[]> {
+    const inFlight = calendarSyncsInFlight.get(account.id);
+    if (inFlight) return inFlight;
+
+    const promise = (async () => {
+        try {
+            return await syncCalendarsUncoordinated(account);
+        } finally {
+            calendarSyncsInFlight.delete(account.id);
+        }
+    })();
+    calendarSyncsInFlight.set(account.id, promise);
+    return promise;
+}
+
+export function resetCalendarSyncCoordination(): void {
+    calendarSyncsInFlight.clear();
 }
 
 
@@ -269,7 +290,7 @@ export function resetDeltaSyncThrottle(): void {
     lastDeltaSyncAt.clear();
 }
 
-export async function syncVisibleRange(
+async function syncVisibleRangeNow(
     account: Account,
     calendars: CalendarMeta[],
     start: Date,
@@ -294,6 +315,7 @@ export async function syncVisibleRange(
 
     const {failures, fulfilledIndexes} = await settleAll(
         deltaCals.map((cal) => () => syncCalendarDelta(account, cal).then((): never[] => [])),
+        3,
     );
 
     for (const i of fulfilledIndexes) lastDeltaSyncAt.set(deltaKey(account, deltaCals[i]), now);
@@ -318,6 +340,109 @@ export async function syncVisibleRange(
         for (const c of deltaCals) lastDeltaSyncAt.delete(deltaKey(account, c));
         throw new Error(`[syncVisibleRange] all ${calendars.length} calendar sync(s) failed`);
     }
+}
+
+interface VisibleSyncRequest {
+    account: Account;
+    calendars: CalendarMeta[];
+    start: Date;
+    end: Date;
+    deleteMissing: boolean;
+}
+
+interface VisibleSyncJob {
+    key: string;
+    request: VisibleSyncRequest;
+    promise: Promise<void>;
+    resolve: () => void;
+    reject: (reason: unknown) => void;
+}
+
+interface VisibleSyncLane {
+    running?: VisibleSyncJob;
+    pending?: VisibleSyncJob;
+}
+
+const visibleSyncLanes = new Map<string, VisibleSyncLane>();
+
+function visibleSyncKey(request: VisibleSyncRequest): string {
+    const calendarIds = request.calendars.map((c) => c.id).sort().join('\n');
+    return [
+        request.start.getTime(),
+        request.end.getTime(),
+        request.deleteMissing ? '1' : '0',
+        calendarIds,
+    ].join('\n');
+}
+
+function completeVisibleSync(lane: VisibleSyncLane, job: VisibleSyncJob, error?: unknown): void {
+    if (lane.running === job) lane.running = undefined;
+    const next = lane.pending;
+    lane.pending = undefined;
+    if (next) {
+        lane.running = next;
+        startVisibleSync(lane, next);
+    }
+
+    // Resolve the public promise only after the lane has been released. This
+    // keeps sequential callers from observing a stale in-flight sync and
+    // accidentally queueing work that should start immediately.
+    if (error === undefined) job.resolve();
+    else job.reject(error);
+}
+
+function startVisibleSync(lane: VisibleSyncLane, job: VisibleSyncJob): void {
+    const {account, calendars, start, end, deleteMissing} = job.request;
+    void syncVisibleRangeNow(account, calendars, start, end, deleteMissing).then(
+        () => completeVisibleSync(lane, job),
+        (error) => completeVisibleSync(lane, job, error),
+    );
+}
+
+export function syncVisibleRange(
+    account: Account,
+    calendars: CalendarMeta[],
+    start: Date,
+    end: Date,
+    deleteMissing = true,
+): Promise<void> {
+    if (calendars.length === 0) return Promise.resolve();
+
+    const request: VisibleSyncRequest = {account, calendars, start, end, deleteMissing};
+    const key = visibleSyncKey(request);
+    let lane = visibleSyncLanes.get(account.id);
+    if (!lane) {
+        lane = {};
+        visibleSyncLanes.set(account.id, lane);
+    }
+
+    if (lane.running?.key === key) return lane.running.promise;
+    if (lane.pending?.key === key) return lane.pending.promise;
+
+    let resolve!: () => void;
+    let reject!: (reason: unknown) => void;
+    const promise = new Promise<void>((res, rej) => {
+        resolve = res;
+        reject = rej;
+    });
+    const job: VisibleSyncJob = {key, request, promise, resolve, reject};
+
+    if (!lane.running) {
+        lane.running = job;
+        startVisibleSync(lane, job);
+    } else {
+        // A newer visible range makes an older queued range obsolete. Resolve
+        // the superseded caller as coalesced work instead of executing a stale
+        // burst of network fetches and database writes it no longer needs.
+        lane.pending?.resolve();
+        lane.pending = job;
+    }
+
+    return promise;
+}
+
+export function resetVisibleSyncCoordination(): void {
+    visibleSyncLanes.clear();
 }
 
 // SQLite caps the number of host variables per query; stay well under.

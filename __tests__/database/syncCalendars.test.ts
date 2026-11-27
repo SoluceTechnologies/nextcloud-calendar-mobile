@@ -1,4 +1,4 @@
-import { syncCalendars } from '../../src/database/sync';
+import { syncCalendars, resetCalendarSyncCoordination } from '../../src/database/sync';
 import { fetchCalendars } from '../../src/services/nextcloud/caldav';
 import { getDatabaseInstance } from '../../src/database/DatabaseProvider';
 import type { Account, CalendarMeta } from '../../src/types';
@@ -79,7 +79,10 @@ function makeDb(opts: { calendarRows?: any[]; eventRows?: any[] }) {
   return { db, batch, calendarsCol, eventsCol };
 }
 
-beforeEach(() => jest.clearAllMocks());
+beforeEach(() => {
+  jest.clearAllMocks();
+  resetCalendarSyncCoordination();
+});
 
 describe('syncCalendars', () => {
   it('marks a calendar missing from the server as deleted', async () => {
@@ -136,6 +139,22 @@ describe('syncCalendars', () => {
     await syncCalendars(account);
 
     expect(eventsCol.query).not.toHaveBeenCalled();
+  });
+
+
+  it('shares concurrent calendar syncs for the same account', async () => {
+    const { db } = makeDb({ calendarRows: [] });
+    mockGetDb.mockReturnValue(db);
+    let release!: (value: CalendarMeta[]) => void;
+    mockFetchCalendars.mockImplementationOnce(() => new Promise((resolve) => { release = resolve; }));
+
+    const first = syncCalendars(account);
+    const second = syncCalendars(account);
+
+    expect(second).toBe(first);
+    release([remoteCalendar('cal-new')]);
+    await expect(first).resolves.toHaveLength(1);
+    expect(mockFetchCalendars).toHaveBeenCalledTimes(1);
   });
 
   it('creates a row for a new remote calendar', async () => {

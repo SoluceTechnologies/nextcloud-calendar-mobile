@@ -1,6 +1,7 @@
 import {
   syncVisibleRange,
   resetDeltaSyncThrottle,
+  resetVisibleSyncCoordination,
 } from '../../src/database/sync';
 import {
   syncCollection,
@@ -95,9 +96,15 @@ function makeDb(eventRows: any[] = []) {
   return { db, batch };
 }
 
+
+async function flushMicrotasks(times = 12): Promise<void> {
+  for (let i = 0; i < times; i++) await Promise.resolve();
+}
+
 beforeEach(() => {
   jest.clearAllMocks();
   resetDeltaSyncThrottle();
+  resetVisibleSyncCoordination();
   mockSyncCollection.mockResolvedValue({ changed: [], deleted: [], newToken: 't2', reset: false });
   mockFetchEvents.mockResolvedValue([]);
   mockFetchByHrefs.mockResolvedValue({ events: [], returnedHrefs: new Set() });
@@ -175,6 +182,55 @@ describe('syncVisibleRange — routing', () => {
     expect(mockFetchForCalendars).not.toHaveBeenCalled();
   });
 });
+
+
+  it('shares an identical visible sync while it is in flight', async () => {
+    const { db } = makeDb();
+    mockGetDb.mockReturnValue(db);
+    let release!: (value: { changed: string[]; deleted: string[]; newToken: string; reset: boolean }) => void;
+    mockSyncCollection.mockImplementationOnce(() => new Promise((resolve) => { release = resolve; }));
+
+    const first = syncVisibleRange(account, [calendar], start, end);
+    const second = syncVisibleRange(account, [calendar], start, end);
+    await flushMicrotasks();
+
+    expect(second).toBe(first);
+    release({ changed: [], deleted: [], newToken: 't2', reset: false });
+    await expect(first).resolves.toBeUndefined();
+    expect(mockSyncCollection).toHaveBeenCalledTimes(1);
+  });
+
+  it('serializes overlapping ranges and drops an obsolete pending range', async () => {
+    const { db } = makeDb();
+    mockGetDb.mockReturnValue(db);
+    let release!: (value: { changed: string[]; deleted: string[]; newToken: string; reset: boolean }) => void;
+    mockSyncCollection
+      .mockImplementationOnce(() => new Promise((resolve) => { release = resolve; }))
+      .mockResolvedValue({ changed: [], deleted: [], newToken: 't2', reset: false });
+    mockFetchByHrefs.mockImplementation(async () => {
+      resetDeltaSyncThrottle();
+      return { events: [], returnedHrefs: new Set() };
+    });
+
+    const nowSpy = jest.spyOn(Date, 'now').mockReturnValue(Date.now() - 20_000);
+    const start2 = new Date(start.getTime() + 24 * 60 * 60 * 1000);
+    const end2 = new Date(end.getTime() + 24 * 60 * 60 * 1000);
+    const start3 = new Date(start.getTime() + 48 * 60 * 60 * 1000);
+    const end3 = new Date(end.getTime() + 48 * 60 * 60 * 1000);
+
+    const first = syncVisibleRange(account, [calendar], start, end);
+    await flushMicrotasks();
+    nowSpy.mockRestore();
+    const obsolete = syncVisibleRange(account, [calendar], start2, end2);
+    const latest = syncVisibleRange(account, [calendar], start3, end3);
+
+    await expect(obsolete).resolves.toBeUndefined();
+    release({ changed: [], deleted: [], newToken: 't2', reset: false });
+    await expect(first).resolves.toBeUndefined();
+    await expect(latest).resolves.toBeUndefined();
+
+    expect(mockSyncCollection).toHaveBeenCalledTimes(2);
+  });
 
 describe('syncVisibleRange — throttle', () => {
   it('skips a second sync within the minimum interval', async () => {
