@@ -203,7 +203,7 @@ const AgendaViewImpl = forwardRef<AgendaViewHandle, Props>(function AgendaView(
   const onUserScrollStart = useCallback(() => { userScrollingRef.current = true; }, []);
   const onUserScrollEnd = useCallback(() => { userScrollingRef.current = false; }, []);
 
-  const pendingJumpRef = useRef<{ key: string; expiresAt: number } | null>(null);
+  const pendingJumpRef = useRef<{ key: string; delta: number; expiresAt: number } | null>(null);
   const jumpTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const offsetForKey = useCallback((key: string): number | null => {
@@ -215,12 +215,13 @@ const AgendaViewImpl = forwardRef<AgendaViewHandle, Props>(function AgendaView(
   const issuePendingJump = useCallback(() => {
     const pending = pendingJumpRef.current;
     if (!pending || userScrollingRef.current) return;
-    const target = offsetForKey(pending.key);
-    if (target == null) {
+    const headerOffset = offsetForKey(pending.key);
+    if (headerOffset == null) {
       pendingJumpRef.current = null;
       return;
     }
-    anchorRef.current = { key: pending.key, delta: 0 };
+    const target = headerOffset + pending.delta;
+    anchorRef.current = { key: pending.key, delta: pending.delta };
     listRef.current?.scrollToOffset({ offset: target, animated: false });
   }, [offsetForKey]);
 
@@ -230,7 +231,8 @@ const AgendaViewImpl = forwardRef<AgendaViewHandle, Props>(function AgendaView(
       jumpTimerRef.current = null;
       const pending = pendingJumpRef.current;
       if (!pending) return;
-      const target = offsetForKey(pending.key);
+      const headerOffset = offsetForKey(pending.key);
+      const target = headerOffset == null ? null : headerOffset + pending.delta;
       const landed = target != null && Math.abs(scrollYRef.current - target) < 2;
       if (landed || userScrollingRef.current || Date.now() > pending.expiresAt) {
         pendingJumpRef.current = null;
@@ -256,7 +258,8 @@ const AgendaViewImpl = forwardRef<AgendaViewHandle, Props>(function AgendaView(
     }
     const pending = pendingJumpRef.current;
     if (pending) {
-      const target = offsetForKey(pending.key);
+      const headerOffset = offsetForKey(pending.key);
+      const target = headerOffset == null ? null : headerOffset + pending.delta;
       if (userScrollingRef.current || target == null || Math.abs(y - target) < 2 || Date.now() > pending.expiresAt) {
         pendingJumpRef.current = null;
       } else {
@@ -283,7 +286,15 @@ const AgendaViewImpl = forwardRef<AgendaViewHandle, Props>(function AgendaView(
     if (Math.abs(y - scrollYRef.current) < 1) return;
     scrollYRef.current = y;
     listRef.current?.scrollToOffset({ offset: y, animated: false });
-  }, [rows, offsets, rangeDays]);
+    if (!userScrollingRef.current) {
+      pendingJumpRef.current = {
+        key: anchor.key,
+        delta: anchor.delta,
+        expiresAt: Date.now() + JUMP_VERIFY_WINDOW_MS,
+      };
+      scheduleJumpCheck();
+    }
+  }, [rows, offsets, rangeDays, scheduleJumpCheck]);
 
   useEffect(() => {
     if (__DEV__) {
@@ -302,7 +313,7 @@ const AgendaViewImpl = forwardRef<AgendaViewHandle, Props>(function AgendaView(
       if (now - lastJumpAtRef.current < TODAY_JUMP_GUARD_MS) return;
       lastJumpAtRef.current = now;
       userScrollingRef.current = false;
-      pendingJumpRef.current = { key: todayKeyRef.current, expiresAt: now + JUMP_VERIFY_WINDOW_MS };
+      pendingJumpRef.current = { key: todayKeyRef.current, delta: 0, expiresAt: now + JUMP_VERIFY_WINDOW_MS };
       issuePendingJump();
       scheduleJumpCheck();
     },

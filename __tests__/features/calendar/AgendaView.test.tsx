@@ -3,6 +3,7 @@ import { FlatList } from 'react-native';
 import { act, render as rtlRender } from '@testing-library/react-native';
 import { ThemeWrapper } from '../../helpers/theme';
 import { AgendaView, type AgendaViewHandle } from '@/features/calendar/components/AgendaView';
+import type { CalendarEvent } from '@/types';
 
 const render = (ui: React.ReactElement) => rtlRender(ui, { wrapper: ThemeWrapper });
 
@@ -153,5 +154,46 @@ describe('AgendaView incremental window', () => {
     });
 
     expect(list.props.data.length).toBe(initialLength + 60);
+  });
+
+  it('re-issues the automatic anchor correction when events arrive after the first render', () => {
+    const ref = createRef<AgendaViewHandle>();
+    const props = {
+      date: new Date(),
+      onPressEvent: jest.fn(),
+      onPressCell: jest.fn(),
+    };
+    const screen = render(<AgendaView ref={ref} events={[]} {...props} />);
+    scrollSpy.mockClear();
+
+    const start = new Date();
+    start.setDate(start.getDate() - 10);
+    start.setHours(10, 0, 0, 0);
+    const end = new Date(start);
+    end.setHours(11, 0, 0, 0);
+    const event: CalendarEvent = {
+      uid: 'late-event',
+      href: 'https://example.test/late-event.ics',
+      calendarId: 'calendar',
+      accountId: 'account',
+      summary: 'Late event',
+      dtstart: start,
+      dtend: end,
+      allDay: false,
+      color: '#0082c9',
+      attendees: [],
+      isRecurring: false,
+    };
+
+    screen.rerender(<AgendaView ref={ref} events={[event]} {...props} />);
+    expect(scrollSpy).toHaveBeenCalledTimes(1);
+
+    const list = screen.UNSAFE_getByType(FlatList);
+    act(() => {
+      list.props.onScroll(scrollEventAt(0));
+    });
+
+    expect(scrollSpy).toHaveBeenCalledTimes(2);
+    expect(scrollSpy.mock.calls[1][0].offset).toBe(scrollSpy.mock.calls[0][0].offset);
   });
 });
