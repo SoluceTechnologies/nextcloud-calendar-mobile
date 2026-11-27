@@ -203,33 +203,27 @@ describe('syncVisibleRange — routing', () => {
   it('serializes overlapping ranges and drops an obsolete pending range', async () => {
     const { db } = makeDb();
     mockGetDb.mockReturnValue(db);
-    let release!: (value: { changed: string[]; deleted: string[]; newToken: string; reset: boolean }) => void;
-    mockSyncCollection
+    let release!: (value: { events: CalendarEvent[]; syncedCalendarIds: string[]; failures: unknown[] }) => void;
+    mockFetchForCalendars
       .mockImplementationOnce(() => new Promise((resolve) => { release = resolve; }))
-      .mockResolvedValue({ changed: [], deleted: [], newToken: 't2', reset: false });
-    mockFetchByHrefs.mockImplementation(async () => {
-      resetDeltaSyncThrottle();
-      return { events: [], returnedHrefs: new Set() };
-    });
+      .mockResolvedValue({ events: [], syncedCalendarIds: [subscribed.id], failures: [] });
 
-    const nowSpy = jest.spyOn(Date, 'now').mockReturnValue(Date.now() - 20_000);
-    const start2 = new Date(start.getTime() + 24 * 60 * 60 * 1000);
-    const end2 = new Date(end.getTime() + 24 * 60 * 60 * 1000);
-    const start3 = new Date(start.getTime() + 48 * 60 * 60 * 1000);
-    const end3 = new Date(end.getTime() + 48 * 60 * 60 * 1000);
+    const start2 = new Date(farStart.getTime() + 24 * 60 * 60 * 1000);
+    const end2 = new Date(farEnd.getTime() + 24 * 60 * 60 * 1000);
+    const start3 = new Date(farStart.getTime() + 48 * 60 * 60 * 1000);
+    const end3 = new Date(farEnd.getTime() + 48 * 60 * 60 * 1000);
 
-    const first = syncVisibleRange(account, [calendar], start, end);
+    const first = syncVisibleRange(account, [subscribed], farStart, farEnd);
     await flushMicrotasks();
-    nowSpy.mockRestore();
-    const obsolete = syncVisibleRange(account, [calendar], start2, end2);
-    const latest = syncVisibleRange(account, [calendar], start3, end3);
+    const obsolete = syncVisibleRange(account, [subscribed], start2, end2);
+    const latest = syncVisibleRange(account, [subscribed], start3, end3);
 
     await expect(obsolete).resolves.toBeUndefined();
-    release({ changed: [], deleted: [], newToken: 't2', reset: false });
+    release({ events: [], syncedCalendarIds: [subscribed.id], failures: [] });
     await expect(first).resolves.toBeUndefined();
     await expect(latest).resolves.toBeUndefined();
 
-    expect(mockSyncCollection).toHaveBeenCalledTimes(2);
+    expect(mockFetchForCalendars).toHaveBeenCalledTimes(2);
   });
 
 describe('syncVisibleRange — throttle', () => {
@@ -256,6 +250,27 @@ describe('syncVisibleRange — throttle', () => {
 
     expect(mockSyncCollection).toHaveBeenCalledTimes(2);
     nowSpy.mockRestore();
+  });
+
+  it('counts the throttle interval from delta completion rather than start', async () => {
+    const { db } = makeDb();
+    mockGetDb.mockReturnValue(db);
+    const t0 = 1_000_000_000_000;
+    let now = t0;
+    const nowSpy = jest.spyOn(Date, 'now').mockImplementation(() => now);
+    mockSyncCollection.mockImplementationOnce(async () => {
+      now = t0 + 15_000;
+      return { changed: [], deleted: [], newToken: 't2', reset: false };
+    });
+
+    try {
+      await syncVisibleRange(account, [calendar], start, end);
+      await syncVisibleRange(account, [calendar], start, end);
+
+      expect(mockSyncCollection).toHaveBeenCalledTimes(1);
+    } finally {
+      nowSpy.mockRestore();
+    }
   });
 
   it('still fetches subscribed calendars while delta checks are throttled', async () => {

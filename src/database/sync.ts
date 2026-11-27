@@ -321,7 +321,8 @@ async function syncVisibleRangeNow(
         3,
     );
 
-    for (const i of fulfilledIndexes) lastDeltaSyncAt.set(deltaKey(account, deltaCals[i]), now);
+    const deltaCompletedAt = Date.now();
+    for (const i of fulfilledIndexes) lastDeltaSyncAt.set(deltaKey(account, deltaCals[i]), deltaCompletedAt);
 
     const fulfilled = new Set(fulfilledIndexes);
     const rangeCals = fullCals.concat(deltaCals.filter((_, i) => !fulfilled.has(i)));
