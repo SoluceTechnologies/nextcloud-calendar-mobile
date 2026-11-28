@@ -83,7 +83,8 @@
     "drawerNoCalendars": "Kee Kalenner",
     "calendarNotifications": "Notifikatioune fir {{name}}",
     "calendarVisibility": "{{name}} uweisen",
-    "importIcs": ".ics-Fichier importéieren"
+    "importIcs": ".ics-Fichier importéieren",
+    "workweek": "Aarbechtswoch"
   },
   "event": {
     "titleLabel": "Titel *",
@@ -185,7 +186,18 @@
     "status": "Status",
     "statusConfirmed": "Confirméiert",
     "statusTentative": "Provisoresch",
-    "statusCancelled": "Annuléiert"
+    "statusCancelled": "Annuléiert",
+    "everyMasc": "All",
+    "everyFem": "All",
+    "intervalLabel": "Widderhuelungsintervall",
+    "unitDays_one": "Dag",
+    "unitDays_other": "Deeg",
+    "unitWeeks_one": "Woch",
+    "unitWeeks_other": "Wochen",
+    "unitMonths_one": "Mount",
+    "unitMonths_other": "Méint",
+    "unitYears_one": "Joer",
+    "unitYears_other": "Joer"
   },
   "import": {
     "title": "Evenement importéieren",
