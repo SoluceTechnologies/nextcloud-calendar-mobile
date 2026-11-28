@@ -92,9 +92,23 @@ Non traité volontairement :
 - #331 : pas un bug de l'app mobile (aucun choix « type d'élément » dans l'app) ; question de Killian sans réponse depuis le 27 oct. → proposer fermeture.
 - #370 : bug du sous-dossier déjà corrigé en 1.10 (#353, confirmé dans #351), rapporteur en 1.9.0 → proposer commentaire « mettez à jour » + fermeture.
 
+Test simulateur du 2026-11-28 (reprise) :
+- OK : démarrage après migration v11→v12 (événements présents, sync OK) ; vue Workweek Lun–Ven.
+- Incident : des `swipe` simctl lancés sur la grille ont démarré sur des événements et déclenché le glisser-déposer (Pan `activateAfterLongPress(300)`, envoi serveur sans confirmation). « Futurapolis Souveraineté » (calendrier `board_shared_by_admin`) et « Open Mailbox Fix » (`personal`) sont passés du jeu. 26 au lun. 23. Remis jeu. 26 (18:00–21:30 et 18:45–19:30) par glisser inverse ; base locale vérifiée, toujours jeudi après relance à froid + sync. Aucun invité → aucun e-mail. Vérif côté web Nextcloud non faite (session web non connectée) → à confirmer par Charles.
+- Règle pour la suite : sur la grille, ne jamais `swipe` en partant d'un événement ; défiler vertical depuis la colonne des heures (x≈25 pt), changer de semaine en partant d'une zone vide.
+
+- OK : intervalle de récurrence (« toutes les 2 semaines », RRULE `FREQ=WEEKLY;INTERVAL=2;BYDAY=MO;COUNT=3`, 3 occurrences 23/11, 7/12, 21/12, libellé « Every 2 weeks · Monday ») ; dupliquer (copie avec nouvel UID et même RRULE, ouvre la copie) ; suppression « All events » des 2 séries « ZZ test interval » (DELETE serveur sans erreur, plus rien en local).
+- Non testable : couleur par événement (#19) — aucun événement du compte n'a de `COLOR` et l'app n'a pas d'UI pour en poser ; à vérifier en mettant une couleur à un événement dans Nextcloud web.
+- Défaut UX vu : la suppression d'une série demande deux fois (portée puis « Delete all occurrences? »).
+
+Retours de Charles appliqués (NON COMMITÉS, sur `integration/pr-batch-2`) :
+- Zone blanche sous 24:00 : `paddingBottom` de la grille iOS 26 passé de 150 (barre d'onglets + place du FAB) à `safeInsets.bottom + 8` (barre seule) dans `TimeGridView.tsx` ; le FAB recouvre la case 23:00 du dernier jour. Android inchangé (80). Test `TimeGridView` : mock safe-area ajouté.
+- « Dupliquer » retiré du pied de l'écran détail → bouton « … » à gauche du crayon (`event-detail-more`), ActionSheet iOS / Alert Android ; clé `event.moreActions` ajoutée aux 11 langues ; flow Maestro `event/duplicate.yaml` mis à jour.
+- Vérifs : `tsc` OK, `jest --ci` 140 suites / 1395 tests OK, vérifié sur simulateur.
+
 Reste à faire :
-1. Test simulateur iOS (JS seul, pas de rebuild natif nécessaire ; migration v11→v12 à vérifier au démarrage) : vue Semaine ouvrée, intervalle de récurrence, dupliquer, couleur par événement. Le widget #427 est Android seulement.
-2. PR #433 ouverte le 2026-11-28 : suivre la CI, puis fusionner (avec accord). Utiliser `env -u GITHUB_TOKEN gh`.
+1. Commiter les deux retours ci-dessus et pousser sur la PR #433 (avec accord). Changement de semaine par swipe en Workweek non vérifié. Le widget #427 est Android seulement.
+2. PR #433 ouverte le 2026-11-28 : CI verte (5/5, état CLEAN), reste à fusionner (avec accord). Utiliser `env -u GITHUB_TOKEN gh`.
 3. Après fusion : fermer #400, #427, #422, #407, #395 avec commentaire ; commenter/fermer issues #366, #425, #198, #175, #19, #429 (demander confirmation pour #429).
 4. Avec accord : commentaires + fermeture #331 et #370.
 5. Reportées : #284, #231, #226/#408, #301/#303, #333, #409, #415.
