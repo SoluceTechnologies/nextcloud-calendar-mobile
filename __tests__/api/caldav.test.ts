@@ -1,4 +1,4 @@
-import { deleteEvent, moveEvent, syncCollection, fetchEvents, fetchEventsByHrefs, fetchCalendars, validateCredentials, MULTIGET_BATCH } from '../../src/services/nextcloud/caldav';
+import { deleteEvent, moveEvent, syncCollection, fetchEvents, fetchEventsByHrefs, fetchCalendars, validateCredentials, MULTIGET_BATCH, buildEventHref } from '../../src/services/nextcloud/caldav';
 import type { Account, CalendarMeta } from '../../src/types';
 
 const account: Account = {
@@ -785,5 +785,21 @@ describe('fetchEvents — subscribed feed with unstable UIDs', () => {
     await fetchEvents(account, subscribed, range.s, range.e);
     const [, init] = mockFetch.mock.calls.at(-1)!;
     expect(init.headers?.Authorization).toBeUndefined();
+  });
+});
+
+describe('buildEventHref', () => {
+  it('encodes UIDs with reserved URL characters', () => {
+    const href = buildEventHref(targetCalendar, 'uid-with@host:part');
+    expect(href).toBe(
+      'https://cloud.example.com/remote.php/dav/calendars/john/work/uid-with%40host%3Apart.ics',
+    );
+  });
+
+  it('leaves plain UUID UIDs unchanged', () => {
+    const href = buildEventHref(targetCalendar, 'plain-uid-123');
+    expect(href).toBe(
+      'https://cloud.example.com/remote.php/dav/calendars/john/work/plain-uid-123.ics',
+    );
   });
 });
