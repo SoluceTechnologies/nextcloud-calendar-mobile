@@ -1,4 +1,4 @@
-import { fetchUserInfo, exchangeOneTimeToken } from '../../src/services/nextcloud/nextcloud';
+import { fetchUserInfo, exchangeOneTimeToken, fetchCapabilities } from '../../src/services/nextcloud/nextcloud';
 import { HttpError } from '../../src/services/shared/errors';
 import type { Account } from '../../src/types';
 
@@ -114,5 +114,28 @@ describe('exchangeOneTimeToken', () => {
     });
 
     await expect(exchangeOneTimeToken(params)).rejects.toThrow(/apppassword/i);
+  });
+});
+
+describe('fetchCapabilities', () => {
+  it('reports Talk when the server advertises spreed', async () => {
+    mockFetch.mockImplementation(async (url: string) => ({
+      ok: true,
+      json: async () => (url.includes('/capabilities')
+        ? { ocs: { data: { capabilities: { spreed: {} } } } }
+        : { ocs: { data: [{ id: 'calendar' }] } }),
+    }));
+
+    expect(await fetchCapabilities(account)).toEqual({ talkEnabled: true, calendarApp: 'available' });
+  });
+
+  it('leaves talkEnabled unset when the capabilities request fails, so a stored value is kept', async () => {
+    mockFetch.mockImplementation(async (url: string) => (url.includes('/capabilities')
+      ? { ok: false, status: 503, json: async () => ({}) }
+      : { ok: true, json: async () => ({ ocs: { data: [{ id: 'calendar' }] } }) }));
+
+    const caps = await fetchCapabilities(account);
+    expect(caps).not.toHaveProperty('talkEnabled');
+    expect(caps.calendarApp).toBe('available');
   });
 });

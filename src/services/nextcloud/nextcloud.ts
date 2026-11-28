@@ -78,7 +78,7 @@ export async function fetchCalendarApp(
 
 async function fetchServerCaps(
   account: Pick<Account, 'baseUrl' | 'username' | 'appPassword'>
-): Promise<Omit<ServerCapabilities, 'calendarApp'>> {
+): Promise<Partial<Omit<ServerCapabilities, 'calendarApp'>>> {
   try {
     const url = `${account.baseUrl}/ocs/v2.php/cloud/capabilities`;
     const res = await trustedFetch(url, {
@@ -88,19 +88,18 @@ async function fetchServerCaps(
         Accept: 'application/json',
       },
     });
-    if (!res.ok) return { talkEnabled: false };
+    if (!res.ok) return {};
     const json = await res.json();
-    const apps: Record<string, unknown> = json?.ocs?.data?.capabilities ?? {};
-
-    return { talkEnabled: 'spreed' in apps };
+    const apps: Record<string, unknown> | undefined = json?.ocs?.data?.capabilities;
+    return apps ? { talkEnabled: 'spreed' in apps } : {};
   } catch {
-    return { talkEnabled: false };
+    return {};
   }
 }
 
 export async function fetchCapabilities(
   account: Pick<Account, 'baseUrl' | 'username' | 'appPassword'>
-): Promise<ServerCapabilities> {
+): Promise<Partial<ServerCapabilities>> {
   const [caps, calendarApp] = await Promise.all([
     fetchServerCaps(account),
     fetchCalendarApp(account),

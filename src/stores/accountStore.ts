@@ -7,7 +7,7 @@ interface AccountState {
   activeAccountId: string | null;
   capabilities: ServerCapabilities;
   setActiveAccountId: (id: string | null) => void;
-  setCapabilities: (caps: ServerCapabilities) => void;
+  setCapabilities: (caps: Partial<ServerCapabilities>) => void;
 }
 
 export const useAccountStore = create<AccountState>()(
@@ -16,7 +16,7 @@ export const useAccountStore = create<AccountState>()(
       activeAccountId: null,
       capabilities: { talkEnabled: false, calendarApp: 'unknown' },
       setActiveAccountId: (id) => set({ activeAccountId: id }),
-      setCapabilities: (caps) => set({ capabilities: caps }),
+      setCapabilities: (caps) => set((state) => ({ capabilities: { ...state.capabilities, ...caps } })),
     }),
     {
       name: 'account-store',
