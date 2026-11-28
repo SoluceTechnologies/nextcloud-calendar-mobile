@@ -9,7 +9,7 @@ import { TalkToggle } from './TalkToggle';
 import { AttendeesField } from './AttendeesField';
 import { requestAlertPermission } from '@/features/notifications/scheduleAlerts';
 import { useSettingsStore } from '@/stores/settingsStore';
-import { isWritableCalendar } from '@/utils/calendars';
+import { defaultWritableCalendarId, isWritableCalendar } from '@/utils/calendars';
 import { useTimeFormat } from '@/hooks/useTimeFormat';
 import { getNativePickerLocale } from '@/utils/i18n';
 import { AlertPicker } from './AlertPicker';
@@ -72,12 +72,7 @@ export const EventForm = forwardRef<EventFormHandle, Props>(function EventForm({
   );
 
   const defaultCalendarId =
-    initialValues?.calendarId ??
-    (storedDefault && writableCalendars.some((c) => c.id === storedDefault)
-      ? storedDefault
-      : undefined) ??
-    writableCalendars.find((c) => c.slug.toLowerCase() === 'personal')?.id ??
-    writableCalendars[0]?.id ?? '';
+    initialValues?.calendarId ?? defaultWritableCalendarId(writableCalendars, storedDefault);
   const [calendarId, setCalendarId] = useState(defaultCalendarId);
   const [allDay, setAllDay] = useState(initialValues?.allDay ?? false);
   const [dtstart, setDtstart] = useState(initialValues?.dtstart ?? defaultDate ?? new Date());

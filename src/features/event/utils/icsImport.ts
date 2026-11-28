@@ -61,6 +61,27 @@ export function parseIcsToEvents(ics: string): CalendarEvent[] {
   return parsed.filter((event) => !event.isTask);
 }
 
+export function splitIcsByUid(ics: string): Map<string, string> {
+  const source = new ICAL.Component(parseIcsToJcal(ics));
+  const timezones = source.getAllSubcomponents('vtimezone');
+  const groups = new Map<string, ICAL.Component[]>();
+  for (const vevent of source.getAllSubcomponents('vevent')) {
+    const uid = vevent.getFirstPropertyValue('uid') as string | null;
+    if (!uid) continue;
+    groups.set(uid, [...(groups.get(uid) ?? []), vevent]);
+  }
+  const result = new Map<string, string>();
+  for (const [uid, vevents] of groups) {
+    const calendar = new ICAL.Component('vcalendar');
+    calendar.addPropertyWithValue('version', '2.0');
+    calendar.addPropertyWithValue('prodid', source.getFirstPropertyValue('prodid') ?? '-//Nextcloud Calendar Mobile//EN');
+    for (const timezone of timezones) calendar.addSubcomponent(new ICAL.Component(timezone.toJSON()));
+    for (const vevent of vevents) calendar.addSubcomponent(new ICAL.Component(vevent.toJSON()));
+    result.set(uid, calendar.toString());
+  }
+  return result;
+}
+
 export function extractOrganizerName(ics: string, uid: string): string | undefined {
   try {
     const comp = new ICAL.Component(parseIcsToJcal(ics));

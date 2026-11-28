@@ -82,7 +82,8 @@
     },
     "drawerNoCalendars": "Ningún calendario",
     "calendarNotifications": "Notificaciones de {{name}}",
-    "calendarVisibility": "Mostrar {{name}}"
+    "calendarVisibility": "Mostrar {{name}}",
+    "importIcs": "Importar archivo .ics"
   },
   "event": {
     "titleLabel": "Título *",
@@ -192,7 +193,13 @@
     "untitledEvent": "(No title)",
     "duplicateTitle": "Event already exists",
     "duplicateMessage": "An event with this identifier already exists in the selected calendar. Importing will overwrite it.",
-    "overwrite": "Overwrite"
+    "overwrite": "Overwrite",
+    "importAll": "Importar todo ({{count}})",
+    "importing": "Importando…",
+    "duplicateAllMessage": "Algunos eventos ya existen en el calendario seleccionado.",
+    "skipExisting": "Omitir existentes",
+    "importAllFailedTitle": "Importación incompleta",
+    "importAllFailed": "No se pudieron importar {{count}} de {{total}} eventos."
   },
   "settings": {
     "title": "Ajustes",

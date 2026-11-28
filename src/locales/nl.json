@@ -82,7 +82,8 @@
     },
     "drawerNoCalendars": "Geen agenda",
     "calendarNotifications": "Meldingen van {{name}}",
-    "calendarVisibility": "{{name}} tonen"
+    "calendarVisibility": "{{name}} tonen",
+    "importIcs": ".ics-bestand importeren"
   },
   "event": {
     "titleLabel": "Titel *",
@@ -178,6 +179,27 @@
     "errorUpdateFailed": "Bijwerken van afspraak mislukt",
     "errorDeleteFailed": "Verwijderen van afspraak mislukt",
     "alerts": "Herinneringen"
+  },
+  "import": {
+    "title": "Afspraak importeren",
+    "selectEvent": "Kies een afspraak om te importeren",
+    "noEventsFound": "Geen afspraken gevonden in dit bestand.",
+    "fileError": "Kan het bestand niet lezen.",
+    "parseError": "Kan het .ics-bestand niet verwerken.",
+    "importEvent": "Afspraak importeren",
+    "retry": "Opnieuw proberen",
+    "back": "Terug",
+    "errorNoAccount": "Stel eerst een Nextcloud-account in.",
+    "untitledEvent": "(Geen titel)",
+    "duplicateTitle": "Afspraak bestaat al",
+    "duplicateMessage": "Er bestaat al een afspraak met deze ID in de gekozen agenda. Importeren overschrijft deze.",
+    "overwrite": "Overschrijven",
+    "importAll": "Alles importeren ({{count}})",
+    "importing": "Bezig met importeren…",
+    "duplicateAllMessage": "Sommige afspraken bestaan al in de gekozen agenda.",
+    "skipExisting": "Bestaande overslaan",
+    "importAllFailedTitle": "Import onvolledig",
+    "importAllFailed": "{{count}} van {{total}} afspraken konden niet worden geïmporteerd."
   },
   "settings": {
     "title": "Instellingen",

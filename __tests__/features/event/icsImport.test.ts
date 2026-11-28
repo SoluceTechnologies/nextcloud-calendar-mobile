@@ -14,6 +14,7 @@ import {
   extractOrganizerName,
   eventToFormValues,
   readIcsUri,
+  splitIcsByUid,
 } from '@/features/event/utils/icsImport';
 
 const sampleIcs = `BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//Test//EN\r\nBEGIN:VEVENT\r\nUID:event-abc-123\r\nSUMMARY:Team Meeting\r\nDTSTART:20260601T140000Z\r\nDTEND:20260601T150000Z\r\nDESCRIPTION:Weekly sync\r\nLOCATION:Room A\r\nORGANIZER;CN=John Doe:mailto:john@example.com\r\nATTENDEE;CN=Alice;RSVP=TRUE:mailto:alice@example.com\r\nCATEGORIES:meeting\r\nEXDATE:20260608T140000Z\r\nEND:VEVENT\r\nEND:VCALENDAR`;
@@ -143,5 +144,23 @@ describe('readIcsUri', () => {
     const result = await readIcsUri('file:///data/data/test.ics');
     expect(result).toBe(sampleIcs);
     expect(copyAsync).not.toHaveBeenCalled();
+  });
+});
+
+describe('splitIcsByUid', () => {
+  it('emits one standalone calendar per UID with its overrides and no METHOD', () => {
+    const invite = multiEventIcs
+      .replace('VERSION:2.0\r\n', 'VERSION:2.0\r\nMETHOD:REQUEST\r\n')
+      .replace(
+        'END:VCALENDAR',
+        'BEGIN:VEVENT\r\nUID:first-uid\r\nRECURRENCE-ID:20260601T100000Z\r\nSUMMARY:Moved\r\nDTSTART:20260601T120000Z\r\nDTEND:20260601T130000Z\r\nEND:VEVENT\r\nEND:VCALENDAR',
+      );
+    const byUid = splitIcsByUid(invite);
+    expect([...byUid.keys()]).toEqual(['first-uid', 'second-uid']);
+    const first = byUid.get('first-uid')!;
+    expect(first.match(/BEGIN:VEVENT/g)).toHaveLength(2);
+    expect(first).not.toContain('second-uid');
+    expect(first).not.toContain('METHOD');
+    expect(parseIcsToEvents(byUid.get('second-uid')!).map((event) => event.summary)).toEqual(['Second Event']);
   });
 });

@@ -82,7 +82,8 @@
     },
     "drawerNoCalendars": "Kee Kalenner",
     "calendarNotifications": "Notifikatioune fir {{name}}",
-    "calendarVisibility": "{{name}} uweisen"
+    "calendarVisibility": "{{name}} uweisen",
+    "importIcs": ".ics-Fichier importéieren"
   },
   "event": {
     "titleLabel": "Titel *",
@@ -178,6 +179,27 @@
     "errorUpdateFailed": "Evenement konnt net aktualiséiert ginn",
     "errorDeleteFailed": "Evenement konnt net geläscht ginn",
     "alerts": "Erënnerungen"
+  },
+  "import": {
+    "title": "Evenement importéieren",
+    "selectEvent": "Wielt en Evenement fir ze importéieren",
+    "noEventsFound": "Keng Evenementer an dësem Fichier fonnt.",
+    "fileError": "De Fichier konnt net gelies ginn.",
+    "parseError": "Den .ics-Fichier konnt net analyséiert ginn.",
+    "importEvent": "Evenement importéieren",
+    "retry": "Nach eng Kéier probéieren",
+    "back": "Zréck",
+    "errorNoAccount": "Riicht w.e.g. fir d'éischt e Nextcloud-Kont an.",
+    "untitledEvent": "(Ouni Titel)",
+    "duplicateTitle": "Evenement gëtt et schonn",
+    "duplicateMessage": "En Evenement mat dëser Identifikatioun gëtt et schonn am gewielte Kalenner. Den Import iwwerschreift et.",
+    "overwrite": "Iwwerschreiwen",
+    "importAll": "Alles importéieren ({{count}})",
+    "importing": "Gëtt importéiert…",
+    "duplicateAllMessage": "E puer Evenementer ginn et schonn am gewielte Kalenner.",
+    "skipExisting": "Bestoender iwwersprangen",
+    "importAllFailedTitle": "Import onvollstänneg",
+    "importAllFailed": "{{count}} vu {{total}} Evenementer konnten net importéiert ginn."
   },
   "settings": {
     "title": "Astellungen",

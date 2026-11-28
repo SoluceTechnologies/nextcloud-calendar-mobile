@@ -82,7 +82,8 @@
     },
     "drawerNoCalendars": "Pas de calendari",
     "calendarNotifications": "Notificacions per {{name}}",
-    "calendarVisibility": "Afichar {{name}}"
+    "calendarVisibility": "Afichar {{name}}",
+    "importIcs": "Importar un fichièr .ics"
   },
   "event": {
     "titleLabel": "Títol *",
@@ -173,6 +174,27 @@
     "errorUpdateFailed": "La mesa a jorn de l'eveniment a pas capitat",
     "errorDeleteFailed": "La supression de l'eveniment a pas capitat",
     "alerts": "Alèrtas"
+  },
+  "import": {
+    "title": "Importar un eveniment",
+    "selectEvent": "Seleccionatz un eveniment d'importar",
+    "noEventsFound": "Cap d'eveniment pas trobat dins aqueste fichièr.",
+    "fileError": "Impossible de legir lo fichièr.",
+    "parseError": "Impossible d'analisar lo fichièr .ics.",
+    "importEvent": "Importar l'eveniment",
+    "retry": "Tornar ensajar",
+    "back": "Tornar",
+    "errorNoAccount": "Configuratz d'en primièr un compte Nextcloud.",
+    "untitledEvent": "(Sens títol)",
+    "duplicateTitle": "L'eveniment existís ja",
+    "duplicateMessage": "Un eveniment amb aqueste identificant existís ja dins lo calendièr seleccionat. L'importacion lo remplaçarà.",
+    "overwrite": "Remplaçar",
+    "importAll": "Tot importar ({{count}})",
+    "importing": "Importacion en cors…",
+    "duplicateAllMessage": "D'eveniments existisson ja dins lo calendièr seleccionat.",
+    "skipExisting": "Ignorar los existents",
+    "importAllFailedTitle": "Importacion incompleta",
+    "importAllFailed": "{{count}} eveniment(s) sus {{total}} an pas pogut èsser importats."
   },
   "settings": {
     "title": "Paramètres",

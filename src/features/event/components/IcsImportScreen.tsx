@@ -16,8 +16,13 @@ import { resolveOrganizer } from '@/features/event/utils/organizer';
 import {
   eventToFormValues,
   extractOrganizerName,
+  splitIcsByUid,
 } from '@/features/event/utils/icsImport';
 import { eventExists } from '@/database/eventWrites';
+import { syncCalendarDelta } from '@/database/sync';
+import { putEvent } from '@/services/nextcloud/caldav';
+import { useSettingsStore } from '@/stores/settingsStore';
+import { defaultWritableCalendarId, isWritableCalendar } from '@/utils/calendars';
 import { goBackOrHome } from '@/utils/navigationGuard';
 import { EventForm, type EventFormHandle } from '@/features/event/components/EventForm';
 import {
@@ -30,6 +35,7 @@ import {
   IconButton,
   List,
   Item,
+  Chip,
 } from '@/ui/components';
 import type { CalendarEvent, CreateEventInput } from '@/types';
 
@@ -59,6 +65,15 @@ export function IcsImportScreen({ uri }: Props) {
 
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
   const [savedUids, setSavedUids] = useState<Set<string>>(new Set());
+  const [importingAll, setImportingAll] = useState(false);
+  const writableCalendars = useMemo(() => calendars.filter(isWritableCalendar), [calendars]);
+  const storedDefault = useSettingsStore((s) =>
+    activeAccount ? s.defaultCalendarByAccount[activeAccount.id] : undefined,
+  );
+  const [targetCalendarId, setTargetCalendarId] = useState<string | null>(null);
+  const targetCalendar =
+    writableCalendars.find((c) => c.id === targetCalendarId) ??
+    writableCalendars.find((c) => c.id === defaultWritableCalendarId(writableCalendars, storedDefault));
 
   useEffect(() => {
     setSavedUids(new Set());
@@ -113,6 +128,53 @@ export function IcsImportScreen({ uri }: Props) {
     },
     [activeAccount, runImport, t],
   );
+
+  const putAll = useCallback(
+    async (skipExisting: boolean) => {
+      if (!activeAccount || !targetCalendar) return;
+      setImportingAll(true);
+      const byUid = splitIcsByUid(originalIcs);
+      const pending = visibleEvents.filter((event) => byUid.has(event.uid));
+      let failed = 0;
+      for (const event of pending) {
+        if (skipExisting && (await eventExists(activeAccount.id, targetCalendar.id, event.uid))) continue;
+        try {
+          await putEvent(activeAccount, targetCalendar, event.uid, byUid.get(event.uid)!);
+        } catch {
+          failed += 1;
+        }
+      }
+      await syncCalendarDelta(activeAccount, targetCalendar).catch(() => undefined);
+      setImportingAll(false);
+      if (failed > 0) {
+        Alert.alert(t('import.importAllFailedTitle'), t('import.importAllFailed', { count: failed, total: pending.length }));
+        return;
+      }
+      goBackOrHome(router);
+    },
+    [activeAccount, originalIcs, router, t, targetCalendar, visibleEvents],
+  );
+
+  const handleImportAll = useCallback(async () => {
+    if (!activeAccount || !targetCalendar) return;
+    const existing = await Promise.all(
+      visibleEvents.map((event) => eventExists(activeAccount.id, targetCalendar.id, event.uid)),
+    );
+    if (!existing.some(Boolean)) {
+      await putAll(false);
+      return;
+    }
+    Alert.alert(t('import.duplicateTitle'), t('import.duplicateAllMessage'), [
+      { text: t('common.cancel'), style: 'cancel' },
+      { text: t('import.skipExisting'), onPress: () => void putAll(true) },
+      { text: t('import.overwrite'), style: 'destructive', onPress: () => void putAll(false) },
+    ]);
+  }, [activeAccount, putAll, t, targetCalendar, visibleEvents]);
+
+  const singleEvent = events.length === 1 ? events[0] : null;
+  useEffect(() => {
+    if (singleEvent) setSelectedEvent(singleEvent);
+  }, [singleEvent]);
 
   if (!activeAccount) {
     return (
@@ -180,7 +242,7 @@ export function IcsImportScreen({ uri }: Props) {
         <SafeAreaView style={styles.flex}>
           <ScreenHeader
             title={t('import.importEvent')}
-            onBack={() => setSelectedEvent(null)}
+            onBack={() => (singleEvent ? router.back() : setSelectedEvent(null))}
             right={
               <IconButton
                 glass
@@ -198,6 +260,7 @@ export function IcsImportScreen({ uri }: Props) {
           />
           <EventForm
             ref={formRef}
+            account={activeAccount}
             calendars={calendars}
             organizerEmail={importedEmail}
             organizerName={importedName}
@@ -228,6 +291,27 @@ export function IcsImportScreen({ uri }: Props) {
                 />
               ))}
             </List>
+            <Typography variant="body2" color="secondary">{t('event.calendar')}</Typography>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
+              {writableCalendars.map((calendar) => (
+                <Chip
+                  key={calendar.id}
+                  rounded
+                  active={targetCalendar?.id === calendar.id}
+                  activeColor={calendar.color}
+                  onPress={() => setTargetCalendarId(calendar.id)}
+                >
+                  {calendar.displayName}
+                </Chip>
+              ))}
+            </ScrollView>
+            <Button
+              variant="primary"
+              testID="import-all"
+              title={importingAll ? t('import.importing') : t('import.importAll', { count: visibleEvents.length })}
+              disabled={importingAll || !targetCalendar}
+              onPress={() => void handleImportAll()}
+            />
           </Stack>
         </ScrollView>
       </SafeAreaView>
@@ -238,4 +322,5 @@ export function IcsImportScreen({ uri }: Props) {
 const styles = StyleSheet.create({
   flex: { flex: 1 },
   scrollContent: { paddingBottom: 40 },
+  chipRow: { gap: 8 },
 });

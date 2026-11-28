@@ -82,7 +82,8 @@
     },
     "drawerNoCalendars": "Ingen kalender",
     "calendarNotifications": "Notifikationer for {{name}}",
-    "calendarVisibility": "Vis {{name}}"
+    "calendarVisibility": "Vis {{name}}",
+    "importIcs": "Importér .ics-fil"
   },
   "event": {
     "titleLabel": "Titel *",
@@ -178,6 +179,27 @@
     "errorUpdateFailed": "Begivenheden kunne ikke opdateres",
     "errorDeleteFailed": "Begivenheden kunne ikke slettes",
     "alerts": "Påmindelser"
+  },
+  "import": {
+    "title": "Importér begivenhed",
+    "selectEvent": "Vælg en begivenhed, der skal importeres",
+    "noEventsFound": "Der blev ikke fundet nogen begivenheder i filen.",
+    "fileError": "Filen kunne ikke læses.",
+    "parseError": ".ics-filen kunne ikke fortolkes.",
+    "importEvent": "Importér begivenhed",
+    "retry": "Prøv igen",
+    "back": "Tilbage",
+    "errorNoAccount": "Opsæt først en Nextcloud-konto.",
+    "untitledEvent": "(Ingen titel)",
+    "duplicateTitle": "Begivenheden findes allerede",
+    "duplicateMessage": "Der findes allerede en begivenhed med dette id i den valgte kalender. Import overskriver den.",
+    "overwrite": "Overskriv",
+    "importAll": "Importér alle ({{count}})",
+    "importing": "Importerer…",
+    "duplicateAllMessage": "Nogle begivenheder findes allerede i den valgte kalender.",
+    "skipExisting": "Spring eksisterende over",
+    "importAllFailedTitle": "Import ufuldstændig",
+    "importAllFailed": "{{count}} af {{total}} begivenheder kunne ikke importeres."
   },
   "settings": {
     "title": "Indstillinger",
