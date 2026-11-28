@@ -28,6 +28,18 @@ export type CalendarMeta = {
 export type Attendee = {
     email: string;
     displayName?: string;
+    partstat?: string;
+    role?: string;
+    rsvp?: boolean;
+    cutype?: string;
+    member?: string[];
+    delegatedTo?: string[];
+    delegatedFrom?: string[];
+    sentBy?: string;
+    scheduleAgent?: string;
+    scheduleStatus?: string;
+    scheduleForceSend?: string;
+    extraParams?: Record<string, string | string[]>;
 };
 
 export type RecurrenceFreq = 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'YEARLY';

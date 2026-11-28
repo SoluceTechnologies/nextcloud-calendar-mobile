@@ -51,6 +51,26 @@ describe('dedupeAttendees', () => {
     expect(result).toEqual([{ email: 'a@example.org', displayName: 'Alice' }]);
   });
 
+  it('keeps the parameters of the first occurrence, filling gaps from later duplicates', () => {
+    const result = dedupeAttendees([
+      { email: 'a@example.org', partstat: 'accepted' },
+      { email: 'a@example.org', partstat: 'declined', role: 'OPT-PARTICIPANT', rsvp: false },
+    ]);
+    expect(result).toEqual([
+      { email: 'a@example.org', partstat: 'accepted', role: 'OPT-PARTICIPANT', rsvp: false },
+    ]);
+  });
+
+  it('merges extraParams keys per-parameter, first occurrence wins', () => {
+    const result = dedupeAttendees([
+      { email: 'a@example.org', extraParams: { 'x-one': 'first' } },
+      { email: 'a@example.org', extraParams: { 'x-one': 'second', 'x-two': 'new' } },
+    ]);
+    expect(result).toEqual([
+      { email: 'a@example.org', extraParams: { 'x-one': 'first', 'x-two': 'new' } },
+    ]);
+  });
+
   it('does not mutate the input', () => {
     const input = [
       { email: 'a@example.org' },
