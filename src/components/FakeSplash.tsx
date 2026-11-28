@@ -1,8 +1,13 @@
-import { View, Image, StyleSheet } from 'react-native';
+import { View, Image, StyleSheet, Platform } from 'react-native';
+import { useTheme } from 'expo-router';
+
+const ANDROID_SPLASH_BLUE = '#109be6';
 
 export default function FakeSplash() {
+  const { colors } = useTheme();
+  if (Platform.OS !== 'android') return <View style={[styles.container, { backgroundColor: colors.background }]} />;
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: ANDROID_SPLASH_BLUE }]}>
       <Image
         source={require('../../assets/splash-icon.png')}
         style={styles.logo}
@@ -15,7 +20,6 @@ export default function FakeSplash() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#109be6',
     alignItems: 'center',
     justifyContent: 'center',
   },
