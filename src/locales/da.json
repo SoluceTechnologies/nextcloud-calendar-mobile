@@ -178,7 +178,14 @@
     "errorCreateFailed": "Begivenheden kunne ikke oprettes",
     "errorUpdateFailed": "Begivenheden kunne ikke opdateres",
     "errorDeleteFailed": "Begivenheden kunne ikke slettes",
-    "alerts": "Påmindelser"
+    "alerts": "Påmindelser",
+    "availability": "Tilgængelighed",
+    "availabilityBusy": "Optaget",
+    "availabilityFree": "Ledig",
+    "status": "Status",
+    "statusConfirmed": "Bekræftet",
+    "statusTentative": "Foreløbig",
+    "statusCancelled": "Aflyst"
   },
   "import": {
     "title": "Importér begivenhed",

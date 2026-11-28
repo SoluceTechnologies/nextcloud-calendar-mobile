@@ -178,7 +178,14 @@
     "errorCreateFailed": "Ereignis konnte nicht erstellt werden",
     "errorUpdateFailed": "Ereignis konnte nicht aktualisiert werden",
     "errorDeleteFailed": "Ereignis konnte nicht gelöscht werden",
-    "alerts": "Erinnerungen"
+    "alerts": "Erinnerungen",
+    "availability": "Verfügbarkeit",
+    "availabilityBusy": "Beschäftigt",
+    "availabilityFree": "Frei",
+    "status": "Status",
+    "statusConfirmed": "Bestätigt",
+    "statusTentative": "Vorläufig",
+    "statusCancelled": "Abgesagt"
   },
   "import": {
     "title": "Import Event",

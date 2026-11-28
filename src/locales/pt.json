@@ -178,7 +178,14 @@
     "errorCreateFailed": "Falha ao criar o evento",
     "errorUpdateFailed": "Falha ao atualizar o evento",
     "errorDeleteFailed": "Falha ao eliminar o evento",
-    "alerts": "Alertas"
+    "alerts": "Alertas",
+    "availability": "Disponibilidade",
+    "availabilityBusy": "Ocupado",
+    "availabilityFree": "Livre",
+    "status": "Estado",
+    "statusConfirmed": "Confirmado",
+    "statusTentative": "Provisório",
+    "statusCancelled": "Cancelado"
   },
   "import": {
     "title": "Importar evento",

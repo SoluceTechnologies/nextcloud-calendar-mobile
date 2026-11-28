@@ -178,7 +178,14 @@
     "errorCreateFailed": "Не удалось создать событие",
     "errorUpdateFailed": "Не удалось обновить событие",
     "errorDeleteFailed": "Не удалось удалить событие",
-    "alerts": "Напоминания"
+    "alerts": "Напоминания",
+    "availability": "Доступность",
+    "availabilityBusy": "Занят",
+    "availabilityFree": "Свободен",
+    "status": "Статус",
+    "statusConfirmed": "Подтверждено",
+    "statusTentative": "Предварительно",
+    "statusCancelled": "Отменено"
   },
   "import": {
     "title": "Import Event",

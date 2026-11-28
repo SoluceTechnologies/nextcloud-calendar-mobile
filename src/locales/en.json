@@ -178,7 +178,14 @@
     "errorCreateFailed": "Failed to create event",
     "errorUpdateFailed": "Failed to update event",
     "errorDeleteFailed": "Failed to delete event",
-    "alerts": "Alerts"
+    "alerts": "Alerts",
+    "availability": "Availability",
+    "availabilityBusy": "Busy",
+    "availabilityFree": "Free",
+    "status": "Status",
+    "statusConfirmed": "Confirmed",
+    "statusTentative": "Tentative",
+    "statusCancelled": "Cancelled"
   },
   "import": {
     "title": "Import Event",

@@ -104,3 +104,24 @@ describe('mapEventToShared alarms', () => {
     expect(event.alarms).toEqual([5]);
   });
 });
+
+describe('transp/status columns', () => {
+  it('patchByUid writes set values and leaves unset ones alone', async () => {
+    const row = makeRow('u1');
+    row.transp = 'opaque';
+    mockGetDb.mockReturnValue(makeDb([row]));
+
+    await patchByUid(ACCOUNT_ID, 'u1', { status: 'cancelled' });
+
+    expect(row.status).toBe('cancelled');
+    expect(row.transp).toBe('opaque');
+  });
+
+  it('mapEventToShared passes the raw strings through', () => {
+    const event = mapEventToShared({ transp: 'transparent', status: 'tentative' } as any);
+    expect(event.transp).toBe('transparent');
+    expect(event.status).toBe('tentative');
+    expect(mapEventToShared({} as any).transp).toBeUndefined();
+    expect(mapEventToShared({} as any).status).toBeUndefined();
+  });
+});

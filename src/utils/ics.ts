@@ -1,4 +1,4 @@
-import type {Attendee, RecurrenceRule} from '@/types';
+import type {Attendee, EventStatus, EventTransp, RecurrenceRule} from '@/types';
 import {minutesToTrigger, NO_ALARM_PROP} from '@/features/notifications/alerts';
 
 const PRODID = '-//Nextcloud Calendar Mobile//EN';
@@ -65,11 +65,19 @@ function rruleLine(rule: RecurrenceRule, allDay = false): string {
     return `RRULE:${parts.join(';')}`;
 }
 
-function textLines(summary: string, description: string, location: string): string[] {
+function textLines(
+    summary: string,
+    description: string,
+    location: string,
+    status?: EventStatus,
+    transp?: EventTransp,
+): string[] {
     return [
         `SUMMARY:${esc(summary)}`,
         ...(description ? [`DESCRIPTION:${esc(description)}`] : []),
         ...(location ? [`LOCATION:${esc(location)}`] : []),
+        ...(status && status !== 'confirmed' ? [`STATUS:${status.toUpperCase()}`] : []),
+        ...(transp === 'transparent' ? ['TRANSP:TRANSPARENT'] : []),
     ];
 }
 
@@ -174,6 +182,8 @@ export interface BuildIcsParams extends ExtraLines {
     rrule?: RecurrenceRule;
     alarms?: number[];
     sequence?: number;
+    status?: EventStatus;
+    transp?: EventTransp;
 }
 
 export function buildIcs(params: BuildIcsParams): string {
@@ -191,6 +201,8 @@ export function buildIcs(params: BuildIcsParams): string {
         rrule,
         alarms,
         sequence = 0,
+        status,
+        transp,
         extraLines = []
     } = params;
 
@@ -200,7 +212,7 @@ export function buildIcs(params: BuildIcsParams): string {
         `SEQUENCE:${sequence}`,
         `DTSTART;TZID=${timezone}:${localStamp(dtstart, timezone)}`,
         `DTEND;TZID=${timezone}:${localStamp(dtend, timezone)}`,
-        ...textLines(summary, description, location),
+        ...textLines(summary, description, location, status, transp),
         ...(rrule ? [rruleLine(rrule)] : []),
         ...schedulingLines(organizerName, organizerEmail, attendees),
         ...extraLines,
@@ -224,6 +236,8 @@ export function buildAllDayIcs(params: BuildAllDayIcsParams): string {
         rrule,
         alarms,
         sequence = 0,
+        status,
+        transp,
         extraLines = []
     } = params;
     const endExclusive = new Date(dtend.getFullYear(), dtend.getMonth(), dtend.getDate() + 1);
@@ -234,7 +248,7 @@ export function buildAllDayIcs(params: BuildAllDayIcsParams): string {
         `SEQUENCE:${sequence}`,
         `DTSTART;VALUE=DATE:${dateStamp(dtstart)}`,
         `DTEND;VALUE=DATE:${dateStamp(endExclusive)}`,
-        ...textLines(summary, description, location),
+        ...textLines(summary, description, location, status, transp),
         ...(rrule ? [rruleLine(rrule, true)] : []),
         ...schedulingLines(organizerName, organizerEmail, attendees),
         ...extraLines,
@@ -258,6 +272,8 @@ export function buildExceptionIcs(params: BuildIcsParams & { recurrenceId: Date;
         allDay = false,
         alarms,
         sequence = 0,
+        status,
+        transp,
         extraLines = []
     } = params;
     // RECURRENCE-ID must have the master DTSTART's value type: DATE for an all-day series.
@@ -280,6 +296,8 @@ export function buildExceptionIcs(params: BuildIcsParams & { recurrenceId: Date;
         `SEQUENCE:${sequence}`,
         ...dates,
         ...textLines(summary, description, location),
+        ...(status ? [`STATUS:${status.toUpperCase()}`] : []),
+        ...(transp ? [`TRANSP:${transp.toUpperCase()}`] : []),
         ...schedulingLines(organizerName, organizerEmail, attendees),
         ...extraLines,
         ...alarmLines(alarms),

@@ -178,7 +178,14 @@
     "errorCreateFailed": "Aanmaken van afspraak mislukt",
     "errorUpdateFailed": "Bijwerken van afspraak mislukt",
     "errorDeleteFailed": "Verwijderen van afspraak mislukt",
-    "alerts": "Herinneringen"
+    "alerts": "Herinneringen",
+    "availability": "Beschikbaarheid",
+    "availabilityBusy": "Bezet",
+    "availabilityFree": "Vrij",
+    "status": "Status",
+    "statusConfirmed": "Bevestigd",
+    "statusTentative": "Voorlopig",
+    "statusCancelled": "Geannuleerd"
   },
   "import": {
     "title": "Afspraak importeren",

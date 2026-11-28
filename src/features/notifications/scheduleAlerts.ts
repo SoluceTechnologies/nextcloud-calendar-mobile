@@ -72,7 +72,7 @@ async function scheduleOnce(now: Date): Promise<void> {
     const notifDisabled = useCalendarStore.getState().notifDisabledCalendarIds;
     const events = granted
       ? (await readUpcomingEvents(HORIZON_DAYS, now)).filter(
-          (event) => !notifDisabled.includes(event.calendarId),
+          (event) => !notifDisabled.includes(event.calendarId) && event.status !== 'cancelled',
         )
       : [];
 

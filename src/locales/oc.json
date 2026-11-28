@@ -173,7 +173,14 @@
     "errorCreateFailed": "La creacion de l'eveniment a pas capitat",
     "errorUpdateFailed": "La mesa a jorn de l'eveniment a pas capitat",
     "errorDeleteFailed": "La supression de l'eveniment a pas capitat",
-    "alerts": "Alèrtas"
+    "alerts": "Alèrtas",
+    "availability": "Disponibilitat",
+    "availabilityBusy": "Ocupat",
+    "availabilityFree": "Liure",
+    "status": "Estat",
+    "statusConfirmed": "Confirmat",
+    "statusTentative": "Provisional",
+    "statusCancelled": "Anullat"
   },
   "import": {
     "title": "Importar un eveniment",

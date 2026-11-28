@@ -30,6 +30,8 @@ function rowKey(r: Event): string {
     r.alarmMinutes ?? null,
     r.alarms ?? null,
     !!r.isTask,
+    r.transp ?? null,
+    r.status ?? null,
   ]);
 }
 

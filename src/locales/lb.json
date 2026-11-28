@@ -178,7 +178,14 @@
     "errorCreateFailed": "Evenement konnt net erstallt ginn",
     "errorUpdateFailed": "Evenement konnt net aktualiséiert ginn",
     "errorDeleteFailed": "Evenement konnt net geläscht ginn",
-    "alerts": "Erënnerungen"
+    "alerts": "Erënnerungen",
+    "availability": "Disponibilitéit",
+    "availabilityBusy": "Beschäftegt",
+    "availabilityFree": "Fräi",
+    "status": "Status",
+    "statusConfirmed": "Confirméiert",
+    "statusTentative": "Provisoresch",
+    "statusCancelled": "Annuléiert"
   },
   "import": {
     "title": "Evenement importéieren",
