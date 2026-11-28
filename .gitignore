@@ -68,3 +68,5 @@ android/*
 # Devin CLI working files (skills, plans, agents) — like .claude/.codex
 .devin/
 .fdroid/
+
+STATUS.md
