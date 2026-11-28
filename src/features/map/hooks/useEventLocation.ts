@@ -15,6 +15,7 @@ export type UseEventLocationResult = {
 export function useEventLocation(
     location: string | undefined,
     talkUrl?: string,
+    geo?: { lat: number; lon: number },
 ): UseEventLocationResult {
     const {i18n} = useTranslation();
     const online = useIsOnline();
@@ -42,7 +43,11 @@ export function useEventLocation(
             };
         }
 
-        if (!online) {
+        // ICS GEO / X-APPLE-STRUCTURED-LOCATION coordinates are stored locally
+        // and therefore resolvable offline — they take precedence over any
+        // parsing or geocoding of the textual location.
+        if (geo && Number.isFinite(geo.lat) && Number.isFinite(geo.lon)) {
+            setState({coordinates: {lat: geo.lat, lon: geo.lon, displayName: location}, isVirtual: false, loading: false});
             return () => {
                 active.current = false;
             };
@@ -51,6 +56,12 @@ export function useEventLocation(
         const direct = parseLocation(location);
         if (direct) {
             setState({coordinates: direct, isVirtual: false, loading: false});
+            return () => {
+                active.current = false;
+            };
+        }
+
+        if (!online) {
             return () => {
                 active.current = false;
             };
@@ -71,7 +82,7 @@ export function useEventLocation(
         return () => {
             active.current = false;
         };
-    }, [location, talkUrl, i18n.language, online]);
+    }, [location, talkUrl, geo?.lat, geo?.lon, i18n.language, online]);
 
     return state;
 }

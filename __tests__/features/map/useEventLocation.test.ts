@@ -66,15 +66,76 @@ describe('useEventLocation', () => {
     expect(result.current.coordinates).toBeNull();
   });
 
-  it('hides the map and skips any request when offline', async () => {
+  it('resolves directly parseable coordinates offline, without any request', async () => {
     const fetchSpy = jest.spyOn(globalThis as any, 'fetch');
     mockIsOnline.mockReturnValue(false);
 
     const { result } = renderHook(() => useEventLocation('geo:48.8566,2.3522'));
     await waitFor(() => expect(result.current.loading).toBe(false));
 
+    expect(result.current.coordinates).toEqual({
+      lat: 48.8566,
+      lon: 2.3522,
+      displayName: 'geo:48.8566,2.3522',
+    });
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it('skips geocoding for a plain text location when offline', async () => {
+    const fetchSpy = jest.spyOn(globalThis as any, 'fetch');
+    mockIsOnline.mockReturnValue(false);
+
+    const { result } = renderHook(() => useEventLocation('Paris'));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
     expect(result.current.coordinates).toBeNull();
     expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it('uses stored ICS geo coordinates first, offline', async () => {
+    const fetchSpy = jest.spyOn(globalThis as any, 'fetch');
+    mockIsOnline.mockReturnValue(false);
+
+    const { result } = renderHook(() =>
+      useEventLocation('Salle Orion', undefined, { lat: 48.8566, lon: 2.3522 }),
+    );
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    expect(result.current.coordinates).toEqual({
+      lat: 48.8566,
+      lon: 2.3522,
+      displayName: 'Salle Orion',
+    });
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it('prefers stored geo over a parseable location and never geocodes', async () => {
+    const fetchSpy = jest.spyOn(globalThis as any, 'fetch');
+
+    const { result } = renderHook(() =>
+      useEventLocation('geo:1.0,1.0', undefined, { lat: 48.8566, lon: 2.3522 }),
+    );
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    expect(result.current.coordinates).toEqual({
+      lat: 48.8566,
+      lon: 2.3522,
+      displayName: 'geo:1.0,1.0',
+    });
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it('ignores invalid stored geo and falls back to parsing', async () => {
+    const { result } = renderHook(() =>
+      useEventLocation('geo:48.8566,2.3522', undefined, { lat: NaN, lon: 0 }),
+    );
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    expect(result.current.coordinates).toEqual({
+      lat: 48.8566,
+      lon: 2.3522,
+      displayName: 'geo:48.8566,2.3522',
+    });
   });
 
   it('still flags virtual locations when offline', async () => {

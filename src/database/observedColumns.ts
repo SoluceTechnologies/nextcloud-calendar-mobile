@@ -11,6 +11,7 @@ export const EVENT_OBSERVED_COLUMNS = [
   'attendees',
   'organizer_email',
   'talk_url',
+  'geo',
   'is_recurring',
   'rrule',
   'alarm_minutes',

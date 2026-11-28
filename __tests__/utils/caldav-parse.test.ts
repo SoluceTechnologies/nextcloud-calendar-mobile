@@ -1,4 +1,4 @@
-import { parseIcsObjects, parseIcsObjectsAsync, extractDtstartDtend } from '@/utils/caldav-parse';
+import { parseIcsObjects, parseIcsObjectsAsync, extractDtstartDtend, dropLocationBoundLines } from '@/utils/caldav-parse';
 import { buildAllDayIcs } from '@/utils/ics';
 
 const sampleIcs = `BEGIN:VCALENDAR
@@ -824,5 +824,175 @@ END:VCALENDAR`;
     );
     expect(Date.now() - started).toBeLessThan(3000);
     expect(events).toEqual([]);
+  });
+});
+
+describe('GEO coordinates', () => {
+  const calMeta = { calendarId: 'cal-1', accountId: 'acc-1', color: '#0082c9' };
+
+  const geoIcs = `BEGIN:VCALENDAR
+VERSION:2.0
+BEGIN:VEVENT
+UID:geo-1
+SUMMARY:Offsite
+DTSTART:20260601T140000Z
+DTEND:20260601T150000Z
+LOCATION:47 rue de la Paix\\, Paris
+GEO:48.8698;2.3314
+END:VEVENT
+END:VCALENDAR`;
+
+  it('parses GEO:lat;lon into event.geo', () => {
+    const [event] = parseIcsObjects([{ ics: geoIcs, href: '/cal/geo.ics' }], calMeta);
+    expect(event.geo).toEqual({ lat: 48.8698, lon: 2.3314 });
+  });
+
+  it('keeps negative and decimal coordinates', () => {
+    const ics = `BEGIN:VCALENDAR
+BEGIN:VEVENT
+UID:geo-neg
+SUMMARY:x
+DTSTART:20260601T140000Z
+DTEND:20260601T150000Z
+GEO:-33.8688;151.2093
+END:VEVENT
+END:VCALENDAR`;
+    const [event] = parseIcsObjects([{ ics, href: '/cal/g.ics' }], calMeta);
+    expect(event.geo).toEqual({ lat: -33.8688, lon: 151.2093 });
+  });
+
+  it('falls back to the X-APPLE-STRUCTURED-LOCATION URI when GEO is absent', () => {
+    const ics = `BEGIN:VCALENDAR
+BEGIN:VEVENT
+UID:geo-apple
+SUMMARY:x
+DTSTART:20260601T140000Z
+DTEND:20260601T150000Z
+X-APPLE-STRUCTURED-LOCATION;VALUE=URI;X-APPLE-ABLABEL="Maison";X-TITLE="12 rue Victor Hugo":geo:48.8566,2.3522
+END:VEVENT
+END:VCALENDAR`;
+    const [event] = parseIcsObjects([{ ics, href: '/cal/a.ics' }], calMeta);
+    expect(event.geo).toEqual({ lat: 48.8566, lon: 2.3522 });
+  });
+
+  it('uses the X-TITLE parameter as location when LOCATION is empty', () => {
+    const ics = `BEGIN:VCALENDAR
+BEGIN:VEVENT
+UID:geo-title
+SUMMARY:x
+DTSTART:20260601T140000Z
+DTEND:20260601T150000Z
+X-APPLE-STRUCTURED-LOCATION;VALUE=URI;X-TITLE="Bureau Nantes":geo:47.2184,-1.5536
+END:VEVENT
+END:VCALENDAR`;
+    const [event] = parseIcsObjects([{ ics, href: '/cal/t.ics' }], calMeta);
+    expect(event.location).toBe('Bureau Nantes');
+    expect(event.geo).toEqual({ lat: 47.2184, lon: -1.5536 });
+  });
+
+  it('prefers GEO over X-APPLE-STRUCTURED-LOCATION', () => {
+    const ics = `BEGIN:VCALENDAR
+BEGIN:VEVENT
+UID:geo-both
+SUMMARY:x
+DTSTART:20260601T140000Z
+DTEND:20260601T150000Z
+GEO:48.8;2.3
+X-APPLE-STRUCTURED-LOCATION;VALUE=URI;X-TITLE="Autre":geo:10.0,10.0
+END:VEVENT
+END:VCALENDAR`;
+    const [event] = parseIcsObjects([{ ics, href: '/cal/b.ics' }], calMeta);
+    expect(event.geo).toEqual({ lat: 48.8, lon: 2.3 });
+  });
+
+  it.each([
+    ['GEO:91;2', 'latitude above +90'],
+    ['GEO:-91;2', 'latitude below -90'],
+    ['GEO:48;181', 'longitude above +180'],
+    ['GEO:48;-181', 'longitude below -180'],
+    ['GEO:48', 'single value'],
+    ['GEO:', 'empty value'],
+  ])('rejects invalid coordinates (%s — %s)', (line) => {
+    const ics = `BEGIN:VCALENDAR
+BEGIN:VEVENT
+UID:geo-bad
+SUMMARY:x
+DTSTART:20260601T140000Z
+DTEND:20260601T150000Z
+${line}
+END:VEVENT
+END:VCALENDAR`;
+    const [event] = parseIcsObjects([{ ics, href: '/cal/bad.ics' }], calMeta);
+    expect(event.geo).toBeUndefined();
+  });
+
+  it('reads GEO on a RECURRENCE-ID exception', () => {
+    const ics = `BEGIN:VCALENDAR
+BEGIN:VEVENT
+UID:geo-rec
+SUMMARY:x
+DTSTART:20260601T140000Z
+DTEND:20260601T150000Z
+RRULE:FREQ=DAILY;COUNT=3
+GEO:48.8;2.3
+END:VEVENT
+BEGIN:VEVENT
+UID:geo-rec
+RECURRENCE-ID:20260602T140000Z
+SUMMARY:x
+DTSTART:20260602T150000Z
+DTEND:20260602T160000Z
+GEO:45.7;4.8
+END:VEVENT
+END:VCALENDAR`;
+    const events = parseIcsObjects(
+      [{ ics, href: '/cal/r.ics' }],
+      calMeta,
+      new Date('2026-06-01T00:00:00Z'),
+      new Date('2026-06-04T00:00:00Z'),
+    );
+    const moved = events.find(
+      (e) => e.recurrenceId?.getTime() === Date.parse('2026-06-02T14:00:00Z'),
+    );
+    expect(moved?.geo).toEqual({ lat: 45.7, lon: 4.8 });
+    const plain = events.find((e) => e.recurrenceId?.getTime() === Date.parse('2026-06-01T14:00:00Z'));
+    expect(plain?.geo).toEqual({ lat: 48.8, lon: 2.3 });
+  });
+
+  it('parses GEO on a VTODO', () => {
+    const ics = `BEGIN:VCALENDAR
+BEGIN:VTODO
+UID:todo-geo
+SUMMARY:Buy supplies
+DTSTART:20260601T140000Z
+GEO:48.8566;2.3522
+END:VTODO
+END:VCALENDAR`;
+    const [event] = parseIcsObjects([{ ics, href: '/cal/todo.ics' }], calMeta);
+    expect(event.geo).toEqual({ lat: 48.8566, lon: 2.3522 });
+  });
+});
+
+describe('dropLocationBoundLines', () => {
+  it('drops GEO and X-APPLE location-bound properties, keeps the rest', () => {
+    const lines = [
+      'GEO:48.8;2.35',
+      'X-APPLE-STRUCTURED-LOCATION;VALUE=URI;X-TITLE="Maison":geo:48.8,2.35',
+      'X-APPLE-AB-TRAVELTIME:PT15M',
+      'X-APPLE-ABLABEL:Maison',
+      'X-CUSTOM-FIELD:keep-me',
+      'URL:https://example.com',
+    ];
+    const kept = dropLocationBoundLines(lines);
+    expect(kept).toEqual(['X-CUSTOM-FIELD:keep-me', 'URL:https://example.com']);
+  });
+
+  it('matches property names case-insensitively and before parameters', () => {
+    const kept = dropLocationBoundLines([
+      'geo:48.8;2.35',
+      'Geo:48.8;2.35',
+      'X-APPLE-STRUCTURED-LOCATION:geo:1,1',
+    ]);
+    expect(kept).toEqual([]);
   });
 });

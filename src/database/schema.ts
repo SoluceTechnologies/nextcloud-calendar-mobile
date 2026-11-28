@@ -1,7 +1,7 @@
 import { appSchema, tableSchema } from '@nozbe/watermelondb';
 
 export const mySchema = appSchema({
-  version: 9,
+  version: 10,
   tables: [
     tableSchema({
       name: 'events',
@@ -20,6 +20,7 @@ export const mySchema = appSchema({
         { name: 'attendees', type: 'string', isOptional: true },
         { name: 'organizer_email', type: 'string', isOptional: true },
         { name: 'talk_url', type: 'string', isOptional: true },
+        { name: 'geo', type: 'string', isOptional: true },
         { name: 'is_recurring', type: 'boolean', isOptional: true },
         { name: 'rrule', type: 'string', isOptional: true },
         { name: 'recurrence_id', type: 'number', isOptional: true },

@@ -25,6 +25,7 @@ function rowKey(r: Event): string {
     r.attendees ?? null,
     r.organizerEmail ?? null,
     r.talkUrl ?? null,
+    r.geo ?? null,
     !!r.isRecurring,
     r.rrule ?? null,
     r.recurrenceId ?? null,

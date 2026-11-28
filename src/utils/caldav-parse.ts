@@ -76,9 +76,52 @@ function organizerEmailOf(vevent: ICAL.Component): string | undefined {
   return prop ? (prop.getFirstValue() as string).replace(/^mailto:/i, '') : undefined;
 }
 
+function coordPairOf(raw: string): { lat: number; lon: number } | undefined {
+  const m = /(-?\d{1,3}(?:\.\d+)?)\s*[;,]\s*(-?\d{1,3}(?:\.\d+)?)/.exec(raw);
+  if (!m) return undefined;
+  const lat = parseFloat(m[1]);
+  const lon = parseFloat(m[2]);
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return undefined;
+  if (lat < -90 || lat > 90 || lon < -180 || lon > 180) return undefined;
+  return { lat, lon };
+}
+
+// Apple writes the human-readable place name as the X-TITLE parameter of
+// X-APPLE-STRUCTURED-LOCATION instead of a LOCATION property.
+function appleLocationTitle(vevent: ICAL.Component): string | undefined {
+  const prop = vevent.getFirstProperty('x-apple-structured-location');
+  const title = prop?.getParameter('x-title');
+  return typeof title === 'string' && title ? title : undefined;
+}
+
+function geoOf(vevent: ICAL.Component): { lat: number; lon: number } | undefined {
+  // NB: ical.js coerces non-numeric GEO values to 0 during ICAL.parse, so a
+  // malformed-but-parseable GEO yields {0,0}; out-of-range values are still
+  // filtered below and missing/empty GEO returns undefined.
+  const geo = vevent.getFirstPropertyValue('geo');
+  if (Array.isArray(geo)) {
+    const lat = Number(geo[0]);
+    const lon = Number(geo[1]);
+    if (Number.isFinite(lat) && Number.isFinite(lon) && lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180) {
+      return { lat, lon };
+    }
+  } else if (typeof geo === 'string') {
+    const coords = coordPairOf(geo);
+    if (coords) return coords;
+  }
+  // Apple clients carry coordinates as the URI value of X-APPLE-STRUCTURED-LOCATION
+  // (typically `geo:lat,lon`) instead of the RFC 5545 GEO property.
+  const apple = vevent.getFirstProperty('x-apple-structured-location');
+  if (apple) {
+    const value = String(apple.getFirstValue() ?? '');
+    return coordPairOf(value);
+  }
+  return undefined;
+}
+
 type OverridableFields = Pick<
   CalendarEvent,
-  'summary' | 'description' | 'location' | 'talkUrl' | 'attendees' | 'organizerEmail' | 'alarms'
+  'summary' | 'description' | 'location' | 'talkUrl' | 'attendees' | 'organizerEmail' | 'alarms' | 'geo'
 >;
 
 function exceptionFields(vevent: ICAL.Component): Partial<OverridableFields> {
@@ -94,12 +137,19 @@ function exceptionFields(vevent: ICAL.Component): Partial<OverridableFields> {
   if (typeof location === 'string') {
     fields.location = location;
     fields.talkUrl = TALK_URL_PATTERN.test(location) ? location : undefined;
+  } else if (vevent.getFirstProperty('x-apple-structured-location')) {
+    const title = appleLocationTitle(vevent);
+    if (title) fields.location = title;
   }
 
   const attendeeProps = vevent.getAllProperties('attendee');
   if (attendeeProps.length) fields.attendees = readAttendees(attendeeProps);
 
   if (vevent.getFirstProperty('organizer')) fields.organizerEmail = organizerEmailOf(vevent);
+
+  if (vevent.getFirstProperty('geo') || vevent.getFirstProperty('x-apple-structured-location')) {
+    fields.geo = geoOf(vevent);
+  }
 
   const alarms = alarmMinutesList(vevent);
   if (alarms !== undefined) fields.alarms = alarms;
@@ -225,6 +275,7 @@ function parseVtodo(
     summary: (vtodo.getFirstPropertyValue('summary') as string) ?? '',
     description: (vtodo.getFirstPropertyValue('description') as string) ?? undefined,
     location: (vtodo.getFirstPropertyValue('location') as string) ?? undefined,
+    geo: geoOf(vtodo),
     dtstart,
     dtend,
     allDay,
@@ -268,10 +319,12 @@ export function parseIcsItem(
 
       const attendees = readAttendees(vevent.getAllProperties('attendee'));
 
-      const location = icalEvent.location ?? undefined;
+      const location = icalEvent.location ?? appleLocationTitle(vevent) ?? undefined;
       const talkUrl = location && TALK_URL_PATTERN.test(location) ? location : undefined;
 
       const organizerEmail = organizerEmailOf(vevent);
+
+      const geo = geoOf(vevent);
 
       const alarms = alarmMinutesList(vevent);
 
@@ -294,6 +347,7 @@ export function parseIcsItem(
         attendees,
         organizerEmail,
         talkUrl,
+        geo,
         isRecurring,
         rrule: rruleStr,
         alarms,
@@ -426,6 +480,15 @@ export function extractExtraVeventLines(ics: string): string[] {
   } catch {
     return [];
   }
+}
+
+// Coordinates are bound to the LOCATION text: rewriting the location must drop
+// every property that pins the old one to a map position, or Directions would
+// keep navigating to the previous place.
+const LOCATION_BOUND_PROPS = /^(geo|x-apple-structured-location|x-apple-ab-traveltime|x-apple-ablabel)[;:]/i;
+
+export function dropLocationBoundLines(lines: string[]): string[] {
+  return lines.filter((line) => !LOCATION_BOUND_PROPS.test(line));
 }
 
 export function parseIcsObjects(

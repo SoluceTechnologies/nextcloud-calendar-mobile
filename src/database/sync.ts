@@ -52,6 +52,11 @@ export function serializeAlarms(alarms?: number[]): string | undefined {
     return JSON.stringify([...new Set(alarms)].sort((a, b) => b - a));
 }
 
+export function serializeGeo(geo?: { lat: number; lon: number }): string | undefined {
+    if (!geo) return undefined;
+    return `${geo.lat},${geo.lon}`;
+}
+
 export function writeEvent(row: Event, ev: CalendarEvent): void {
     row.accountId = ev.accountId;
     row.calendarId = ev.calendarId;
@@ -67,6 +72,7 @@ export function writeEvent(row: Event, ev: CalendarEvent): void {
     row.attendees = JSON.stringify(ev.attendees ?? []);
     row.organizerEmail = ev.organizerEmail ?? undefined;
     row.talkUrl = ev.talkUrl ?? undefined;
+    row.geo = serializeGeo(ev.geo);
     row.isRecurring = ev.isRecurring;
     row.rrule = ev.rrule ?? undefined;
     row.recurrenceId = ev.recurrenceId?.getTime() ?? undefined;
@@ -106,6 +112,7 @@ function eventUnchanged(row: Event, ev: CalendarEvent): boolean {
         (row.recurrenceId ?? undefined) === (ev.recurrenceId?.getTime() ?? undefined) &&
         !!row.isTask === !!ev.isTask &&
         (row.alarms ?? undefined) === serializeAlarms(ev.alarms) &&
+        (row.geo ?? undefined) === serializeGeo(ev.geo) &&
         (row.attendees ?? '[]') === JSON.stringify(ev.attendees ?? [])
     );
 }
