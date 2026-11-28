@@ -71,7 +71,7 @@ Défaut connu hors lot : numéro de semaine ISO du dimanche affiché quand la se
 - Relance à froid : `xcrun simctl terminate <udid> com.soluce.nextcloud-calendar` puis ouvrir `exp+nextcloud-calendar://expo-development-client/?url=http%3A%2F%2F192.168.0.47%3A8081`.
 - Base locale en schéma v11 sur le simulateur : revenir à `dev` (v9) ferait réinitialiser la base.
 
-## Batch 2 — EN COURS (branche locale `integration/pr-batch-2`, depuis `origin/dev` 32d2cac, NON poussée)
+## Batch 2 — EN COURS (branche `integration/pr-batch-2` poussée ; PR https://github.com/SoluceTechnologies/nextcloud-calendar-mobile/pull/433 vers `dev`)
 
 Décisions utilisateur (2026-11-28) : semaine ouvrée seule (#422) ; #402 fermée + issue #369 fermée (commentées) ; #415 multi-comptes non retenue (PR laissée ouverte) ; tri des issues appliqué.
 
@@ -94,7 +94,7 @@ Non traité volontairement :
 
 Reste à faire :
 1. Test simulateur iOS (JS seul, pas de rebuild natif nécessaire ; migration v11→v12 à vérifier au démarrage) : vue Semaine ouvrée, intervalle de récurrence, dupliquer, couleur par événement. Le widget #427 est Android seulement.
-2. Pousser `integration/pr-batch-2` et ouvrir la PR vers `dev` (avec accord). Utiliser `env -u GITHUB_TOKEN gh`.
+2. PR #433 ouverte le 2026-11-28 : suivre la CI, puis fusionner (avec accord). Utiliser `env -u GITHUB_TOKEN gh`.
 3. Après fusion : fermer #400, #427, #422, #407, #395 avec commentaire ; commenter/fermer issues #366, #425, #198, #175, #19, #429 (demander confirmation pour #429).
 4. Avec accord : commentaires + fermeture #331 et #370.
 5. Reportées : #284, #231, #226/#408, #301/#303, #333, #409, #415.
