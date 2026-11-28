@@ -41,11 +41,11 @@ Vérifs (HEAD bf85b9a) : `npx tsc --noEmit` OK, `npx jest --ci` 139 suites / 136
 
 ## Non commité (working tree)
 
-Rien (hors `STATUS.md`, non suivi par git).
+Rien (hors `STATUS.md`, non suivi par git). Branche courante : `integration/pr-batch-2`.
 
 ## En cours
 
-Rien. Délai Semaine (521ee16) et splash iOS (bf85b9a) faits et vérifiés sur simulateur. Splash : écran uni noir en mode sombre du simulateur ; si le thème de l'app est forcé en clair dans ses réglages, on voit noir puis clair (même comportement qu'openmailbox).
+Batch 2 (voir plus bas). Batch 1 terminé : Délai Semaine (521ee16) et splash iOS (bf85b9a) faits et vérifiés sur simulateur. Splash : écran uni noir en mode sombre du simulateur ; si le thème de l'app est forcé en clair dans ses réglages, on voit noir puis clair (même comportement qu'openmailbox).
 
 ## Tests simulateur iOS faits (iPhone 17 Pro, compte réel)
 
@@ -71,22 +71,33 @@ Défaut connu hors lot : numéro de semaine ISO du dimanche affiché quand la se
 - Relance à froid : `xcrun simctl terminate <udid> com.soluce.nextcloud-calendar` puis ouvrir `exp+nextcloud-calendar://expo-development-client/?url=http%3A%2F%2F192.168.0.47%3A8081`.
 - Base locale en schéma v11 sur le simulateur : revenir à `dev` (v9) ferait réinitialiser la base.
 
-## Batch 2 — en cours (branche locale `integration/pr-batch-2`, depuis `origin/dev` 32d2cac)
+## Batch 2 — EN COURS (branche locale `integration/pr-batch-2`, depuis `origin/dev` 32d2cac, NON poussée)
 
-Décisions utilisateur (2026-11-28) : semaine ouvrée seule (#422 ; #402 fermée avec commentaire, issue #369 fermée), #415 multi-comptes non retenue pour l'instant (PR laissée ouverte), tri des issues appliqué.
+Décisions utilisateur (2026-11-28) : semaine ouvrée seule (#422) ; #402 fermée + issue #369 fermée (commentées) ; #415 multi-comptes non retenue (PR laissée ouverte) ; tri des issues appliqué.
 
-Fait :
+Commits (tous testés : `tsc` OK, `jest --ci` 140 suites / 1395 tests OK, aucun Devin) :
 
-| PR | Commit | Note |
+| PR / issue | Commit | Note |
 |---|---|---|
-| #400 | 2aaf2a7 | intervalle de récurrence (#366) |
-| #427 | 082ecf6 | widget prochains événements Android (#425) ; auteur Devin remplacé par Bruno |
-| #422 | ecf9865 | vue semaine ouvrée Lun–Ven (#198) |
-| — | b0e3920 | chaînes da/lb pour ces deux PR |
-| #407 | 1c65b63 | dupliquer un événement (#175) ; conflits locales/tests résolus, chaînes da/lb ajoutées |
+| #400 | 2aaf2a7 | intervalle de récurrence (ferme #366) |
+| #427 | 082ecf6 | widget prochains événements Android (ferme #425) ; auteur Devin → Bruno |
+| #422 | ecf9865 | vue semaine ouvrée Lun–Ven (ferme #198) |
+| — | b0e3920 | chaînes da/lb pour #400 et #422 |
+| #407 | 1c65b63 | dupliquer un événement (ferme #175) ; conflits résolus, chaînes da/lb |
+| #395 | 1963de5 | écritures locales protégées des pulls de sync. **Retravaillée** : clés « pending » en mémoire (plus MMKV) → un crash ne bloque plus jamais la sync d'un événement ; la duplication (#407) libère aussi ses clés ; test delta aligné sur le diff en place de #430 |
+| issue #19 | fcfcd93 | couleur par événement (`COLOR` iCal, noms CSS ou hex via `processColor`) ; nouvelle colonne `event_color`, **schéma v12** ; le mapper affiche `eventColor ?? color` (compatible avec la réconciliation de couleur de #396) |
+| issue #429 | 1e39954 | un échec de l'appel capabilities n'écrase plus `talkEnabled` (fusion dans le store) ; cause probable, non reproduite (NC 35) |
 
-Reste : #395 (écritures locales protégées + expiration des clés), bugs #19 (couleur `COLOR` par événement), #331 (liste Tâches proposée comme calendrier d'événement), #429 (bouton Talk absent, NC 35), #370 (événements existants absents, sous-dossier), puis tsc + jest + test simulateur, PR vers `dev`.
-Reportées : #284, #231, #226/#408, #301/#303, #333, #409, #415.
+Non traité volontairement :
+- #331 : pas un bug de l'app mobile (aucun choix « type d'élément » dans l'app) ; question de Killian sans réponse depuis le 27 oct. → proposer fermeture.
+- #370 : bug du sous-dossier déjà corrigé en 1.10 (#353, confirmé dans #351), rapporteur en 1.9.0 → proposer commentaire « mettez à jour » + fermeture.
+
+Reste à faire :
+1. Test simulateur iOS (JS seul, pas de rebuild natif nécessaire ; migration v11→v12 à vérifier au démarrage) : vue Semaine ouvrée, intervalle de récurrence, dupliquer, couleur par événement. Le widget #427 est Android seulement.
+2. Pousser `integration/pr-batch-2` et ouvrir la PR vers `dev` (avec accord). Utiliser `env -u GITHUB_TOKEN gh`.
+3. Après fusion : fermer #400, #427, #422, #407, #395 avec commentaire ; commenter/fermer issues #366, #425, #198, #175, #19, #429 (demander confirmation pour #429).
+4. Avec accord : commentaires + fermeture #331 et #370.
+5. Reportées : #284, #231, #226/#408, #301/#303, #333, #409, #415.
 
 ## Issues — tri appliqué le 2026-11-28 (étiquettes, commentaires et fermetures postés)
 
@@ -99,5 +110,4 @@ Reportées : #284, #231, #226/#408, #301/#303, #333, #409, #415.
 
 ## Prochaines étapes
 
-1. Valider le contenu du batch 2 et les actions sur les issues.
-2. Build et test Android (correctif crash `react-native-screens` 4.28 jamais vérifié sur Android).
+Voir « Batch 2 — Reste à faire » ci-dessus. Aussi : build et test Android jamais faits (correctif crash `react-native-screens` 4.28 de #430 non vérifié sur Android).
