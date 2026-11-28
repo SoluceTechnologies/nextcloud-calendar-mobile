@@ -76,6 +76,7 @@ export type CalendarEvent = {
     dtend: Date;
     allDay: boolean;
     color: string;
+    eventColor?: string;
     attendees: Attendee[];
     organizerEmail?: string;
     talkUrl?: string;

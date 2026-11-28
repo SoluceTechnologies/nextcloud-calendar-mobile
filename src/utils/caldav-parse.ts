@@ -1,4 +1,5 @@
 import ICAL from 'ical.js';
+import { processColor } from 'react-native';
 import type { CalendarEvent, Attendee, EventStatus, EventTransp } from '@/types';
 import { yieldToUI } from '@/utils/scheduling';
 import { isValidTimeZone, zonedWallTimeToUtc } from '@/utils/timezone';
@@ -113,7 +114,7 @@ function organizerEmailOf(vevent: ICAL.Component): string | undefined {
 
 type OverridableFields = Pick<
   CalendarEvent,
-  'summary' | 'description' | 'location' | 'talkUrl' | 'attendees' | 'organizerEmail' | 'alarms' | 'transp' | 'status'
+  'summary' | 'description' | 'location' | 'talkUrl' | 'attendees' | 'organizerEmail' | 'alarms' | 'transp' | 'status' | 'eventColor'
 >;
 
 const EVENT_TRANSP_VALUES: readonly EventTransp[] = ['opaque', 'transparent'];
@@ -128,6 +129,13 @@ function enumProp<T extends string>(
   if (typeof raw !== 'string') return undefined;
   const value = raw.toLowerCase() as T;
   return allowed.includes(value) ? value : undefined;
+}
+
+function colorProp(component: ICAL.Component): string | undefined {
+  const raw = component.getFirstPropertyValue('color');
+  if (typeof raw !== 'string') return undefined;
+  const argb = processColor(raw.trim().toLowerCase());
+  return typeof argb === 'number' ? `#${((argb >>> 0) & 0xffffff).toString(16).padStart(6, '0')}` : undefined;
 }
 
 function exceptionFields(vevent: ICAL.Component): Partial<OverridableFields> {
@@ -158,6 +166,9 @@ function exceptionFields(vevent: ICAL.Component): Partial<OverridableFields> {
 
   const status = enumProp(vevent, 'status', EVENT_STATUS_VALUES);
   if (status) fields.status = status;
+
+  const eventColor = colorProp(vevent);
+  if (eventColor) fields.eventColor = eventColor;
 
   return fields;
 }
@@ -360,6 +371,7 @@ function* parseIcsItemGen(
         alarms,
         transp: enumProp(vevent, 'transp', EVENT_TRANSP_VALUES),
         status: enumProp(vevent, 'status', EVENT_STATUS_VALUES),
+        eventColor: colorProp(vevent),
       };
 
       if (isRecurring && (rangeStart || rangeEnd)) {

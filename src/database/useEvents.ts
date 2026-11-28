@@ -32,6 +32,7 @@ function rowKey(r: Event): string {
     !!r.isTask,
     r.transp ?? null,
     r.status ?? null,
+    r.eventColor ?? null,
   ]);
 }
 

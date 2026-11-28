@@ -65,6 +65,7 @@ export function writeEvent(row: Event, ev: CalendarEvent): void {
     row.end = ev.dtend.getTime();
     row.allDay = ev.allDay;
     row.color = ev.color;
+    row.eventColor = ev.eventColor ?? undefined;
     row.attendees = JSON.stringify(ev.attendees ?? []);
     row.organizerEmail = ev.organizerEmail ?? undefined;
     row.talkUrl = ev.talkUrl ?? undefined;
@@ -113,7 +114,8 @@ function eventUnchanged(row: Event, ev: CalendarEvent): boolean {
         (row.organizerEmail ?? undefined) === (ev.organizerEmail ?? undefined) &&
         (row.talkUrl ?? undefined) === (ev.talkUrl ?? undefined) &&
         (row.transp ?? undefined) === (ev.transp ?? undefined) &&
-        (row.status ?? undefined) === (ev.status ?? undefined)
+        (row.status ?? undefined) === (ev.status ?? undefined) &&
+        (row.eventColor ?? undefined) === (ev.eventColor ?? undefined)
     );
 }
 
