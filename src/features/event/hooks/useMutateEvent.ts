@@ -21,6 +21,8 @@ import {
   seriesBaseUid,
   shiftSeriesDates,
 } from '@/database/eventWrites';
+import { releasePending } from '@/database/pendingWrites';
+import { eventKey } from '@/database/sync';
 import { occurrenceSlot } from '@/features/event/occurrenceTarget';
 import type { Account, CalendarMeta, CalendarEvent, CreateEventInput, RecurrenceEditScope } from '@/types';
 
@@ -212,9 +214,10 @@ export function useCreateEvent(account: Account, calendars: CalendarMeta[]) {
       const optimistic = input.rrule
         ? expandOccurrences(uid, input, calendar, account)
         : [eventFromInput(uid, input, calendar, account)];
-      await insertEvents(optimistic);
 
+      let marked: string[] = [];
       try {
+        marked = await insertEvents(optimistic);
         const resolved = await resolveLocationAndDescription(account, input);
         const timezone = resolveTimezone(account);
         const ics = buildIcsForInput(uid, input, resolved.location, resolved.description, timezone, 0, input.extraLines);
@@ -223,10 +226,12 @@ export function useCreateEvent(account: Account, calendars: CalendarMeta[]) {
         const real = input.rrule
           ? expandOccurrences(uid, input, calendar, account, resolved)
           : [eventFromInput(uid, input, calendar, account, resolved)];
-        await insertEvents(real);
+        await insertEvents(real, { trackPending: false });
       } catch (error) {
-        await removeWhere(account.id, (e) => seriesBaseUid(e.uid) === uid);
+        await removeWhere(account.id, (e) => seriesBaseUid(e.uid) === uid, { trackPending: false });
         Alert.alert(i18n.t('event.errorCreateFailed'), describeMutationError(error));
+      } finally {
+        releasePending(marked);
       }
     }, [account, calendars]),
   );
@@ -249,19 +254,21 @@ export function useDuplicateEvent(account: Account, calendars: CalendarMeta[]) {
       }
 
       const optimistic = parseIcsObjects(
-        [{ ics: cloneIcs, href: `${calendar.url}${newUid}.ics` }],
+        [{ ics: cloneIcs, href: buildEventHref(calendar, newUid) }],
         { calendarId: calendar.id, accountId: account.id, color: calendar.color },
         dayjs(event.dtstart).subtract(1, 'month').toDate(),
         dayjs(event.dtstart).add(3, 'month').toDate(),
       );
-      await insertEvents(optimistic);
+      const marked = await insertEvents(optimistic);
 
       try {
         await putEvent(account, calendar, newUid, cloneIcs);
       } catch (error) {
-        await removeWhere(account.id, (e) => seriesBaseUid(e.uid) === newUid);
+        await removeWhere(account.id, (e) => seriesBaseUid(e.uid) === newUid, { trackPending: false });
         Alert.alert(i18n.t('event.errorDuplicateFailed'), describeMutationError(error));
         return;
+      } finally {
+        releasePending(marked);
       }
       uidRef.current = optimistic[0]?.uid ?? newUid;
     }, [account, calendars]),
@@ -292,22 +299,23 @@ export function useUpdateEvent(account: Account, calendars: CalendarMeta[]) {
         status: input.status ?? event.status,
       };
 
-      if (shiftsWholeSeries) {
-        await shiftSeriesDates(account.id, base, deltaStart, deltaEnd, datesOnly ? {} : nonTemporalPatch);
-      } else {
-        await patchByUid(account.id, event.uid, {
-          ...(datesOnly ? {} : nonTemporalPatch),
-          dtstart,
-          dtend,
-          ...(targetCal && {
-            calendarId: targetCal.id,
-            color: targetCal.color,
-            href: buildEventHref(targetCal, event.uid),
-          }),
-        });
-      }
-
+      let marked: string[] = [];
       try {
+        if (shiftsWholeSeries) {
+          marked = await shiftSeriesDates(account.id, base, deltaStart, deltaEnd, datesOnly ? {} : nonTemporalPatch);
+        } else {
+          marked = await patchByUid(account.id, event.uid, {
+            ...(datesOnly ? {} : nonTemporalPatch),
+            dtstart,
+            dtend,
+            ...(targetCal && {
+              calendarId: targetCal.id,
+              color: targetCal.color,
+              href: buildEventHref(targetCal, event.uid),
+            }),
+          });
+        }
+
         const { location, description } = await resolveLocationAndDescription(account, input);
         let timezone = resolveTimezone(account);
         const scheduled = withServerOrganizer(input, event);
@@ -382,6 +390,8 @@ export function useUpdateEvent(account: Account, calendars: CalendarMeta[]) {
       } catch (error) {
         await restoreSeries(account.id, base, snapshot);
         Alert.alert(i18n.t('event.errorUpdateFailed'), describeMutationError(error));
+      } finally {
+        releasePending(marked);
       }
     }, [account, calendars]),
   );
@@ -391,20 +401,22 @@ export function useDeleteEvent(account: Account) {
   return useAction<{ event: CalendarEvent; scope?: RecurrenceEditScope }>(
     useCallback(async ({ event, scope = 'all' }) => {
       const base = seriesBaseUid(event.uid);
-      let removed: CalendarEvent[];
-      if (!event.isRecurring || scope === 'all') {
-        removed = await removeWhere(account.id, (e) => seriesBaseUid(e.uid) === base);
-      } else if (scope === 'thisAndFollowing') {
-        const from = occurrenceSlot(event).getTime();
-        removed = await removeWhere(
-          account.id,
-          (e) => seriesBaseUid(e.uid) === base && new Date(e.dtstart).getTime() >= from,
-        );
-      } else {
-        removed = await removeWhere(account.id, (e) => e.uid === event.uid);
-      }
-
+      let removed: CalendarEvent[] = [];
+      let marked: string[] = [];
       try {
+        if (!event.isRecurring || scope === 'all') {
+          removed = await removeWhere(account.id, (e) => seriesBaseUid(e.uid) === base);
+        } else if (scope === 'thisAndFollowing') {
+          const from = occurrenceSlot(event).getTime();
+          removed = await removeWhere(
+            account.id,
+            (e) => seriesBaseUid(e.uid) === base && new Date(e.dtstart).getTime() >= from,
+          );
+        } else {
+          removed = await removeWhere(account.id, (e) => e.uid === event.uid);
+        }
+        marked = removed.map((e) => eventKey(e.accountId, e.calendarId, e.uid));
+
         if (!event.isRecurring || scope === 'all') {
           await deleteEvent(account, event.href);
           return;
@@ -418,8 +430,10 @@ export function useDeleteEvent(account: Account) {
           await updateEvent(account, event.href, truncateRruleUntil(masterIcs, oneDayBefore));
         }
       } catch (error) {
-        await insertEvents(removed);
+        await insertEvents(removed, { trackPending: false });
         Alert.alert(i18n.t('event.errorDeleteFailed'), describeMutationError(error));
+      } finally {
+        releasePending(marked);
       }
     }, [account]),
   );

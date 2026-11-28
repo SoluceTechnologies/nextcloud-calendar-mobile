@@ -71,20 +71,24 @@ Défaut connu hors lot : numéro de semaine ISO du dimanche affiché quand la se
 - Relance à froid : `xcrun simctl terminate <udid> com.soluce.nextcloud-calendar` puis ouvrir `exp+nextcloud-calendar://expo-development-client/?url=http%3A%2F%2F192.168.0.47%3A8081`.
 - Base locale en schéma v11 sur le simulateur : revenir à `dev` (v9) ferait réinitialiser la base.
 
-## Batch 2 — proposition (2026-11-28, en attente de validation)
+## Batch 2 — en cours (branche locale `integration/pr-batch-2`, depuis `origin/dev` 32d2cac)
 
-`dev` local avancé à 32d2cac (fusion #431). Branche à créer : `integration/pr-batch-2`.
+Décisions utilisateur (2026-11-28) : semaine ouvrée seule (#422 ; #402 fermée avec commentaire, issue #369 fermée), #415 multi-comptes non retenue pour l'instant (PR laissée ouverte), tri des issues appliqué.
 
-État des 15 PR en attente face au nouveau `dev` : sans conflit #427, #422, #402, #400 ; conflits légers #415 (3 fichiers), #395 (3), #333 (3) ; conflits lourds #407 (12, surtout locales), #409 (8), #408 (15), #303 (15), #301 (11), #284 (21), #231 (11), #226 (12).
+Fait :
 
-Proposition :
-- A. Petites, sans conflit, UX : #400 intervalle de récurrence (ferme #366), #427 widget prochains événements Android (ferme #425), #422 + #402 vues Semaine ouvrée / 7 jours glissants (ferment #198, #369) à fusionner via `PAGE_SPECS` — décision UX : barre de vues trop chargée (7 boutons).
-- B. À rebaser : #407 dupliquer un événement (ferme #175), #395 écritures locales protégées + expiration des clés.
-- C. Bugs issus des issues, sans PR : #19 couleur par événement (`COLOR` jamais lu par le parseur), #429 bouton salle Talk absent (NC 35, détection `spreed` via capabilities, à reproduire), #370 événements existants absents (Nextcloud en sous-dossier, #351 fermée mais rapporté en 1.9.0), #331 la liste « Tâches » proposée comme calendrier cible d'un événement.
-- D. À décider : #415 vue multi-comptes (ferme #311 et #421, forte demande, 3 conflits, risque d'écriture sur le mauvais serveur à tester).
-- Reportées : #284 tâches, #231 trouver un créneau, #226/#408 invitations, #301/#303 pièces jointes, #333 widget mois, #409 GEO.
+| PR | Commit | Note |
+|---|---|---|
+| #400 | 2aaf2a7 | intervalle de récurrence (#366) |
+| #427 | 082ecf6 | widget prochains événements Android (#425) ; auteur Devin remplacé par Bruno |
+| #422 | ecf9865 | vue semaine ouvrée Lun–Ven (#198) |
+| — | b0e3920 | chaînes da/lb pour ces deux PR |
+| #407 | 1c65b63 | dupliquer un événement (#175) ; conflits locales/tests résolus, chaînes da/lb ajoutées |
 
-## Issues ouvertes (46) — tri proposé
+Reste : #395 (écritures locales protégées + expiration des clés), bugs #19 (couleur `COLOR` par événement), #331 (liste Tâches proposée comme calendrier d'événement), #429 (bouton Talk absent, NC 35), #370 (événements existants absents, sous-dossier), puis tsc + jest + test simulateur, PR vers `dev`.
+Reportées : #284, #231, #226/#408, #301/#303, #333, #409, #415.
+
+## Issues — tri appliqué le 2026-11-28 (étiquettes, commentaires et fermetures postés)
 
 - Corrigées dans `dev` (batch 1), à étiqueter `awaiting-release` puis fermer à la sortie : #95 et #390 (import .ics, #224), #377 (statut, 86ab170), #387 (#388), #389 (#401), #424 (#426).
 - Corrigées dans `dev` mais à faire confirmer par le rapporteur après la sortie : #348 (#386 + #430), #428 (crash Android au démarrage, #430), #393 (sync widget en arrière-plan, #399 couvre seulement les certificats personnalisés), #358 (chargement infini, à retester).
