@@ -1,7 +1,7 @@
 import { appSchema, tableSchema } from '@nozbe/watermelondb';
 
 export const mySchema = appSchema({
-  version: 9,
+  version: 12,
   tables: [
     tableSchema({
       name: 'events',
@@ -9,12 +9,12 @@ export const mySchema = appSchema({
         { name: 'account_id', type: 'string', isIndexed: true },
         { name: 'calendar_id', type: 'string', isIndexed: true },
         { name: 'uid', type: 'string', isIndexed: true },
-        { name: 'href', type: 'string' },
+        { name: 'href', type: 'string', isIndexed: true },
         { name: 'summary', type: 'string' },
         { name: 'description', type: 'string', isOptional: true },
         { name: 'location', type: 'string', isOptional: true },
         { name: 'start', type: 'number', isIndexed: true },
-        { name: 'end', type: 'number' },
+        { name: 'end', type: 'number', isIndexed: true },
         { name: 'all_day', type: 'boolean', isOptional: true },
         { name: 'color', type: 'string' },
         { name: 'attendees', type: 'string', isOptional: true },
@@ -26,6 +26,9 @@ export const mySchema = appSchema({
         { name: 'alarm_minutes', type: 'number', isOptional: true },
         { name: 'alarms', type: 'string', isOptional: true },
         { name: 'is_task', type: 'boolean', isOptional: true },
+        { name: 'transp', type: 'string', isOptional: true },
+        { name: 'status', type: 'string', isOptional: true },
+        { name: 'event_color', type: 'string', isOptional: true },
       ],
     }),
     tableSchema({

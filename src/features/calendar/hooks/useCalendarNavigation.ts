@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { AppState } from 'react-native';
 import { useCalendarStore } from '@/stores/calendarStore';
 import { trailingDebounce } from '@/utils/debounce';
 import type { AgendaViewHandle } from '@/features/calendar/components/AgendaView';
@@ -66,6 +67,17 @@ export function useCalendarNavigation() {
       agendaRef.current?.scrollToToday();
     }
   }, [setDate]);
+
+  const lastNowRef = useRef(new Date());
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (state) => {
+      const now = new Date();
+      const rolledOver = now.toDateString() !== lastNowRef.current.toDateString();
+      lastNowRef.current = now;
+      if (state === 'active' && rolledOver) goToday();
+    });
+    return () => sub.remove();
+  }, [goToday]);
 
   return {
     viewMode,

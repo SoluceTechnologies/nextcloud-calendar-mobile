@@ -20,3 +20,8 @@ export function byServerOrder(a: CalendarMeta, b: CalendarMeta): number {
     (a.order ?? 0) - (b.order ?? 0)
   );
 }
+
+export function defaultWritableCalendarId(writable: CalendarMeta[], storedDefault?: string): string {
+  if (storedDefault && writable.some((c) => c.id === storedDefault)) return storedDefault;
+  return writable.find((c) => c.slug.toLowerCase() === 'personal')?.id ?? writable[0]?.id ?? '';
+}

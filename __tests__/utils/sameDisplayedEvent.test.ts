@@ -53,6 +53,18 @@ describe('sameDisplayedEvent', () => {
     expect(sameDisplayedEvent(base, clone({ location: 'Room 2' }))).toBe(false);
   });
 
+  it('is false when status changed', () => {
+    expect(sameDisplayedEvent(base, clone({ status: 'cancelled' }))).toBe(false);
+  });
+
+  it('is false when transp changed', () => {
+    expect(sameDisplayedEvent(base, clone({ transp: 'transparent' }))).toBe(false);
+  });
+
+  it('treats missing status/transp as the defaults', () => {
+    expect(sameDisplayedEvent(base, clone({ status: 'confirmed', transp: 'opaque' }))).toBe(true);
+  });
+
   it('is false when an attendee was added', () => {
     expect(sameDisplayedEvent(base, clone({ attendees: [{ email: 'a@example.com' }, { email: 'b@example.com' }] }))).toBe(false);
   });

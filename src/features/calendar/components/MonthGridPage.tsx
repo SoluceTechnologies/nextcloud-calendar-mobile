@@ -37,6 +37,8 @@ interface Props {
 function Segment({ segment, dimmed, untitled }: { segment: WeekSegment; dimmed: boolean; untitled: string }) {
   const { event, startColumn, endColumn, lane, continuesLeft, continuesRight } = segment;
   const ink = contrastFor(event.color);
+  const isCancelled = event.status === 'cancelled';
+  const isTentative = event.status === 'tentative';
   return (
     <View
       style={{
@@ -46,7 +48,7 @@ function Segment({ segment, dimmed, untitled }: { segment: WeekSegment; dimmed: 
         width: `${(endColumn - startColumn + 1) * COLUMN_PERCENT}%`,
         paddingLeft: continuesLeft ? 0 : 2,
         paddingRight: continuesRight ? 0 : 2,
-        opacity: dimmed ? 0.5 : 1,
+        opacity: dimmed || isCancelled ? 0.5 : isTentative ? 0.7 : 1,
       }}
     >
       <View
@@ -58,7 +60,7 @@ function Segment({ segment, dimmed, untitled }: { segment: WeekSegment; dimmed: 
         ]}
       >
         <Text
-          style={[styles.chipText, { color: ink.text }]}
+          style={[styles.chipText, { color: ink.text }, isCancelled && styles.chipTextCancelled]}
           numberOfLines={1}
           ellipsizeMode="clip"
           allowFontScaling={false}
@@ -197,5 +199,6 @@ const styles = StyleSheet.create({
   squareLeft: { borderTopLeftRadius: 0, borderBottomLeftRadius: 0 },
   squareRight: { borderTopRightRadius: 0, borderBottomRightRadius: 0 },
   chipText: { fontSize: 11, lineHeight: 13, fontWeight: '500' },
+  chipTextCancelled: { textDecorationLine: 'line-through' },
   overflow: { position: 'absolute', width: `${COLUMN_PERCENT}%`, paddingLeft: 4, fontSize: 11, lineHeight: 14, fontWeight: '600' },
 });

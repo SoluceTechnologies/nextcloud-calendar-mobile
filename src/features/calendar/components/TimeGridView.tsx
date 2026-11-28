@@ -11,7 +11,9 @@ import Animated, {
 } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
 import { anchoredScrollY, scaledCellHeight } from '../utils/zoomAnchor';
+import { nativeTabsEnabled } from '@/utils/nativeTabs';
 import { useTheme } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import InfinitePager, { type InfinitePagerImperativeApi } from 'react-native-infinite-pager';
 import type { CalendarEvent } from '@/types';
 import type { CalMode } from '../constants';
@@ -60,6 +62,7 @@ function TimeGridViewImpl({
 }: Props) {
   const activeRef = useRef(active); activeRef.current = active;
   const { colors } = useTheme();
+  const safeInsets = useSafeAreaInsets();
   const pagerRef = useRef<InfinitePagerImperativeApi>(null);
 
   const syncNode = useSharedValue(0);
@@ -248,7 +251,10 @@ function TimeGridViewImpl({
           <Animated.ScrollView
             ref={scrollRef}
             style={styles.fill}
-            contentContainerStyle={{ paddingTop: headerHeight }}
+            contentContainerStyle={{
+              paddingTop: headerHeight,
+              paddingBottom: nativeTabsEnabled() ? safeInsets.bottom + 8 : 80,
+            }}
             contentOffset={initialOffset}
             onScroll={scrollHandler}
             scrollEventThrottle={16}

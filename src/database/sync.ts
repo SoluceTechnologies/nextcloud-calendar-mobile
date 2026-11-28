@@ -16,6 +16,7 @@ import {settleAll} from '@/utils/settle';
 import {getDatabaseInstance} from './DatabaseProvider';
 import Calendar from './models/Calendar';
 import Event from './models/Event';
+import {pendingKeys} from './pendingWrites';
 import {safeWrite} from './utils/safeTransaction';
 
 export function eventKey(accountId: string, calendarId: string, uid: string): string {
@@ -64,6 +65,7 @@ export function writeEvent(row: Event, ev: CalendarEvent): void {
     row.end = ev.dtend.getTime();
     row.allDay = ev.allDay;
     row.color = ev.color;
+    row.eventColor = ev.eventColor ?? undefined;
     row.attendees = JSON.stringify(ev.attendees ?? []);
     row.organizerEmail = ev.organizerEmail ?? undefined;
     row.talkUrl = ev.talkUrl ?? undefined;
@@ -73,6 +75,8 @@ export function writeEvent(row: Event, ev: CalendarEvent): void {
     row.alarms = serializeAlarms(ev.alarms);
     row.alarmMinutes = ev.alarms?.[0] ?? undefined;
     row.isTask = ev.isTask ?? false;
+    row.transp = ev.transp;
+    row.status = ev.status;
 }
 
 function calendarUnchanged(row: Calendar, c: CalendarMeta): boolean {
@@ -106,12 +110,17 @@ function eventUnchanged(row: Event, ev: CalendarEvent): boolean {
         (row.recurrenceId ?? undefined) === (ev.recurrenceId?.getTime() ?? undefined) &&
         !!row.isTask === !!ev.isTask &&
         (row.alarms ?? undefined) === serializeAlarms(ev.alarms) &&
-        (row.attendees ?? '[]') === JSON.stringify(ev.attendees ?? [])
+        (row.attendees ?? '[]') === JSON.stringify(ev.attendees ?? []) &&
+        (row.organizerEmail ?? undefined) === (ev.organizerEmail ?? undefined) &&
+        (row.talkUrl ?? undefined) === (ev.talkUrl ?? undefined) &&
+        (row.transp ?? undefined) === (ev.transp ?? undefined) &&
+        (row.status ?? undefined) === (ev.status ?? undefined) &&
+        (row.eventColor ?? undefined) === (ev.eventColor ?? undefined)
     );
 }
 
 
-export async function syncCalendars(account: Account): Promise<CalendarMeta[]> {
+async function syncCalendarsUncoordinated(account: Account): Promise<CalendarMeta[]> {
     const remote = await fetchCalendars(account);
     const db = getDatabaseInstance();
     const calendars = db.get<Calendar>('calendars');
@@ -130,6 +139,26 @@ export async function syncCalendars(account: Account): Promise<CalendarMeta[]> {
                 ops.push(calendars.prepareCreate((r: Calendar) => writeCalendar(r, c, account.id)));
             } else if (!calendarUnchanged(found, c)) {
                 ops.push(found.prepareUpdate((r: Calendar) => writeCalendar(r, c, account.id)));
+            }
+        }
+
+        const colorByCalendar = new Map(remote.map((c) => [c.id, c.color]));
+        if (colorByCalendar.size > 0) {
+            const stale = await events
+                .query(
+                    Q.where('account_id', account.id),
+                    Q.or(
+                        ...[...colorByCalendar].map(([id, color]) =>
+                            Q.and(Q.where('calendar_id', id), Q.where('color', Q.notEq(color))),
+                        ),
+                    ),
+                )
+                .fetch();
+            for (const ev of stale) {
+                const color = colorByCalendar.get(ev.calendarId);
+                if (color !== undefined && ev.color !== color) {
+                    ops.push(ev.prepareUpdate((r: Event) => { r.color = color; }));
+                }
             }
         }
 
@@ -152,16 +181,27 @@ export async function syncCalendars(account: Account): Promise<CalendarMeta[]> {
     return remote;
 }
 
+const calendarSyncsInFlight = new Map<string, Promise<CalendarMeta[]>>();
 
-let localWrites = 0;
+export function syncCalendars(account: Account): Promise<CalendarMeta[]> {
+    const inFlight = calendarSyncsInFlight.get(account.id);
+    if (inFlight) return inFlight;
 
-export function markLocalWrite(): void {
-    localWrites += 1;
+    const promise = (async () => {
+        try {
+            return await syncCalendarsUncoordinated(account);
+        } finally {
+            calendarSyncsInFlight.delete(account.id);
+        }
+    })();
+    calendarSyncsInFlight.set(account.id, promise);
+    return promise;
 }
 
-export function localWriteEpoch(): number {
-    return localWrites;
+export function resetCalendarSyncCoordination(): void {
+    calendarSyncsInFlight.clear();
 }
+
 
 export function seriesBaseUid(uid: string): string {
     const i = uid.indexOf('_occ_');
@@ -178,7 +218,6 @@ export async function syncEvents(
 ): Promise<void> {
     if (calendars.length === 0) return;
 
-    const epoch = localWriteEpoch();
     const {
         events: remote,
         syncedCalendarIds,
@@ -205,8 +244,6 @@ export async function syncEvents(
             )
             .fetch();
 
-        if (localWriteEpoch() !== epoch) return;
-
         const windowKeys = new Set(windowRows.map(rowKey));
         const strayUids = remote
             .filter((ev) => !windowKeys.has(eventKey(ev.accountId, ev.calendarId, ev.uid)))
@@ -217,7 +254,7 @@ export async function syncEvents(
                 .fetch()
             : [];
 
-        if (localWriteEpoch() !== epoch) return;
+        const pending = pendingKeys();
 
         const inWindow = new Set(windowRows.map((r) => r.id));
         const byKey = new Map<string, Event>();
@@ -234,6 +271,7 @@ export async function syncEvents(
             const k = eventKey(ev.accountId, ev.calendarId, ev.uid);
             if (seen.has(k)) continue;
             seen.add(k);
+            if (pending.has(k)) continue;
             const found = byKey.get(k);
             if (!found) {
                 ops.push(prepareCreateEvent(events, ev));
@@ -248,6 +286,7 @@ export async function syncEvents(
             for (const [k, r] of byKey) {
                 if (seen.has(k)) continue;
                 if (!inWindow.has(r.id)) continue;
+                if (pending.has(k)) continue;
                 if (syncedIds.has(r.calendarId) || !knownIds.has(r.calendarId)) {
                     ops.push(r.prepareMarkAsDeleted());
                 }
@@ -267,7 +306,7 @@ export function resetDeltaSyncThrottle(): void {
     lastDeltaSyncAt.clear();
 }
 
-export async function syncVisibleRange(
+async function syncVisibleRangeNow(
     account: Account,
     calendars: CalendarMeta[],
     start: Date,
@@ -292,9 +331,11 @@ export async function syncVisibleRange(
 
     const {failures, fulfilledIndexes} = await settleAll(
         deltaCals.map((cal) => () => syncCalendarDelta(account, cal).then((): never[] => [])),
+        3,
     );
 
-    for (const i of fulfilledIndexes) lastDeltaSyncAt.set(deltaKey(account, deltaCals[i]), now);
+    const deltaCompletedAt = Date.now();
+    for (const i of fulfilledIndexes) lastDeltaSyncAt.set(deltaKey(account, deltaCals[i]), deltaCompletedAt);
 
     const fulfilled = new Set(fulfilledIndexes);
     const rangeCals = fullCals.concat(deltaCals.filter((_, i) => !fulfilled.has(i)));
@@ -318,9 +359,119 @@ export async function syncVisibleRange(
     }
 }
 
+interface VisibleSyncRequest {
+    account: Account;
+    calendars: CalendarMeta[];
+    start: Date;
+    end: Date;
+    deleteMissing: boolean;
+}
+
+interface VisibleSyncJob {
+    key: string;
+    request: VisibleSyncRequest;
+    promise: Promise<void>;
+    resolve: () => void;
+    reject: (reason: unknown) => void;
+}
+
+interface VisibleSyncLane {
+    running?: VisibleSyncJob;
+    pending?: VisibleSyncJob;
+}
+
+const visibleSyncLanes = new Map<string, VisibleSyncLane>();
+
+function visibleSyncKey(request: VisibleSyncRequest): string {
+    const calendarIds = request.calendars.map((c) => c.id).sort().join('\n');
+    return [
+        request.start.getTime(),
+        request.end.getTime(),
+        request.deleteMissing ? '1' : '0',
+        calendarIds,
+    ].join('\n');
+}
+
+function completeVisibleSync(lane: VisibleSyncLane, job: VisibleSyncJob, error?: unknown): void {
+    if (lane.running === job) lane.running = undefined;
+    const next = lane.pending;
+    lane.pending = undefined;
+    if (next) {
+        lane.running = next;
+        startVisibleSync(lane, next);
+    }
+
+    if (error === undefined) job.resolve();
+    else job.reject(error);
+}
+
+function startVisibleSync(lane: VisibleSyncLane, job: VisibleSyncJob): void {
+    const {account, calendars, start, end, deleteMissing} = job.request;
+    void syncVisibleRangeNow(account, calendars, start, end, deleteMissing).then(
+        () => completeVisibleSync(lane, job),
+        (error) => completeVisibleSync(lane, job, error),
+    );
+}
+
+export function syncVisibleRange(
+    account: Account,
+    calendars: CalendarMeta[],
+    start: Date,
+    end: Date,
+    deleteMissing = true,
+): Promise<void> {
+    if (calendars.length === 0) return Promise.resolve();
+
+    const request: VisibleSyncRequest = {account, calendars, start, end, deleteMissing};
+    const key = visibleSyncKey(request);
+    let lane = visibleSyncLanes.get(account.id);
+    if (!lane) {
+        lane = {};
+        visibleSyncLanes.set(account.id, lane);
+    }
+
+    if (lane.running?.key === key) return lane.running.promise;
+    if (lane.pending?.key === key) return lane.pending.promise;
+
+    let resolve!: () => void;
+    let reject!: (reason: unknown) => void;
+    const promise = new Promise<void>((res, rej) => {
+        resolve = res;
+        reject = rej;
+    });
+    const job: VisibleSyncJob = {key, request, promise, resolve, reject};
+
+    if (!lane.running) {
+        lane.running = job;
+        startVisibleSync(lane, job);
+    } else {
+        lane.pending?.resolve();
+        lane.pending = job;
+    }
+
+    return promise;
+}
+
+export function resetVisibleSyncCoordination(): void {
+    visibleSyncLanes.clear();
+}
+
+const HREF_QUERY_CHUNK = 200;
+
 async function collectByHref(events: Collection<Event>, accountId: string, hrefs: Set<string>) {
-    const rows = await events.query(Q.where('account_id', accountId)).fetch();
-    return rows.filter((r) => hrefs.has(r.href));
+    if (hrefs.size === 0) return [];
+    const all = Array.from(hrefs);
+    const out: Event[] = [];
+    for (let i = 0; i < all.length; i += HREF_QUERY_CHUNK) {
+        const chunk = all.slice(i, i + HREF_QUERY_CHUNK);
+        const rows = await events
+            .query(Q.where('account_id', accountId), Q.where('href', Q.oneOf(chunk)))
+            .fetch();
+        for (const r of rows) {
+            if (hrefs.has(r.href)) out.push(r);
+        }
+    }
+    return out;
 }
 
 
@@ -340,8 +491,6 @@ export async function syncCalendarDelta(account: Account, calendar: CalendarMeta
     const storedToken = row?.syncToken;
     const forceFull = needsHorizonReset(row?.expandedCenter, now);
 
-    const epoch = localWriteEpoch();
-
     let result: SyncCollectionResult = await syncCollection(
         account, calendar, forceFull ? '' : storedToken,
     );
@@ -360,13 +509,17 @@ export async function syncCalendarDelta(account: Account, calendar: CalendarMeta
             const existing = await events
                 .query(Q.where('account_id', account.id), Q.where('calendar_id', calendar.id))
                 .fetch();
-            if (localWriteEpoch() !== epoch) return;
+            const pending = pendingKeys();
             for (const r of existing) {
+                if (pending.has(rowKey(r))) continue;
                 if (r.start < endMs && r.end > startMs) {
                     ops.push(r.prepareMarkAsDeleted());
                 }
             }
-            for (const ev of fetched) ops.push(prepareCreateEvent(events, ev));
+            for (const ev of fetched) {
+                if (pending.has(eventKey(ev.accountId, ev.calendarId, ev.uid))) continue;
+                ops.push(prepareCreateEvent(events, ev));
+            }
             pushSyncTokenOp(ops, calendars, row, calendar, account, result.newToken, now);
             if (ops.length > 0) await db.batch(ops);
         }, 30000, 'syncCalendarDelta');
@@ -390,14 +543,38 @@ export async function syncCalendarDelta(account: Account, calendar: CalendarMeta
         const deletedSet = new Set(result.deleted);
         const touched = new Set<string>([...result.deleted, ...returnedHrefs]);
         const existing = await collectByHref(events, account.id, touched);
-        if (localWriteEpoch() !== epoch) return;
+        const pending = pendingKeys();
+        const remoteByKey = new Map<string, CalendarEvent>();
+        for (const ev of fetched) {
+            remoteByKey.set(eventKey(ev.accountId, ev.calendarId, ev.uid), ev);
+        }
+
+        const claimedKeys = new Set<string>();
         for (const r of existing) {
-            if (deletedSet.has(r.href) || returnedHrefs.has(r.href)) {
+            if (pending.has(rowKey(r))) continue;
+            if (deletedSet.has(r.href)) {
                 ops.push(r.prepareMarkAsDeleted());
+                continue;
+            }
+            const k = rowKey(r);
+            const remote = remoteByKey.get(k);
+            if (!remote || claimedKeys.has(k)) {
+                ops.push(r.prepareMarkAsDeleted());
+                continue;
+            }
+            claimedKeys.add(k);
+            if (!eventUnchanged(r, remote)) {
+                ops.push(r.prepareUpdate((rec: Event) => writeEvent(rec, remote)));
             }
         }
 
-        for (const ev of fetched) ops.push(prepareCreateEvent(events, ev));
+        for (const ev of fetched) {
+            const k = eventKey(ev.accountId, ev.calendarId, ev.uid);
+            if (pending.has(k)) continue;
+            if (!claimedKeys.has(k) && remoteByKey.get(k) === ev) {
+                ops.push(prepareCreateEvent(events, ev));
+            }
+        }
         pushSyncTokenOp(ops, calendars, row, calendar, account, result.newToken, now);
 
         if (ops.length > 0) await db.batch(ops);

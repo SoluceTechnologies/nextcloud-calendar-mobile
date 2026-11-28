@@ -1,12 +1,12 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { Alert } from 'react-native';
 import * as Crypto from 'expo-crypto';
 import dayjs from 'dayjs';
 
-import { putEvent, updateEvent, deleteEvent, moveEvent, fetchEventIcs } from '@/services/nextcloud/caldav';
+import { putEvent, updateEvent, deleteEvent, moveEvent, fetchEventIcs, buildEventHref } from '@/services/nextcloud/caldav';
 import { createTalkRoom } from '@/services/nextcloud/talk';
 import { describeMutationError } from '@/services/shared/errors';
-import { buildIcs, buildAllDayIcs, buildExceptionIcs, injectExdate, truncateRruleUntil, shiftIcsDates, upsertOverride } from '@/utils/ics';
+import { buildIcs, buildAllDayIcs, buildExceptionIcs, cloneEventIcs, injectExdate, truncateRruleUntil, shiftIcsDates, upsertOverride } from '@/utils/ics';
 import { parseIcsObjects, extractDtstartTzid, extractSequence, extractDtstartDtend, extractExtraVeventLines } from '@/utils/caldav-parse';
 import { isValidTimeZone } from '@/utils/timezone';
 import { allDayAlarmMinutes } from '@/features/notifications/alerts';
@@ -21,6 +21,8 @@ import {
   seriesBaseUid,
   shiftSeriesDates,
 } from '@/database/eventWrites';
+import { releasePending } from '@/database/pendingWrites';
+import { eventKey } from '@/database/sync';
 import { occurrenceSlot } from '@/features/event/occurrenceTarget';
 import type { Account, CalendarMeta, CalendarEvent, CreateEventInput, RecurrenceEditScope } from '@/types';
 
@@ -98,20 +100,23 @@ function buildIcsForInput(
   extraLines: string[] = [],
 ): string {
   const alarms = resolveAlarms(input);
+  const extras = input.rrule
+    ? extraLines.filter((line) => !/^RRULE:/i.test(line))
+    : extraLines;
   return input.allDay
     ? buildAllDayIcs({
         uid, summary: input.summary, description, location,
         dtstart: input.dtstart, dtend: input.dtend,
         organizerEmail: input.organizerEmail, organizerName: input.organizerName,
         attendees: input.attendees, rrule: input.rrule, alarms,
-        sequence, extraLines,
+        sequence, status: input.status, transp: input.transp, extraLines: extras,
       })
     : buildIcs({
         uid, summary: input.summary, description, location,
         dtstart: input.dtstart, dtend: input.dtend,
         organizerEmail: input.organizerEmail, organizerName: input.organizerName,
         attendees: input.attendees, timezone, rrule: input.rrule, alarms,
-        sequence, extraLines,
+        sequence, status: input.status, transp: input.transp, extraLines: extras,
       });
 }
 
@@ -157,7 +162,7 @@ function eventFromInput(
   const { dtstart, dtend } = inputDates(input);
   return {
     uid,
-    href: `${calendar.url}${uid}.ics`,
+    href: buildEventHref(calendar, uid),
     calendarId: calendar.id,
     accountId: account.id,
     summary: input.summary,
@@ -173,6 +178,8 @@ function eventFromInput(
     isRecurring: !!input.rrule,
     rrule: undefined,
     alarms: resolveAlarms(input),
+    transp: input.transp,
+    status: input.status,
   };
 }
 
@@ -181,13 +188,16 @@ function expandOccurrences(
   input: CreateEventInput,
   calendar: CalendarMeta,
   account: Account,
+  resolved?: { location: string; description: string },
 ): CalendarEvent[] {
   const timezone = resolveTimezone(account);
-  const ics = buildIcsForInput(baseUid, input, input.location ?? '', input.description ?? '', timezone);
+  const location = resolved?.location ?? input.location ?? '';
+  const description = resolved?.description ?? input.description ?? '';
+  const ics = buildIcsForInput(baseUid, input, location, description, timezone, 0, input.extraLines);
   const rangeStart = dayjs(input.dtstart).subtract(1, 'month').toDate();
   const rangeEnd = dayjs(input.dtstart).add(3, 'month').toDate();
   return parseIcsObjects(
-    [{ ics, href: `${calendar.url}${baseUid}.ics` }],
+    [{ ics, href: buildEventHref(calendar, baseUid) }],
     { calendarId: calendar.id, accountId: account.id, color: calendar.color },
     rangeStart,
     rangeEnd,
@@ -200,28 +210,70 @@ export function useCreateEvent(account: Account, calendars: CalendarMeta[]) {
       const calendar = resolveCalendar(calendars, input.calendarId);
       if (!calendar) return;
 
-      const uid = Crypto.randomUUID();
+      const uid = input.uid ?? Crypto.randomUUID();
       const optimistic = input.rrule
         ? expandOccurrences(uid, input, calendar, account)
         : [eventFromInput(uid, input, calendar, account)];
-      await insertEvents(optimistic);
 
+      let marked: string[] = [];
       try {
+        marked = await insertEvents(optimistic);
         const resolved = await resolveLocationAndDescription(account, input);
         const timezone = resolveTimezone(account);
-        const ics = buildIcsForInput(uid, input, resolved.location, resolved.description, timezone);
+        const ics = buildIcsForInput(uid, input, resolved.location, resolved.description, timezone, 0, input.extraLines);
         await putEvent(account, calendar, uid, ics);
 
         const real = input.rrule
-          ? expandOccurrences(uid, input, calendar, account)
+          ? expandOccurrences(uid, input, calendar, account, resolved)
           : [eventFromInput(uid, input, calendar, account, resolved)];
-        await insertEvents(real);
+        await insertEvents(real, { trackPending: false });
       } catch (error) {
-        await removeWhere(account.id, (e) => seriesBaseUid(e.uid) === uid);
+        await removeWhere(account.id, (e) => seriesBaseUid(e.uid) === uid, { trackPending: false });
         Alert.alert(i18n.t('event.errorCreateFailed'), describeMutationError(error));
+      } finally {
+        releasePending(marked);
       }
     }, [account, calendars]),
   );
+}
+
+export function useDuplicateEvent(account: Account, calendars: CalendarMeta[]) {
+  const uidRef = useRef<string | undefined>(undefined);
+  const action = useAction<{ event: CalendarEvent }>(
+    useCallback(async ({ event }) => {
+      const calendar = resolveCalendar(calendars, event.calendarId);
+      if (!calendar) return;
+
+      const newUid = Crypto.randomUUID();
+      let cloneIcs: string;
+      try {
+        cloneIcs = cloneEventIcs(await fetchEventIcs(account, event.href), newUid);
+      } catch (error) {
+        Alert.alert(i18n.t('event.errorDuplicateFailed'), describeMutationError(error));
+        return;
+      }
+
+      const optimistic = parseIcsObjects(
+        [{ ics: cloneIcs, href: buildEventHref(calendar, newUid) }],
+        { calendarId: calendar.id, accountId: account.id, color: calendar.color },
+        dayjs(event.dtstart).subtract(1, 'month').toDate(),
+        dayjs(event.dtstart).add(3, 'month').toDate(),
+      );
+      const marked = await insertEvents(optimistic);
+
+      try {
+        await putEvent(account, calendar, newUid, cloneIcs);
+      } catch (error) {
+        await removeWhere(account.id, (e) => seriesBaseUid(e.uid) === newUid, { trackPending: false });
+        Alert.alert(i18n.t('event.errorDuplicateFailed'), describeMutationError(error));
+        return;
+      } finally {
+        releasePending(marked);
+      }
+      uidRef.current = optimistic[0]?.uid ?? newUid;
+    }, [account, calendars]),
+  );
+  return { ...action, getDuplicatedUid: () => uidRef.current };
 }
 
 export function useUpdateEvent(account: Account, calendars: CalendarMeta[]) {
@@ -243,24 +295,27 @@ export function useUpdateEvent(account: Account, calendars: CalendarMeta[]) {
         location: input.location ?? event.location,
         attendees: input.attendees,
         alarms: resolveAlarms(input),
+        transp: input.transp ?? event.transp,
+        status: input.status ?? event.status,
       };
 
-      if (shiftsWholeSeries) {
-        await shiftSeriesDates(account.id, base, deltaStart, deltaEnd, datesOnly ? {} : nonTemporalPatch);
-      } else {
-        await patchByUid(account.id, event.uid, {
-          ...(datesOnly ? {} : nonTemporalPatch),
-          dtstart,
-          dtend,
-          ...(targetCal && {
-            calendarId: targetCal.id,
-            color: targetCal.color,
-            href: `${targetCal.url}${event.uid}.ics`,
-          }),
-        });
-      }
-
+      let marked: string[] = [];
       try {
+        if (shiftsWholeSeries) {
+          marked = await shiftSeriesDates(account.id, base, deltaStart, deltaEnd, datesOnly ? {} : nonTemporalPatch);
+        } else {
+          marked = await patchByUid(account.id, event.uid, {
+            ...(datesOnly ? {} : nonTemporalPatch),
+            dtstart,
+            dtend,
+            ...(targetCal && {
+              calendarId: targetCal.id,
+              color: targetCal.color,
+              href: buildEventHref(targetCal, event.uid),
+            }),
+          });
+        }
+
         const { location, description } = await resolveLocationAndDescription(account, input);
         let timezone = resolveTimezone(account);
         const scheduled = withServerOrganizer(input, event);
@@ -318,6 +373,7 @@ export function useUpdateEvent(account: Account, calendars: CalendarMeta[]) {
             attendees: input.attendees, timezone, recurrenceId: occurrenceSlot(event),
             alarms: resolveAlarms(input),
             sequence: extractSequence(masterIcs) + 1,
+            status: input.status, transp: input.transp,
             extraLines: extractExtraVeventLines(masterIcs),
           });
           // The override lives in the series resource (CalDAV refuses a second one with its UID).
@@ -334,6 +390,8 @@ export function useUpdateEvent(account: Account, calendars: CalendarMeta[]) {
       } catch (error) {
         await restoreSeries(account.id, base, snapshot);
         Alert.alert(i18n.t('event.errorUpdateFailed'), describeMutationError(error));
+      } finally {
+        releasePending(marked);
       }
     }, [account, calendars]),
   );
@@ -343,20 +401,22 @@ export function useDeleteEvent(account: Account) {
   return useAction<{ event: CalendarEvent; scope?: RecurrenceEditScope }>(
     useCallback(async ({ event, scope = 'all' }) => {
       const base = seriesBaseUid(event.uid);
-      let removed: CalendarEvent[];
-      if (!event.isRecurring || scope === 'all') {
-        removed = await removeWhere(account.id, (e) => seriesBaseUid(e.uid) === base);
-      } else if (scope === 'thisAndFollowing') {
-        const from = occurrenceSlot(event).getTime();
-        removed = await removeWhere(
-          account.id,
-          (e) => seriesBaseUid(e.uid) === base && new Date(e.dtstart).getTime() >= from,
-        );
-      } else {
-        removed = await removeWhere(account.id, (e) => e.uid === event.uid);
-      }
-
+      let removed: CalendarEvent[] = [];
+      let marked: string[] = [];
       try {
+        if (!event.isRecurring || scope === 'all') {
+          removed = await removeWhere(account.id, (e) => seriesBaseUid(e.uid) === base);
+        } else if (scope === 'thisAndFollowing') {
+          const from = occurrenceSlot(event).getTime();
+          removed = await removeWhere(
+            account.id,
+            (e) => seriesBaseUid(e.uid) === base && new Date(e.dtstart).getTime() >= from,
+          );
+        } else {
+          removed = await removeWhere(account.id, (e) => e.uid === event.uid);
+        }
+        marked = removed.map((e) => eventKey(e.accountId, e.calendarId, e.uid));
+
         if (!event.isRecurring || scope === 'all') {
           await deleteEvent(account, event.href);
           return;
@@ -370,8 +430,10 @@ export function useDeleteEvent(account: Account) {
           await updateEvent(account, event.href, truncateRruleUntil(masterIcs, oneDayBefore));
         }
       } catch (error) {
-        await insertEvents(removed);
+        await insertEvents(removed, { trackPending: false });
         Alert.alert(i18n.t('event.errorDeleteFailed'), describeMutationError(error));
+      } finally {
+        releasePending(marked);
       }
     }, [account]),
   );

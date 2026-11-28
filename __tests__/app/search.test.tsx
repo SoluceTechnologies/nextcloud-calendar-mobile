@@ -1,6 +1,10 @@
 import { Alert } from 'react-native';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import { router, useIsFocused } from 'expo-router';
+import dayjs from 'dayjs';
+import localizedFormat from 'dayjs/plugin/localizedFormat';
+
+dayjs.extend(localizedFormat);
 
 import { ThemeWrapper } from '../helpers/theme';
 import SearchScreen from '../../app/(tabs)/search/index';
@@ -104,6 +108,7 @@ const oldEntry = serverEntry('/remote.php/dav/calendars/alice/work/old.ics', 'Ol
 
 const renderScreen = () => render(<SearchScreen />, { wrapper: ThemeWrapper });
 const input = () => screen.getByTestId('search-input');
+const escapeRegExp = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const recentTerms = () => (useRecentSearchStore.getState().byAccount.a1 ?? []).map((recent) => recent.term);
 
 beforeEach(() => {
@@ -129,6 +134,19 @@ it('shows the filter menu when empty', () => {
   for (const key of ['calendar', 'attendee', 'date']) {
     expect(screen.getByTestId(`filter-${key}`)).toBeTruthy();
   }
+});
+
+it('a multi-day event shows its full date range in the result line', async () => {
+  const retreat = makeEvent('retreat', 'work', 'Retreat', now + DAY_MS);
+  retreat.dtend = new Date(retreat.dtstart.getTime() + 3 * DAY_MS);
+  (useEventsForRange as jest.Mock).mockImplementation((accountId: string) =>
+    accountId ? [...events, retreat] : [],
+  );
+  renderScreen();
+  fireEvent.changeText(input(), 'retreat');
+  expect(await screen.findByTestId('result-event-retreat')).toBeTruthy();
+  const range = `${dayjs(retreat.dtstart).format('ll')} – ${dayjs(retreat.dtend).format('ll')}`;
+  expect(screen.getByText(new RegExp(`^${escapeRegExp(range)}`))).toBeTruthy();
 });
 
 it('typing a title lists the event under Upcoming', async () => {

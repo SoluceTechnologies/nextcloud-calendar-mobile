@@ -1,4 +1,4 @@
-import { memo, useRef, useCallback, useMemo, useLayoutEffect, useEffect, forwardRef, useImperativeHandle } from 'react';
+import { memo, useRef, useCallback, useMemo, useLayoutEffect, useEffect, forwardRef, useImperativeHandle, useState } from 'react';
 import {
   View, Text, FlatList, TouchableOpacity, StyleSheet, type ViewToken,
   type NativeScrollEvent, type NativeSyntheticEvent,
@@ -28,8 +28,13 @@ const HEADER_HEIGHT = 57;
 const EVENT_ROW_HEIGHT = 72;
 
 const TODAY_JUMP_GUARD_MS = 500;
-const JUMP_VERIFY_WINDOW_MS = 1200;
+const JUMP_VERIFY_WINDOW_MS = 5000;
 const JUMP_CHECK_DELAY_MS = 120;
+
+const AGENDA_INITIAL_PAST_DAYS = 30;
+const AGENDA_INITIAL_FUTURE_DAYS = 60;
+const AGENDA_EXTEND_DAYS = 60;
+const AGENDA_EDGE_THRESHOLD_PX = 600;
 
 interface DayHeaderProps {
   sectionDate: Date;
@@ -86,6 +91,8 @@ const EventRow = memo(({ event, theme, onPress }: EventRowProps) => {
       })();
 
   const allDayLabel = t('calendar.allDay');
+  const isCancelled = event.status === 'cancelled';
+  const isTentative = event.status === 'tentative';
 
   return (
     <TouchableOpacity
@@ -94,8 +101,16 @@ const EventRow = memo(({ event, theme, onPress }: EventRowProps) => {
       activeOpacity={0.75}
     >
       <View style={[styles.colorBar, { backgroundColor: event.color }]} />
-      <View style={styles.eventContent}>
-        <Text style={[styles.eventTitle, { color: theme.colors.text }]} numberOfLines={1}>
+      <View style={[styles.eventContent, isCancelled && styles.eventContentCancelled]}>
+        <Text
+          style={[
+            styles.eventTitle,
+            { color: theme.colors.text },
+            isCancelled && styles.eventTitleCancelled,
+            isTentative && styles.eventTitleTentative,
+          ]}
+          numberOfLines={1}
+        >
           {event.summary || t('calendar.noTitle')}
         </Text>
         <View style={styles.eventMeta}>
@@ -131,13 +146,19 @@ const AgendaViewImpl = forwardRef<AgendaViewHandle, Props>(function AgendaView(
   const theme = useTheme();
   const listRef = useRef<FlatList<Row>>(null);
   const todayKey = dayjs().format('YYYY-MM-DD');
+  const [rangeDays, setRangeDays] = useState({
+    past: AGENDA_INITIAL_PAST_DAYS,
+    future: AGENDA_INITIAL_FUTURE_DAYS,
+  });
+  const rangeDaysRef = useRef(rangeDays);
+  const extensionPendingRef = useRef({ past: false, future: false });
 
   const { rows, stickyIndices, offsets, todayIndex } = useMemo(() => {
     const today = dayjs();
     const sections = buildAgendaSections(
       events,
-      today.subtract(AGENDA_PAST_DAYS, 'day').toDate(),
-      today.add(AGENDA_FUTURE_DAYS, 'day').toDate(),
+      today.subtract(rangeDays.past, 'day').toDate(),
+      today.add(rangeDays.future, 'day').toDate(),
     );
     const out: Row[] = [];
     const sticky: number[] = [];
@@ -157,7 +178,7 @@ const AgendaViewImpl = forwardRef<AgendaViewHandle, Props>(function AgendaView(
       }
     }
     return { rows: out, stickyIndices: sticky, offsets: offs, todayIndex: todayIdx };
-  }, [events, todayKey]);
+  }, [events, todayKey, rangeDays]);
 
   const getItemLayout = useCallback((data: ArrayLike<Row> | null | undefined, index: number) => ({
     length: data?.[index]?.type === 'header' ? HEADER_HEIGHT : EVENT_ROW_HEIGHT,
@@ -165,14 +186,46 @@ const AgendaViewImpl = forwardRef<AgendaViewHandle, Props>(function AgendaView(
     index,
   }), [offsets]);
 
+  const extendPast = useCallback(() => {
+    if (extensionPendingRef.current.past || rangeDaysRef.current.past >= AGENDA_PAST_DAYS) return;
+    extensionPendingRef.current.past = true;
+    setRangeDays((current) => (
+      current.past >= AGENDA_PAST_DAYS
+        ? current
+        : { ...current, past: Math.min(AGENDA_PAST_DAYS, current.past + AGENDA_EXTEND_DAYS) }
+    ));
+  }, []);
+
+  const extendFuture = useCallback(() => {
+    if (extensionPendingRef.current.future || rangeDaysRef.current.future >= AGENDA_FUTURE_DAYS) return;
+    extensionPendingRef.current.future = true;
+    setRangeDays((current) => (
+      current.future >= AGENDA_FUTURE_DAYS
+        ? current
+        : { ...current, future: Math.min(AGENDA_FUTURE_DAYS, current.future + AGENDA_EXTEND_DAYS) }
+    ));
+  }, []);
+
   const scrollYRef = useRef(offsets[todayIndex] ?? 0);
   const anchorRef = useRef({ key: todayKey, delta: 0 });
   const layoutRef = useRef({ rows, offsets });
   const userScrollingRef = useRef(false);
-  const onUserScrollStart = useCallback(() => { userScrollingRef.current = true; }, []);
-  const onUserScrollEnd = useCallback(() => { userScrollingRef.current = false; }, []);
+  const hasUserScrolledRef = useRef(false);
+  const pendingJumpRef = useRef<{ key: string; delta: number; expiresAt: number } | null>(null);
 
-  const pendingJumpRef = useRef<{ key: string; expiresAt: number } | null>(null);
+  const onScrollBeginDrag = useCallback(() => {
+    pendingJumpRef.current = null;
+    userScrollingRef.current = true;
+    hasUserScrolledRef.current = true;
+  }, []);
+  const onMomentumScrollBegin = useCallback(() => {
+    if (!pendingJumpRef.current) userScrollingRef.current = true;
+  }, []);
+  const onUserScrollEnd = useCallback(() => { userScrollingRef.current = false; }, []);
+  const handleEndReached = useCallback(() => {
+    if (hasUserScrolledRef.current) extendFuture();
+  }, [extendFuture]);
+
   const jumpTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const offsetForKey = useCallback((key: string): number | null => {
@@ -184,12 +237,13 @@ const AgendaViewImpl = forwardRef<AgendaViewHandle, Props>(function AgendaView(
   const issuePendingJump = useCallback(() => {
     const pending = pendingJumpRef.current;
     if (!pending || userScrollingRef.current) return;
-    const target = offsetForKey(pending.key);
-    if (target == null) {
+    const headerOffset = offsetForKey(pending.key);
+    if (headerOffset == null) {
       pendingJumpRef.current = null;
       return;
     }
-    anchorRef.current = { key: pending.key, delta: 0 };
+    const target = headerOffset + pending.delta;
+    anchorRef.current = { key: pending.key, delta: pending.delta };
     listRef.current?.scrollToOffset({ offset: target, animated: false });
   }, [offsetForKey]);
 
@@ -199,7 +253,8 @@ const AgendaViewImpl = forwardRef<AgendaViewHandle, Props>(function AgendaView(
       jumpTimerRef.current = null;
       const pending = pendingJumpRef.current;
       if (!pending) return;
-      const target = offsetForKey(pending.key);
+      const headerOffset = offsetForKey(pending.key);
+      const target = headerOffset == null ? null : headerOffset + pending.delta;
       const landed = target != null && Math.abs(scrollYRef.current - target) < 2;
       if (landed || userScrollingRef.current || Date.now() > pending.expiresAt) {
         pendingJumpRef.current = null;
@@ -208,7 +263,7 @@ const AgendaViewImpl = forwardRef<AgendaViewHandle, Props>(function AgendaView(
       issuePendingJump();
       scheduleJumpCheck();
     }, JUMP_CHECK_DELAY_MS);
-  }, [offsetForKey, issuePendingJump]);
+  }, [offsetForKey, issuePendingJump, extendPast, extendFuture]);
 
   useEffect(() => () => {
     if (jumpTimerRef.current) clearTimeout(jumpTimerRef.current);
@@ -216,10 +271,17 @@ const AgendaViewImpl = forwardRef<AgendaViewHandle, Props>(function AgendaView(
 
   const onScroll = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
     const y = e.nativeEvent.contentOffset.y;
+    const visibleEnd = y + (e.nativeEvent.layoutMeasurement?.height ?? 0);
+    const contentHeight = e.nativeEvent.contentSize?.height ?? 0;
     scrollYRef.current = y;
+    if (userScrollingRef.current) {
+      if (y < AGENDA_EDGE_THRESHOLD_PX) extendPast();
+      if (contentHeight > 0 && contentHeight - visibleEnd < AGENDA_EDGE_THRESHOLD_PX) extendFuture();
+    }
     const pending = pendingJumpRef.current;
     if (pending) {
-      const target = offsetForKey(pending.key);
+      const headerOffset = offsetForKey(pending.key);
+      const target = headerOffset == null ? null : headerOffset + pending.delta;
       if (userScrollingRef.current || target == null || Math.abs(y - target) < 2 || Date.now() > pending.expiresAt) {
         pendingJumpRef.current = null;
       } else {
@@ -235,15 +297,25 @@ const AgendaViewImpl = forwardRef<AgendaViewHandle, Props>(function AgendaView(
   }, [offsetForKey, issuePendingJump]);
 
   useLayoutEffect(() => {
+    rangeDaysRef.current = rangeDays;
+    extensionPendingRef.current.past = false;
+    extensionPendingRef.current.future = false;
     layoutRef.current = { rows, offsets };
     const anchor = anchorRef.current;
     const idx = rows.findIndex((r) => r.type === 'header' && r.key === anchor.key);
     if (idx < 0) return;
     const y = offsets[idx] + anchor.delta;
     if (Math.abs(y - scrollYRef.current) < 1) return;
-    scrollYRef.current = y;
     listRef.current?.scrollToOffset({ offset: y, animated: false });
-  }, [rows, offsets]);
+    if (!userScrollingRef.current) {
+      pendingJumpRef.current = {
+        key: anchor.key,
+        delta: anchor.delta,
+        expiresAt: Date.now() + JUMP_VERIFY_WINDOW_MS,
+      };
+      scheduleJumpCheck();
+    }
+  }, [rows, offsets, rangeDays, scheduleJumpCheck]);
 
   const initialIndexRef = useRef(todayIndex);
   const todayKeyRef = useRef(todayKey);
@@ -256,7 +328,7 @@ const AgendaViewImpl = forwardRef<AgendaViewHandle, Props>(function AgendaView(
       if (now - lastJumpAtRef.current < TODAY_JUMP_GUARD_MS) return;
       lastJumpAtRef.current = now;
       userScrollingRef.current = false;
-      pendingJumpRef.current = { key: todayKeyRef.current, expiresAt: now + JUMP_VERIFY_WINDOW_MS };
+      pendingJumpRef.current = { key: todayKeyRef.current, delta: 0, expiresAt: now + JUMP_VERIFY_WINDOW_MS };
       issuePendingJump();
       scheduleJumpCheck();
     },
@@ -266,6 +338,7 @@ const AgendaViewImpl = forwardRef<AgendaViewHandle, Props>(function AgendaView(
   const onVisibleRef = useRef(onVisibleDateChange);
   onVisibleRef.current = onVisibleDateChange;
   const onViewableItemsChanged = useCallback(({ viewableItems }: { viewableItems: ViewToken[] }) => {
+    if (!userScrollingRef.current) return;
     const row = viewableItems[0]?.item as Row | undefined;
     if (row) onVisibleRef.current?.(row.date);
   }, []);
@@ -292,14 +365,17 @@ const AgendaViewImpl = forwardRef<AgendaViewHandle, Props>(function AgendaView(
       initialNumToRender={20}
       maxToRenderPerBatch={16}
       windowSize={9}
-      removeClippedSubviews
       style={{ flex: 1, backgroundColor: theme.colors.background }}
       contentContainerStyle={{ paddingBottom: 80 }}
       onScroll={onScroll}
-      onScrollBeginDrag={onUserScrollStart}
+      onEndReached={handleEndReached}
+      onEndReachedThreshold={0.5}
+      onScrollBeginDrag={onScrollBeginDrag}
       onScrollEndDrag={onUserScrollEnd}
-      onMomentumScrollBegin={onUserScrollStart}
+      onMomentumScrollBegin={onMomentumScrollBegin}
       onMomentumScrollEnd={onUserScrollEnd}
+      onContentSizeChange={issuePendingJump}
+      onLayout={issuePendingJump}
       scrollEventThrottle={32}
       onViewableItemsChanged={onViewableItemsChanged}
       viewabilityConfig={viewabilityConfig.current}
@@ -350,7 +426,10 @@ const styles = StyleSheet.create({
   },
   colorBar: { width: 4 },
   eventContent: { flex: 1, padding: 10, justifyContent: 'center' },
+  eventContentCancelled: { opacity: 0.5 },
   eventTitle: { fontSize: 14, fontWeight: '600', marginBottom: 3 },
+  eventTitleCancelled: { textDecorationLine: 'line-through' },
+  eventTitleTentative: { fontStyle: 'italic' },
   eventMeta: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   eventTime: { fontSize: 12, fontWeight: '500' },
   eventDuration: { fontSize: 11 },

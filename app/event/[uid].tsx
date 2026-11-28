@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { View, StyleSheet, ScrollView, Alert, Text, Linking } from 'react-native';
+import { View, StyleSheet, ScrollView, Alert, Text, Linking, ActionSheetIOS, Platform } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
 import { haptic } from '@/utils/haptics';
 import {
   Pencil, Clock, CalendarDays, MapPin, Video, Repeat, Trash2, Copy, Check, Bell,
-  Navigation,
+  Navigation, Ban, Info, EyeOff, Ellipsis,
 } from 'lucide-react-native';
 import { useLocalSearchParams, useNavigation, useRouter, useTheme } from 'expo-router';
 import dayjs from 'dayjs';
@@ -16,7 +16,7 @@ import { parseRrule } from '@/features/calendar/utils/parseRrule';
 import { formatRecurrenceRule } from '@/features/event/utils/recurrencePattern';
 import { useCalendars } from '@/hooks/useCalendars';
 import { useAccounts } from '@/hooks/useAccounts';
-import { useDeleteEvent } from '@/features/event/hooks/useMutateEvent';
+import { useDeleteEvent, useDuplicateEvent } from '@/features/event/hooks/useMutateEvent';
 import { useEventLocation } from '@/features/map/hooks/useEventLocation';
 import { EventMapPreview, EventMapSheet } from '@/features/map/components';
 import { openMaps } from '@/features/map/utils/mapLinks';
@@ -72,6 +72,7 @@ export default function EventDetailScreen() {
 
   const calendar = calendars.find((c) => c.id === event?.calendarId);
   const deleteMutation = useDeleteEvent(activeAccount!);
+  const duplicateMutation = useDuplicateEvent(activeAccount!, calendars);
 
   const canEdit = !calendar?.isReadOnly && !calendar?.isSubscribed && !event?.isTask;
   const eventsLoading = event === undefined;
@@ -152,6 +153,31 @@ export default function EventDetailScreen() {
     }
   }
 
+  async function handleDuplicate() {
+    if (!event) return;
+    await duplicateMutation.mutateAsync({ event });
+    const copyUid = duplicateMutation.getDuplicatedUid();
+    if (copyUid) router.push(`/event/${encodeURIComponent(copyUid)}`);
+  }
+
+  function handleMoreActions() {
+    const duplicateLabel = t('event.duplicateEvent');
+    const cancelLabel = t('common.cancel');
+    if (Platform.OS === 'ios') {
+      ActionSheetIOS.showActionSheetWithOptions(
+        { options: [duplicateLabel, cancelLabel], cancelButtonIndex: 1 },
+        (buttonIndex) => {
+          if (buttonIndex === 0) void handleDuplicate();
+        },
+      );
+      return;
+    }
+    Alert.alert(event?.summary ?? '', undefined, [
+      { text: duplicateLabel, onPress: () => void handleDuplicate() },
+      { text: cancelLabel, style: 'cancel' },
+    ]);
+  }
+
   const recurrenceLabel = useMemo(() => {
     if (!event?.rrule || !event?.dtstart) return null;
     const rule = parseRrule(event.rrule);
@@ -227,9 +253,20 @@ export default function EventDetailScreen() {
         <ScreenHeader
           onBack={() => goBackOrHome(router)}
           right={canEdit ? (
-            <IconButton testID="event-detail-edit" glass round size={40} onPress={handleEdit} accessibilityLabel={t('event.edit')}>
-              <Pencil size={20} color={theme.colors.primary} />
-            </IconButton>
+            <View style={styles.headerActions}>
+              <IconButton
+                testID="event-detail-more"
+                glass round size={40}
+                onPress={handleMoreActions}
+                disabled={duplicateMutation.isPending || deleteMutation.isPending}
+                accessibilityLabel={t('event.moreActions')}
+              >
+                <Ellipsis size={20} color={theme.colors.primary} />
+              </IconButton>
+              <IconButton testID="event-detail-edit" glass round size={40} onPress={handleEdit} accessibilityLabel={t('event.edit')}>
+                <Pencil size={20} color={theme.colors.primary} />
+              </IconButton>
+            </View>
           ) : undefined}
         />
 
@@ -238,7 +275,12 @@ export default function EventDetailScreen() {
         <ScrollView style={styles.flex} contentContainerStyle={[styles.content, { paddingBottom: 24 }]}>
           <Stack gap={20}>
             <Stack gap={10}>
-              <Typography variant="h3">{event.summary}</Typography>
+              <Typography
+                variant="h3"
+                style={event.status === 'cancelled' ? styles.cancelledTitle : undefined}
+              >
+                {event.summary}
+              </Typography>
               {event.isRecurring && (
                 <Stack direction="horizontal" gap={6}>
                   <Repeat size={16} color={theme.colors.primary} />
@@ -293,6 +335,28 @@ export default function EventDetailScreen() {
                       </IconButton>
                     </Stack>
                   }
+                />
+              )}
+              {event.status && event.status !== 'confirmed' && (
+                <Item
+                  leading={
+                    <Icon size={20}>
+                      {event.status === 'cancelled'
+                        ? <Ban color={theme.colors.textSecondary} />
+                        : <Info color={theme.colors.textSecondary} />}
+                    </Icon>
+                  }
+                  title={t('event.status')}
+                  description={event.status === 'cancelled'
+                    ? t('event.statusCancelled')
+                    : t('event.statusTentative')}
+                />
+              )}
+              {event.transp === 'transparent' && (
+                <Item
+                  leading={<Icon size={20}><EyeOff color={theme.colors.textSecondary} /></Icon>}
+                  title={t('event.availability')}
+                  description={t('event.availabilityFree')}
                 />
               )}
             </List>
@@ -368,6 +432,7 @@ export default function EventDetailScreen() {
 
         {canEdit && (
           <Stack
+            gap={8}
             padding={[20, 12]}
             style={[styles.footer, { paddingBottom: insets.bottom + 12, borderTopColor: theme.colors.border }]}
           >
@@ -377,7 +442,7 @@ export default function EventDetailScreen() {
               title={t('event.deleteEvent')}
               icon={<Trash2 size={18} color={theme.colors.danger} />}
               loading={deleteMutation.isPending}
-              disabled={deleteMutation.isPending}
+              disabled={deleteMutation.isPending || duplicateMutation.isPending}
               onPress={handleDelete}
             />
           </Stack>
@@ -392,5 +457,7 @@ const styles = StyleSheet.create({
   colorBar: { height: 6 },
   content: { padding: 20 },
   footer: { borderTopWidth: StyleSheet.hairlineWidth },
+  headerActions: { flexDirection: 'row', gap: 8 },
   link: { textDecorationLine: 'underline' },
+  cancelledTitle: { textDecorationLine: 'line-through', opacity: 0.5 },
 });

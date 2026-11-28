@@ -68,7 +68,7 @@ export function FilterMenu({ recent, onStart, onLoadRecent, onRemoveRecent }: Fi
                 testID={`filter-${key}`}
                 leading={<Icon size={20} color={colors.textSecondary} />}
                 title={t(`search.filter.${key}`)}
-                trailing={
+                description={
                   <Typography variant="caption" color="secondary" style={styles.mono}>
                     {syntax}
                   </Typography>

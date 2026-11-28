@@ -1,4 +1,4 @@
-import type { Attendee, CalendarEvent } from '@/types';
+import type { Attendee, CalendarEvent, EventStatus, EventTransp } from '@/types';
 import { dedupeAttendees } from '@/utils/attendees';
 
 import Event from '../models/Event';
@@ -39,7 +39,8 @@ export function mapEventToShared(event: Event): CalendarEvent {
     dtstart: new Date(event.start),
     dtend: new Date(event.end),
     allDay: !!event.allDay,
-    color: event.color,
+    color: event.eventColor ?? event.color,
+    eventColor: event.eventColor ?? undefined,
     attendees: parseAttendees(event.attendees),
     organizerEmail: event.organizerEmail ?? undefined,
     talkUrl: event.talkUrl ?? undefined,
@@ -48,5 +49,7 @@ export function mapEventToShared(event: Event): CalendarEvent {
     recurrenceId: event.recurrenceId != null ? new Date(event.recurrenceId) : undefined,
     alarms: parseAlarms(event.alarms ?? undefined, event.alarmMinutes ?? undefined),
     isTask: !!event.isTask,
+    transp: event.transp as EventTransp | undefined,
+    status: event.status as EventStatus | undefined,
   };
 }

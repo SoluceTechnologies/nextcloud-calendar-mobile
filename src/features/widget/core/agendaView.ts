@@ -5,6 +5,8 @@ import { type WidgetPalette, type WidgetScheme, widgetPalette } from './theme';
 export interface AgendaGroup {
   key: string;
   header: string;
+  dayLabel: string;
+  dayNumber: string;
   isToday: boolean;
   items: AgendaEventItem[];
 }
@@ -48,6 +50,8 @@ export function agendaGroups(snapshot: AgendaSnapshot | null, budget = Infinity)
     groups.push({
       key: section.dayKey,
       header: `${section.weekdayLong} ${section.dayNumber}`,
+      dayLabel: section.dayLabel,
+      dayNumber: section.dayNumber,
       isToday: section.isToday,
       items,
     });

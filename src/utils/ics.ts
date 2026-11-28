@@ -1,4 +1,4 @@
-import type {Attendee, RecurrenceRule} from '@/types';
+import type {Attendee, EventStatus, EventTransp, RecurrenceRule} from '@/types';
 import {minutesToTrigger, NO_ALARM_PROP} from '@/features/notifications/alerts';
 
 const PRODID = '-//Nextcloud Calendar Mobile//EN';
@@ -65,11 +65,19 @@ function rruleLine(rule: RecurrenceRule, allDay = false): string {
     return `RRULE:${parts.join(';')}`;
 }
 
-function textLines(summary: string, description: string, location: string): string[] {
+function textLines(
+    summary: string,
+    description: string,
+    location: string,
+    status?: EventStatus,
+    transp?: EventTransp,
+): string[] {
     return [
         `SUMMARY:${esc(summary)}`,
         ...(description ? [`DESCRIPTION:${esc(description)}`] : []),
         ...(location ? [`LOCATION:${esc(location)}`] : []),
+        ...(status && status !== 'confirmed' ? [`STATUS:${status.toUpperCase()}`] : []),
+        ...(transp === 'transparent' ? ['TRANSP:TRANSPARENT'] : []),
     ];
 }
 
@@ -87,15 +95,60 @@ function alarmLines(alarms?: number[]): string[] {
         ]);
 }
 
+const PARAM_NEEDS_QUOTE = /[,:;]/;
+
+function quoteParam(value: string): string {
+    return PARAM_NEEDS_QUOTE.test(value) ? `"${value}"` : value;
+}
+
+function joinCalAddresses(values: string[]): string {
+    return values.map((v) => `"${v}"`).join(',');
+}
+
+function attendeeCalAddress(att: Attendee): string {
+    return /^[a-z][a-z0-9+.-]*:/i.test(att.email) ? att.email : `mailto:${att.email}`;
+}
+
 function schedulingLines(name: string, email: string, attendees: Attendee[]): string[] {
     if (attendees.length === 0) return [];
-    return [`ORGANIZER;CN=${name}:mailto:${email}`, ...attendeeLines(attendees)];
+    return [`ORGANIZER;CN=${quoteParam(name)}:mailto:${email}`, ...attendeeLines(attendees)];
+}
+
+function hasAttendeeParams(att: Attendee): boolean {
+    return (
+        att.cutype !== undefined || att.role !== undefined || att.partstat !== undefined ||
+        att.rsvp !== undefined || (att.member?.length ?? 0) > 0 ||
+        (att.delegatedTo?.length ?? 0) > 0 || (att.delegatedFrom?.length ?? 0) > 0 ||
+        att.sentBy !== undefined || att.scheduleAgent !== undefined ||
+        att.scheduleStatus !== undefined || att.scheduleForceSend !== undefined ||
+        Object.keys(att.extraParams ?? {}).length > 0
+    );
 }
 
 function attendeeLines(attendees: Attendee[]): string[] {
     return attendees.map((att) => {
-        const cn = att.displayName ? `;CN=${att.displayName}` : '';
-        return `ATTENDEE;CUTYPE=INDIVIDUAL;ROLE=REQ-PARTICIPANT;RSVP=TRUE;PARTSTAT=NEEDS-ACTION${cn}:mailto:${att.email}`;
+        const cn = att.displayName ? `;CN=${quoteParam(att.displayName)}` : '';
+        const value = attendeeCalAddress(att);
+        if (!hasAttendeeParams(att)) {
+            return `ATTENDEE;CUTYPE=INDIVIDUAL;ROLE=REQ-PARTICIPANT;RSVP=TRUE;PARTSTAT=NEEDS-ACTION${cn}:${value}`;
+        }
+        const params: string[] = [];
+        if (att.cutype) params.push(`CUTYPE=${att.cutype.toUpperCase()}`);
+        if (att.member?.length) params.push(`MEMBER=${joinCalAddresses(att.member)}`);
+        if (att.role) params.push(`ROLE=${att.role.toUpperCase()}`);
+        if (att.partstat) params.push(`PARTSTAT=${att.partstat.toUpperCase()}`);
+        if (att.rsvp !== undefined) params.push(`RSVP=${att.rsvp ? 'TRUE' : 'FALSE'}`);
+        if (att.delegatedTo?.length) params.push(`DELEGATED-TO=${joinCalAddresses(att.delegatedTo)}`);
+        if (att.delegatedFrom?.length) params.push(`DELEGATED-FROM=${joinCalAddresses(att.delegatedFrom)}`);
+        if (att.sentBy) params.push(`SENT-BY=${joinCalAddresses([att.sentBy])}`);
+        if (att.scheduleAgent) params.push(`SCHEDULE-AGENT=${att.scheduleAgent.toUpperCase()}`);
+        if (att.scheduleStatus) params.push(`SCHEDULE-STATUS=${att.scheduleStatus}`);
+        if (att.scheduleForceSend) params.push(`SCHEDULE-FORCE-SEND=${att.scheduleForceSend.toUpperCase()}`);
+        for (const [name, values] of Object.entries(att.extraParams ?? {})) {
+            const joined = (Array.isArray(values) ? values : [values]).map(quoteParam).join(',');
+            params.push(`${name.toUpperCase()}=${joined}`);
+        }
+        return `ATTENDEE;${params.join(';')}${cn}:${value}`;
     });
 }
 
@@ -129,6 +182,8 @@ export interface BuildIcsParams extends ExtraLines {
     rrule?: RecurrenceRule;
     alarms?: number[];
     sequence?: number;
+    status?: EventStatus;
+    transp?: EventTransp;
 }
 
 export function buildIcs(params: BuildIcsParams): string {
@@ -146,6 +201,8 @@ export function buildIcs(params: BuildIcsParams): string {
         rrule,
         alarms,
         sequence = 0,
+        status,
+        transp,
         extraLines = []
     } = params;
 
@@ -155,7 +212,7 @@ export function buildIcs(params: BuildIcsParams): string {
         `SEQUENCE:${sequence}`,
         `DTSTART;TZID=${timezone}:${localStamp(dtstart, timezone)}`,
         `DTEND;TZID=${timezone}:${localStamp(dtend, timezone)}`,
-        ...textLines(summary, description, location),
+        ...textLines(summary, description, location, status, transp),
         ...(rrule ? [rruleLine(rrule)] : []),
         ...schedulingLines(organizerName, organizerEmail, attendees),
         ...extraLines,
@@ -179,6 +236,8 @@ export function buildAllDayIcs(params: BuildAllDayIcsParams): string {
         rrule,
         alarms,
         sequence = 0,
+        status,
+        transp,
         extraLines = []
     } = params;
     const endExclusive = new Date(dtend.getFullYear(), dtend.getMonth(), dtend.getDate() + 1);
@@ -189,7 +248,7 @@ export function buildAllDayIcs(params: BuildAllDayIcsParams): string {
         `SEQUENCE:${sequence}`,
         `DTSTART;VALUE=DATE:${dateStamp(dtstart)}`,
         `DTEND;VALUE=DATE:${dateStamp(endExclusive)}`,
-        ...textLines(summary, description, location),
+        ...textLines(summary, description, location, status, transp),
         ...(rrule ? [rruleLine(rrule, true)] : []),
         ...schedulingLines(organizerName, organizerEmail, attendees),
         ...extraLines,
@@ -213,6 +272,8 @@ export function buildExceptionIcs(params: BuildIcsParams & { recurrenceId: Date;
         allDay = false,
         alarms,
         sequence = 0,
+        status,
+        transp,
         extraLines = []
     } = params;
     // RECURRENCE-ID must have the master DTSTART's value type: DATE for an all-day series.
@@ -235,6 +296,8 @@ export function buildExceptionIcs(params: BuildIcsParams & { recurrenceId: Date;
         `SEQUENCE:${sequence}`,
         ...dates,
         ...textLines(summary, description, location),
+        ...(status ? [`STATUS:${status.toUpperCase()}`] : []),
+        ...(transp ? [`TRANSP:${transp.toUpperCase()}`] : []),
         ...schedulingLines(organizerName, organizerEmail, attendees),
         ...extraLines,
         ...alarmLines(alarms),
@@ -301,4 +364,13 @@ export function truncateRruleUntil(masterIcs: string, newUntil: Date): string {
         block
             .replace(/(RRULE:[^\r\n]*);(UNTIL|COUNT)=[^\r\n;]*/g, '$1')
             .replace(/(RRULE:[^\r\n]*)/, `$1;UNTIL=${utcStamp(newUntil)}`));
+}
+
+export function cloneEventIcs(ics: string, newUid: string, now: Date = new Date()): string {
+    const stamp = utcStamp(now);
+    return ics.replace(/BEGIN:VEVENT[\s\S]*?END:VEVENT/g, (block) =>
+        block
+            .replace(/^UID:[^\r\n]*(\r?\n[ \t][^\r\n]*)*/m, `UID:${newUid}`)
+            .replace(/^DTSTAMP[^\r\n]*/m, `DTSTAMP:${stamp}`)
+            .replace(/^SEQUENCE:[^\r\n]*/m, 'SEQUENCE:0'));
 }
