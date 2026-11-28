@@ -15,6 +15,7 @@ import type { CalendarEvent } from '@/types';
 export function useCalendarData(date: Date, agendaEnabled = false) {
   const activeAccountId = useAccountStore((s) => s.activeAccountId);
   const hiddenCalendarIds = useCalendarStore((s) => s.hiddenCalendarIds);
+  const showCompletedTasks = useCalendarStore((s) => s.showCompletedTasks);
   const activeAccount = useActiveAccount(activeAccountId);
 
   const { data: calendars = [], isFetching: calsFetching } = useCalendars(activeAccount);
@@ -65,11 +66,15 @@ export function useCalendarData(date: Date, agendaEnabled = false) {
       calendars.filter((c) => c.isReadOnly || c.isSubscribed).map((c) => c.id),
     );
     return (events: CalendarEvent[]) => normalizeEvents(
-      events.filter((e) => !hiddenCalendarIds.includes(e.calendarId)),
+      events.filter(
+        (e) =>
+          !hiddenCalendarIds.includes(e.calendarId) &&
+          (showCompletedTasks || !e.isTask || !e.taskCompleted),
+      ),
     ).map((e) =>
       nonEditableCalendarIds.has(e.calendarId) ? { ...e, readOnly: true } : e,
     );
-  }, [hiddenCalendarIds, calendars]);
+  }, [hiddenCalendarIds, showCompletedTasks, calendars]);
   const allEvents = useMemo(() => prepare(dbEvents), [prepare, dbEvents]);
   const agendaEvents = useMemo(() => prepare(agendaDbEvents), [prepare, agendaDbEvents]);
 

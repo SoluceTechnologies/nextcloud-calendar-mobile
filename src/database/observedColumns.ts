@@ -16,6 +16,9 @@ export const EVENT_OBSERVED_COLUMNS = [
   'alarm_minutes',
   'alarms',
   'is_task',
+  'task_status',
+  'task_completed_at',
+  'task_percent',
 ];
 
 export const CALENDAR_OBSERVED_COLUMNS = [

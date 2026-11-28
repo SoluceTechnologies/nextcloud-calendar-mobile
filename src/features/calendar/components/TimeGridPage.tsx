@@ -2,6 +2,7 @@ import { memo, useMemo, useRef, useState } from 'react';
 import { View, StyleSheet, type LayoutChangeEvent } from 'react-native';
 import { GestureDetector } from 'react-native-gesture-handler';
 import { dayKey } from '../utils/grid';
+import type { CalendarEvent } from '@/types';
 import type { GridEvent } from '../utils/toGridEvents';
 import { layoutDay, type PositionedEvent } from '../utils/eventLayout';
 import { useEventDrag } from '../hooks/useEventDrag';

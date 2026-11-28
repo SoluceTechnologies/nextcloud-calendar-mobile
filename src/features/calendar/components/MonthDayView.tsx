@@ -7,6 +7,7 @@ import dayjs from 'dayjs';
 import localizedFormat from 'dayjs/plugin/localizedFormat';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from 'expo-router';
+import { Square, SquareCheck } from 'lucide-react-native';
 import { eventCoversDay, eventDayKeys, buildMonthGrid } from '../utils/monthLayout';
 import InfinitePager, { type InfinitePagerImperativeApi } from 'react-native-infinite-pager';
 import { useSettingsStore, type MonthViewStyle } from '@/stores/settingsStore';
@@ -278,15 +279,35 @@ function MonthDayViewImpl({
           ) : (
             <FlatList
               data={dayEvents}
-              keyExtractor={(event, index) => `${event.calendarId}-${event.uid}-${event.dtstart.getTime()}-${index}`}
+              keyExtractor={(e, i) => `${e.calendarId}-${e.uid}-${e.dtstart.getTime()}-${i}`}
               renderItem={({ item }) => (
                 <TouchableOpacity
                   style={[styles.eventRow, { borderLeftColor: item.color, backgroundColor: theme.colors.surface }]}
                   onPress={() => onPressEvent(item)}
                 >
                   <View style={[styles.eventColorBar, { backgroundColor: item.color }]} />
-                  <View style={styles.eventInfo}>
-                    <Text style={[styles.eventTitle, { color: theme.colors.text }]} numberOfLines={1}>
+                  {item.isTask && (
+                    <View
+                      style={styles.taskCheckbox}
+                      accessibilityRole="image"
+                      accessibilityLabel={
+                        item.taskCompleted ? t('task.completed') : t('task.pending')
+                      }
+                    >
+                      {item.taskCompleted
+                        ? <SquareCheck size={20} color={item.color} />
+                        : <Square size={20} color={theme.colors.textTertiary} />}
+                    </View>
+                  )}
+                  <View style={[styles.eventInfo, item.taskCompleted && styles.eventInfoDone]}>
+                    <Text
+                      style={[
+                        styles.eventTitle,
+                        { color: theme.colors.text },
+                        item.taskCompleted && styles.doneText,
+                      ]}
+                      numberOfLines={1}
+                    >
                       {item.summary}
                     </Text>
                     <Text style={[styles.eventTime, { color: theme.colors.textSecondary }]}>
@@ -327,7 +348,10 @@ const styles = StyleSheet.create({
   emptyText: { fontSize: 15, textAlign: 'center', marginTop: 32 },
   eventRow: { flexDirection: 'row', borderRadius: 8, marginBottom: 8, overflow: 'hidden' },
   eventColorBar: { width: 4 },
+  taskCheckbox: { justifyContent: 'center', paddingHorizontal: 8 },
   eventInfo: { flex: 1, padding: 10 },
+  eventInfoDone: { opacity: 0.55 },
   eventTitle: { fontSize: 15, fontWeight: '500' },
+  doneText: { textDecorationLine: 'line-through' },
   eventTime: { fontSize: 12, marginTop: 2 },
 });
