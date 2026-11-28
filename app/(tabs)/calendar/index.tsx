@@ -68,15 +68,9 @@ export default function CalendarScreen() {
   const insets = useSafeAreaInsets();
   const drawer = useCalendarDrawer();
 
-  const calendarEvents = useMemo(
-    () => (deferredIsCalendarMode ? toGridEvents(allEvents) : []),
-    [deferredIsCalendarMode, allEvents]
-  );
+  const calendarEvents = useMemo(() => toGridEvents(allEvents), [allEvents]);
 
-  const allDayEvents = useMemo(
-    () => (deferredIsCalendarMode ? allEvents.filter((e) => e.allDay) : []),
-    [deferredIsCalendarMode, allEvents]
-  );
+  const allDayEvents = useMemo(() => allEvents.filter((e) => e.allDay), [allEvents]);
   const nowHour = useMemo(() => Math.max(0, new Date().getHours() - 1), []);
 
   const navGuard = useRef(createNavigationGuard()).current;
