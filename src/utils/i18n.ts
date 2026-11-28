@@ -7,6 +7,7 @@ import 'dayjs/locale/es';
 import 'dayjs/locale/it';
 import 'dayjs/locale/ru';
 import 'dayjs/locale/pt';
+import 'dayjs/locale/lb';
 import 'dayjs/locale/nl';
 import 'dayjs/locale/oc-lnc';
 import 'dayjs/locale/da';
@@ -17,6 +18,7 @@ import es from '@/locales/es.json';
 import it from '@/locales/it.json';
 import ru from '@/locales/ru.json';
 import pt from '@/locales/pt.json';
+import lb from '@/locales/lb.json';
 import nl from '@/locales/nl.json';
 import oc from '@/locales/oc.json';
 import da from '@/locales/da.json';
@@ -29,6 +31,7 @@ export const LANGUAGES = [
   { code: 'ru', label: 'Русский', region: 'RU' },
   { code: 'it', label: 'Italiano', region: 'IT' },
   { code: 'pt', label: 'Português', region: 'PT' },
+  { code: 'lb', label: 'Lëtzebuergesch', region: 'LU' },
   { code: 'nl', label: 'Nederlands', region: 'NL' },
   { code: 'oc', label: 'Occitan', region: 'FR' },
   { code: 'da', label: 'Dansk', region: 'DK' },
@@ -82,7 +85,7 @@ function getFirstDayOfWeek(languageTag: string, regionCode?: string | null): num
     'da', 'sv', 'no', 'fi', 'is', 'hu', 'lt', 'lv', 'et', 'ca', 'eu', 'gl', 'oc', 'sq', 'mk', 'be',
     'uk', 'ka', 'hy', 'he', 'hi', 'bn', 'ta', 'te', 'ml', 'kn', 'mr', 'ur', 'pa', 'gu', 'or', 'as',
     'ne', 'si', 'km', 'lo', 'my', 'th', 'vi', 'id', 'ms', 'tl', 'sw', 'am', 'so', 'sn', 'st', 'zu',
-    'af', 'sq', 'ar', 'fa',
+    'af', 'sq', 'ar', 'fa', 'lb',
   ]);
   return mondayLangs.has(lang) ? 1 : 0;
 }
@@ -102,6 +105,7 @@ i18n.use(initReactI18next).init({
     it: { translation: it },
     ru: { translation: ru },
     pt: { translation: pt },
+    lb: { translation: lb },
     nl: { translation: nl },
     oc: { translation: oc },    
     da: { translation: da },
