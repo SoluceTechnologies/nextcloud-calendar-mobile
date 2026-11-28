@@ -28,7 +28,7 @@ const HEADER_HEIGHT = 57;
 const EVENT_ROW_HEIGHT = 72;
 
 const TODAY_JUMP_GUARD_MS = 500;
-const JUMP_VERIFY_WINDOW_MS = 1200;
+const JUMP_VERIFY_WINDOW_MS = 5000;
 const JUMP_CHECK_DELAY_MS = 120;
 
 const AGENDA_INITIAL_PAST_DAYS = 30;
@@ -201,16 +201,21 @@ const AgendaViewImpl = forwardRef<AgendaViewHandle, Props>(function AgendaView(
   const layoutRef = useRef({ rows, offsets });
   const userScrollingRef = useRef(false);
   const hasUserScrolledRef = useRef(false);
-  const onUserScrollStart = useCallback(() => {
+  const pendingJumpRef = useRef<{ key: string; delta: number; expiresAt: number } | null>(null);
+
+  const onScrollBeginDrag = useCallback(() => {
+    pendingJumpRef.current = null;
     userScrollingRef.current = true;
     hasUserScrolledRef.current = true;
+  }, []);
+  const onMomentumScrollBegin = useCallback(() => {
+    if (!pendingJumpRef.current) userScrollingRef.current = true;
   }, []);
   const onUserScrollEnd = useCallback(() => { userScrollingRef.current = false; }, []);
   const handleEndReached = useCallback(() => {
     if (hasUserScrolledRef.current) extendFuture();
   }, [extendFuture]);
 
-  const pendingJumpRef = useRef<{ key: string; delta: number; expiresAt: number } | null>(null);
   const jumpTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const offsetForKey = useCallback((key: string): number | null => {
@@ -355,10 +360,12 @@ const AgendaViewImpl = forwardRef<AgendaViewHandle, Props>(function AgendaView(
       onScroll={onScroll}
       onEndReached={handleEndReached}
       onEndReachedThreshold={0.5}
-      onScrollBeginDrag={onUserScrollStart}
+      onScrollBeginDrag={onScrollBeginDrag}
       onScrollEndDrag={onUserScrollEnd}
-      onMomentumScrollBegin={onUserScrollStart}
+      onMomentumScrollBegin={onMomentumScrollBegin}
       onMomentumScrollEnd={onUserScrollEnd}
+      onContentSizeChange={issuePendingJump}
+      onLayout={issuePendingJump}
       scrollEventThrottle={32}
       onViewableItemsChanged={onViewableItemsChanged}
       viewabilityConfig={viewabilityConfig.current}
