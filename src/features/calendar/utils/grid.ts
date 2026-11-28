@@ -76,6 +76,15 @@ export function pageIndexForDate(
   return Math.floor(to.diff(from, 'day') / step);
 }
 
+export function pageShowsDay(
+  focusDate: Date,
+  day: Date,
+  mode: CalMode,
+  weekStartsOn: 0 | 1,
+): boolean {
+  return pageIndexForDate(focusDate, day, mode, weekStartsOn) === 0;
+}
+
 function sameSlice(a: GridEvent, b: GridEvent): boolean {
   if (a === b) return true;
   return (

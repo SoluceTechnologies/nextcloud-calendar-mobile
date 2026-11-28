@@ -9,6 +9,7 @@ import {
   pageDates,
   pageFocusDate,
   pageIndexForDate,
+  pageShowsDay,
   stabilizeDayIndex,
 } from '@/features/calendar/utils/grid';
 import type { GridEvent } from '@/features/calendar/utils/toGridEvents';
@@ -328,6 +329,25 @@ describe('allDayRowHeight', () => {
   it('is zero when every all-day event falls outside the page', () => {
     const e = allDay('a', new Date(2026, 8, 20), new Date(2026, 8, 20));
     expect(allDayRowHeight(week, [e])).toBe(0);
+  });
+});
+
+describe('pageShowsDay', () => {
+  const monday = new Date(2026, 10, 23);
+  const saturday = new Date(2026, 10, 28);
+
+  it('treats the current work week as the page of a weekend day', () => {
+    expect(pageShowsDay(monday, saturday, 'workweek', 0)).toBe(true);
+  });
+
+  it('sees a weekend day on the week page of the Monday focus left by the work week', () => {
+    expect(pageShowsDay(monday, saturday, 'week', 0)).toBe(true);
+    expect(pageShowsDay(monday, saturday, 'week', 1)).toBe(true);
+  });
+
+  it('is false once the page moved to another week or day', () => {
+    expect(pageShowsDay(new Date(2026, 10, 30), saturday, 'week', 1)).toBe(false);
+    expect(pageShowsDay(monday, saturday, 'day', 1)).toBe(false);
   });
 });
 

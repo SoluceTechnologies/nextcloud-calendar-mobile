@@ -29,6 +29,7 @@ import { toGridEvents, type GridEvent } from '@/features/calendar/utils/toGridEv
 import { eventToInput } from '@/features/calendar/utils/eventToInput';
 import { decideMoveEventScope } from '@/features/calendar/utils/moveEventScope';
 import { isCalMode, type CalMode } from '@/features/calendar/constants';
+import { pageShowsDay } from '@/features/calendar/utils/grid';
 import { CalendarUnavailable } from '@/features/calendar/components/CalendarUnavailable';
 import { useUpdateEvent } from '@/features/event/hooks/useMutateEvent';
 import { askRecurrenceScope } from '@/features/event/recurrenceScope';
@@ -128,7 +129,9 @@ export default function CalendarScreen() {
 
   const isToday = viewMode === 'schedule'
     ? dayjs(agendaVisibleDate).isSame(dayjs(), 'day')
-    : dayjs(date).isSame(dayjs(), 'day');
+    : isCalMode(viewMode)
+      ? pageShowsDay(date, new Date(), viewMode, deferredWeekStartsOn)
+      : dayjs(date).isSame(dayjs(), 'day');
 
   const headerTitle = useMemo(() => {
     const d = dayjs(viewMode === 'schedule' ? agendaVisibleDate : date);
