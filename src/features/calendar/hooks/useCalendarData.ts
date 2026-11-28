@@ -9,7 +9,7 @@ import { useActiveAccount } from '@/hooks/useAccounts';
 import { useCalendars } from '@/hooks/useCalendars';
 import { normalizeEvents } from '@/utils/normalizeEvent';
 import { monthRange } from '../utils/range';
-import { AGENDA_FUTURE_DAYS, AGENDA_PAST_DAYS } from '../utils/agendaSections';
+import { AGENDA_QUERY_RADIUS_DAYS } from '../utils/agendaSections';
 import type { CalendarEvent } from '@/types';
 
 export function useCalendarData(date: Date, agendaEnabled = false) {
@@ -24,10 +24,14 @@ export function useCalendarData(date: Date, agendaEnabled = false) {
   const { start, end } = useMemo(() => monthRange(date), [year, month]);
 
   const dbEvents = useEventsForRange(activeAccountId ?? '', start, end);
-  const agendaRange = useMemo(() => ({
-    start: dayjs().subtract(AGENDA_PAST_DAYS, 'day').startOf('day').toDate(),
-    end: dayjs().add(AGENDA_FUTURE_DAYS, 'day').endOf('day').toDate(),
-  }), []);
+  const agendaMonth = dayjs(date).startOf('month').valueOf();
+  const agendaRange = useMemo(() => {
+    const center = dayjs(agendaMonth);
+    return {
+      start: center.subtract(AGENDA_QUERY_RADIUS_DAYS, 'day').startOf('day').toDate(),
+      end: center.add(AGENDA_QUERY_RADIUS_DAYS, 'day').endOf('day').toDate(),
+    };
+  }, [agendaMonth]);
   const agendaDbEvents = useEventsForRange(
     agendaEnabled ? activeAccountId ?? '' : '', agendaRange.start, agendaRange.end,
   );

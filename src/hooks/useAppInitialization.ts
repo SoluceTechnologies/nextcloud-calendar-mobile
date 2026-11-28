@@ -17,6 +17,7 @@ import { setupOnlineManager } from '@/services/shared/network';
 import { initializeDatabaseOnStartup } from '@/database/utils/initialization';
 import { syncCalendars } from '@/database/sync';
 import { migrateFromAsyncStorage } from '@/storage';
+import { yieldToUI } from '@/utils/scheduling';
 import { pushPinsToNative } from '@/services/shared/certPins';
 
 SplashScreen.preventAutoHideAsync();
@@ -62,9 +63,11 @@ export function useAppInitialization() {
           setStoreAccountId(id);
 
           const activeAccount = accounts.find((a) => a.id === id) ?? accounts[0];
-          void syncCalendars(activeAccount).catch((e) => {
-            console.warn('[useAppInitialization] syncCalendars failed:', String(e));
-          });
+          void yieldToUI()
+            .then(() => syncCalendars(activeAccount))
+            .catch((e) => {
+              console.warn('[useAppInitialization] syncCalendars failed:', String(e));
+            });
           // Profile refresh only ever enriches display names and timezones. It
           // re-reads secure storage, so an empty result means that read failed,
           // never that the user signed out — dropping the accounts here would

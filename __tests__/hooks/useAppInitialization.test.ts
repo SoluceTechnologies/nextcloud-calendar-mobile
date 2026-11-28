@@ -3,6 +3,7 @@ import { renderHook, act, waitFor } from '@testing-library/react-native';
 
 import { useAppInitialization } from '@/hooks/useAppInitialization';
 import { loadAccounts } from '@/services/nextcloud/auth';
+import { syncCalendars } from '@/database/sync';
 import { getAccounts } from '@/hooks/useAccounts';
 import type { Account } from '@/types';
 
@@ -77,6 +78,28 @@ describe('useAppInitialization', () => {
 
     foreground();
     await waitFor(() => expect(result.current.isAppReady).toBe(true));
+  });
+
+  it('defers the first sync until the UI goes idle after boot', async () => {
+    load.mockResolvedValue([account]);
+    let idleCallback: (() => void) | undefined;
+    const ricHolder = globalThis as { requestIdleCallback?: unknown };
+    const originalRic = ricHolder.requestIdleCallback;
+    ricHolder.requestIdleCallback = (cb: () => void) => { idleCallback = cb; };
+
+    try {
+      const { result } = renderHook(() => useAppInitialization());
+      await waitFor(() => expect(result.current.isAppReady).toBe(true));
+
+      // The sync must not start during the boot burst (splash / first render).
+      expect(syncCalendars).not.toHaveBeenCalled();
+      expect(idleCallback).toBeDefined();
+
+      await act(async () => { idleCallback!(); });
+      expect(syncCalendars).toHaveBeenCalledTimes(1);
+    } finally {
+      ricHolder.requestIdleCallback = originalRic;
+    }
   });
 
   it('does not re-run the boot once it has succeeded', async () => {

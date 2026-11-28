@@ -34,6 +34,7 @@ const NAMED_XML_ENTITIES: Record<string, string> = {
 };
 
 export function decodeXmlEntities(input: string): string {
+  if (!input.includes('&')) return input;
   return input.replace(/&(#x[0-9a-fA-F]+|#[0-9]+|[a-zA-Z]+);/g, (match, entity) => {
     if (entity[0] === '#') {
       const code =
@@ -399,6 +400,7 @@ export async function fetchEventsForCalendars(
 ): Promise<CalendarFetchOutcome> {
   const { values, failures, fulfilledIndexes } = await settleAll(
     calendars.map((cal) => () => fetchEvents(account, cal, start, end)),
+    3,
   );
   return {
     events: values,
@@ -480,6 +482,7 @@ export async function deleteEvent(
 }
 
 export const MULTIGET_BATCH = 50;
+const MULTIGET_CONCURRENCY = 3;
 
 function toPath(absHref: string): string {
   try {
@@ -505,8 +508,8 @@ export async function fetchEventsByHrefs(
   if (hrefs.length === 0) return { events: [], returnedHrefs };
 
   const out: CalendarEvent[] = [];
-  for (let i = 0; i < hrefs.length; i += MULTIGET_BATCH) {
-    const batch = hrefs.slice(i, i + MULTIGET_BATCH);
+
+  const fetchBatch = async (batch: string[]): Promise<CalendarEvent[]> => {
     const hrefEls = batch.map((h) => `<d:href>${toPath(h)}</d:href>`).join('');
     const body = `<?xml version="1.0"?>
 <c:calendar-multiget xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav">
@@ -532,12 +535,22 @@ export async function fetchEventsByHrefs(
       }
     }
 
-    const parsed = await parseIcsObjectsAsync(
+    return parseIcsObjectsAsync(
       items,
       { calendarId: calendar.id, accountId: account.id, color: calendar.color },
       rangeStart, rangeEnd,
     );
-    out.push(...parsed);
+  };
+
+  for (let i = 0; i < hrefs.length; i += MULTIGET_BATCH * MULTIGET_CONCURRENCY) {
+    const windowTasks: Promise<CalendarEvent[]>[] = [];
+    for (let j = 0; j < MULTIGET_CONCURRENCY; j++) {
+      const start = i + j * MULTIGET_BATCH;
+      if (start >= hrefs.length) break;
+      windowTasks.push(fetchBatch(hrefs.slice(start, start + MULTIGET_BATCH)));
+    }
+    const results = await Promise.all(windowTasks);
+    for (const r of results) out.push(...r);
   }
   return { events: out, returnedHrefs };
 }

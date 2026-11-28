@@ -1,4 +1,5 @@
-import { memo } from 'react';
+import { memo, useEffect, useState } from 'react';
+import { Freeze } from 'react-freeze';
 import { View, StyleSheet, Platform, type ViewProps, type ViewStyle } from 'react-native';
 
 interface Props extends ViewProps {
@@ -13,6 +14,12 @@ function visibilityStyle(visible: boolean): ViewStyle {
 }
 
 function ViewLayerImpl({ visible, style, children, ...rest }: Props) {
+  const [frozen, setFrozen] = useState(!visible);
+
+  useEffect(() => {
+    setFrozen(!visible);
+  }, [visible]);
+
   return (
     <View
       {...rest}
@@ -20,7 +27,7 @@ function ViewLayerImpl({ visible, style, children, ...rest }: Props) {
       style={[StyleSheet.absoluteFill, visibilityStyle(visible), style]}
       pointerEvents={visible ? 'auto' : 'none'}
     >
-      {children}
+      <Freeze freeze={frozen && !visible}>{children}</Freeze>
     </View>
   );
 }

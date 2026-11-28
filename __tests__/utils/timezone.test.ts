@@ -77,4 +77,44 @@ describe('round-trip: write then read', () => {
     expect(starts).toContain('2026-10-01T13:00:00.000Z');
     expect(starts).toContain('2026-10-29T14:00:00.000Z');
   });
+
+  it('recurring event keeps wall-clock end times across a DST transition', () => {
+    const dtstart = new Date('2026-10-01T13:00:00Z');
+    const dtend = new Date('2026-10-01T13:30:00Z');
+    const ics = buildIcs({
+      ...base, dtstart, dtend, timezone: 'Europe/Berlin', rrule: { freq: 'WEEKLY' },
+    });
+    const occ = parseIcsItem(
+      { ics, href: '/rec.ics' }, meta,
+      new Date('2026-09-15T00:00:00Z'), new Date('2026-11-15T00:00:00Z'),
+    );
+    const byStart = new Map(occ.map((e) => [e.dtstart.toISOString(), e.dtend.toISOString()]));
+    // Before the transition (CEST, +02:00): 15:00–15:30 wall = 13:00–13:30 UTC.
+    expect(byStart.get('2026-10-01T13:00:00.000Z')).toBe('2026-10-01T13:30:00.000Z');
+    // After the transition (CET, +01:00): 15:00–15:30 wall = 14:00–14:30 UTC.
+    expect(byStart.get('2026-10-29T14:00:00.000Z')).toBe('2026-10-29T14:30:00.000Z');
+  });
+
+  it('expands a multi-day all-day series with a constant day span', () => {
+    const ics = [
+      'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//test//EN',
+      'BEGIN:VEVENT',
+      'UID:allday-multi', 'DTSTAMP:20260801T000000Z',
+      'DTSTART;VALUE=DATE:20261001',
+      'DTEND;VALUE=DATE:20261003',
+      'RRULE:FREQ=WEEKLY;COUNT=3',
+      'SUMMARY:Retreat',
+      'END:VEVENT', 'END:VCALENDAR',
+    ].join('\r\n');
+    const occ = parseIcsItem(
+      { ics, href: '/allday.ics' }, meta,
+      new Date('2026-09-01T00:00:00Z'), new Date('2026-12-01T00:00:00Z'),
+    );
+    expect(occ).toHaveLength(3);
+    const spans = occ.map((e) => e.dtend.getTime() - e.dtstart.getTime());
+    expect(new Set(spans).size).toBe(1);
+    for (let i = 1; i < occ.length; i++) {
+      expect(occ[i].dtstart.getTime() - occ[i - 1].dtstart.getTime()).toBe(7 * 86_400_000);
+    }
+  });
 });

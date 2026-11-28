@@ -236,12 +236,15 @@ function parseVtodo(
   };
 }
 
-export function parseIcsItem(
+const EXPANSION_CHECKPOINT_MS = 8;
+const CHECKPOINT_EVERY_ITERATIONS = 64;
+
+function* parseIcsItemGen(
   item: { ics: string; href: string },
   meta: ParseCalMeta,
   rangeStart?: Date,
   rangeEnd?: Date,
-): CalendarEvent[] {
+): Generator<void, CalendarEvent[], void> {
   const events: CalendarEvent[] = [];
   const { ics, href } = item;
 
@@ -338,6 +341,10 @@ export function parseIcsItem(
         let iterations = 0;
         let nextTime: ICAL.Time;
 
+        const noExceptions = overrides.length === 0 && icalEvent.rangeExceptions.length === 0;
+        const seriesDuration = icalEvent.duration;
+
+        let checkpointAt = Date.now();
         while ((nextTime = iter.next()) && emitted < MAX_OCCURRENCES && iterations++ < MAX_ITERATIONS) {
           const slotStart = resolveInstant(nextTime, tzid);
           const slotMs = slotStart.getTime();
@@ -348,12 +355,24 @@ export function parseIcsItem(
 
           if (excluded.has(slotMs)) continue;
 
-          if (isOverridden(nextTime, overrideIds)) continue;
+          if (overrideIds.size > 0 && isOverridden(nextTime, overrideIds)) continue;
 
           if (canPrefilter && slotMs + durationMs <= rangeStartMs) continue;
 
-          const details = icalEvent.getOccurrenceDetails(nextTime);
-          if (pushOccurrence(nextTime, details.item, details.startDate, details.endDate)) emitted++;
+          if (noExceptions) {
+            const endTime = nextTime.clone();
+            endTime.addDuration(seriesDuration);
+            if (pushOccurrence(nextTime, undefined, nextTime, endTime)) emitted++;
+          } else {
+            const details = icalEvent.getOccurrenceDetails(nextTime);
+            if (pushOccurrence(nextTime, details.item, details.startDate, details.endDate)) emitted++;
+          }
+
+          if ((iterations & (CHECKPOINT_EVERY_ITERATIONS - 1)) === 0
+              && Date.now() - checkpointAt >= EXPANSION_CHECKPOINT_MS) {
+            checkpointAt = Date.now();
+            yield;
+          }
         }
 
         for (const ex of overrides) {
@@ -374,6 +393,33 @@ export function parseIcsItem(
   }
 
   return events;
+}
+
+export function parseIcsItem(
+  item: { ics: string; href: string },
+  meta: ParseCalMeta,
+  rangeStart?: Date,
+  rangeEnd?: Date,
+): CalendarEvent[] {
+  const gen = parseIcsItemGen(item, meta, rangeStart, rangeEnd);
+  let step = gen.next();
+  while (!step.done) step = gen.next();
+  return step.value;
+}
+
+export async function parseIcsItemAsync(
+  item: { ics: string; href: string },
+  meta: ParseCalMeta,
+  rangeStart?: Date,
+  rangeEnd?: Date,
+): Promise<CalendarEvent[]> {
+  const gen = parseIcsItemGen(item, meta, rangeStart, rangeEnd);
+  let step = gen.next();
+  while (!step.done) {
+    await yieldToUI();
+    step = gen.next();
+  }
+  return step.value;
 }
 
 export function extractDtstartTzid(ics: string): string | undefined {
@@ -456,11 +502,11 @@ export async function parseIcsObjectsAsync(
   for (let i = 0; i < items.length; i += chunkSize) {
     const batch = items.slice(i, i + chunkSize);
     for (const item of batch) {
-      const parsed = parseIcsItem(item, meta, rangeStart, rangeEnd);
+      const parsed = await parseIcsItemAsync(item, meta, rangeStart, rangeEnd);
       if (parsed.length) events.push(...parsed);
     }
 
-    if (i + chunkSize < items.length || Date.now() - sliceStart >= frameBudgetMs) {
+    if (i + chunkSize < items.length && Date.now() - sliceStart >= frameBudgetMs) {
       await yieldToUI();
       sliceStart = Date.now();
     }
