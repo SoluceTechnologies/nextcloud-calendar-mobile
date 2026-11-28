@@ -922,3 +922,23 @@ describe('TRANSP/STATUS parsing', () => {
     expect(extras.join('\n')).not.toContain('STATUS');
   });
 });
+
+describe('per-event COLOR', () => {
+  const meta = { calendarId: 'c1', accountId: 'a1', color: '#0082c9' };
+  const ics = (color?: string) => [
+    'BEGIN:VCALENDAR', 'VERSION:2.0', 'BEGIN:VEVENT', 'UID:color-1',
+    'DTSTART:20260601T100000Z', 'DTEND:20260601T110000Z', 'SUMMARY:Colored',
+    ...(color ? [`COLOR:${color}`] : []),
+    'END:VEVENT', 'END:VCALENDAR',
+  ].join('\r\n');
+
+  it('reads CSS color names and hex values as hex', () => {
+    expect(parseIcsObjects([{ ics: ics('darkorchid'), href: '/c/1.ics' }], meta)[0].eventColor).toBe('#9932cc');
+    expect(parseIcsObjects([{ ics: ics('#E91E63'), href: '/c/1.ics' }], meta)[0].eventColor).toBe('#e91e63');
+  });
+
+  it('leaves eventColor unset without COLOR or with an unknown value', () => {
+    expect(parseIcsObjects([{ ics: ics(), href: '/c/1.ics' }], meta)[0].eventColor).toBeUndefined();
+    expect(parseIcsObjects([{ ics: ics('not-a-color'), href: '/c/1.ics' }], meta)[0].eventColor).toBeUndefined();
+  });
+});

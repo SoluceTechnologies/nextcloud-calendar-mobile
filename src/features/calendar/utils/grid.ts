@@ -11,8 +11,13 @@ export const ALL_DAY_ROW_HEIGHT = ALL_DAY_CHIP_HEIGHT + ALL_DAY_CHIP_GAP;
 export const ALL_DAY_PAD = 4;
 
 export function daysPerPage(mode: CalMode): number {
-  return mode === 'week' ? 7 : mode === '3days' ? 3 : 1;
+  return mode === 'week' ? 7 : mode === 'workweek' ? 5 : mode === '3days' ? 3 : 1;
 }
+
+const snapsToWeekStart = (mode: CalMode) => mode === 'week' || mode === 'workweek';
+const snapWeekStartsOn = (mode: CalMode, weekStartsOn: 0 | 1): 0 | 1 =>
+  mode === 'workweek' ? 1 : weekStartsOn;
+const pageStep = (mode: CalMode) => (mode === 'workweek' ? 7 : daysPerPage(mode));
 
 export function dayKey(d: Date): string {
   const y = d.getFullYear();
@@ -32,11 +37,13 @@ export function pageDates(
   weekStartsOn: 0 | 1,
 ): Date[] {
   const span = daysPerPage(mode);
-  const shifted = dayjs(anchor).add(index * span, 'day');
-  const first =
-    mode === 'week'
-      ? shifted.add(weekStartOffset(shifted.day(), weekStartsOn), 'day')
-      : shifted;
+  const shifted = dayjs(anchor).add(index * pageStep(mode), 'day');
+  const first = snapsToWeekStart(mode)
+    ? shifted.add(
+        weekStartOffset(shifted.day(), snapWeekStartsOn(mode, weekStartsOn)),
+        'day',
+      )
+    : shifted;
   return Array.from({ length: span }, (_, i) => first.add(i, 'day').startOf('day').toDate());
 }
 
@@ -57,14 +64,25 @@ export function pageIndexForDate(
   mode: CalMode,
   weekStartsOn: 0 | 1,
 ): number {
-  const span = daysPerPage(mode);
+  const step = pageStep(mode);
   const startOfPage = (d: Date) => {
     const day = dayjs(d).startOf('day');
-    return mode === 'week' ? day.add(weekStartOffset(day.day(), weekStartsOn), 'day') : day;
+    return snapsToWeekStart(mode)
+      ? day.add(weekStartOffset(day.day(), snapWeekStartsOn(mode, weekStartsOn)), 'day')
+      : day;
   };
   const from = startOfPage(anchor);
   const to = startOfPage(target);
-  return Math.floor(to.diff(from, 'day') / span);
+  return Math.floor(to.diff(from, 'day') / step);
+}
+
+export function pageShowsDay(
+  focusDate: Date,
+  day: Date,
+  mode: CalMode,
+  weekStartsOn: 0 | 1,
+): boolean {
+  return pageIndexForDate(focusDate, day, mode, weekStartsOn) === 0;
 }
 
 function sameSlice(a: GridEvent, b: GridEvent): boolean {

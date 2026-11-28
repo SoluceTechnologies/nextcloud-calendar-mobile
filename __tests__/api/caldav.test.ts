@@ -1,4 +1,4 @@
-import { deleteEvent, moveEvent, syncCollection, fetchEvents, fetchEventsByHrefs, fetchCalendars, validateCredentials, MULTIGET_BATCH, buildEventHref } from '../../src/services/nextcloud/caldav';
+import { deleteEvent, moveEvent, syncCollection, fetchEvents, fetchEventsByHrefs, fetchCalendars, putEvent, validateCredentials, MULTIGET_BATCH, buildEventHref } from '../../src/services/nextcloud/caldav';
 import type { Account, CalendarMeta } from '../../src/types';
 
 const account: Account = {
@@ -801,5 +801,26 @@ describe('buildEventHref', () => {
     expect(href).toBe(
       'https://cloud.example.com/remote.php/dav/calendars/john/work/plain-uid-123.ics',
     );
+  });
+});
+
+describe('putEvent', () => {
+  it('PUTs the ICS body to <calendar.url><uid>.ics with a text/calendar content type', async () => {
+    mockFetch.mockResolvedValue({ ok: true, status: 201 });
+    const ics = 'BEGIN:VCALENDAR\r\nBEGIN:VEVENT\r\nUID:new-uid\r\nEND:VEVENT\r\nEND:VCALENDAR';
+    await putEvent(account, targetCalendar, 'new-uid', ics);
+    expect(mockFetch).toHaveBeenCalledWith(
+      'https://cloud.example.com/remote.php/dav/calendars/john/work/new-uid.ics',
+      expect.objectContaining({
+        method: 'PUT',
+        body: ics,
+        headers: expect.objectContaining({ 'Content-Type': 'text/calendar; charset=utf-8' }),
+      })
+    );
+  });
+
+  it('throws on error status', async () => {
+    mockFetch.mockResolvedValue({ ok: false, status: 412, text: () => Promise.resolve('') });
+    await expect(putEvent(account, targetCalendar, 'u', 'ics')).rejects.toThrow('putEvent HTTP 412');
   });
 });

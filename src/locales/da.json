@@ -83,7 +83,8 @@
     "drawerNoCalendars": "Ingen kalender",
     "calendarNotifications": "Notifikationer for {{name}}",
     "calendarVisibility": "Vis {{name}}",
-    "importIcs": "Importér .ics-fil"
+    "importIcs": "Importér .ics-fil",
+    "workweek": "Arbejdsuge"
   },
   "event": {
     "titleLabel": "Titel *",
@@ -185,7 +186,21 @@
     "status": "Status",
     "statusConfirmed": "Bekræftet",
     "statusTentative": "Foreløbig",
-    "statusCancelled": "Aflyst"
+    "statusCancelled": "Aflyst",
+    "everyMasc": "Hver",
+    "everyFem": "Hver",
+    "intervalLabel": "Gentagelsesinterval",
+    "unitDays_one": "dag",
+    "unitDays_other": "dage",
+    "unitWeeks_one": "uge",
+    "unitWeeks_other": "uger",
+    "unitMonths_one": "måned",
+    "unitMonths_other": "måneder",
+    "unitYears_one": "år",
+    "unitYears_other": "år",
+    "duplicateEvent": "Dupliker begivenhed",
+    "moreActions": "Flere handlinger",
+    "errorDuplicateFailed": "Begivenheden kunne ikke duplikeres"
   },
   "import": {
     "title": "Importér begivenhed",

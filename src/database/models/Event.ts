@@ -32,4 +32,5 @@ export default class Event extends Model {
   @field('is_task') isTask?: boolean;
   @field('transp') transp?: string;
   @field('status') status?: string;
+  @field('event_color') eventColor?: string;
 }
