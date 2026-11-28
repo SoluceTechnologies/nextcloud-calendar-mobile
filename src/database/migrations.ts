@@ -3,6 +3,27 @@ import { schemaMigrations, addColumns, unsafeExecuteSql } from '@nozbe/watermelo
 export const migrations = schemaMigrations({
   migrations: [
     {
+      toVersion: 11,
+      steps: [
+        addColumns({
+          table: 'events',
+          columns: [
+            { name: 'transp', type: 'string', isOptional: true },
+            { name: 'status', type: 'string', isOptional: true },
+          ],
+        }),
+      ],
+    },
+    {
+      toVersion: 10,
+      steps: [
+        unsafeExecuteSql(
+          'CREATE INDEX IF NOT EXISTS "events_href" ON "events" ("href");' +
+          'CREATE INDEX IF NOT EXISTS "events_end" ON "events" ("end");',
+        ),
+      ],
+    },
+    {
       toVersion: 9,
       steps: [
         addColumns({

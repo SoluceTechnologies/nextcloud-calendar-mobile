@@ -80,6 +80,24 @@ describe('buildIcs', () => {
     expect(ics).toContain('CN=Alice');
   });
 
+  it('writes the invitation defaults for a freshly added attendee', () => {
+    const ics = buildIcs({ ...base, attendees: [{ email: 'bob@example.com' }] });
+    // Long lines are folded per RFC 5545 — unfold before comparing content.
+    expect(ics.replace(/\r\n /g, '')).toContain(
+      'ATTENDEE;CUTYPE=INDIVIDUAL;ROLE=REQ-PARTICIPANT;RSVP=TRUE;PARTSTAT=NEEDS-ACTION:mailto:bob@example.com\r\n',
+    );
+  });
+
+  it('quotes param values that contain a comma, colon or semicolon', () => {
+    const ics = buildIcs({
+      ...base,
+      organizerName: 'Doe, John',
+      attendees: [{ email: 'a@example.com', displayName: 'Smith; Alice' }],
+    });
+    expect(ics).toContain('ORGANIZER;CN="Doe, John":mailto:john@example.com\r\n');
+    expect(ics).toContain('CN="Smith; Alice":mailto:a@example.com\r\n');
+  });
+
   it('escapes special chars in summary', () => {
     const ics = buildIcs({ ...base, summary: 'Sync, Team; All' });
     expect(ics).toContain('SUMMARY:Sync\\, Team\\; All\r\n');
@@ -413,6 +431,43 @@ describe('buildExceptionIcs', () => {
     expect(ics).toContain('DTSTART;VALUE=DATE:20261009');
     expect(ics).toContain('DTEND;VALUE=DATE:20261010');
   });
+
+  it('emits explicit STATUS/TRANSP, including RFC defaults, so an occurrence can override a non-default master', () => {
+    const ics = buildExceptionIcs({
+      ...base,
+      timezone: 'Europe/Paris',
+      recurrenceId: new Date(2026, 9, 9),
+      status: 'confirmed',
+      transp: 'opaque',
+    });
+
+    expect(ics).toContain('STATUS:CONFIRMED\r\n');
+    expect(ics).toContain('TRANSP:OPAQUE\r\n');
+  });
+
+  it('emits non-default STATUS/TRANSP explicitly', () => {
+    const ics = buildExceptionIcs({
+      ...base,
+      timezone: 'Europe/Paris',
+      recurrenceId: new Date(2026, 9, 9),
+      status: 'cancelled',
+      transp: 'transparent',
+    });
+
+    expect(ics).toContain('STATUS:CANCELLED\r\n');
+    expect(ics).toContain('TRANSP:TRANSPARENT\r\n');
+  });
+
+  it('omits STATUS/TRANSP when unset, keeping master inheritance', () => {
+    const ics = buildExceptionIcs({
+      ...base,
+      timezone: 'Europe/Paris',
+      recurrenceId: new Date(2026, 9, 9),
+    });
+
+    expect(ics).not.toContain('STATUS:');
+    expect(ics).not.toContain('TRANSP:');
+  });
 });
 
 describe('truncateRruleUntil', () => {
@@ -436,6 +491,73 @@ describe('truncateRruleUntil', () => {
     expect(out).toContain('RRULE:FREQ=YEARLY;BYMONTH=3;BYDAY=-1SU\r\n');
     expect(out).toContain('RRULE:FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU\r\n');
     expect(out.match(/UNTIL=/g)).toHaveLength(1);
+  });
+});
+
+describe('ATTENDEE parameter preservation', () => {
+  const invitedIcs = [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'BEGIN:VEVENT',
+    'UID:inv-1',
+    'DTSTAMP:20260601T090000Z',
+    'DTSTART:20260605T140000Z',
+    'DTEND:20260605T150000Z',
+    'SUMMARY:Review',
+    'ORGANIZER;CN=Boss:mailto:boss@example.com',
+    'ATTENDEE;CUTYPE=RESOURCE;MEMBER="mailto:g1@x.com","mailto:g2@x.com";ROLE=OPT-PARTICIPANT;PARTSTAT=ACCEPTED;RSVP=FALSE;DELEGATED-TO="mailto:d@x.com";DELEGATED-FROM="mailto:f@x.com";SENT-BY="mailto:s@x.com";SCHEDULE-AGENT=CLIENT;X-CUSTOM=keepme;CN="Doe, Jane":mailto:jane@x.com',
+    'END:VEVENT',
+    'END:VCALENDAR',
+  ].join('\r\n');
+
+  const calMeta = { calendarId: 'c1', accountId: 'a1', color: '#000' };
+
+  it('parses every scheduling parameter into the Attendee record', () => {
+    const [event] = parseIcsObjects([{ ics: invitedIcs, href: '/cal/inv.ics' }], calMeta);
+    const att = event.attendees[0];
+    expect(att.email).toBe('jane@x.com');
+    expect(att.displayName).toBe('Doe, Jane');
+    expect(att.cutype).toBe('RESOURCE');
+    expect(att.member).toEqual(['mailto:g1@x.com', 'mailto:g2@x.com']);
+    expect(att.role).toBe('OPT-PARTICIPANT');
+    expect(att.partstat).toBe('accepted');
+    expect(att.rsvp).toBe(false);
+    expect(att.delegatedTo).toEqual(['mailto:d@x.com']);
+    expect(att.delegatedFrom).toEqual(['mailto:f@x.com']);
+    expect(att.sentBy).toBe('mailto:s@x.com');
+    expect(att.scheduleAgent).toBe('CLIENT');
+    expect(att.extraParams).toEqual({ 'x-custom': 'keepme' });
+  });
+
+  it('re-emits the exact ATTENDEE line after a parse → build round-trip', () => {
+    const [event] = parseIcsObjects([{ ics: invitedIcs, href: '/cal/inv.ics' }], calMeta);
+    const ics = buildIcs({
+      ...base,
+      summary: 'Review',
+      attendees: event.attendees,
+      timezone: 'UTC',
+    });
+    // Long lines are folded per RFC 5545 — unfold before comparing content.
+    expect(ics.replace(/\r\n /g, '')).toContain(
+      'ATTENDEE;CUTYPE=RESOURCE;MEMBER="mailto:g1@x.com","mailto:g2@x.com";ROLE=OPT-PARTICIPANT;PARTSTAT=ACCEPTED;RSVP=FALSE;DELEGATED-TO="mailto:d@x.com";DELEGATED-FROM="mailto:f@x.com";SENT-BY="mailto:s@x.com";SCHEDULE-AGENT=CLIENT;X-CUSTOM=keepme;CN="Doe, Jane":mailto:jane@x.com\r\n',
+    );
+  });
+
+  it('keeps PARTSTAT=ACCEPTED instead of resetting invitees to NEEDS-ACTION', () => {
+    const serverIcs = invitedIcs.replace('X-CUSTOM=keepme;', '');
+    const [event] = parseIcsObjects([{ ics: serverIcs, href: '/cal/inv.ics' }], calMeta);
+    const ics = buildIcs({ ...base, attendees: event.attendees });
+    expect(ics).toContain('PARTSTAT=ACCEPTED');
+    expect(ics).not.toContain('PARTSTAT=NEEDS-ACTION');
+  });
+
+  it('emits a non-mailto cal-address verbatim instead of wrapping it in mailto:', () => {
+    const ics = buildIcs({
+      ...base,
+      attendees: [{ email: 'urn:uuid:abc-123', partstat: 'needs-action' }],
+    });
+    expect(ics).toContain('PARTSTAT=NEEDS-ACTION:urn:uuid:abc-123\r\n');
+    expect(ics).not.toContain('mailto:urn:uuid');
   });
 });
 
@@ -487,5 +609,52 @@ describe('VALARM generation', () => {
     const ics = buildIcs({ ...base, alarms: [] });
     const extras = extractExtraVeventLines(ics);
     expect(extras.join('\n')).not.toContain('X-NCM-ALARM-NONE');
+  });
+});
+
+describe('STATUS/TRANSP emission', () => {
+  it('emits STATUS when set to a non-default value', () => {
+    expect(buildIcs({ ...base, status: 'tentative' })).toContain('STATUS:TENTATIVE\r\n');
+    expect(buildIcs({ ...base, status: 'cancelled' })).toContain('STATUS:CANCELLED\r\n');
+    expect(buildAllDayIcs({ ...allDayBase, status: 'tentative' })).toContain('STATUS:TENTATIVE\r\n');
+  });
+
+  it('emits TRANSP only for transparent', () => {
+    expect(buildIcs({ ...base, transp: 'transparent' })).toContain('TRANSP:TRANSPARENT\r\n');
+    expect(buildAllDayIcs({ ...allDayBase, transp: 'transparent' })).toContain('TRANSP:TRANSPARENT\r\n');
+    expect(buildIcs({ ...base, transp: 'opaque' })).not.toContain('TRANSP');
+  });
+
+  it('emits nothing for RFC defaults or unset fields', () => {
+    for (const ics of [
+      buildIcs(base),
+      buildIcs({ ...base, status: 'confirmed', transp: 'opaque' }),
+      buildAllDayIcs(allDayBase),
+    ]) {
+      expect(ics).not.toContain('STATUS');
+      expect(ics).not.toContain('TRANSP');
+    }
+  });
+
+  it('writes them on exception VEVENTs', () => {
+    const ics = buildExceptionIcs({
+      ...base,
+      timezone: 'Europe/Paris',
+      recurrenceId: new Date('2026-08-26T12:00:00Z'),
+      status: 'cancelled',
+      transp: 'transparent',
+    });
+    expect(ics).toContain('STATUS:CANCELLED\r\n');
+    expect(ics).toContain('TRANSP:TRANSPARENT\r\n');
+  });
+
+  it('round-trips status/transp through the CalDAV parser', () => {
+    const ics = buildIcs({ ...base, status: 'tentative', transp: 'transparent' });
+    const [event] = parseIcsObjects(
+      [{ ics, href: '/cal/a.ics' }],
+      { calendarId: 'c1', accountId: 'a1', color: '#000' },
+    );
+    expect(event.status).toBe('tentative');
+    expect(event.transp).toBe('transparent');
   });
 });

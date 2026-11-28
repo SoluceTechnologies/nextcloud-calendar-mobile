@@ -2,11 +2,12 @@ import { Animated, ScrollView, StyleSheet, View } from 'react-native';
 
 import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ChevronsUpDown, Settings } from 'lucide-react-native';
+import { ChevronsUpDown, FileDown, Settings } from 'lucide-react-native';
 import { useTheme } from 'expo-router';
 
 import { AvatarImage } from '@/components/AvatarImage';
 import { AccountSwitcher } from '@/features/account/components/AccountSwitcher';
+import { usePickIcsFile } from '@/features/event/hooks/usePickIcsFile';
 import { Item, List, SectionHeader, Stack, Typography } from '@/ui/components';
 import type { Account, CalendarMeta } from '@/types';
 import { CALENDAR_GROUPS, calendarGroup } from '@/utils/calendars';
@@ -47,6 +48,7 @@ export function CalendarDrawer({
   const { colors } = useTheme();
   const { t } = useTranslation();
   const safeInsets = useSafeAreaInsets();
+  const pickIcsFile = usePickIcsFile();
   const groupTitles = {
     personal: t('calendar.drawerCalendars'),
     shared: t('calendar.drawerShared'),
@@ -144,6 +146,14 @@ export function CalendarDrawer({
               })}
             </Stack>
           )}
+          <List style={styles.footer}>
+            <Item
+              testID="drawer-import-ics"
+              leading={<FileDown size={20} color={colors.textSecondary} />}
+              title={t('calendar.importIcs')}
+              onPress={() => { onClose(); void pickIcsFile(); }}
+            />
+          </List>
         </ScrollView>
       </Animated.View>
     </>
@@ -161,4 +171,5 @@ const styles = StyleSheet.create({
   header: { paddingHorizontal: 12, paddingBottom: 20 },
   scroll: { flex: 1 },
   scrollContent: { paddingHorizontal: 12 },
+  footer: { marginTop: 24 },
 });

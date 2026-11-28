@@ -82,7 +82,8 @@
     },
     "drawerNoCalendars": "Aucun calendrier",
     "calendarNotifications": "Notifications de {{name}}",
-    "calendarVisibility": "Afficher {{name}}"
+    "calendarVisibility": "Afficher {{name}}",
+    "importIcs": "Importer un fichier .ics"
   },
   "event": {
     "titleLabel": "Titre *",
@@ -177,7 +178,35 @@
     "errorCreateFailed": "Échec de la création de l'événement",
     "errorUpdateFailed": "Échec de la mise à jour de l'événement",
     "errorDeleteFailed": "Échec de la suppression de l'événement",
-    "alerts": "Alertes"
+    "alerts": "Alertes",
+    "availability": "Disponibilité",
+    "availabilityBusy": "Occupé",
+    "availabilityFree": "Libre",
+    "status": "Statut",
+    "statusConfirmed": "Confirmé",
+    "statusTentative": "Provisoire",
+    "statusCancelled": "Annulé"
+  },
+  "import": {
+    "title": "Importer un événement",
+    "selectEvent": "Sélectionnez un événement à importer",
+    "noEventsFound": "Aucun événement trouvé dans ce fichier.",
+    "fileError": "Impossible de lire le fichier.",
+    "parseError": "Impossible d'analyser le fichier .ics.",
+    "importEvent": "Importer l'événement",
+    "retry": "Réessayer",
+    "back": "Retour",
+    "errorNoAccount": "Veuillez d'abord configurer un compte Nextcloud.",
+    "untitledEvent": "(Sans titre)",
+    "duplicateTitle": "Événement déjà existant",
+    "duplicateMessage": "Un événement avec cet identifiant existe déjà dans le calendrier sélectionné. L'import l'écrasera.",
+    "overwrite": "Écraser",
+    "importAll": "Tout importer ({{count}})",
+    "importing": "Import en cours…",
+    "duplicateAllMessage": "Certains événements existent déjà dans le calendrier sélectionné.",
+    "skipExisting": "Ignorer les existants",
+    "importAllFailedTitle": "Import incomplet",
+    "importAllFailed": "{{count}} événement(s) sur {{total}} n'ont pas pu être importés."
   },
   "settings": {
     "title": "Paramètres",

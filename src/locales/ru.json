@@ -82,7 +82,8 @@
     },
     "drawerNoCalendars": "Нет календарей",
     "calendarNotifications": "Уведомления календаря «{{name}}»",
-    "calendarVisibility": "Показывать «{{name}}»"
+    "calendarVisibility": "Показывать «{{name}}»",
+    "importIcs": "Импорт файла .ics"
   },
   "event": {
     "titleLabel": "Название *",
@@ -177,7 +178,35 @@
     "errorCreateFailed": "Не удалось создать событие",
     "errorUpdateFailed": "Не удалось обновить событие",
     "errorDeleteFailed": "Не удалось удалить событие",
-    "alerts": "Напоминания"
+    "alerts": "Напоминания",
+    "availability": "Доступность",
+    "availabilityBusy": "Занят",
+    "availabilityFree": "Свободен",
+    "status": "Статус",
+    "statusConfirmed": "Подтверждено",
+    "statusTentative": "Предварительно",
+    "statusCancelled": "Отменено"
+  },
+  "import": {
+    "title": "Import Event",
+    "selectEvent": "Select an event to import",
+    "noEventsFound": "No events found in this file.",
+    "fileError": "Could not read the file.",
+    "parseError": "Could not parse the .ics file.",
+    "importEvent": "Import Event",
+    "retry": "Retry",
+    "back": "Back",
+    "errorNoAccount": "Please set up a Nextcloud account first.",
+    "untitledEvent": "(No title)",
+    "duplicateTitle": "Event already exists",
+    "duplicateMessage": "An event with this identifier already exists in the selected calendar. Importing will overwrite it.",
+    "overwrite": "Overwrite",
+    "importAll": "Импортировать все ({{count}})",
+    "importing": "Импорт…",
+    "duplicateAllMessage": "Некоторые события уже есть в выбранном календаре.",
+    "skipExisting": "Пропустить существующие",
+    "importAllFailedTitle": "Импорт не завершён",
+    "importAllFailed": "Не удалось импортировать {{count}} из {{total}} событий."
   },
   "settings": {
     "title": "Настройки",

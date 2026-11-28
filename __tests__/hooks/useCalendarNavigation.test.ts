@@ -1,3 +1,4 @@
+import { AppState } from 'react-native';
 import { renderHook, act } from '@testing-library/react-native';
 import { useCalendarNavigation } from '../../src/features/calendar/hooks/useCalendarNavigation';
 import { useCalendarStore } from '@/stores/calendarStore';
@@ -127,5 +128,41 @@ describe('useCalendarNavigation', () => {
     expect(result.current.date).toEqual(tappedDay);
     expect(result.current.anchorDate).toEqual(tappedDay);
     expect(useCalendarStore.getState().viewMode).toBe('day');
+  });
+
+  it('foregrounding after a day rollover jumps back to today', () => {
+    let listener: ((state: string) => void) | undefined;
+    jest.spyOn(AppState, 'addEventListener').mockImplementation((_t, cb) => {
+      listener = cb as (state: string) => void;
+      return { remove: jest.fn() } as never;
+    });
+    jest.setSystemTime(new Date('2026-11-14T10:00:00Z'));
+    const { result } = renderHook(() => useCalendarNavigation());
+    act(() => { result.current.onPageChange(new Date('2026-11-14T10:00:00Z')); });
+
+    jest.setSystemTime(new Date('2026-11-15T09:00:00Z'));
+    act(() => { listener?.('active'); });
+
+    expect(result.current.date.toDateString()).toBe(new Date('2026-11-15T09:00:00Z').toDateString());
+    jest.restoreAllMocks();
+  });
+
+  it('foregrounding the same day keeps the browsed date', () => {
+    let listener: ((state: string) => void) | undefined;
+    jest.spyOn(AppState, 'addEventListener').mockImplementation((_t, cb) => {
+      listener = cb as (state: string) => void;
+      return { remove: jest.fn() } as never;
+    });
+    jest.setSystemTime(new Date('2026-11-14T10:00:00Z'));
+    const { result } = renderHook(() => useCalendarNavigation());
+    const browsed = new Date('2026-12-20T10:00:00Z');
+    act(() => { result.current.onPageChange(browsed); });
+
+    jest.setSystemTime(new Date('2026-11-14T18:00:00Z'));
+    act(() => { listener?.('background'); });
+    act(() => { listener?.('active'); });
+
+    expect(result.current.date).toBe(browsed);
+    jest.restoreAllMocks();
   });
 });

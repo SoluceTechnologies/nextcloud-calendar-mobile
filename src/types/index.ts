@@ -28,6 +28,18 @@ export type CalendarMeta = {
 export type Attendee = {
     email: string;
     displayName?: string;
+    partstat?: string;
+    role?: string;
+    rsvp?: boolean;
+    cutype?: string;
+    member?: string[];
+    delegatedTo?: string[];
+    delegatedFrom?: string[];
+    sentBy?: string;
+    scheduleAgent?: string;
+    scheduleStatus?: string;
+    scheduleForceSend?: string;
+    extraParams?: Record<string, string | string[]>;
 };
 
 export type RecurrenceFreq = 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'YEARLY';
@@ -47,6 +59,10 @@ export type RecurrenceEditScope = 'this' | 'thisAndFollowing' | 'all';
 export type TalkRoomType = 'public' | 'private';
 
 export type TalkOpenMode = 'app' | 'browser' | 'ask';
+
+export type EventTransp = 'opaque' | 'transparent';
+
+export type EventStatus = 'confirmed' | 'tentative' | 'cancelled';
 
 export type CalendarEvent = {
     uid: string;
@@ -69,6 +85,8 @@ export type CalendarEvent = {
     alarms?: number[];
     isTask?: boolean;
     readOnly?: boolean;
+    transp?: EventTransp;
+    status?: EventStatus;
 };
 
 export type CreateEventInput = {
@@ -86,6 +104,10 @@ export type CreateEventInput = {
     organizerName: string;
     rrule?: RecurrenceRule;
     alarms?: number[];
+    uid?: string;
+    extraLines?: string[];
+    transp?: EventTransp;
+    status?: EventStatus;
 };
 
 export type CalendarAppStatus = 'unknown' | 'available' | 'unconfigured';

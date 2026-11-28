@@ -58,3 +58,41 @@ describe('settleAll', () => {
     expect(result.failures).toEqual([a, b]);
   });
 });
+
+describe('settleAll concurrency', () => {
+  it('limits the number of tasks running at once while preserving indexes', async () => {
+    let running = 0;
+    let maxRunning = 0;
+    const tasks = Array.from({ length: 6 }, (_, index) => async () => {
+      running += 1;
+      maxRunning = Math.max(maxRunning, running);
+      await Promise.resolve();
+      running -= 1;
+      return [index];
+    });
+
+    const result = await settleAll(tasks, 2);
+
+    expect(maxRunning).toBe(2);
+    expect(result.values).toEqual([0, 1, 2, 3, 4, 5]);
+    expect(result.fulfilledIndexes).toEqual([0, 1, 2, 3, 4, 5]);
+    expect(result.failures).toEqual([]);
+  });
+
+  it('continues later tasks after a failure', async () => {
+    const started: number[] = [];
+    const tasks = [0, 1, 2].map((index) => async () => {
+      started.push(index);
+      await Promise.resolve();
+      if (index === 0) throw new Error('boom');
+      return [index];
+    });
+
+    const result = await settleAll(tasks, 1);
+
+    expect(started).toEqual([0, 1, 2]);
+    expect(result.values).toEqual([1, 2]);
+    expect(result.fulfilledIndexes).toEqual([1, 2]);
+    expect(result.failures).toHaveLength(1);
+  });
+});

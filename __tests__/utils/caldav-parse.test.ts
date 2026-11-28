@@ -1,4 +1,4 @@
-import { parseIcsObjects, parseIcsObjectsAsync, extractDtstartDtend } from '@/utils/caldav-parse';
+import { parseIcsObjects, parseIcsObjectsAsync, extractDtstartDtend, extractExtraVeventLines } from '@/utils/caldav-parse';
 import { buildAllDayIcs } from '@/utils/ics';
 
 const sampleIcs = `BEGIN:VCALENDAR
@@ -684,6 +684,31 @@ END:VCALENDAR`;
     const events = parseIcsObjects([{ ics: deckCardNoDate, href: '/deck/nd.ics' }], calMeta);
     expect(events).toHaveLength(0);
   });
+
+  it('marks a VTODO with RRULE as recurring and keeps the raw rule', () => {
+    const ics = `BEGIN:VCALENDAR
+VERSION:2.0
+BEGIN:VTODO
+UID:weekly-report
+SUMMARY:Weekly report
+DTSTART:20260817T090000Z
+DUE:20260817T100000Z
+RRULE:FREQ=WEEKLY;INTERVAL=2;BYDAY=MO,FR
+END:VTODO
+END:VCALENDAR`;
+    const events = parseIcsObjects([{ ics, href: '/tasks/wr.ics' }], calMeta);
+    expect(events).toHaveLength(1);
+    const e = events[0];
+    expect(e.isTask).toBe(true);
+    expect(e.isRecurring).toBe(true);
+    expect(e.rrule).toBe('RRULE:FREQ=WEEKLY;INTERVAL=2;BYDAY=MO,FR');
+  });
+
+  it('leaves rrule undefined and isRecurring false on a plain VTODO', () => {
+    const events = parseIcsObjects([{ ics: deckCardTimed, href: '/deck/42.ics' }], calMeta);
+    expect(events[0].isRecurring).toBe(false);
+    expect(events[0].rrule).toBeUndefined();
+  });
 });
 
 describe('a deleted occurrence stays deleted', () => {
@@ -824,5 +849,76 @@ END:VCALENDAR`;
     );
     expect(Date.now() - started).toBeLessThan(3000);
     expect(events).toEqual([]);
+  });
+});
+
+describe('TRANSP/STATUS parsing', () => {
+  const calMeta = { calendarId: 'cal-1', accountId: 'acc-1', color: '#0082c9' };
+  const withProps = (props: string) => sampleIcs.replace('END:VEVENT', `${props}\nEND:VEVENT`);
+  const parseOne = (props: string) =>
+    parseIcsObjects([{ ics: withProps(props), href: '/cal/e.ics' }], calMeta)[0];
+
+  it('keeps valid TRANSP and STATUS values', () => {
+    const event = parseOne('TRANSP:TRANSPARENT\nSTATUS:TENTATIVE');
+    expect(event.transp).toBe('transparent');
+    expect(event.status).toBe('tentative');
+  });
+
+  it('normalizes values to lowercase', () => {
+    const event = parseOne('TRANSP:Opaque\nSTATUS:Cancelled');
+    expect(event.transp).toBe('opaque');
+    expect(event.status).toBe('cancelled');
+  });
+
+  it('drops values outside the event unions', () => {
+    const event = parseOne('TRANSP:TRANSPARENT-ISH\nSTATUS:NEEDS-ACTION');
+    expect(event.transp).toBeUndefined();
+    expect(event.status).toBeUndefined();
+  });
+
+  it('leaves both fields undefined when the props are absent', () => {
+    const [event] = parseIcsObjects([{ ics: sampleIcs, href: '/cal/e.ics' }], calMeta);
+    expect(event.transp).toBeUndefined();
+    expect(event.status).toBeUndefined();
+  });
+
+  it('lets a RECURRENCE-ID override carry its own values over the master ones', () => {
+    const ics = [
+      'BEGIN:VCALENDAR', 'VERSION:2.0',
+      'BEGIN:VEVENT',
+      'UID:series-1', 'SUMMARY:Standup',
+      'DTSTART:20260729T133000Z', 'DTEND:20260729T140000Z',
+      'RRULE:FREQ=WEEKLY;COUNT=2',
+      'TRANSP:OPAQUE', 'STATUS:CONFIRMED',
+      'END:VEVENT',
+      'BEGIN:VEVENT',
+      'UID:series-1', 'SUMMARY:Standup',
+      'RECURRENCE-ID:20260729T133000Z',
+      'DTSTART:20260729T133000Z', 'DTEND:20260729T140000Z',
+      'TRANSP:TRANSPARENT', 'STATUS:CANCELLED',
+      'END:VEVENT',
+      'END:VCALENDAR',
+    ].join('\r\n');
+
+    const events = parseIcsObjects(
+      [{ ics, href: '/cal/s.ics' }],
+      calMeta,
+      new Date('2026-07-27T00:00:00Z'),
+      new Date('2026-08-24T00:00:00Z'),
+    );
+
+    const overridden = events.find((e) => e.dtstart.toISOString() === '2026-07-29T13:30:00.000Z')!;
+    expect(overridden.transp).toBe('transparent');
+    expect(overridden.status).toBe('cancelled');
+
+    const plain = events.find((e) => e.dtstart.toISOString() === '2026-08-05T13:30:00.000Z')!;
+    expect(plain.transp).toBe('opaque');
+    expect(plain.status).toBe('confirmed');
+  });
+
+  it('does not preserve server STATUS/TRANSP as extra lines on rewrite', () => {
+    const extras = extractExtraVeventLines(withProps('TRANSP:TRANSPARENT\nSTATUS:CANCELLED'));
+    expect(extras.join('\n')).not.toContain('TRANSP');
+    expect(extras.join('\n')).not.toContain('STATUS');
   });
 });

@@ -38,6 +38,23 @@ function applyPatch(row: Event, patch: Partial<CalendarEvent>): void {
     row.alarms = serializeAlarms(patch.alarms);
     row.alarmMinutes = patch.alarms?.[0] ?? undefined;
   }
+  if (patch.transp !== undefined) row.transp = patch.transp;
+  if (patch.status !== undefined) row.status = patch.status;
+}
+
+export async function eventExists(
+  accountId: string,
+  calendarId: string,
+  uid: string,
+): Promise<boolean> {
+  const count = await events()
+    .query(
+      Q.where('account_id', accountId),
+      Q.where('calendar_id', calendarId),
+      Q.where('uid', uid),
+    )
+    .fetchCount();
+  return count > 0;
 }
 
 export async function insertEvents(list: CalendarEvent[]): Promise<void> {

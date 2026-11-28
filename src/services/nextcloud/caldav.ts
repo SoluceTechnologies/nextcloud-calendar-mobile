@@ -34,6 +34,7 @@ const NAMED_XML_ENTITIES: Record<string, string> = {
 };
 
 export function decodeXmlEntities(input: string): string {
+  if (!input.includes('&')) return input;
   return input.replace(/&(#x[0-9a-fA-F]+|#[0-9]+|[a-zA-Z]+);/g, (match, entity) => {
     if (entity[0] === '#') {
       const code =
@@ -357,9 +358,19 @@ export async function fetchEvents(
 ): Promise<CalendarEvent[]> {
     if (calendar.isSubscribed && calendar.sourceUrl) {
         const sourceUrl = calendar.sourceUrl.replace(/^webcals?:\/\//i, 'https://');
-        const r = await trustedFetch(sourceUrl, { timeoutMs: 20000 });
+        let sameOrigin = false;
+        try {
+            sameOrigin = new URL(sourceUrl).origin === new URL(account.baseUrl).origin;
+        } catch { /* unparseable URL: anonymous fetch */ }
+        const r = await trustedFetch(sourceUrl, {
+            timeoutMs: 20000,
+            headers: sameOrigin ? { Authorization: basicAuth(account) } : undefined,
+        });
         if (!r.ok) throw new Error(`fetchSubscribed HTTP ${r.status}`);
         const icsText = await r.text();
+        if (!icsText.replace(/^\uFEFF/, '').trimStart().toUpperCase().startsWith('BEGIN:VCALENDAR')) {
+            throw new Error(`fetchSubscribed ${calendar.slug}: source is not an ICS feed`);
+        }
         const parsed = await parseIcsObjectsAsync(
             [{ ics: icsText, href: calendar.sourceUrl }],
             { calendarId: calendar.id, accountId: account.id, color: calendar.color },
@@ -399,6 +410,7 @@ export async function fetchEventsForCalendars(
 ): Promise<CalendarFetchOutcome> {
   const { values, failures, fulfilledIndexes } = await settleAll(
     calendars.map((cal) => () => fetchEvents(account, cal, start, end)),
+    3,
   );
   return {
     events: values,
@@ -416,13 +428,17 @@ export async function fetchEventIcs(account: Account, href: string): Promise<str
   return res.text();
 }
 
+export function buildEventHref(calendar: CalendarMeta, uid: string): string {
+  return `${calendar.url}${encodeURIComponent(uid)}.ics`;
+}
+
 export async function putEvent(
   account: Account,
   calendar: CalendarMeta,
   uid: string,
   ics: string
 ): Promise<void> {
-  const url = `${calendar.url}${uid}.ics`;
+  const url = buildEventHref(calendar, uid);
   const res = await davFetch(url, account, {
     method: 'PUT',
     headers: { 'Content-Type': 'text/calendar; charset=utf-8' },
@@ -458,7 +474,7 @@ export async function moveEvent(
   targetCalendar: CalendarMeta,
   uid: string
 ): Promise<void> {
-  const destination = `${targetCalendar.url}${uid}.ics`;
+  const destination = buildEventHref(targetCalendar, uid);
   const res = await davFetch(fromHref, account, {
     method: 'MOVE',
     headers: { Destination: destination, Overwrite: 'T' },
@@ -480,6 +496,7 @@ export async function deleteEvent(
 }
 
 export const MULTIGET_BATCH = 50;
+const MULTIGET_CONCURRENCY = 3;
 
 function toPath(absHref: string): string {
   try {
@@ -505,8 +522,8 @@ export async function fetchEventsByHrefs(
   if (hrefs.length === 0) return { events: [], returnedHrefs };
 
   const out: CalendarEvent[] = [];
-  for (let i = 0; i < hrefs.length; i += MULTIGET_BATCH) {
-    const batch = hrefs.slice(i, i + MULTIGET_BATCH);
+
+  const fetchBatch = async (batch: string[]): Promise<CalendarEvent[]> => {
     const hrefEls = batch.map((h) => `<d:href>${toPath(h)}</d:href>`).join('');
     const body = `<?xml version="1.0"?>
 <c:calendar-multiget xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav">
@@ -532,12 +549,22 @@ export async function fetchEventsByHrefs(
       }
     }
 
-    const parsed = await parseIcsObjectsAsync(
+    return parseIcsObjectsAsync(
       items,
       { calendarId: calendar.id, accountId: account.id, color: calendar.color },
       rangeStart, rangeEnd,
     );
-    out.push(...parsed);
+  };
+
+  for (let i = 0; i < hrefs.length; i += MULTIGET_BATCH * MULTIGET_CONCURRENCY) {
+    const windowTasks: Promise<CalendarEvent[]>[] = [];
+    for (let j = 0; j < MULTIGET_CONCURRENCY; j++) {
+      const start = i + j * MULTIGET_BATCH;
+      if (start >= hrefs.length) break;
+      windowTasks.push(fetchBatch(hrefs.slice(start, start + MULTIGET_BATCH)));
+    }
+    const results = await Promise.all(windowTasks);
+    for (const r of results) out.push(...r);
   }
   return { events: out, returnedHrefs };
 }

@@ -10,7 +10,6 @@ import Event from './models/Event';
 
 function rowKey(r: Event): string {
   return JSON.stringify([
-    r.id,
     r.accountId,
     r.calendarId,
     r.uid,
@@ -29,7 +28,10 @@ function rowKey(r: Event): string {
     r.rrule ?? null,
     r.recurrenceId ?? null,
     r.alarmMinutes ?? null,
+    r.alarms ?? null,
     !!r.isTask,
+    r.transp ?? null,
+    r.status ?? null,
   ]);
 }
 

@@ -82,7 +82,8 @@
     },
     "drawerNoCalendars": "No calendar",
     "calendarNotifications": "Notifications for {{name}}",
-    "calendarVisibility": "Show {{name}}"
+    "calendarVisibility": "Show {{name}}",
+    "importIcs": "Import .ics file"
   },
   "event": {
     "titleLabel": "Title *",
@@ -177,7 +178,35 @@
     "errorCreateFailed": "Failed to create event",
     "errorUpdateFailed": "Failed to update event",
     "errorDeleteFailed": "Failed to delete event",
-    "alerts": "Alerts"
+    "alerts": "Alerts",
+    "availability": "Availability",
+    "availabilityBusy": "Busy",
+    "availabilityFree": "Free",
+    "status": "Status",
+    "statusConfirmed": "Confirmed",
+    "statusTentative": "Tentative",
+    "statusCancelled": "Cancelled"
+  },
+  "import": {
+    "title": "Import Event",
+    "selectEvent": "Select an event to import",
+    "noEventsFound": "No events found in this file.",
+    "fileError": "Could not read the file.",
+    "parseError": "Could not parse the .ics file.",
+    "importEvent": "Import Event",
+    "retry": "Retry",
+    "back": "Back",
+    "errorNoAccount": "Please set up a Nextcloud account first.",
+    "untitledEvent": "(No title)",
+    "duplicateTitle": "Event already exists",
+    "duplicateMessage": "An event with this identifier already exists in the selected calendar. Importing will overwrite it.",
+    "overwrite": "Overwrite",
+    "importAll": "Import all ({{count}})",
+    "importing": "Importing…",
+    "duplicateAllMessage": "Some events already exist in the selected calendar.",
+    "skipExisting": "Skip existing",
+    "importAllFailedTitle": "Import incomplete",
+    "importAllFailed": "{{count}} of {{total}} events could not be imported."
   },
   "settings": {
     "title": "Settings",

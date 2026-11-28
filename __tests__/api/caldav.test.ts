@@ -1,4 +1,4 @@
-import { deleteEvent, moveEvent, syncCollection, fetchEvents, fetchEventsByHrefs, fetchCalendars, validateCredentials, MULTIGET_BATCH } from '../../src/services/nextcloud/caldav';
+import { deleteEvent, moveEvent, syncCollection, fetchEvents, fetchEventsByHrefs, fetchCalendars, validateCredentials, MULTIGET_BATCH, buildEventHref } from '../../src/services/nextcloud/caldav';
 import type { Account, CalendarMeta } from '../../src/types';
 
 const account: Account = {
@@ -736,5 +736,70 @@ describe('fetchEvents — subscribed feed with unstable UIDs', () => {
     const events = await fetchEvents(account, subscribed, range.s, range.e);
     expect(events).toHaveLength(2);
     expect(new Set(events.map((e) => e.uid)).size).toBe(2);
+  });
+
+  it('rejects a 200 HTML body (share page link stored as cs:source)', async () => {
+    mockFetch.mockResolvedValue({
+      ok: true,
+      status: 200,
+      text: async () => '<!DOCTYPE html><html><head><title>Calendar</title></head><body></body></html>',
+    });
+    await expect(fetchEvents(account, subscribed, range.s, range.e))
+      .rejects.toThrow(/fetchSubscribed/);
+  });
+
+  it('rejects an error status instead of treating the calendar as synced', async () => {
+    mockFetch.mockResolvedValue({ ok: false, status: 404, text: async () => '' });
+    await expect(fetchEvents(account, subscribed, range.s, range.e))
+      .rejects.toThrow(/fetchSubscribed HTTP 404/);
+  });
+
+  it('accepts a feed that starts with a UTF-8 BOM or leading whitespace', async () => {
+    const ics = [
+      'BEGIN:VCALENDAR', 'VERSION:2.0',
+      'BEGIN:VEVENT', 'UID:b1', 'DTSTART;VALUE=DATE:20260902', 'SUMMARY:Gelbe Tonne', 'END:VEVENT',
+      'END:VCALENDAR',
+    ].join('\r\n');
+    mockFetch.mockResolvedValue({ ok: true, status: 200, text: async () => '\uFEFF  ' + ics });
+    const events = await fetchEvents(account, subscribed, range.s, range.e);
+    expect(events).toHaveLength(1);
+  });
+
+  it('sends the account credentials only for a same-origin feed URL', async () => {
+    const privateSource: CalendarMeta = {
+      ...subscribed,
+      sourceUrl: 'https://cloud.example.com/remote.php/dav/public-calendars/token?export',
+    };
+    mockFetch.mockResolvedValue({ ok: true, status: 200, text: async () => feed('p1') });
+    await fetchEvents(account, privateSource, range.s, range.e);
+    expect(mockFetch).toHaveBeenLastCalledWith(
+      'https://cloud.example.com/remote.php/dav/public-calendars/token?export',
+      expect.objectContaining({
+        headers: expect.objectContaining({ Authorization: 'Basic ' + Buffer.from('john:xxxx').toString('base64') }),
+      }),
+    );
+  });
+
+  it('does not leak credentials to a third-party feed host', async () => {
+    mockFetch.mockResolvedValue({ ok: true, status: 200, text: async () => feed('e1') });
+    await fetchEvents(account, subscribed, range.s, range.e);
+    const [, init] = mockFetch.mock.calls.at(-1)!;
+    expect(init.headers?.Authorization).toBeUndefined();
+  });
+});
+
+describe('buildEventHref', () => {
+  it('encodes UIDs with reserved URL characters', () => {
+    const href = buildEventHref(targetCalendar, 'uid-with@host:part');
+    expect(href).toBe(
+      'https://cloud.example.com/remote.php/dav/calendars/john/work/uid-with%40host%3Apart.ics',
+    );
+  });
+
+  it('leaves plain UUID UIDs unchanged', () => {
+    const href = buildEventHref(targetCalendar, 'plain-uid-123');
+    expect(href).toBe(
+      'https://cloud.example.com/remote.php/dav/calendars/john/work/plain-uid-123.ics',
+    );
   });
 });

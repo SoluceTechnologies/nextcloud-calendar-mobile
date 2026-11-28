@@ -1,5 +1,5 @@
 import ICAL from 'ical.js';
-import type { CalendarEvent, Attendee } from '@/types';
+import type { CalendarEvent, Attendee, EventStatus, EventTransp } from '@/types';
 import { yieldToUI } from '@/utils/scheduling';
 import { isValidTimeZone, zonedWallTimeToUtc } from '@/utils/timezone';
 import { NO_ALARM_PROP, triggerToMinutes } from '@/features/notifications/alerts';
@@ -56,17 +56,52 @@ export function alarmMinutesList(vevent: ICAL.Component): number[] | undefined {
   return [...new Set(minutes)].sort((a, b) => b - a);
 }
 
+const KNOWN_ATTENDEE_PARAMS = new Set([
+  'cn', 'cutype', 'member', 'role', 'partstat', 'rsvp', 'delegated-to', 'delegated-from',
+  'sent-by', 'schedule-agent', 'schedule-status', 'schedule-force-send',
+]);
+
+function paramString(prop: ICAL.Property, name: string): string | undefined {
+  const value = prop.getParameter(name) as string | string[] | undefined;
+  return typeof value === 'string' ? value : undefined;
+}
+
+function paramList(prop: ICAL.Property, name: string): string[] | undefined {
+  const value = prop.getParameter(name) as string | string[] | undefined;
+  if (Array.isArray(value)) return value.length ? value.map(String) : undefined;
+  return typeof value === 'string' ? [value] : undefined;
+}
+
 function readAttendees(props: ICAL.Property[]): Attendee[] {
   const seen = new Set<string>();
   const attendees: Attendee[] = [];
   for (const prop of props) {
     const value = (prop.getFirstValue() as string) ?? '';
     const email = value.replace(/^mailto:/i, '');
-    const displayName = (prop.getParameter('cn') as string) ?? undefined;
     const key = email.toLowerCase();
     if (email && seen.has(key)) continue;
     if (email) seen.add(key);
-    attendees.push({ email, displayName });
+    const jcalParams = (prop.toJSON()[1] ?? {}) as Record<string, string | string[]>;
+    const extraParams = Object.fromEntries(
+      Object.entries(jcalParams).filter(([name]) => !KNOWN_ATTENDEE_PARAMS.has(name)),
+    );
+    const rsvp = paramString(prop, 'rsvp');
+    attendees.push({
+      email,
+      displayName: paramString(prop, 'cn'),
+      partstat: paramString(prop, 'partstat')?.toLowerCase(),
+      role: paramString(prop, 'role'),
+      rsvp: rsvp === undefined ? undefined : rsvp.toUpperCase() === 'TRUE',
+      cutype: paramString(prop, 'cutype'),
+      member: paramList(prop, 'member'),
+      delegatedTo: paramList(prop, 'delegated-to'),
+      delegatedFrom: paramList(prop, 'delegated-from'),
+      sentBy: paramString(prop, 'sent-by'),
+      scheduleAgent: paramString(prop, 'schedule-agent'),
+      scheduleStatus: paramString(prop, 'schedule-status'),
+      scheduleForceSend: paramString(prop, 'schedule-force-send'),
+      ...(Object.keys(extraParams).length ? { extraParams } : {}),
+    });
   }
   return attendees;
 }
@@ -78,8 +113,22 @@ function organizerEmailOf(vevent: ICAL.Component): string | undefined {
 
 type OverridableFields = Pick<
   CalendarEvent,
-  'summary' | 'description' | 'location' | 'talkUrl' | 'attendees' | 'organizerEmail' | 'alarms'
+  'summary' | 'description' | 'location' | 'talkUrl' | 'attendees' | 'organizerEmail' | 'alarms' | 'transp' | 'status'
 >;
+
+const EVENT_TRANSP_VALUES: readonly EventTransp[] = ['opaque', 'transparent'];
+const EVENT_STATUS_VALUES: readonly EventStatus[] = ['confirmed', 'tentative', 'cancelled'];
+
+function enumProp<T extends string>(
+  vevent: ICAL.Component,
+  name: string,
+  allowed: readonly T[],
+): T | undefined {
+  const raw = vevent.getFirstPropertyValue(name);
+  if (typeof raw !== 'string') return undefined;
+  const value = raw.toLowerCase() as T;
+  return allowed.includes(value) ? value : undefined;
+}
 
 function exceptionFields(vevent: ICAL.Component): Partial<OverridableFields> {
   const fields: Partial<OverridableFields> = {};
@@ -103,6 +152,12 @@ function exceptionFields(vevent: ICAL.Component): Partial<OverridableFields> {
 
   const alarms = alarmMinutesList(vevent);
   if (alarms !== undefined) fields.alarms = alarms;
+
+  const transp = enumProp(vevent, 'transp', EVENT_TRANSP_VALUES);
+  if (transp) fields.transp = transp;
+
+  const status = enumProp(vevent, 'status', EVENT_STATUS_VALUES);
+  if (status) fields.status = status;
 
   return fields;
 }
@@ -169,7 +224,7 @@ function repairIcsFolding(ics: string): string {
   return out.join('\r\n');
 }
 
-function parseIcsToJcal(ics: string): ReturnType<typeof ICAL.parse> {
+export function parseIcsToJcal(ics: string): ReturnType<typeof ICAL.parse> {
   try {
     return ICAL.parse(ics);
   } catch {
@@ -217,6 +272,8 @@ function parseVtodo(
     dtend = new Date(dtstart.getTime() + DEFAULT_TODO_DURATION_MS);
   }
 
+  const rruleProp = vtodo.getFirstProperty('rrule');
+
   return {
     uid,
     href,
@@ -230,18 +287,22 @@ function parseVtodo(
     allDay,
     color: meta.color,
     attendees: [],
-    isRecurring: false,
+    isRecurring: !!rruleProp,
+    rrule: rruleProp ? rruleProp.toICALString() : undefined,
     alarms: alarmMinutesList(vtodo),
     isTask: true,
   };
 }
 
-export function parseIcsItem(
+const EXPANSION_CHECKPOINT_MS = 8;
+const CHECKPOINT_EVERY_ITERATIONS = 64;
+
+function* parseIcsItemGen(
   item: { ics: string; href: string },
   meta: ParseCalMeta,
   rangeStart?: Date,
   rangeEnd?: Date,
-): CalendarEvent[] {
+): Generator<void, CalendarEvent[], void> {
   const events: CalendarEvent[] = [];
   const { ics, href } = item;
 
@@ -297,6 +358,8 @@ export function parseIcsItem(
         isRecurring,
         rrule: rruleStr,
         alarms,
+        transp: enumProp(vevent, 'transp', EVENT_TRANSP_VALUES),
+        status: enumProp(vevent, 'status', EVENT_STATUS_VALUES),
       };
 
       if (isRecurring && (rangeStart || rangeEnd)) {
@@ -338,6 +401,10 @@ export function parseIcsItem(
         let iterations = 0;
         let nextTime: ICAL.Time;
 
+        const noExceptions = overrides.length === 0 && icalEvent.rangeExceptions.length === 0;
+        const seriesDuration = icalEvent.duration;
+
+        let checkpointAt = Date.now();
         while ((nextTime = iter.next()) && emitted < MAX_OCCURRENCES && iterations++ < MAX_ITERATIONS) {
           const slotStart = resolveInstant(nextTime, tzid);
           const slotMs = slotStart.getTime();
@@ -348,12 +415,24 @@ export function parseIcsItem(
 
           if (excluded.has(slotMs)) continue;
 
-          if (isOverridden(nextTime, overrideIds)) continue;
+          if (overrideIds.size > 0 && isOverridden(nextTime, overrideIds)) continue;
 
           if (canPrefilter && slotMs + durationMs <= rangeStartMs) continue;
 
-          const details = icalEvent.getOccurrenceDetails(nextTime);
-          if (pushOccurrence(nextTime, details.item, details.startDate, details.endDate)) emitted++;
+          if (noExceptions) {
+            const endTime = nextTime.clone();
+            endTime.addDuration(seriesDuration);
+            if (pushOccurrence(nextTime, undefined, nextTime, endTime)) emitted++;
+          } else {
+            const details = icalEvent.getOccurrenceDetails(nextTime);
+            if (pushOccurrence(nextTime, details.item, details.startDate, details.endDate)) emitted++;
+          }
+
+          if ((iterations & (CHECKPOINT_EVERY_ITERATIONS - 1)) === 0
+              && Date.now() - checkpointAt >= EXPANSION_CHECKPOINT_MS) {
+            checkpointAt = Date.now();
+            yield;
+          }
         }
 
         for (const ex of overrides) {
@@ -374,6 +453,33 @@ export function parseIcsItem(
   }
 
   return events;
+}
+
+export function parseIcsItem(
+  item: { ics: string; href: string },
+  meta: ParseCalMeta,
+  rangeStart?: Date,
+  rangeEnd?: Date,
+): CalendarEvent[] {
+  const gen = parseIcsItemGen(item, meta, rangeStart, rangeEnd);
+  let step = gen.next();
+  while (!step.done) step = gen.next();
+  return step.value;
+}
+
+export async function parseIcsItemAsync(
+  item: { ics: string; href: string },
+  meta: ParseCalMeta,
+  rangeStart?: Date,
+  rangeEnd?: Date,
+): Promise<CalendarEvent[]> {
+  const gen = parseIcsItemGen(item, meta, rangeStart, rangeEnd);
+  let step = gen.next();
+  while (!step.done) {
+    await yieldToUI();
+    step = gen.next();
+  }
+  return step.value;
 }
 
 export function extractDtstartTzid(ics: string): string | undefined {
@@ -409,16 +515,23 @@ export function extractSequence(ics: string): number {
 const WRITER_MANAGED_PROPS = new Set([
   'uid', 'dtstamp', 'sequence', 'dtstart', 'dtend', 'summary', 'description',
   'location', 'rrule', 'organizer', 'attendee', 'recurrence-id', 'last-modified', 'prodid',
+  'transp', 'status',
   NO_ALARM_PROP.toLowerCase(),
 ]);
 
-export function extractExtraVeventLines(ics: string): string[] {
+export function extractExtraVeventLines(ics: string, targetUid?: string): string[] {
   try {
     const comp = new ICAL.Component(parseIcsToJcal(ics));
     const vevents = comp.getAllSubcomponents('vevent');
     if (vevents.length === 0) return [];
     const master =
-      vevents.find((v: ICAL.Component) => !v.getFirstPropertyValue('recurrence-id')) ?? vevents[0];
+      vevents.find((v: ICAL.Component) => {
+        if (v.getFirstPropertyValue('recurrence-id')) return false;
+        if (!targetUid) return true;
+        const uid = v.getFirstPropertyValue('uid');
+        return uid === targetUid;
+      }) ??
+      vevents[0];
     return master
       .getAllProperties()
       .filter((p: ICAL.Property) => !WRITER_MANAGED_PROPS.has(p.name))
@@ -456,11 +569,11 @@ export async function parseIcsObjectsAsync(
   for (let i = 0; i < items.length; i += chunkSize) {
     const batch = items.slice(i, i + chunkSize);
     for (const item of batch) {
-      const parsed = parseIcsItem(item, meta, rangeStart, rangeEnd);
+      const parsed = await parseIcsItemAsync(item, meta, rangeStart, rangeEnd);
       if (parsed.length) events.push(...parsed);
     }
 
-    if (i + chunkSize < items.length || Date.now() - sliceStart >= frameBudgetMs) {
+    if (i + chunkSize < items.length && Date.now() - sliceStart >= frameBudgetMs) {
       await yieldToUI();
       sliceStart = Date.now();
     }
