@@ -323,6 +323,7 @@ const AgendaViewImpl = forwardRef<AgendaViewHandle, Props>(function AgendaView(
   const onVisibleRef = useRef(onVisibleDateChange);
   onVisibleRef.current = onVisibleDateChange;
   const onViewableItemsChanged = useCallback(({ viewableItems }: { viewableItems: ViewToken[] }) => {
+    if (!userScrollingRef.current) return;
     const row = viewableItems[0]?.item as Row | undefined;
     if (row) onVisibleRef.current?.(row.date);
   }, []);
@@ -349,7 +350,6 @@ const AgendaViewImpl = forwardRef<AgendaViewHandle, Props>(function AgendaView(
       initialNumToRender={20}
       maxToRenderPerBatch={16}
       windowSize={9}
-      removeClippedSubviews
       style={{ flex: 1, backgroundColor: theme.colors.background }}
       contentContainerStyle={{ paddingBottom: 80 }}
       onScroll={onScroll}
