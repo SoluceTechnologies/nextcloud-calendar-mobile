@@ -117,4 +117,4 @@ export type ServerCapabilities = {
     calendarApp: CalendarAppStatus;
 };
 
-export type ViewMode = 'month' | 'week' | '3days' | 'day' | 'schedule';
+export type ViewMode = 'month' | 'week' | 'workweek' | '3days' | 'day' | 'schedule';

@@ -133,7 +133,7 @@ export default function CalendarScreen() {
   const headerTitle = useMemo(() => {
     const d = dayjs(viewMode === 'schedule' ? agendaVisibleDate : date);
     const monthYear = d.locale(language).format('MMMM YYYY');
-    if (viewMode === 'week' || viewMode === '3days' || viewMode === 'day') {
+    if (viewMode === 'week' || viewMode === 'workweek' || viewMode === '3days' || viewMode === 'day') {
       return `${monthYear}  ·  ${t('calendar.weekAbbr')}${d.isoWeek()}`;
     }
     return monthYear;
