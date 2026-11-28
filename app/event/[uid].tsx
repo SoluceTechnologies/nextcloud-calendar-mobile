@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { View, StyleSheet, ScrollView, Alert, Text, Linking } from 'react-native';
+import { View, StyleSheet, ScrollView, Alert, Text, Linking, ActionSheetIOS, Platform } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
 import { haptic } from '@/utils/haptics';
 import {
   Pencil, Clock, CalendarDays, MapPin, Video, Repeat, Trash2, Copy, Check, Bell,
-  Navigation, Ban, Info, EyeOff, CopyPlus,
+  Navigation, Ban, Info, EyeOff, Ellipsis,
 } from 'lucide-react-native';
 import { useLocalSearchParams, useNavigation, useRouter, useTheme } from 'expo-router';
 import dayjs from 'dayjs';
@@ -160,6 +160,24 @@ export default function EventDetailScreen() {
     if (copyUid) router.push(`/event/${encodeURIComponent(copyUid)}`);
   }
 
+  function handleMoreActions() {
+    const duplicateLabel = t('event.duplicateEvent');
+    const cancelLabel = t('common.cancel');
+    if (Platform.OS === 'ios') {
+      ActionSheetIOS.showActionSheetWithOptions(
+        { options: [duplicateLabel, cancelLabel], cancelButtonIndex: 1 },
+        (buttonIndex) => {
+          if (buttonIndex === 0) void handleDuplicate();
+        },
+      );
+      return;
+    }
+    Alert.alert(event?.summary ?? '', undefined, [
+      { text: duplicateLabel, onPress: () => void handleDuplicate() },
+      { text: cancelLabel, style: 'cancel' },
+    ]);
+  }
+
   const recurrenceLabel = useMemo(() => {
     if (!event?.rrule || !event?.dtstart) return null;
     const rule = parseRrule(event.rrule);
@@ -235,9 +253,20 @@ export default function EventDetailScreen() {
         <ScreenHeader
           onBack={() => goBackOrHome(router)}
           right={canEdit ? (
-            <IconButton testID="event-detail-edit" glass round size={40} onPress={handleEdit} accessibilityLabel={t('event.edit')}>
-              <Pencil size={20} color={theme.colors.primary} />
-            </IconButton>
+            <View style={styles.headerActions}>
+              <IconButton
+                testID="event-detail-more"
+                glass round size={40}
+                onPress={handleMoreActions}
+                disabled={duplicateMutation.isPending || deleteMutation.isPending}
+                accessibilityLabel={t('event.moreActions')}
+              >
+                <Ellipsis size={20} color={theme.colors.primary} />
+              </IconButton>
+              <IconButton testID="event-detail-edit" glass round size={40} onPress={handleEdit} accessibilityLabel={t('event.edit')}>
+                <Pencil size={20} color={theme.colors.primary} />
+              </IconButton>
+            </View>
           ) : undefined}
         />
 
@@ -408,15 +437,6 @@ export default function EventDetailScreen() {
             style={[styles.footer, { paddingBottom: insets.bottom + 12, borderTopColor: theme.colors.border }]}
           >
             <Button
-              testID="event-detail-duplicate"
-              variant="ghost"
-              title={t('event.duplicateEvent')}
-              icon={<CopyPlus size={18} color={theme.colors.primary} />}
-              loading={duplicateMutation.isPending}
-              disabled={duplicateMutation.isPending || deleteMutation.isPending}
-              onPress={handleDuplicate}
-            />
-            <Button
               testID="event-detail-delete"
               variant="ghost" color="danger"
               title={t('event.deleteEvent')}
@@ -437,6 +457,7 @@ const styles = StyleSheet.create({
   colorBar: { height: 6 },
   content: { padding: 20 },
   footer: { borderTopWidth: StyleSheet.hairlineWidth },
+  headerActions: { flexDirection: 'row', gap: 8 },
   link: { textDecorationLine: 'underline' },
   cancelledTitle: { textDecorationLine: 'line-through', opacity: 0.5 },
 });

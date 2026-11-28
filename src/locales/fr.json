@@ -179,6 +179,7 @@
     "joinTalkRoom": "Rejoindre la salle Talk",
     "deleteEvent": "Supprimer l'événement",
     "duplicateEvent": "Dupliquer l'événement",
+    "moreActions": "Plus d'actions",
     "delete": "Supprimer",
     "allDayTime": "Toute la journée",
     "recurrenceScopeMessage": "Quels événements souhaitez-vous modifier ?",

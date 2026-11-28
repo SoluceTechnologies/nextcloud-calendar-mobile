@@ -3,7 +3,8 @@ appId: com.soluce.nextcloudcalendar
 - runFlow: ../shared/ensure-home.yaml
 - runFlow: ../shared/open-event.yaml
 - tapOn:
-    id: event-detail-duplicate
+    id: event-detail-more
+- tapOn: "Duplicate event"
 - extendedWaitUntil:
     visible:
       id: event-detail-delete

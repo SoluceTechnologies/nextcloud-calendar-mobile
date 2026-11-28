@@ -199,6 +199,7 @@
     "unitYears_one": "år",
     "unitYears_other": "år",
     "duplicateEvent": "Dupliker begivenhed",
+    "moreActions": "Flere handlinger",
     "errorDuplicateFailed": "Begivenheden kunne ikke duplikeres"
   },
   "import": {
