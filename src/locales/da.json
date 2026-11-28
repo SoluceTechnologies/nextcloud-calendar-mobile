@@ -197,7 +197,9 @@
     "unitMonths_one": "måned",
     "unitMonths_other": "måneder",
     "unitYears_one": "år",
-    "unitYears_other": "år"
+    "unitYears_other": "år",
+    "duplicateEvent": "Dupliker begivenhed",
+    "errorDuplicateFailed": "Begivenheden kunne ikke duplikeres"
   },
   "import": {
     "title": "Importér begivenhed",

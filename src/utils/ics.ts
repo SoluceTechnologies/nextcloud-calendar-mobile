@@ -365,3 +365,12 @@ export function truncateRruleUntil(masterIcs: string, newUntil: Date): string {
             .replace(/(RRULE:[^\r\n]*);(UNTIL|COUNT)=[^\r\n;]*/g, '$1')
             .replace(/(RRULE:[^\r\n]*)/, `$1;UNTIL=${utcStamp(newUntil)}`));
 }
+
+export function cloneEventIcs(ics: string, newUid: string, now: Date = new Date()): string {
+    const stamp = utcStamp(now);
+    return ics.replace(/BEGIN:VEVENT[\s\S]*?END:VEVENT/g, (block) =>
+        block
+            .replace(/^UID:[^\r\n]*(\r?\n[ \t][^\r\n]*)*/m, `UID:${newUid}`)
+            .replace(/^DTSTAMP[^\r\n]*/m, `DTSTAMP:${stamp}`)
+            .replace(/^SEQUENCE:[^\r\n]*/m, 'SEQUENCE:0'));
+}

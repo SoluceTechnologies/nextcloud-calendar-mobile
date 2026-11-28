@@ -197,7 +197,9 @@
     "unitMonths_one": "Mount",
     "unitMonths_other": "Méint",
     "unitYears_one": "Joer",
-    "unitYears_other": "Joer"
+    "unitYears_other": "Joer",
+    "duplicateEvent": "Evenement duplizéieren",
+    "errorDuplicateFailed": "Evenement konnt net duplizéiert ginn"
   },
   "import": {
     "title": "Evenement importéieren",
