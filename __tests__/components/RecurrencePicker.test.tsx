@@ -285,6 +285,79 @@ describe('RecurrencePicker frequency changes', () => {
   });
 });
 
+describe('RecurrencePicker interval', () => {
+  beforeEach(async () => {
+    await i18n.changeLanguage('en');
+  });
+
+  it('hides the interval row while the event does not repeat', () => {
+    const { queryByLabelText } = render(<Harness onChange={jest.fn()} />);
+    expect(queryByLabelText('Repeat interval')).toBeNull();
+  });
+
+  it('defaults the interval to 1 with the singular unit', () => {
+    const { getByLabelText, getByText } = render(
+      <Harness initial={{ freq: 'WEEKLY' }} onChange={jest.fn()} />
+    );
+    expect(getByLabelText('Repeat interval')).toBeTruthy();
+    expect(getByText('week')).toBeTruthy();
+  });
+
+  it('emits the typed interval', () => {
+    const onChange = jest.fn();
+    const { getByLabelText } = render(
+      <Harness initial={{ freq: 'WEEKLY' }} onChange={onChange} />
+    );
+
+    fireEvent.changeText(getByLabelText('Repeat interval'), '2');
+
+    expect(last(onChange)).toEqual({ freq: 'WEEKLY', interval: 2 });
+  });
+
+  it('pluralizes the unit for intervals above one', () => {
+    const { getByText } = render(
+      <Harness initial={{ freq: 'WEEKLY', interval: 2 }} onChange={jest.fn()} />
+    );
+    expect(getByText('weeks')).toBeTruthy();
+  });
+
+  it('rejects non-positive input and keeps the last valid interval', () => {
+    const onChange = jest.fn();
+    const { getByLabelText } = render(
+      <Harness initial={{ freq: 'WEEKLY', interval: 2 }} onChange={onChange} />
+    );
+
+    fireEvent.changeText(getByLabelText('Repeat interval'), '0');
+    fireEvent.changeText(getByLabelText('Repeat interval'), 'abc');
+
+    expect(onChange).not.toHaveBeenCalled();
+    expect(getByLabelText('Repeat interval').props.value).toBe('');
+  });
+
+  it('restores the stored interval when the field loses focus', () => {
+    const { getByLabelText } = render(
+      <Harness initial={{ freq: 'WEEKLY', interval: 3 }} onChange={jest.fn()} />
+    );
+
+    fireEvent.changeText(getByLabelText('Repeat interval'), '');
+    fireEvent(getByLabelText('Repeat interval'), 'onBlur');
+
+    expect(getByLabelText('Repeat interval').props.value).toBe('3');
+  });
+
+  it('resets the interval when the frequency changes', () => {
+    const onChange = jest.fn();
+    const { getByText } = render(
+      <Harness initial={{ freq: 'WEEKLY', interval: 2 }} onChange={onChange} />
+    );
+
+    fireEvent.press(getByText('Weekly'));
+    fireEvent.press(getByText('Monthly'));
+
+    expect(last(onChange)!.interval).toBe(1);
+  });
+});
+
 describe('RecurrencePicker advanced patterns', () => {
   beforeEach(async () => {
     await i18n.changeLanguage('en');
@@ -373,37 +446,37 @@ describe('RecurrencePicker advanced patterns', () => {
 
   it('updates the week number for a yearly week-number rule', () => {
     const onChange = jest.fn();
-    const { getByText, getByDisplayValue } = render(
+    const { getByLabelText } = render(
       <Harness initial={{ freq: 'YEARLY', byWeekNo: [1], byDay: ['MO'] }} onChange={onChange} />
     );
 
-    fireEvent.changeText(getByDisplayValue('1'), '31');
+    fireEvent.changeText(getByLabelText('Week number'), '31');
 
     expect(last(onChange)!.byWeekNo).toEqual([31]);
   });
 
   it('clamps week number between 1 and 53', () => {
     const onChange = jest.fn();
-    const { getByDisplayValue } = render(
+    const { getByLabelText } = render(
       <Harness initial={{ freq: 'YEARLY', byWeekNo: [1], byDay: ['MO'] }} onChange={onChange} />
     );
 
-    fireEvent.changeText(getByDisplayValue('1'), '99');
+    fireEvent.changeText(getByLabelText('Week number'), '99');
 
     expect(last(onChange)!.byWeekNo).toEqual([53]);
   });
 
   it('lets the week-number field be emptied and restores it on blur', () => {
     const onChange = jest.fn();
-    const { getByDisplayValue } = render(
+    const { getByLabelText } = render(
       <Harness initial={{ freq: 'YEARLY', byWeekNo: [1], byDay: ['MO'] }} onChange={onChange} />
     );
 
-    fireEvent.changeText(getByDisplayValue('1'), '');
-    expect(getByDisplayValue('')).toBeTruthy();
+    fireEvent.changeText(getByLabelText('Week number'), '');
+    expect(getByLabelText('Week number').props.value).toBe('');
 
-    fireEvent(getByDisplayValue(''), 'onBlur');
-    expect(getByDisplayValue('1')).toBeTruthy();
+    fireEvent(getByLabelText('Week number'), 'onBlur');
+    expect(getByLabelText('Week number').props.value).toBe('1');
     expect(onChange).not.toHaveBeenCalled();
   });
 });
